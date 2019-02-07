@@ -31,9 +31,9 @@ class MultiOutputGP(object):
             inputs = np.reshape(inputs, (1, inputs.shape[0], inputs.shape[1]))
             targets = np.reshape(targets, (1, len(targets)))
         elif not (len(inputs.shape) == 3 and len(targets.shape) == 2):
-            raise ValueError("inputs/targets must be 3D/2D or 2D/1D, respectively")
+            raise ValueError("inputs/targets must be 3D/2D or 2D/1D")
         if not (inputs.shape[0:2] == targets.shape[0:2]):
-            raise ValueError("inputs and targets must have the same first two dimentions")
+            raise ValueError("inputs and targets must have the same first two dimentions (or first dimension if 2D/1D input is used)")
 
         self.emulators = [ GaussianProcess(single_input, single_target)
                             for single_input, single_target in zip(inputs, targets)]
@@ -64,7 +64,27 @@ class MultiOutputGP(object):
         """
         Fit hyperparameters for each model
         """
-        pass
+        
+        assert int(n_tries) > 0, "n_tries must be a positive integer"
+        if not x0 is None:
+            x0 = np.array(x0)
+            assert len(x0) == self.D + 2, "x0 must have length of number of input parameters D + 2"
+        if not processes is None:
+            processes = int(processes)
+            assert processes > 0, "number of processes must be positive"
+        
+        n_tries = int(n_tries)
+        
+        p = Pool(processes)
+        l = p.starmap(GaussianProcess.learn_hyperparameters, [(gp, n_tries, verbose, x0) for gp in self.emulators])
+        
+        # re-evaluate log likelihood for each emulator to update current parameter values
+        # (needed because of how multiprocessing works -- the bulk of the work is done in
+        # parallel, but this step ensures that the results are gathered correctly for each
+        # emulator)
+        for emulator, (loglike, theta) in zip(self.emulators, l):
+            _ = emulator.loglikelihood(theta)
+        return l
         
     def predict(self, testing, do_deriv=True, do_unc=True, processes=None):
         """
