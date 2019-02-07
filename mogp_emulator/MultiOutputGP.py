@@ -9,7 +9,7 @@
 # code did not use the most efficient method for forming the covariance matrix, which
 # takes up the bulk of the time for fitting each emulator. Therefore, I suggest
 # using Jose's code for the time being, as it should give satisfactory performance
-# for the tsunami problem with 210 simulations and 14 parameters.
+# for small problems
 
 from multiprocessing import Pool
 import numpy as np
@@ -27,20 +27,20 @@ class MultiOutputGP(object):
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
         targets = np.array(targets)
-        if len(inputs.shape) == 2 and len(targets.shape) == 1:
-            inputs = np.reshape(inputs, (1, inputs.shape[0], inputs.shape[1]))
+        if len(targets.shape) == 1:
             targets = np.reshape(targets, (1, len(targets)))
-        elif not (len(inputs.shape) == 3 and len(targets.shape) == 2):
-            raise ValueError("inputs/targets must be 3D/2D or 2D/1D")
-        if not (inputs.shape[0:2] == targets.shape[0:2]):
-            raise ValueError("inputs and targets must have the same first two dimentions (or first dimension if 2D/1D input is used)")
+        elif not (len(targets.shape) == 2):
+            raise ValueError("targets must be either a 1D or 2D array")
+        if not (len(inputs.shape) == 2):
+            raise ValueError("inputs must be 2D array")
+        if not (inputs.shape[0] == targets.shape[1]):
+            raise ValueError("the first dimension of inputs must be the same length as the second dimension of targets (or first if targets is 1D))")
 
-        self.emulators = [ GaussianProcess(single_input, single_target)
-                            for single_input, single_target in zip(inputs, targets)]
+        self.emulators = [ GaussianProcess(inputs, single_target) for single_target in targets]
         
-        self.n_emulators = inputs.shape[0]
-        self.n = inputs.shape[1]
-        self.D = inputs.shape[2]
+        self.n_emulators = targets.shape[0]
+        self.n = inputs.shape[0]
+        self.D = inputs.shape[1]
         
     def get_n_emulators(self):
         """
@@ -76,21 +76,41 @@ class MultiOutputGP(object):
         n_tries = int(n_tries)
         
         p = Pool(processes)
-        l = p.starmap(GaussianProcess.learn_hyperparameters, [(gp, n_tries, verbose, x0) for gp in self.emulators])
+        likelihood_theta_vals = p.starmap(GaussianProcess.learn_hyperparameters, [(gp, n_tries, verbose, x0) for gp in self.emulators])
         
         # re-evaluate log likelihood for each emulator to update current parameter values
         # (needed because of how multiprocessing works -- the bulk of the work is done in
         # parallel, but this step ensures that the results are gathered correctly for each
         # emulator)
-        for emulator, (loglike, theta) in zip(self.emulators, l):
+        for emulator, (loglike, theta) in zip(self.emulators, likelihood_theta_vals):
             _ = emulator.loglikelihood(theta)
-        return l
+        return likelihood_theta_vals
         
     def predict(self, testing, do_deriv=True, do_unc=True, processes=None):
         """
         Make a prediction for a set of input vectors
         """
-        pass
+        testing = np.array(testing)
+        assert len(testing.shape) == 2, "testing must be a 2D array"
+        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
+        if not processes is None:
+            processes = int(processes)
+            assert processes > 0, "number of processes must be a positive integer"
+            
+        p = Pool(processes)
+        
+        predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing) for gp in self.emulators])
+        
+        # repackage predictions into numpy arrays
+        
+        predict_unpacked, unc_unpacked, deriv_unpacked = [np.array(t) for t in zip(*predict_vals)]
+        
+        if not do_unc:
+            unc_unpacked = None
+        if not do_deriv:
+            deriv_unpacked = None
+            
+        return predict_unpacked, unc_unpacked, deriv_unpacked
         
     def __str__(self):
         """
