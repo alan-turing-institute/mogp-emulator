@@ -26,6 +26,11 @@ class MultiOutputGP(object):
     class provides the option to use multiple processes to fit the emulators and make
     predictions in parallel.
     
+    The emulators are stored internally in a list. Other useful information stored is the
+    numer of emulators ``n_emulators``, number of training examples ``n``, and number of
+    input parameters ``D``. These other variables are made available externally through
+    the ``get_n_emulators``, ``get_n``, and ``get_D`` methods.
+    
     Example: ::
     
         >>> import numpy as np
@@ -89,11 +94,13 @@ class MultiOutputGP(object):
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
                        ``D`` is the number of input parameters for each output.
-        :type inputs: ``ndarray``
+        :type inputs: ndarray
         :param targets: Numpy array holding emulator targets. Must be 2D or 1D with length
                        ``n`` in the final dimension. The first dimension is of length
                        ``n_emulators`` (defaults to a single emulator if the input is 1D)
-        :type targets: ``ndarray``
+        :type targets: ndarray
+        :returns: New ``MultiOutputGP`` instance
+        :rtypr: MultiOutputGP
         """
         
         # check input types and shapes, reshape as appropriate for the case of a single emulator
@@ -119,7 +126,7 @@ class MultiOutputGP(object):
         Returns the number of emulators
         
         :returns: Number of emulators in the object
-        :rtype: ``int``
+        :rtype: int
         """
         return self.n_emulators
         
@@ -128,7 +135,7 @@ class MultiOutputGP(object):
         Returns number of training examples in each emulator
         
         :returns: Number of training examples in each emulator in the object
-        :rtype: ``int``
+        :rtype: int
         """
         return self.n
         
@@ -137,7 +144,7 @@ class MultiOutputGP(object):
         Returns number of inputs for each emulator
         
         :returns: Number of inputs for each emulator in the object
-        :rtype: ``int``
+        :rtype: int
         """
         return self.D
         
@@ -168,22 +175,22 @@ class MultiOutputGP(object):
         :param n_tries: (optional) The number of different initial conditions to try when
                         optimizing over the hyperparameters (must be a positive integer,
                         default = 15)
-        :type n_tries: ``int``
+        :type n_tries: int
         :param verbose: (optional) Flag indicating whether or not to print detailed
                         information on the fitting to the screen (default = False)
-        :type verbose: ``bool``
+        :type verbose: bool
         :param x0: (optional) Initial value of the hyperparameters to use in the optimization
                    routine (must be array-like with a length of ``D + 2``, where ``D`` is
                    the number of input parameters to each model). Default is ``None``.
-        :type x0: ``ndarray`` or ``None``
+        :type x0: ndarray or None
         :param processes: (optional) Number of processes to use when fitting the model.
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
-        :type processes: ``int`` or ``None``
+        :type processes: int or None
         :returns: List holding ``n_emulators`` tuples of length 2. Each tuple contains
                   the minimum negative log-likelihood for that particular emulator and a
                   numpy array of length ``D + 2`` holding the corresponding hyperparameters
-        :rtype: ``list``
+        :rtype: list
         """
         
         assert int(n_tries) > 0, "n_tries must be a positive integer"
@@ -231,25 +238,25 @@ class MultiOutputGP(object):
         
         :param testing: Array-like object holding the points where predictions will be made.
                         Must have shape ``(n_predict, D)``
-        :type testing: ``ndarray``
-        :param do_deriv: Flag indicating if the derivatives are to be computed. If ``False``
-                         the method returns ``None`` in place of the derivative array.
-                         Default value is ``True``.
-        :type do_deriv: ``bool``
-        :param do_unc: Flag indicating if the uncertainties are to be computed. If ``False``
-                         the method returns ``None`` in place of the uncertainty array.
-                         Default value is ``True``.
-        :type do_unc: ``bool``
+        :type testing: ndarray
+        :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
+                         If ``False`` the method returns ``None`` in place of the derivative
+                         array. Default value is ``True``.
+        :type do_deriv: bool
+        :param do_unc: (optional) Flag indicating if the uncertainties are to be computed.
+                         If ``False`` the method returns ``None`` in place of the uncertainty
+                         array. Default value is ``True``.
+        :type do_unc: bool
         :param processes: (optional) Number of processes to use when making the predictions.
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
-        :type processes: ``int`` or ``None``
+        :type processes: int or None
         :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
                   respectively. Predictions and uncertainties have shape ``(n_emulators, n_predict)``
                   while the derivatives have shape ``(n_emulators, n_predict, D)``. If
                   the ``do_unc`` or ``do_deriv`` flags are set to ``False``, then those arrays
                   are replaced by ``None``.
-        :rtype: ``tuple``
+        :rtype: tuple
         """
         testing = np.array(testing)
         assert len(testing.shape) == 2, "testing must be a 2D array"
