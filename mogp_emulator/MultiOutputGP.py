@@ -18,10 +18,82 @@ from gp_emulator.GaussianProcess import GaussianProcess
 class MultiOutputGP(object):
     """
     Implementation of a multiple-output Gaussian Process Emulator.
+    
+    This class provides an interface to fit a Gaussian Process Emulator to multiple targets
+    using the same input data. The class creates all of the necessary sub-emulators from
+    the input data and provides interfaces to the ``learn_hyperparameters`` and ``predict``
+    methods of the sub-emulators. Because the emulators are all fit independently, the
+    class provides the option to use multiple processes to fit the emulators and make
+    predictions in parallel.
+    
+    Example: ::
+    
+        >>> import numpy as np
+        >>> from mogp_emulator import MultiOutputGP
+        >>> x = np.array([[1., 2., 3.], [4., 5., 6.]])
+        >>> y = np.array([[4., 6.], [5., 7.]])
+        >>> mogp = MultiOutputGP(x, y)
+        >>> print(mogp)
+        Multi-Output Gaussian Process with:
+        2 emulators
+        2 training examples
+        3 input variables
+        >>> mogp.get_n_emulators()
+        2
+        >>> mogp.get_n()
+        2
+        >>> mogp.get_D()
+        3
+        >>> np.random.seed(47)
+        >>> mogp.learn_hyperparameters()
+        After 15, the minimum cost was 5.322784e+00
+        After 15, the minimum cost was 5.140462e+00
+        [(5.1404621594033895,
+          array([-6.95976295, -4.99805894, -5.21415165,  3.23718116, -0.61961335])),
+         (5.322783716197344,
+          array([-9.80965415, -5.53659105, -6.29521694,  3.58162789,  0.06580016]))]
+        >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
+        >>> mogp.predict()
+        (array([[4.76282574, 6.36038561],
+                [5.78892678, 6.9389214 ]]), array([[0.30425374, 2.21021771],
+                [0.56260549, 2.67487348]]), array([[[0.03785875, 0.26923002, 0.21690803],
+                 [0.00478238, 0.03400961, 0.02740021]],
+ 
+                [[0.00309533, 0.22206213, 0.10399381],
+                 [0.00107731, 0.07728762, 0.03619453]]]))
+    
+    Note that there will frequently be a RuntimeWarning during the fitting of hyperparameters,
+    due to the random initial conditions which sometimes leads to a poorly conditioned matrix
+    inversion. This should only be a concern if the final minimum cost is 9999 (meaning that
+    all attempts to minimize the negative log-likelihood resulted in an error).
+        
     """
     def __init__(self, inputs, targets):
         """
         Create a new multi-output GP Emulator
+        
+        Creates a new multi-output GP Emulator from the input data and targets to be fit.
+        
+        ``inputs`` is a 2D array-like object holding the input data, whose shape is
+        ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
+        is the number of input variables to each simulation. Because the model assumes all
+        outputs are drawn from the same identical set of simulations (i.e. the normal use
+        case is to fit a series of computer simulations with multiple outputs from the same
+        input), the input to each emulator is identical.
+        
+        ``targets`` is the target data to be fit by the emulator, also held in an array-like
+        object. This can be either a 1D or 2D array, where the last dimension must have length
+        ``n``. If the ``targets`` array is of shape ``(n_emulators,n)``, then the emulator fits
+        a total of ``n_emulators`` to the different target arrays, while if targets has shape
+        ``(n,)``, a single emulator is fit.
+        
+        :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
+                       ``n`` by ``D``, where ``n`` is the number of training examples and
+                       ``D`` is the number of input parameters for each output.
+        :type inputs: ndarray
+        :param targets: Numpy array holding emulator targets. Must be 2D or 1D with length
+                       ``n`` in the final dimension. The first dimension is of length
+                       ``n_emulators`` (defaults to a single emulator if the input is 1D)
         """
         
         # check input types and shapes, reshape as appropriate for the case of a single emulator
@@ -45,18 +117,27 @@ class MultiOutputGP(object):
     def get_n_emulators(self):
         """
         Returns the number of emulators
+        
+        :returns: Number of emulators in the object
+        :rtype: int
         """
         return self.n_emulators
         
     def get_n(self):
         """
         Returns number of training examples in each emulator
+        
+        :returns: Number of training examples in each emulator in the object
+        :rtype: int
         """
         return self.n
         
     def get_D(self):
         """
         Returns number of inputs for each emulator
+        
+        :returns: Number of inputs for each emulator in the object
+        :rtype: int
         """
         return self.D
         
@@ -115,6 +196,10 @@ class MultiOutputGP(object):
     def __str__(self):
         """
         Returns a string representation of the model
+        
+        :returns: A string representation of the model (indicates number of sub-components
+                  and array shapes)
+        :rtype: str
         """
         return ("Multi-Output Gaussian Process with:\n"+
                  str(self.get_n_emulators())+" emulators\n"+
