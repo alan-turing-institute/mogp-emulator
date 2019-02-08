@@ -58,7 +58,6 @@ class MultiOutputGP(object):
                 [5.78892678, 6.9389214 ]]), array([[0.30425374, 2.21021771],
                 [0.56260549, 2.67487348]]), array([[[0.03785875, 0.26923002, 0.21690803],
                  [0.00478238, 0.03400961, 0.02740021]],
- 
                 [[0.00309533, 0.22206213, 0.10399381],
                  [0.00107731, 0.07728762, 0.03619453]]]))
     
@@ -180,6 +179,7 @@ class MultiOutputGP(object):
         :param processes: (optional) Number of processes to use when fitting the model.
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
+        :type processes: ``int`` or ``None``
         :returns: List holding ``n_emulators`` tuples of length 2. Each tuple contains
                   the minimum negative log-likelihood for that particular emulator and a
                   numpy array of length ``D + 2`` holding the corresponding hyperparameters
@@ -211,6 +211,45 @@ class MultiOutputGP(object):
     def predict(self, testing, do_deriv=True, do_unc=True, processes=None):
         """
         Make a prediction for a set of input vectors
+        
+        Makes predictions for each of the emulators on a given set of input vectors. The
+        input vectors must be passed as a ``(n_predict, D)`` shaped array-like object, where
+        ``n_predict`` is the number of different prediction points under consideration and
+        ``D`` is the number of inputs to the emulator. The prediction points are passed
+        to each emulator and the predictions are collected into a ``(n_emulators, n_predict)``
+        shaped numpy array as the first return value from the method.
+        
+        Optionally, the emulator can also calculate the uncertainties in the predictions 
+        and the derivatives with respect to each input parameter. If the uncertainties are
+        computed, they are returned as the second output from the method as a
+        ``(n_emulators, n_predict)`` shaped numpy array. If the derivatives are computed,
+        they are returned as the third output from the method as a
+        ``(n_emulators, n_predict, D)`` shaped numpy array.
+        
+        As with the fitting, this computation can be done independently for each emulator
+        and thus can be done in parallel.
+        
+        :param testing: Array-like object holding the points where predictions will be made.
+                        Must have shape ``(n_predict, D)``
+        :type testing: ``ndarray``
+        :param do_deriv: Flag indicating if the derivatives are to be computed. If ``False``
+                         the method returns ``None`` in place of the derivative array.
+                         Default value is ``True``.
+        :type do_deriv: ``bool``
+        :param do_unc: Flag indicating if the uncertainties are to be computed. If ``False``
+                         the method returns ``None`` in place of the uncertainty array.
+                         Default value is ``True``.
+        :type do_unc: ``bool``
+        :param processes: (optional) Number of processes to use when making the predictions.
+                          Must be a positive integer or ``None`` to use the number of
+                          processors on the computer (default is ``None``)
+        :type processes: ``int`` or ``None``
+        :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
+                  respectively. Predictions and uncertainties have shape ``(n_emulators, n_predict)``
+                  while the derivatives have shape ``(n_emulators, n_predict, D)``. If
+                  the ``do_unc`` or ``do_deriv`` flags are set to ``False``, then those arrays
+                  are replaced by ``None``.
+        :rtype: ``tuple``
         """
         testing = np.array(testing)
         assert len(testing.shape) == 2, "testing must be a 2D array"
