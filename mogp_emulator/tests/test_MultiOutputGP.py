@@ -1,3 +1,4 @@
+from tempfile import TemporaryFile
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -24,14 +25,38 @@ def test_MultiOutputGP_init():
     assert gp.n == 2
     assert gp.D == 3
     
-#    gp = MultiOutputGP('test_mogp.npz')
-#    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
-#    y = np.array([2., 4.])
-#    assert_allclose(gp.emulators[0].inputs, x)
-#    assert_allclose(gp.emulators[0].targets, y)
-#    assert gp.n_emulators == 1
-#    assert gp.n == 2
-#    assert gp.D == 3
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                      targets = np.array([[2., 4.]]))
+        tmp.seek(0)
+        gp = MultiOutputGP(tmp)
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([2., 4.])
+    assert_allclose(gp.emulators[0].inputs, x)
+    assert_allclose(gp.emulators[0].targets, y)
+    assert gp.n_emulators == 1
+    assert gp.n == 2
+    assert gp.D == 3
+    with pytest.raises(AttributeError):
+        gp.emulators[0].current_theta
+
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                      targets = np.array([[2., 4.]]),
+                                      theta = np.array([[1., 2., 3., 4., 5.]]))
+        tmp.seek(0)
+        gp = MultiOutputGP(tmp)
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([2., 4.])
+    theta = np.array([1., 2., 3., 4., 5.])
+    assert_allclose(gp.emulators[0].inputs, x)
+    assert_allclose(gp.emulators[0].targets, y)
+    assert_allclose(gp.emulators[0].current_theta, theta)
+    assert gp.n_emulators == 1
+    assert gp.n == 2
+    assert gp.D == 3
 
 def test_MultiOutputGP_init_failures():
     "Tests of MultiOutputGP init method that should fail"
@@ -54,6 +79,36 @@ def test_MultiOutputGP_init_failures():
     y = np.reshape(np.array([2., 3., 4., 5.]), (4,))
     with pytest.raises(ValueError):
         gp = MultiOutputGP(x, y)
+
+def test_MultiOutputGP_save_emulators():
+    "Test function for the save_emulators method"
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([[2., 4.]])
+    gp = MultiOutputGP(x, y)
+    
+    with TemporaryFile() as tmp:
+        gp.save_emulators(tmp)
+        tmp.seek(0)
+        emulator_file = np.load(tmp)
+        assert_allclose(emulator_file['inputs'], x)
+        assert_allclose(emulator_file['targets'], y)
+        with pytest.raises(KeyError):
+            emulator_file['theta']
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (1, 3))
+    gp = MultiOutputGP(x, y)
+    theta = np.array([np.array([-15.258941170727503, -98.2891773079696  , -56.75514771203786 ,
+        13.350449073864349, -21.60315424663098 ])])
+    gp._set_params(theta)
+    
+    with TemporaryFile() as tmp:
+        gp.save_emulators(tmp)
+        tmp.seek(0)
+        emulator_file = np.load(tmp)
+        assert_allclose(emulator_file['inputs'], x)
+        assert_allclose(emulator_file['targets'], y)
+        assert_allclose(emulator_file['theta'], theta)
 
 def test_MultiOutputGP_get_n_emulators():
     "Test function for the get_n_emulators method"

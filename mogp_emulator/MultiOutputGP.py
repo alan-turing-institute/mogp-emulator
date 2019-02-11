@@ -72,11 +72,16 @@ class MultiOutputGP(object):
     all attempts to minimize the negative log-likelihood resulted in an error).
         
     """
-    def __init__(self, inputs, targets):
+    def __init__(self, *args):
         """
         Create a new multi-output GP Emulator
         
-        Creates a new multi-output GP Emulator from the input data and targets to be fit.
+        Creates a new multi-output GP Emulator from either the input data and targets to
+        be fit or a file holding the input/targets and learned parameter values.
+        
+        Arguments passed to the ``__init__`` method must be either two arguments which
+        are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
+        which is the filename (string or file handle) of a previously saved emulator.
         
         ``inputs`` is a 2D array-like object holding the input data, whose shape is
         ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
@@ -91,6 +96,7 @@ class MultiOutputGP(object):
         a total of ``n_emulators`` to the different target arrays, while if targets has shape
         ``(n,)``, a single emulator is fit.
         
+        If two input arguments ``inputs`` and ``targets`` are given:
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
                        ``D`` is the number of input parameters for each output.
@@ -99,9 +105,25 @@ class MultiOutputGP(object):
                        ``n`` in the final dimension. The first dimension is of length
                        ``n_emulators`` (defaults to a single emulator if the input is 1D)
         :type targets: ndarray
+        
+        If one input argument ``emulator_file`` is given:
+        :param emulator_file: Filename for saved emulator parameters (using the ``save_emulator``
+                              method)
+        :type emulator_file: str
+        
         :returns: New ``MultiOutputGP`` instance
         :rtypr: MultiOutputGP
         """
+        
+        emulator_file = None
+        
+        if len(args) == 1:
+            emulator_file = args[0]
+            inputs, targets, theta = self._load_emulators(emulator_file)
+        elif len(args) == 2:
+            inputs, targets = args
+        else:
+            raise ValueError("Bad number of inputs to create a MultiOutputGP (must be 2 arrays or a single filename)")
         
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
@@ -120,6 +142,69 @@ class MultiOutputGP(object):
         self.n_emulators = targets.shape[0]
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
+        
+        if not (emulator_file is None or theta is None):
+            self._set_params(theta)
+        
+    def _load_emulators(self, filename):
+        """
+        Load saved emulators and parameter values from file
+        
+        Method takes the filename of saved emulators (using the ``save_emulators`` method).
+        The saved emulator may or may not contain the fitted parameters. If there are no
+        parameters found in the emulator file, the method returns ``None`` for the
+        parameters.
+        
+        :param filename: File where the emulator parameters. Can be a string filename
+                         or an open file handle.
+        :type filename: str or file
+        :returns: inputs, targets, and (optionally) fitted parameter values from the
+                  saved emulator file
+        :rtype: tuple containing 3 ndarrays or 2 ndarrays and None (if no theta values
+                are found in the emulator file)
+        """
+
+        emulator_file = np.load(filename)
+        
+        try:
+            inputs = np.array(emulator_file['inputs'])
+            targets = np.array(emulator_file['targets'])
+        except KeyError:
+            raise KeyError("Emulator file does not contain emulator inputs and targets")
+            
+        try:
+            theta = np.array(emulator_file['theta'])
+        except KeyError:
+            theta = None
+            
+        return inputs, targets, theta
+        
+    def save_emulators(self, filename):
+        """
+        Write emulators to disk
+        
+        Method saves emulators to disk using the given filename or file handle. The (common)
+        inputs to all emulators are saved, and all targets are collected into a single numpy
+        array (this saves the data in the same format used in the two-argument ``__init__``
+        method). If the model has been assigned parameters, either manually or by fitting,
+        those parameters are saved as well. Once saved, the emulator can be read by passing
+        the file name or handle to the one-argument ``__init__`` method.
+        
+        :param filename: Name of file (or file handle) to which the emulators will be save.
+        :type filename: str or file
+        :returns: None
+        """
+        
+        emulators_dict = {}
+        emulators_dict['targets'] = np.array([emulator.targets for emulator in self.emulators])
+        emulators_dict['inputs'] = self.emulators[0].inputs
+        
+        try:
+            emulators_dict['theta'] = np.array([emulator.current_theta for emulator in self.emulators])
+        except AttributeError:
+            pass
+        
+        np.savez(filename, **emulators_dict)
         
     def get_n_emulators(self):
         """
