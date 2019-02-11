@@ -23,6 +23,15 @@ def test_MultiOutputGP_init():
     assert gp.n_emulators == 1
     assert gp.n == 2
     assert gp.D == 3
+    
+#    gp = MultiOutputGP('test_mogp.npz')
+#    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+#    y = np.array([2., 4.])
+#    assert_allclose(gp.emulators[0].inputs, x)
+#    assert_allclose(gp.emulators[0].targets, y)
+#    assert gp.n_emulators == 1
+#    assert gp.n == 2
+#    assert gp.D == 3
 
 def test_MultiOutputGP_init_failures():
     "Tests of MultiOutputGP init method that should fail"
@@ -72,6 +81,38 @@ def test_MultiOutputGP_get_D():
     gp = MultiOutputGP(x, y)
     assert gp.get_D() == 3
 
+def test_MultiOutputGP_set_params():
+    "Test function for the _set_params method"
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (1, 3))
+    gp = MultiOutputGP(x, y)
+    theta = np.array([np.array([-15.258941170727503, -98.2891773079696  , -56.75514771203786 ,
+        13.350449073864349, -21.60315424663098 ])])
+    theta_expected = [np.array([-15.258941170727503, -98.2891773079696  , -56.75514771203786 ,
+        13.350449073864349, -21.60315424663098 ])]
+    loglike_expected = [5.0351448514868675]
+    gp._set_params(theta)
+    for emulator, loglike_exp, theta_exp in zip(gp.emulators, loglike_expected, theta_expected):
+        assert_allclose(emulator.current_loglikelihood, loglike_exp)
+        assert_allclose(emulator.current_theta, theta_exp)
+        
+def test_MultiOutputGP_set_params_failures():
+    "Test function for the _set_params method with bad inputs"
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (1, 3))
+    gp = MultiOutputGP(x, y)
+    theta = np.array([np.array([-98.28917731, -56.75514771,  13.35044907, -21.60315425])])
+    with pytest.raises(AssertionError):
+        gp._set_params(theta)
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (1, 3))
+    gp = MultiOutputGP(x, y)
+    theta = np.array([[-15.25894117, -98.28917731, -56.75514771,  13.35044907, -21.60315425],
+                      [-15.25894117, -98.28917731, -56.75514771,  13.35044907, -21.60315425]])
+    with pytest.raises(AssertionError):
+        gp._set_params(theta)
+
 def test_MultiOutputGP_learn_hyperparameters():
     "Test function for the learn_hyperparameters method"
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
@@ -81,7 +122,8 @@ def test_MultiOutputGP_learn_hyperparameters():
     l = gp.learn_hyperparameters(processes = 1)
     loglike, theta = [list(t) for t in zip(*l)]
     loglike_expected = [5.0351448514868675]
-    theta_expected = [np.array([-15.25894117, -98.28917731, -56.75514771,  13.35044907, -21.60315425])]
+    theta_expected = [np.array([-15.258941170727503, -98.2891773079696  , -56.75514771203786 ,
+        13.350449073864349, -21.60315424663098 ])]
     for emulator, loglike_val, theta_val, loglike_exp, theta_exp in zip(gp.emulators, loglike, theta, loglike_expected, theta_expected):
         assert_allclose(loglike_val, loglike_exp)
         assert_allclose(theta_val, theta_exp)
@@ -121,6 +163,20 @@ def test_MultiOutputGP_predict():
     assert_allclose(predict_actual, predict_expected)
     assert var_actual is None
     assert deriv_actual is None
+
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (1, 3)) 
+    x_star = np.reshape(np.array([2., 3., 4.]), (3,))
+    predict_expected = np.array([[2.66699913]])
+    var_expected = np.array([[-38.33591033]])
+    deriv_expected = np.array([[[6.66666432e-01, 5.81212843e-37, 6.34358943e-19]]])
+    gp = MultiOutputGP(x, y)
+    np.random.seed(12345)
+    l = gp.learn_hyperparameters(processes = 1)
+    predict_actual, var_actual, deriv_actual = gp.predict(x_star)
+    assert_allclose(predict_actual, predict_expected)
+    assert_allclose(var_actual, var_expected)
+    assert_allclose(deriv_actual, deriv_expected)
     
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6., 1., 3., 5.]), (2, 3)) 
@@ -143,7 +199,7 @@ def test_MultiOutputGP_predict_failures():
     "Test function for the predict method with bad inputs"
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (1, 3)) 
-    x_star = np.reshape(np.array([2., 3., 4.]), (3,))
+    x_star = np.reshape(np.array([2., 3.]), (2,))
     gp = MultiOutputGP(x, y)
     np.random.seed(12345)
     l = gp.learn_hyperparameters()

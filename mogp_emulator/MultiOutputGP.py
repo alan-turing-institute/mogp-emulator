@@ -148,6 +148,31 @@ class MultiOutputGP(object):
         """
         return self.D
         
+    def _set_params(self, theta):
+        """
+        Method for setting the hyperparameters for all emulators
+        
+        This method is used to reset the value of the hyperparameters for the emulators and
+        update the log-likelihood. It is used after fitting the hyperparameters or when loading
+        an emulator from file. Input ``theta`` must be array-like with shape
+        ``(n_emulators, D + 2)``, where ``n_emulators`` is the number of emulators and ``D``
+        is the number of input parameters. If the number of emulators is 1, then ``theta``
+        having shape ``(D + 2,)`` is allowed.
+        
+        :param theta: Parameter values to be used for the emulators. Must be array-like and
+                      have shape ``(n_emulators, D + 2)`` (if there is only a single
+                      emulator, then shape ``(D + 2,)`` is allowed)
+        :type theta: ndarray
+        :returns: None
+        """
+        theta = np.array(theta)
+        if self.n_emulators == 1 and theta.shape == (self.D + 2,):
+            theta = np.reshape(theta, (1, self.D + 2))
+        assert theta.shape == (self.n_emulators, self.D + 2), "theta must have shape n_emulators x (D + 2)"
+        
+        for emulator, theta_val in zip(self.emulators, theta):
+            _ = emulator.loglikelihood(theta_val)
+        
     def learn_hyperparameters(self, n_tries=15, verbose=False, x0=None, processes=None):
         """
         Fit hyperparameters for each model
@@ -211,8 +236,11 @@ class MultiOutputGP(object):
         # (needed because of how multiprocessing works -- the bulk of the work is done in
         # parallel, but this step ensures that the results are gathered correctly for each
         # emulator)
-        for emulator, (loglike, theta) in zip(self.emulators, likelihood_theta_vals):
-            _ = emulator.loglikelihood(theta)
+        
+        loglike_unpacked, theta_unpacked = [np.array(t) for t in zip(*likelihood_theta_vals)]
+        
+        self._set_params(theta_unpacked)
+
         return likelihood_theta_vals
         
     def predict(self, testing, do_deriv=True, do_unc=True, processes=None):
@@ -220,11 +248,13 @@ class MultiOutputGP(object):
         Make a prediction for a set of input vectors
         
         Makes predictions for each of the emulators on a given set of input vectors. The
-        input vectors must be passed as a ``(n_predict, D)`` shaped array-like object, where
-        ``n_predict`` is the number of different prediction points under consideration and
-        ``D`` is the number of inputs to the emulator. The prediction points are passed
-        to each emulator and the predictions are collected into a ``(n_emulators, n_predict)``
-        shaped numpy array as the first return value from the method.
+        input vectors must be passed as a ``(n_predict, D)`` or ``(D,)`` shaped array-like
+        object, where ``n_predict`` is the number of different prediction points under
+        consideration and ``D`` is the number of inputs to the emulator. If the prediction
+        inputs array has shape ``(D,)``, then the method assumes ``n_predict == 1``. 
+        The prediction points are passed to each emulator and the predictions are collected
+        into a ``(n_emulators, n_predict)`` shaped numpy array as the first return value
+        from the method.
         
         Optionally, the emulator can also calculate the uncertainties in the predictions 
         and the derivatives with respect to each input parameter. If the uncertainties are
@@ -237,7 +267,7 @@ class MultiOutputGP(object):
         and thus can be done in parallel.
         
         :param testing: Array-like object holding the points where predictions will be made.
-                        Must have shape ``(n_predict, D)``
+                        Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
         :type testing: ndarray
         :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
                          If ``False`` the method returns ``None`` in place of the derivative
@@ -259,6 +289,8 @@ class MultiOutputGP(object):
         :rtype: tuple
         """
         testing = np.array(testing)
+        if testing.shape == (self.D,):
+            testing = np.reshape(testing, (1, self.D))
         assert len(testing.shape) == 2, "testing must be a 2D array"
         assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
         if not processes is None:
