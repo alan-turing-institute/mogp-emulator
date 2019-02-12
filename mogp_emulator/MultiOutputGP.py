@@ -313,8 +313,8 @@ class MultiOutputGP(object):
         
         n_tries = int(n_tries)
         
-        p = Pool(processes)
-        likelihood_theta_vals = p.starmap(GaussianProcess.learn_hyperparameters,
+        with Pool(processes) as p:
+            likelihood_theta_vals = p.starmap(GaussianProcess.learn_hyperparameters,
                                           [(gp, n_tries, verbose, x0) for gp in self.emulators])
         
         # re-evaluate log likelihood for each emulator to update current parameter values
@@ -382,9 +382,8 @@ class MultiOutputGP(object):
             processes = int(processes)
             assert processes > 0, "number of processes must be a positive integer"
             
-        p = Pool(processes)
-        
-        predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing) for gp in self.emulators])
+        with Pool(processes) as p:
+            predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing) for gp in self.emulators])
         
         # repackage predictions into numpy arrays
         
