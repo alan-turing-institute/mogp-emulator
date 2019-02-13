@@ -112,10 +112,11 @@ class MultiOutputGP(object):
         :type emulator_file: str
         
         :returns: New ``MultiOutputGP`` instance
-        :rtypr: MultiOutputGP
+        :rtype: MultiOutputGP
         """
         
         emulator_file = None
+        theta = None
         
         if len(args) == 1:
             emulator_file = args[0]
