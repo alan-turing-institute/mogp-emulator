@@ -122,6 +122,17 @@ def plot_model_errors(n_emulators, n_testing, simulation_list, process_list = [N
     error = np.mean(errors, axis = -1)
     unc = np.mean(uncs, axis = -1)
     
+    print("\n")
+    print("Convergence test results:")
+    print("Num. simulations   Average prediction RMSE")
+    for sim, err in zip(simulation_list, error):
+        print('{:19}{}'.format(str(sim), str(err)))
+        
+    print("\n")
+    print("Num. simulations   Average prediction variance")
+    for sim, un in zip(simulation_list, unc):
+        print('{:19}{}'.format(str(sim), str(un)))
+    
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, error,'-o')
     plt.xlabel('Number of simulations')
@@ -132,7 +143,7 @@ def plot_model_errors(n_emulators, n_testing, simulation_list, process_list = [N
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, unc,'-o')
     plt.xlabel('Number of simulations')
-    plt.ylabel('Average prediction uncertainty')
+    plt.ylabel('Average prediction variance')
     plt.title('Uncertainty for '+str(n_testing)+' predictions\nusing '+str(n_emulators)+' 2D Branin functions')
     plt.savefig('branin_2d_unc.png',bbox_inches='tight')
     
