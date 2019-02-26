@@ -60,6 +60,13 @@ def test_MultiOutputGP_init():
 
 def test_MultiOutputGP_init_failures():
     "Tests of MultiOutputGP init method that should fail"
+
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.reshape(np.array([2.]), (1, 1))
+    z = np.array([3.])
+    with pytest.raises(ValueError):
+        gp = MultiOutputGP(x, y, z)
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.reshape(np.array([2., 3., 4.]), (1, 3))
     with pytest.raises(ValueError):

@@ -1,6 +1,6 @@
 import numpy as np
 from mogp_emulator import MultiOutputGP
-from gp_emulator import lhd
+from mogp_emulator.utils import lhd
 from scipy.stats import uniform
 import matplotlib.pyplot as plt
 
