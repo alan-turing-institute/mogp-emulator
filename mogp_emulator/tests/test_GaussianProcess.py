@@ -222,6 +222,29 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(new_theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
 
+def test_GaussianProcess_learn():
+    "Test the _learn method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
+    min_loglikelihood_expected = 4.457233158665504
+    min_theta, min_loglikelihood = gp._learn(theta)
+    assert_allclose(min_theta_expected, min_theta)
+    assert_allclose(min_loglikelihood_expected, min_loglikelihood)
+    
+    min_theta_expected = np.array([ -2.7701167931095463, -20.181657894856162 , -21.27146085457964 , 2.0359426902424462])
+    min_loglikelihood_expected = 4.457233396431864
+    min_theta, min_loglikelihood = gp._learn(theta, method = 'CG')
+    assert_allclose(min_theta_expected, min_theta)
+    assert_allclose(min_loglikelihood_expected, min_loglikelihood)
+    
+    theta = np.zeros(4)
+    with pytest.warns(RuntimeWarning):
+        gp._learn(theta, gtol = 1.e-20, ftol = 2.e-18)
+
 def test_GaussianProcess_get_n():
     "Tests the get_n method of GaussianProcess"
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))

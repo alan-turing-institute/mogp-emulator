@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import fmin_l_bfgs_b
+from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
@@ -113,7 +113,6 @@ class GaussianProcess(object):
         "Calculate the partial derivatives of the negative loglikelihood wrt the hyper parameters"
         
         if not np.allclose(np.array(theta), self.theta):
-            warnings.warn("Value of hyperparameters has changed, recomputing...", RuntimeWarning)
             self._set_params(theta)
         
         partials = np.zeros(self.D + 1)
@@ -126,6 +125,18 @@ class GaussianProcess(object):
         partials[self.D] = -0.5*(np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ*self.Q))
         
         return partials
+    
+    def _learn(self, theta0, method = 'L-BFGS-B', **kwargs):
+        "Minimize loglikelihood function wrt the hyperparameters, starting from theta0"
+        
+        self._set_params(theta0)
+        
+        fmin_dict = minimize(self.loglikelihood, theta0, method = method, jac = self.partial_devs, options = kwargs)
+        
+        if not fmin_dict['success']:
+            warnings.warn("Minimization routine resulted in a warning", RuntimeWarning)
+            
+        return fmin_dict['x'], fmin_dict['fun']
     
     def get_n(self):
         "Returns number of training examples"
