@@ -4,6 +4,7 @@ from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
+import warnings
 
 class GaussianProcess(object):
     """
@@ -80,7 +81,7 @@ class GaussianProcess(object):
                   "sqeuclidean")
         self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
         L, jitter = self._jit_cholesky(self.Q)
-        self.Q = self.Q + jitter*np.eye(self.n)
+        self.Z = self.Q + jitter*np.eye(self.n)
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
         self.invQt = np.dot(self.invQ, self.targets)
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(L)))
@@ -95,7 +96,7 @@ class GaussianProcess(object):
         self._prepare_likelihood()
     
     def loglikelihood(self, theta):
-        "Calculate the loglikelihood at a particular value of the hyperparameters"
+        "Calculate the negative loglikelihood at a particular value of the hyperparameters"
         
         self._set_params(theta)
 
@@ -107,6 +108,24 @@ class GaussianProcess(object):
         self.current_theta = theta
         self.current_loglikelihood = loglikelihood
         return loglikelihood
+    
+    def partial_devs(self, theta):
+        "Calculate the partial derivatives of the negative loglikelihood wrt the hyper parameters"
+        
+        if not np.allclose(np.array(theta), self.theta):
+            warnings.warn("Value of hyperparameters has changed, recomputing...", RuntimeWarning)
+            self._set_params(theta)
+        
+        partials = np.zeros(self.D + 1)
+        
+        for d in range(self.D):
+            dKdtheta = 0.5*cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
+                                 np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean")*self.Q
+            partials[d] = 0.5*np.exp(self.theta[d])*(np.dot(self.invQt, np.dot(dKdtheta, self.invQt)) - np.sum(self.invQ*dKdtheta))
+        
+        partials[self.D] = -0.5*(np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ*self.Q))
+        
+        return partials
     
     def get_n(self):
         "Returns number of training examples"

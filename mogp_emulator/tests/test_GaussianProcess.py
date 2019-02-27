@@ -179,6 +179,49 @@ def test_GaussianProcess_loglikelihood():
     with pytest.raises(AssertionError):
         gp.loglikelihood(theta)
 
+def test_GaussianProcess_partial_devs():
+    "Test the partial derivatives of the loglikelihood method of GaussianProcess"
+
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    dtheta = 1.e-6
+    partials_fd = np.array([(gp.loglikelihood(theta)-gp.loglikelihood([-dtheta, 0., 0., 0.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([0., -dtheta, 0., 0.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([0., 0., -dtheta, 0.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([0., 0., 0., -dtheta]))/dtheta])
+    partials_expected = np.array([0.5226523233529687, 0.38484393200869393, 0.217173572580031, -12.751185721368774])
+    partials_actual = gp.partial_devs(theta)
+    assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
+    assert_allclose(partials_actual, partials_fd, rtol = 1.e-5, atol = 1.e-8)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.ones(4)
+    gp._set_params(theta)
+    dtheta = 1.e-6
+    partials_fd = np.array([(gp.loglikelihood(theta)-gp.loglikelihood([1.-dtheta, 1., 1., 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1.-dtheta, 1., 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1.-dtheta, 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1., 1.-dtheta]))/dtheta])
+    partials_expected = np.array([0.00017655025945592195, 0.0001753434945624111, 9.2676341163899e-05, -3.834215961850198])
+    partials_actual = gp.partial_devs(theta)
+    assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
+    assert_allclose(partials_actual, partials_fd, rtol = 1.e-5, atol = 1.e-8)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    new_theta = np.ones(4)
+    partials_expected = np.array([0.00017655025945592195, 0.0001753434945624111, 9.2676341163899e-05, -3.834215961850198])
+    partials_actual = gp.partial_devs(new_theta)
+    assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
+
 def test_GaussianProcess_get_n():
     "Tests the get_n method of GaussianProcess"
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
