@@ -62,17 +62,21 @@ def test_GaussianProcess_jit_cholesky():
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
     
-    expected = np.array([[2., 0., 0.], [6., 1., 0.], [-8., 5., 3.]])
+    L_expected = np.array([[2., 0., 0.], [6., 1., 0.], [-8., 5., 3.]])
     input_matrix = np.array([[4., 12., -16.], [12., 37., -43.], [-16., -43., 98.]])
-    assert_allclose(expected, gp._jit_cholesky(input_matrix))
+    L_actual, jitter = gp._jit_cholesky(input_matrix)
+    assert_allclose(L_expected, L_actual)
+    assert_allclose(jitter, 0.)
     
-    expected = np.array([[1.0000004999998751e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
+    L_expected = np.array([[1.0000004999998751e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
                          [9.9999950000037496e-01, 1.4142132088085626e-03, 0.0000000000000000e+00],
                          [6.7379436301144941e-03, 4.7644444411381860e-06, 9.9997779980004420e-01]])
     input_matrix = np.array([[1.                , 1.                , 0.0067379469990855],
                              [1.                , 1.                , 0.0067379469990855],
                              [0.0067379469990855, 0.0067379469990855, 1.                ]])
-    assert_allclose(expected, gp._jit_cholesky(input_matrix))
+    L_actual, jitter = gp._jit_cholesky(input_matrix)
+    assert_allclose(L_expected, L_actual)
+    assert_allclose(jitter, 1.e-6)
     
     input_matrix = np.array([[1.e-6, 1., 0.], [1., 1., 1.], [0., 1., 1.e-10]])
     with pytest.raises(linalg.LinAlgError):
@@ -127,6 +131,21 @@ def test_GaussianProcess_set_params():
                               [-0.0066164596502281, -0.0110373516824135,  1.0001671952560762]])
     invQt_expected = np.array([1.9407564968639992, 2.934511573315307 , 3.954323806676608 ])
     logdetQ_expected = -0.00029059870020992285
+    gp._set_params(theta)
+    assert_allclose(theta, gp.theta)
+    assert_allclose(gp.invQ, invQ_expected)
+    assert_allclose(gp.invQt, invQt_expected)
+    assert_allclose(gp.logdetQ, logdetQ_expected)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.ones(4)
+    invQ_expected = np.array([[ 3.6787944118074578e-01, -1.7918365128975691e-06, -4.6028125821577508e-07],
+                              [-1.7918365128975691e-06,  3.6787944118889743e-01, -1.7918365128975699e-06],
+                              [-4.6028125821577513e-07, -1.7918365128975699e-06, 3.6787944118074578e-01]])
+    invQt_expected = np.array([0.73575166572692  , 1.1036275725476148, 1.471511468650928 ])
+    logdetQ_expected = 2.9999999999509863
     gp._set_params(theta)
     assert_allclose(theta, gp.theta)
     assert_allclose(gp.invQ, invQ_expected)

@@ -48,7 +48,7 @@ class GaussianProcess(object):
         Q = np.ascontiguousarray(Q)
         L, info = lapack.dpotrf(Q, lower=1)
         if info == 0:
-            return L
+            return L, 0.
         else:
             diagQ = np.diag(Q)
             if np.any(diagQ <= 0.):
@@ -58,7 +58,7 @@ class GaussianProcess(object):
             while num_tries <= maxtries and np.isfinite(jitter):
                 try:
                     L = linalg.cholesky(Q + np.eye(Q.shape[0]) * jitter, lower=True)
-                    return L
+                    return L, jitter
                 except:
                     jitter *= 10
                 finally:
@@ -69,7 +69,7 @@ class GaussianProcess(object):
         except:
             logging.warning('\n'.join(['Added jitter of {:.10e}'.format(jitter),
                 '  in '+traceback.format_list(traceback.extract_stack(limit=3)[-2:-1])[0][2:]]))
-        return L
+        return L, jitter
     
     def _prepare_likelihood(self):
         "Precalculates matrices needed for fitting"
@@ -79,7 +79,8 @@ class GaussianProcess(object):
                   np.sqrt(exp_theta[: (self.D)])*self.inputs,
                   "sqeuclidean")
         self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
-        L = self._jit_cholesky(self.Q)
+        L, jitter = self._jit_cholesky(self.Q)
+        self.Q = self.Q + jitter*np.eye(self.n)
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
         self.invQt = np.dot(self.invQ, self.targets)
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(L)))
