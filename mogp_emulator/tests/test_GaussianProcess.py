@@ -266,6 +266,63 @@ def test_GaussianProcess_learn_hyperparameters():
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(theta0 = theta)
 
+def test_GaussianProcess_predict():
+    """
+    Tests the predict method of GaussianProcess -- note does the test does not presently
+    test the values of the derivative as I was unable to find a reference that gave me 
+    a way to calculate the derivatives independently of the code
+    """
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+    predict_expected = np.array([1.395386477054048, 1.7311400058360489])
+    unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
+    assert_allclose(predict_actual, predict_expected)
+    assert_allclose(unc_actual, unc_expected)
+    
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
+    assert_allclose(predict_actual, predict_expected)
+    assert unc_actual is None
+    assert deriv_actual is None
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.ones(4)
+    gp._set_params(theta)
+    x_star = np.array([4., 0., 2.])
+    predict_expected = 0.0174176198731851
+    unc_expected = 2.7182302871685224
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
+    assert_allclose(predict_actual, predict_expected)
+    assert_allclose(unc_actual, unc_expected)
+
+def test_GaussianProcess_predict_failures():
+    "Test predict method of GaussianProcess with bad inputs"
+
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    x_star = np.array([1., 3., 2., 4.])
+    with pytest.raises(AssertionError):
+        gp.predict(x_star)
+        
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
+    with pytest.raises(AssertionError):
+        gp.predict(x_star)
+
 def test_GaussianProcess_get_n():
     "Tests the get_n method of GaussianProcess"
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))

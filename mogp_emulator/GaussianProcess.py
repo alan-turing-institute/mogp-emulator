@@ -162,6 +162,39 @@ class GaussianProcess(object):
         
         return loglikelihood_values[idx], theta_values[idx]
     
+    def predict(self, testing, do_deriv=True, do_unc=True):
+        "Make predictions on a given set of inputs"
+        
+        testing = np.array(testing)
+        if len(testing.shape) == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert len(testing.shape) == 2
+                        
+        n_testing, D = np.shape(testing)
+        assert D == self.D
+        
+        exp_theta = np.exp(self.theta)
+
+        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * self.inputs,
+                      np.sqrt(exp_theta[: (self.D)]) * testing, "sqeuclidean")
+
+        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+
+        mu = np.dot(Ktest.T, self.invQt)
+        
+        var = None
+        if do_unc:
+            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
+        
+        deriv = None
+        if do_deriv:
+            deriv = np.zeros((n_testing, self.D))
+            for d in range(self.D):
+                aa = (self.inputs[:, d].flatten()[None, :] - testing[:, d].flatten()[:, None])
+                c = Ktest * aa.T
+                deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
+        return mu, var, deriv
+        
     def get_n(self):
         "Returns number of training examples"
         return self.n
