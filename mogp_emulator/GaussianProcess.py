@@ -138,6 +138,30 @@ class GaussianProcess(object):
             
         return fmin_dict['x'], fmin_dict['fun']
     
+    def learn_hyperparameters(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
+        "Fit hyperparameters by attempting to minimize the negative log-likelihood multiple times, returns best result"
+    
+        loglikelihood_values = []
+        theta_values = []
+        
+        theta_startvals = 5.*np.random.rand(n_tries, self.D + 1) - 0.5
+        if not theta0 is None:
+            theta0 = np.array(theta0)
+            assert theta0.shape == (self.D + 1,), "theta0 must be a 1D array with length D + 1"
+            theta_startvals[0,:] = theta0
+
+        for theta in theta_startvals:
+            min_theta, min_loglikelihood = self._learn(theta, method, **kwargs)
+            loglikelihood_values.append(min_loglikelihood)
+            theta_values.append(min_theta)
+            
+        loglikelihood_values = np.array(loglikelihood_values)
+        idx = np.argsort(loglikelihood_values)[0]
+        
+        self._set_params(theta_values[idx])
+        
+        return loglikelihood_values[idx], theta_values[idx]
+    
     def get_n(self):
         "Returns number of training examples"
         return self.n
