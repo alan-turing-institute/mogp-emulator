@@ -12,5 +12,5 @@ setuptools.setup(name='mogp_emulator',
       author='Eric Daub',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
-      license=['TBD'],
-      install_requires=['numpy', 'scipy', 'gp_emulator'])
+      license=['MIT'],
+      install_requires=['numpy', 'scipy'])

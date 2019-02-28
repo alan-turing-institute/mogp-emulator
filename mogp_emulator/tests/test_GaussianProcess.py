@@ -120,6 +120,7 @@ def test_GaussianProcess_save_emulators():
 
 def test_GaussianProcess_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine in Gaussian Process"
+    
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -223,6 +224,7 @@ def test_GaussianProcess_set_params():
 
 def test_GaussianProcess_loglikelihood():
     "Test the loglikelihood method of GaussianProcess"
+    
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -265,10 +267,10 @@ def test_GaussianProcess_partial_devs():
     theta = np.ones(4)
     gp._set_params(theta)
     dtheta = 1.e-6
-    partials_fd = np.array([(gp.loglikelihood(theta)-gp.loglikelihood([1.-dtheta, 1., 1., 1.]))/dtheta,
-                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1.-dtheta, 1., 1.]))/dtheta,
-                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1.-dtheta, 1.]))/dtheta,
-                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1., 1.-dtheta]))/dtheta])
+    partials_fd = np.array([(gp.loglikelihood(theta)-gp.loglikelihood([1. - dtheta, 1., 1., 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1. - dtheta, 1., 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1. - dtheta, 1.]))/dtheta,
+                            (gp.loglikelihood(theta)-gp.loglikelihood([1., 1., 1., 1. - dtheta]))/dtheta])
     partials_expected = np.array([0.00017655025945592195, 0.0001753434945624111, 9.2676341163899e-05, -3.834215961850198])
     partials_actual = gp.partial_devs(theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
@@ -305,7 +307,7 @@ def test_GaussianProcess_learn():
     
     theta = np.zeros(4)
     with pytest.warns(RuntimeWarning):
-        gp._learn(theta, gtol = 1.e-20, ftol = 2.e-18)
+        gp._learn(theta, maxiter = 1, gtol = 1.e-20, ftol = 2.e-18)
         
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
@@ -346,16 +348,16 @@ def test_GaussianProcess_predict():
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
     
     delta = 1.e-8
-    predict_1, _, _ = gp.predict(np.array([[1.-delta, 3., 2.], [3.-delta, 2., 1.]]), do_deriv=False, do_unc=False)
-    predict_2, _, _ = gp.predict(np.array([[1., 3.-delta, 2.], [3., 2.-delta, 1.]]), do_deriv=False, do_unc=False)
-    predict_3, _, _ = gp.predict(np.array([[1., 3., 2.-delta], [3., 2., 1.-delta]]), do_deriv=False, do_unc=False)
+    predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
+    predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
+    predict_3, _, _ = gp.predict(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
     
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                          (predict_actual - predict_3)/delta]))
     
     assert_allclose(predict_actual, predict_expected)
     assert_allclose(unc_actual, unc_expected)
-    assert_allclose(deriv_actual, deriv_fd, atol=1.e-8, rtol=1.e-5)
+    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
     
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
@@ -373,16 +375,16 @@ def test_GaussianProcess_predict():
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
     
     delta = 1.e-8
-    predict_1, _, _ = gp.predict(np.array([4.-delta, 0., 2.]), do_deriv=False, do_unc=False)
-    predict_2, _, _ = gp.predict(np.array([4., 0.-delta, 2.]), do_deriv=False, do_unc=False)
-    predict_3, _, _ = gp.predict(np.array([4., 0., 2.-delta]), do_deriv=False, do_unc=False)
+    predict_1, _, _ = gp.predict(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
+    predict_2, _, _ = gp.predict(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
+    predict_3, _, _ = gp.predict(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
     
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
-                         (predict_actual - predict_3)/delta]))
+                                      (predict_actual - predict_3)/delta]))
     
     assert_allclose(predict_actual, predict_expected)
     assert_allclose(unc_actual, unc_expected)
-    assert_allclose(deriv_actual, deriv_fd, atol=1.e-8, rtol=1.e-5)
+    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
 
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs"
@@ -407,6 +409,7 @@ def test_GaussianProcess_predict_failures():
 
 def test_GaussianProcess_get_n():
     "Tests the get_n method of GaussianProcess"
+    
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -414,6 +417,7 @@ def test_GaussianProcess_get_n():
 
 def test_GaussianProcess_get_D():
     "Tests the get_D method of Gaussian Process"
+    
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -421,6 +425,7 @@ def test_GaussianProcess_get_D():
 
 def test_GaussianProcess_str():
     "Test function for string method"
+    
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)

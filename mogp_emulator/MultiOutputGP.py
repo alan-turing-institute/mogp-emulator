@@ -1,16 +1,3 @@
-# Class implementing a multi-output Gaussian Process for emulating the output of
-# a series of computer simulations. Since each emulator is independent of the
-# others, the emulators can be fit in parallel, significantly speeding up
-# the fitting procedure.
-
-# The class relies on an underlying implementation of a gp_emulator which you must
-# have installed on your system. I used Jose Gomez-Dans' original implementation,
-# but the interface for Sinan's code should be idential. However, I note that Sinan's
-# code did not use the most efficient method for forming the covariance matrix, which
-# takes up the bulk of the time for fitting each emulator. Therefore, I suggest
-# using Jose's code for the time being, as it should give satisfactory performance
-# for small problems
-
 from multiprocessing import Pool
 import numpy as np
 from .GaussianProcess import GaussianProcess
@@ -260,7 +247,7 @@ class MultiOutputGP(object):
         for emulator, theta_val in zip(self.emulators, theta):
             _ = emulator.loglikelihood(theta_val)
         
-    def learn_hyperparameters(self, n_tries=15, theta0=None, processes=None, method='L-BFGS-B', **kwargs):
+    def learn_hyperparameters(self, n_tries = 15, theta0 = None, processes = None, method = 'L-BFGS-B', **kwargs):
         """
         Fit hyperparameters for each model
         
@@ -327,7 +314,7 @@ class MultiOutputGP(object):
 
         return likelihood_theta_vals
         
-    def predict(self, testing, do_deriv=True, do_unc=True, processes=None):
+    def predict(self, testing, do_deriv = True, do_unc = True, processes = None):
         """
         Make a prediction for a set of input vectors
         

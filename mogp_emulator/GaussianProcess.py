@@ -76,10 +76,10 @@ class GaussianProcess(object):
             
         return inputs, targets, theta
     
-    def _jit_cholesky(self, Q, maxtries=5):
+    def _jit_cholesky(self, Q, maxtries = 5):
         "Performs Cholesky decomposition adding noise to the diagonal as needed. Adapted from code in GPy"
         Q = np.ascontiguousarray(Q)
-        L, info = lapack.dpotrf(Q, lower=1)
+        L, info = lapack.dpotrf(Q, lower = 1)
         if info == 0:
             return L, 0.
         else:
@@ -106,14 +106,17 @@ class GaussianProcess(object):
     
     def _prepare_likelihood(self):
         "Precalculates matrices needed for fitting"
+        
         exp_theta = np.exp(self.theta)
-        # Calculation of the covariance matrix Q using theta
+        
         self.Q = cdist(np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                  np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                  "sqeuclidean")
+                       np.sqrt(exp_theta[: (self.D)])*self.inputs,
+                       "sqeuclidean")
         self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
+        
         L, jitter = self._jit_cholesky(self.Q)
         self.Z = self.Q + jitter*np.eye(self.n)
+        
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
         self.invQt = np.dot(self.invQ, self.targets)
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(L)))
@@ -132,11 +135,9 @@ class GaussianProcess(object):
         
         self._set_params(theta)
 
-        loglikelihood = (
-            0.5 * self.logdetQ
-            + 0.5 * np.dot(self.targets, self.invQt)
-            + 0.5 * self.n * np.log(2. * np.pi)
-        )
+        loglikelihood = (0.5 * self.logdetQ +
+                         0.5 * np.dot(self.targets, self.invQt) +
+                         0.5 * self.n * np.log(2. * np.pi))
         self.current_theta = theta
         self.current_loglikelihood = loglikelihood
         return loglikelihood
@@ -150,11 +151,12 @@ class GaussianProcess(object):
         partials = np.zeros(self.D + 1)
         
         for d in range(self.D):
-            dKdtheta = 0.5*cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
-                                 np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean")*self.Q
-            partials[d] = 0.5*np.exp(self.theta[d])*(np.dot(self.invQt, np.dot(dKdtheta, self.invQt)) - np.sum(self.invQ*dKdtheta))
+            dKdtheta = 0.5 * cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
+                                   np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean") * self.Q
+            partials[d] = (0.5 * np.exp(self.theta[d]) * (np.dot(self.invQt, np.dot(dKdtheta, self.invQt))
+                           - np.sum(self.invQ * dKdtheta))
         
-        partials[self.D] = -0.5*(np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ*self.Q))
+        partials[self.D] = -0.5 * (np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ * self.Q))
         
         return partials
     
@@ -163,29 +165,37 @@ class GaussianProcess(object):
         
         self._set_params(theta0)
         
-        fmin_dict = minimize(self.loglikelihood, theta0, method = method, jac = self.partial_devs, options = kwargs)
+        fmin_dict = minimize(self.loglikelihood, theta0, method = method, jac = self.partial_devs, 
+                             options = kwargs)
         
-        if not fmin_dict['success']:
-            warnings.warn("Minimization routine resulted in a warning", RuntimeWarning)
-            
         return fmin_dict['x'], fmin_dict['fun']
     
     def learn_hyperparameters(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
         "Fit hyperparameters by attempting to minimize the negative log-likelihood multiple times, returns best result"
     
+        np.seterr(over = 'raise')
+        
         loglikelihood_values = []
         theta_values = []
         
-        theta_startvals = 5.*np.random.rand(n_tries, self.D + 1) - 0.5
+        theta_startvals = 5.*(np.random.rand(n_tries, self.D + 1) - 0.5)
         if not theta0 is None:
             theta0 = np.array(theta0)
             assert theta0.shape == (self.D + 1,), "theta0 must be a 1D array with length D + 1"
             theta_startvals[0,:] = theta0
 
         for theta in theta_startvals:
-            min_theta, min_loglikelihood = self._learn(theta, method, **kwargs)
-            loglikelihood_values.append(min_loglikelihood)
-            theta_values.append(min_theta)
+            try:
+                min_theta, min_loglikelihood = self._learn(theta, method, **kwargs)
+                loglikelihood_values.append(min_loglikelihood)
+                theta_values.append(min_theta)
+            except linalg.LinAlgError:
+                print("Matrix not positive definite, skipping this iteration")
+            except FloatingPointError:
+                print("Overflow in optimization routine, skipping this iteration")
+                
+        if len(loglikelihood_values) == 0:
+            raise RuntimeError("Minimization routine failed to return a value")
             
         loglikelihood_values = np.array(loglikelihood_values)
         idx = np.argsort(loglikelihood_values)[0]
@@ -194,7 +204,7 @@ class GaussianProcess(object):
         
         return loglikelihood_values[idx], theta_values[idx]
     
-    def predict(self, testing, do_deriv=True, do_unc=True):
+    def predict(self, testing, do_deriv = True, do_unc = True):
         "Make predictions on a given set of inputs"
         
         testing = np.array(testing)
