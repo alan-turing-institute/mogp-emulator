@@ -14,8 +14,13 @@ class GaussianProcess(object):
         """
         Init method, can be initialized with one or two arguments
         """
+        
+        emulator_file = None
+        theta = None
+        
         if len(args) == 1:
-            raise NotImplementedError("Reading emulator from file not implemented yet")
+            emulator_file = args[0]
+            inputs, targets, theta = self._load_emulator(emulator_file)
         elif len(args) == 2:
             inputs = np.array(args[0])
             targets = np.array(args[1])
@@ -35,14 +40,41 @@ class GaussianProcess(object):
         
         self.n = self.inputs.shape[0]
         self.D = self.inputs.shape[1]
+        
+        if not (emulator_file is None or theta is None):
+            self._set_params(theta)
 
     def save_emulator(self, filename):
         "Saves emulator to file"
-        pass
+        
+        emulator_dict = {}
+        emulator_dict['targets'] = self.targets
+        emulator_dict['inputs'] = self.inputs
+        
+        try:
+            emulator_dict['theta'] = self.theta
+        except AttributeError:
+            pass
+        
+        np.savez(filename, **emulator_dict)
         
     def _load_emulator(self, filename):
         "Loads emulator from file"
-        pass
+        
+        emulator_file = np.load(filename)
+        
+        try:
+            inputs = np.array(emulator_file['inputs'])
+            targets = np.array(emulator_file['targets'])
+        except KeyError:
+            raise KeyError("Emulator file does not contain emulator inputs and targets")
+            
+        try:
+            theta = np.array(emulator_file['theta'])
+        except KeyError:
+            theta = None
+            
+        return inputs, targets, theta
     
     def _jit_cholesky(self, Q, maxtries=5):
         "Performs Cholesky decomposition adding noise to the diagonal as needed. Adapted from code in GPy"

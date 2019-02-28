@@ -32,6 +32,38 @@ def test_GaussianProcess_init():
     assert gp.D == 6
     assert gp.n == 1
 
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                      targets = np.array([2., 4.]))
+        tmp.seek(0)
+        gp = GaussianProcess(tmp)
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([2., 4.])
+    assert_allclose(gp.inputs, x)
+    assert_allclose(gp.targets, y)
+    assert gp.n == 2
+    assert gp.D == 3
+    with pytest.raises(AttributeError):
+        gp.theta
+
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                      targets = np.array([2., 4.]),
+                                      theta = np.array([1., 2., 3., 4.]))
+        tmp.seek(0)
+        gp = GaussianProcess(tmp)
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([2., 4.])
+    theta = np.array([1., 2., 3., 4.])
+    assert_allclose(gp.inputs, x)
+    assert_allclose(gp.targets, y)
+    assert_allclose(gp.theta, theta)
+    assert gp.n == 2
+    assert gp.D == 3
+    
+
 def test_GaussianProcess_init_failures():
     "Tests that GaussianProcess fails correctly with bad inputs"
     
@@ -55,6 +87,36 @@ def test_GaussianProcess_init_failures():
     y = np.array([[2., 3.], [4., 5]])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y)
+
+def test_GaussianProcess_save_emulators():
+    "Test function for the save_emulators method"
+    
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+    y = np.array([2., 4.])
+    gp = GaussianProcess(x, y)
+    
+    with TemporaryFile() as tmp:
+        gp.save_emulator(tmp)
+        tmp.seek(0)
+        emulator_file = np.load(tmp)
+        assert_allclose(emulator_file['inputs'], x)
+        assert_allclose(emulator_file['targets'], y)
+        with pytest.raises(KeyError):
+            emulator_file['theta']
+        
+    x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
+    y = np.reshape(np.array([2., 4., 6.]), (3,))
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    
+    with TemporaryFile() as tmp:
+        gp.save_emulator(tmp)
+        tmp.seek(0)
+        emulator_file = np.load(tmp)
+        assert_allclose(emulator_file['inputs'], x)
+        assert_allclose(emulator_file['targets'], y)
+        assert_allclose(emulator_file['theta'], theta)
 
 def test_GaussianProcess_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine in Gaussian Process"
