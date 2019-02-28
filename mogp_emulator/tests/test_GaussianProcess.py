@@ -330,9 +330,9 @@ def test_GaussianProcess_learn_hyperparameters():
 
 def test_GaussianProcess_predict():
     """
-    Tests the predict method of GaussianProcess -- note does the test does not presently
-    test the values of the derivative as I was unable to find a reference that gave me 
-    a way to calculate the derivatives independently of the code
+    Tests the predict method of GaussianProcess -- note does the test only checks the derivatives
+    via finite differences rather than analytical results as I have not dug through references
+    to find the appropriate expressions
     """
     
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
@@ -344,8 +344,18 @@ def test_GaussianProcess_predict():
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
+    
+    delta = 1.e-8
+    predict_1, _, _ = gp.predict(np.array([[1.-delta, 3., 2.], [3.-delta, 2., 1.]]), do_deriv=False, do_unc=False)
+    predict_2, _, _ = gp.predict(np.array([[1., 3.-delta, 2.], [3., 2.-delta, 1.]]), do_deriv=False, do_unc=False)
+    predict_3, _, _ = gp.predict(np.array([[1., 3., 2.-delta], [3., 2., 1.-delta]]), do_deriv=False, do_unc=False)
+    
+    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
+                         (predict_actual - predict_3)/delta]))
+    
     assert_allclose(predict_actual, predict_expected)
     assert_allclose(unc_actual, unc_expected)
+    assert_allclose(deriv_actual, deriv_fd, atol=1.e-8, rtol=1.e-5)
     
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
@@ -361,8 +371,18 @@ def test_GaussianProcess_predict():
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
+    
+    delta = 1.e-8
+    predict_1, _, _ = gp.predict(np.array([4.-delta, 0., 2.]), do_deriv=False, do_unc=False)
+    predict_2, _, _ = gp.predict(np.array([4., 0.-delta, 2.]), do_deriv=False, do_unc=False)
+    predict_3, _, _ = gp.predict(np.array([4., 0., 2.-delta]), do_deriv=False, do_unc=False)
+    
+    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
+                         (predict_actual - predict_3)/delta]))
+    
     assert_allclose(predict_actual, predict_expected)
     assert_allclose(unc_actual, unc_expected)
+    assert_allclose(deriv_actual, deriv_fd, atol=1.e-8, rtol=1.e-5)
 
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs"
