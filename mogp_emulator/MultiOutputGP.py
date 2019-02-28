@@ -13,7 +13,8 @@
 
 from multiprocessing import Pool
 import numpy as np
-from gp_emulator.GaussianProcess import GaussianProcess
+from .GaussianProcess import GaussianProcess
+from functools import partial
 
 class MultiOutputGP(object):
     """
@@ -241,25 +242,25 @@ class MultiOutputGP(object):
         This method is used to reset the value of the hyperparameters for the emulators and
         update the log-likelihood. It is used after fitting the hyperparameters or when loading
         an emulator from file. Input ``theta`` must be array-like with shape
-        ``(n_emulators, D + 2)``, where ``n_emulators`` is the number of emulators and ``D``
+        ``(n_emulators, D + 1)``, where ``n_emulators`` is the number of emulators and ``D``
         is the number of input parameters. If the number of emulators is 1, then ``theta``
-        having shape ``(D + 2,)`` is allowed.
+        having shape ``(D + 1,)`` is allowed.
         
         :param theta: Parameter values to be used for the emulators. Must be array-like and
-                      have shape ``(n_emulators, D + 2)`` (if there is only a single
-                      emulator, then shape ``(D + 2,)`` is allowed)
+                      have shape ``(n_emulators, D + 1)`` (if there is only a single
+                      emulator, then shape ``(D + 1,)`` is allowed)
         :type theta: ndarray
         :returns: None
         """
         theta = np.array(theta)
-        if self.n_emulators == 1 and theta.shape == (self.D + 2,):
-            theta = np.reshape(theta, (1, self.D + 2))
-        assert theta.shape == (self.n_emulators, self.D + 2), "theta must have shape n_emulators x (D + 2)"
+        if self.n_emulators == 1 and theta.shape == (self.D + 1,):
+            theta = np.reshape(theta, (1, self.D + 1))
+        assert theta.shape == (self.n_emulators, self.D + 1), "theta must have shape n_emulators x (D + 1)"
         
         for emulator, theta_val in zip(self.emulators, theta):
             _ = emulator.loglikelihood(theta_val)
         
-    def learn_hyperparameters(self, n_tries=15, verbose=False, x0=None, processes=None):
+    def learn_hyperparameters(self, n_tries=15, theta0=None, processes=None, method='L-BFGS-B', **kwargs):
         """
         Fit hyperparameters for each model
         
@@ -287,13 +288,10 @@ class MultiOutputGP(object):
                         optimizing over the hyperparameters (must be a positive integer,
                         default = 15)
         :type n_tries: int
-        :param verbose: (optional) Flag indicating whether or not to print detailed
-                        information on the fitting to the screen (default = False)
-        :type verbose: bool
-        :param x0: (optional) Initial value of the hyperparameters to use in the optimization
-                   routine (must be array-like with a length of ``D + 2``, where ``D`` is
+        :param theta0: (optional) Initial value of the hyperparameters to use in the optimization
+                   routine (must be array-like with a length of ``D + 1``, where ``D`` is
                    the number of input parameters to each model). Default is ``None``.
-        :type x0: ndarray or None
+        :type theta0: ndarray or None
         :param processes: (optional) Number of processes to use when fitting the model.
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
@@ -305,9 +303,9 @@ class MultiOutputGP(object):
         """
         
         assert int(n_tries) > 0, "n_tries must be a positive integer"
-        if not x0 is None:
-            x0 = np.array(x0)
-            assert len(x0) == self.D + 2, "x0 must have length of number of input parameters D + 2"
+        if not theta0 is None:
+            theta0 = np.array(theta0)
+            assert len(theta0) == self.D + 1, "theta0 must have length of number of input parameters D + 1"
         if not processes is None:
             processes = int(processes)
             assert processes > 0, "number of processes must be positive"
@@ -315,8 +313,8 @@ class MultiOutputGP(object):
         n_tries = int(n_tries)
         
         with Pool(processes) as p:
-            likelihood_theta_vals = p.starmap(GaussianProcess.learn_hyperparameters,
-                                          [(gp, n_tries, verbose, x0) for gp in self.emulators])
+            likelihood_theta_vals = p.starmap(partial(GaussianProcess.learn_hyperparameters, **kwargs),
+                                          [(gp, n_tries, theta0, method) for gp in self.emulators])
         
         # re-evaluate log likelihood for each emulator to update current parameter values
         # (needed because of how multiprocessing works -- the bulk of the work is done in
