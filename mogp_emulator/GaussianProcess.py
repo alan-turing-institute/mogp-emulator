@@ -154,7 +154,7 @@ class GaussianProcess(object):
             dKdtheta = 0.5 * cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
                                    np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean") * self.Q
             partials[d] = (0.5 * np.exp(self.theta[d]) * (np.dot(self.invQt, np.dot(dKdtheta, self.invQt))
-                           - np.sum(self.invQ * dKdtheta))
+                           - np.sum(self.invQ * dKdtheta)))
         
         partials[self.D] = -0.5 * (np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ * self.Q))
         
