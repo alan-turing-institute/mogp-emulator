@@ -8,11 +8,76 @@ import warnings
 
 class GaussianProcess(object):
     """
-    Refactored version of Gaussian Process from Jose Gomez-Dans' implementation to fix some of the stability issues.
+    Implementation of a Gaussian Process Emulator.
+    
+    This class provides an interface to fit a Gaussian Process Emulator to a set of training
+    data. The class can be initialized from either a pair of inputs/targets arrays, or a file
+    holding data saved from a previous emulator instance (saved via the ``save_emulator``
+    method). Once the emulator has been created, the class provides methods for fitting
+    optimal hyperparameters, changing hyperparameter values, making predictions, and other
+    calculations associated with fitting and making predictions.
+    
+    The internal emulator structure involves arrays for the inputs, targets, and hyperparameters.
+    Other useful information are the number of training examples ``n`` and the number of input
+    parameters ``D``. These parameters are available externally through the ``get_n`` and
+    ``get_D`` methods
+    
+    Example: ::
+    
+        >>> import numpy as np
+        >>> from mogp_emulator import GaussianProcess
+        >>> x = np.array([[1., 2., 3.], [4., 5., 6.]])
+        >>> y = np.array([4., 6.])
+        >>> gp = GaussianProcess(x, y)
+        >>> print(gp)
+        Gaussian Process with 2 training examples and 3 input variables
+        >>> gp.get_n()
+        2
+        >>> gp.get_D()
+        3
+        >>> np.random.seed(47)
+        >>> mogp.learn_hyperparameters()
+        (5.140462159403397, array([-13.02460687,  -4.02939647, -39.2203646 ,   3.25809653]))
+        >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
+        >>> gp.predict(x_predict)
+        (array([4.74687618, 6.84934016]), array([0.01639298, 1.05374973]),
+        array([[8.91363045e-05, 7.18827798e-01, 3.74439445e-16],
+               [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
+        
     """
     def __init__(self, *args):
         """
-        Init method, can be initialized with one or two arguments
+        Create a new GP Emulator
+        
+        Creates a new GP Emulator from either the input data and targets to be fit or a
+        file holding the input/targets and (optionally) learned parameter values.
+        
+        Arguments passed to the ``__init__`` method must be either two arguments which
+        are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
+        which is the filename (string or file handle) of a previously saved emulator.
+        
+        ``inputs`` is a 2D array-like object holding the input data, whose shape is
+        ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
+        is the number of input variables to each simulation.
+        
+        ``targets`` is the target data to be fit by the emulator, also held in an array-like
+        object. This must be a 1D array of length ``n``.
+        
+        If two input arguments ``inputs`` and ``targets`` are given:
+        :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
+                       ``n`` by ``D``, where ``n`` is the number of training examples and
+                       ``D`` is the number of input parameters for each output.
+        :type inputs: ndarray
+        :param targets: Numpy array holding emulator targets. Must be 1D with length ``n``
+        :type targets: ndarray
+        
+        If one input argument ``emulator_file`` is given:
+        :param emulator_file: Filename or file object for saved emulator parameters (using
+                              the ``save_emulator`` method)
+        :type emulator_file: str or file
+        
+        :returns: New ``GaussianProcess`` instance
+        :rtype: GaussianProcess
         """
         
         emulator_file = None
@@ -44,22 +109,23 @@ class GaussianProcess(object):
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
 
-    def save_emulator(self, filename):
-        "Saves emulator to file"
-        
-        emulator_dict = {}
-        emulator_dict['targets'] = self.targets
-        emulator_dict['inputs'] = self.inputs
-        
-        try:
-            emulator_dict['theta'] = self.theta
-        except AttributeError:
-            pass
-        
-        np.savez(filename, **emulator_dict)
-        
     def _load_emulator(self, filename):
-        "Loads emulator from file"
+        """
+        Load saved emulator and parameter values from file
+        
+        Method takes the filename of a saved emulator (using the ``save_emulator`` method).
+        The saved emulator may or may not contain the fitted parameters. If there are no
+        parameters found in the emulator file, the method returns ``None`` for the
+        parameters.
+        
+        :param filename: File where the emulator parameters are saved. Can be a string
+                         filename or a file object.
+        :type filename: str or file
+        :returns: inputs, targets, and (optionally) fitted parameter values from the
+                  saved emulator file
+        :rtype: tuple containing 3 ndarrays or 2 ndarrays and None (if no theta values
+                are found in the emulator file)
+        """
         
         emulator_file = np.load(filename)
         
@@ -75,6 +141,50 @@ class GaussianProcess(object):
             theta = None
             
         return inputs, targets, theta
+
+    def save_emulator(self, filename):
+        """
+        Write emulators to disk
+        
+        Method saves the emulator to disk using the given filename or file handle. The method
+        writes the inputs and targets arrays to file. If the model has been assigned parameters,
+        either manually or by fitting, those parameters are saved as well. Once saved, the
+        emulator can be read by passing the file name or handle to the one-argument ``__init__``
+        method.
+        
+        :param filename: Name of file (or file handle) to which the emulator will be saved.
+        :type filename: str or file
+        :returns: None
+        """
+        
+        emulator_dict = {}
+        emulator_dict['targets'] = self.targets
+        emulator_dict['inputs'] = self.inputs
+        
+        try:
+            emulator_dict['theta'] = self.theta
+        except AttributeError:
+            pass
+        
+        np.savez(filename, **emulator_dict)
+
+    def get_n(self):
+        """
+        Returns number of training examples for the emulator
+        
+        :returns: Number of training examples for the emulator object
+        :rtype: int
+        """
+        return self.n
+        
+    def get_D(self):
+        """
+        Returns number of inputs for the emulator
+        
+        :returns: Number of inputs for the emulator object
+        :rtype: int
+        """
+        return self.D
     
     def _jit_cholesky(self, Q, maxtries = 5):
         "Performs Cholesky decomposition adding noise to the diagonal as needed. Adapted from code in GPy"
@@ -122,7 +232,19 @@ class GaussianProcess(object):
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(L)))
         
     def _set_params(self, theta):
-        "Set parameters of emulator"
+        """
+        Method for setting the hyperparameters for the emulator
+        
+        This method is used to reset the value of the hyperparameters for the emulator and
+        update the log-likelihood. It is used after fitting the hyperparameters or when loading
+        an emulator from file. Input ``theta`` must be array-like with shape
+        ``(D + 1,)``, where ``D`` is the number of input parameters.
+        
+        :param theta: Parameter values to be used for the emulator. Must be array-like and
+                      have shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: None
+        """
         
         theta = np.array(theta)
         assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
@@ -205,7 +327,47 @@ class GaussianProcess(object):
         return loglikelihood_values[idx], theta_values[idx]
     
     def predict(self, testing, do_deriv = True, do_unc = True):
-        "Make predictions on a given set of inputs"
+        """
+        Make a prediction for a set of input vectors
+        
+        Makes predictions for the emulator on a given set of input vectors. The input vectors
+        must be passed as a ``(n_predict, D)`` or ``(D,)`` shaped array-like object, where
+        ``n_predict`` is the number of different prediction points under consideration and
+        ``D`` is the number of inputs to the emulator. If the prediction inputs array has shape
+        ``(D,)``, then the method assumes ``n_predict == 1``. The prediction is returned as an
+        ``(n_predict, )`` shaped numpy array as the first return value from the method.
+        
+        Optionally, the emulator can also calculate the uncertainties in the predictions 
+        and the derivatives with respect to each input parameter. If the uncertainties are
+        computed, they are returned as the second output from the method as an ``(n_predict,)``
+        shaped numpy array. If the derivatives are computed, they are returned as the third
+        output from the method as an ``(n_predict, D)`` shaped numpy array.
+        
+        As with the fitting, this computation can be done independently for each emulator
+        and thus can be done in parallel.
+        
+        :param testing: Array-like object holding the points where predictions will be made.
+                        Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
+        :type testing: ndarray
+        :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
+                         If ``False`` the method returns ``None`` in place of the derivative
+                         array. Default value is ``True``.
+        :type do_deriv: bool
+        :param do_unc: (optional) Flag indicating if the uncertainties are to be computed.
+                         If ``False`` the method returns ``None`` in place of the uncertainty
+                         array. Default value is ``True``.
+        :type do_unc: bool
+        :param processes: (optional) Number of processes to use when making the predictions.
+                          Must be a positive integer or ``None`` to use the number of
+                          processors on the computer (default is ``None``)
+        :type processes: int or None
+        :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
+                  respectively. Predictions and uncertainties have shape ``(n_predict,)``
+                  while the derivatives have shape ``(n_predict, D)``. If the ``do_unc`` or
+                  ``do_deriv`` flags are set to ``False``, then those arrays are replaced by
+                  ``None``.
+        :rtype: tuple
+        """
         
         testing = np.array(testing)
         if len(testing.shape) == 1:
@@ -237,16 +399,12 @@ class GaussianProcess(object):
                 deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
         return mu, var, deriv
         
-    def get_n(self):
-        "Returns number of training examples"
-        return self.n
-        
-    def get_D(self):
-        "Returns number of input parameters"
-        return self.D
-        
     def __str__(self):
         """
-        Returns a string representation of the emulator
+        Returns a string representation of the model
+        
+        :returns: A string representation of the model (indicates number of training examples
+                  and inputs)
+        :rtype: str
         """
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"

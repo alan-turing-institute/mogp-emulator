@@ -39,25 +39,18 @@ class MultiOutputGP(object):
         3
         >>> np.random.seed(47)
         >>> mogp.learn_hyperparameters()
-        After 15, the minimum cost was 5.322784e+00
-        After 15, the minimum cost was 5.140462e+00
-        [(5.1404621594033895,
-          array([-6.95976295, -4.99805894, -5.21415165,  3.23718116, -0.61961335])),
-         (5.322783716197344,
-          array([-9.80965415, -5.53659105, -6.29521694,  3.58162789,  0.06580016]))]
+        [(5.140462159403397, array([-13.02460687,  -4.02939647, -39.2203646 ,   3.25809653])),
+         (5.322783716197557, array([-18.448741  ,  -5.46557813,  -4.81355357,   3.61091708]))]
         >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
-        >>> mogp.predict()
-        (array([[4.76282574, 6.36038561],
-                [5.78892678, 6.9389214 ]]), array([[0.30425374, 2.21021771],
-                [0.56260549, 2.67487348]]), array([[[0.03785875, 0.26923002, 0.21690803],
-                 [0.00478238, 0.03400961, 0.02740021]],
-                [[0.00309533, 0.22206213, 0.10399381],
-                 [0.00107731, 0.07728762, 0.03619453]]]))
-    
-    Note that there will frequently be a ``RuntimeWarning`` during the fitting of hyperparameters,
-    due to the random initial conditions which sometimes leads to a poorly conditioned matrix
-    inversion. This should only be a concern if the final minimum cost is 9999 (meaning that
-    all attempts to minimize the negative log-likelihood resulted in an error).
+        >>> mogp.predict(x_predict)
+        (array([[4.74687618, 6.84934016],
+               [5.7350324 , 8.07267051]]),
+         array([[0.01639298, 1.05374973],
+               [0.01125792, 0.77568672]]),
+         array([[[8.91363045e-05, 7.18827798e-01, 3.74439445e-16],
+                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]],
+               [[5.58461022e-07, 2.42945502e-01, 4.66315152e-01],
+                [1.24593861e-07, 5.42016666e-02, 1.04035918e-01]]]))
         
     """
     def __init__(self, *args):
@@ -65,7 +58,7 @@ class MultiOutputGP(object):
         Create a new multi-output GP Emulator
         
         Creates a new multi-output GP Emulator from either the input data and targets to
-        be fit or a file holding the input/targets and learned parameter values.
+        be fit or a file holding the input/targets and (optionally) learned parameter values.
         
         Arguments passed to the ``__init__`` method must be either two arguments which
         are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
@@ -95,9 +88,9 @@ class MultiOutputGP(object):
         :type targets: ndarray
         
         If one input argument ``emulator_file`` is given:
-        :param emulator_file: Filename for saved emulator parameters (using the ``save_emulator``
-                              method)
-        :type emulator_file: str
+        :param emulator_file: Filename or file object for saved emulator parameters (using
+                              the ``save_emulator`` method)
+        :type emulator_file: str or file
         
         :returns: New ``MultiOutputGP`` instance
         :rtype: MultiOutputGP
@@ -144,8 +137,8 @@ class MultiOutputGP(object):
         parameters found in the emulator file, the method returns ``None`` for the
         parameters.
         
-        :param filename: File where the emulator parameters. Can be a string filename
-                         or an open file handle.
+        :param filename: File where the emulator parameters are saved. Can be a string
+                         filename or a file object.
         :type filename: str or file
         :returns: inputs, targets, and (optionally) fitted parameter values from the
                   saved emulator file
@@ -179,7 +172,7 @@ class MultiOutputGP(object):
         those parameters are saved as well. Once saved, the emulator can be read by passing
         the file name or handle to the one-argument ``__init__`` method.
         
-        :param filename: Name of file (or file handle) to which the emulators will be save.
+        :param filename: Name of file (or file handle) to which the emulators will be saved.
         :type filename: str or file
         :returns: None
         """
@@ -324,14 +317,14 @@ class MultiOutputGP(object):
         consideration and ``D`` is the number of inputs to the emulator. If the prediction
         inputs array has shape ``(D,)``, then the method assumes ``n_predict == 1``. 
         The prediction points are passed to each emulator and the predictions are collected
-        into a ``(n_emulators, n_predict)`` shaped numpy array as the first return value
+        into an ``(n_emulators, n_predict)`` shaped numpy array as the first return value
         from the method.
         
         Optionally, the emulator can also calculate the uncertainties in the predictions 
         and the derivatives with respect to each input parameter. If the uncertainties are
-        computed, they are returned as the second output from the method as a
+        computed, they are returned as the second output from the method as an
         ``(n_emulators, n_predict)`` shaped numpy array. If the derivatives are computed,
-        they are returned as the third output from the method as a
+        they are returned as the third output from the method as an
         ``(n_emulators, n_predict, D)`` shaped numpy array.
         
         As with the fitting, this computation can be done independently for each emulator
