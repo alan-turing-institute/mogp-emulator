@@ -187,7 +187,32 @@ class GaussianProcess(object):
         return self.D
     
     def _jit_cholesky(self, Q, maxtries = 5):
-        "Performs Cholesky decomposition adding noise to the diagonal as needed. Adapted from code in GPy"
+        """
+        Performs Jittered Cholesky Decomposition
+        
+        Performs a Jittered Cholesky decomposition, adding noise to the diagonal of the matrix as needed
+        in order to ensure that the matrix can be inverted. Adapted from code in GPy.
+        
+        On occasion, the matrix that needs to be inverted in fitting a GP is nearly singular. This arises
+        when the training samples are very close to one another, and can be averted by adding a noise term
+        to the diagonal of the matrix. This routine performs an exact Cholesky decomposition if it can
+        be done, and if it cannot it successively adds noise to the diagonal (starting with 1.e-6 times
+        the mean of the diagonal and incrementing by a factor of 10 each time) until the matrix can be
+        decomposed or the algorithm reaches ``maxtries`` attempts. The routine returns the lower
+        triangular matrix and the amount of jitter necessary to stabilize the decomposition.
+        
+        :param Q: The matrix to be inverted as an array of shape ``(n,n)``. Must be a symmetric positive
+                  definite matrix.
+        :type Q: ndarray
+        :param maxtries: (optional) Maximum allowable number of attempts to stabilize the Cholesky
+                         Decomposition. Must be a positive integer (default = 5)
+        :type maxtries: int
+        :returns: Lower-triangular factored matrix (shape ``(n,n)`` and the noise that was added to
+                  the diagonal to achieve that result.
+        :rtype: tuple containing an ndarray and a float
+        """
+        assert int(maxtries) > 0, "maxtries must be a positive integer"
+        
         Q = np.ascontiguousarray(Q)
         L, info = lapack.dpotrf(Q, lower = 1)
         if info == 0:
