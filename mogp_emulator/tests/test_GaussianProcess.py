@@ -304,10 +304,6 @@ def test_GaussianProcess_learn():
     min_theta_actual, min_loglikelihood_actual = gp._learn(theta, method = 'CG')
     assert_allclose(min_theta_expected, min_theta_actual)
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual)
-    
-    theta = np.zeros(4)
-    with pytest.warns(RuntimeWarning):
-        gp._learn(theta, maxiter = 1, gtol = 1.e-20, ftol = 2.e-18)
         
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
