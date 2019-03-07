@@ -325,6 +325,12 @@ def test_GaussianProcess_learn_hyperparameters():
     theta = np.zeros(5)
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(theta0 = theta)
+        
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    with pytest.raises(AssertionError):
+        gp.learn_hyperparameters(n_tries = -1)
 
 def test_GaussianProcess_predict():
     """

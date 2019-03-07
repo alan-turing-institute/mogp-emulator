@@ -356,7 +356,36 @@ class GaussianProcess(object):
         return partials
     
     def _learn(self, theta0, method = 'L-BFGS-B', **kwargs):
-        "Minimize loglikelihood function wrt the hyperparameters, starting from theta0"
+        """
+        Minimize log-likelihood function wrt the hyperparameters
+        
+        Minimize the negative log-likelihood function, with a starting value given by ``theta0``.
+        This is done via any gradient-based method available through scipy (see the scipy
+        documentation for details), and options can be passed to the minimization routine.
+        The default minimization routine is ``L-BFGS-B'``, but this can be specified.
+        
+        The method is dumb and returns the last value returned from the minimization routine
+        irrespective of any error flags returned by the minimization function. This is not
+        necessarily a cause for concern, as (1) the parent routine to this function is
+        configured to do a certain number of attempts, taking the best result and (2) application
+        of the GP does not require that the hyperparameters are at a true minimum of the
+        log-likelihood function, just at a value that leads to predictions that are good enough.
+        
+        The method returns the hyperparameter values as an array with shape ``(D + 1,)`` 
+        and the minimimum negative log-likelihood value found.
+        
+        :param theta0: Starting value for the minimization routine. Must be an array with shape
+                       ``(D + 1,)``
+        :type theta0: ndarray
+        :param method: Minimization method. Must be a gradient-based method available in the
+                       ``scipy.optimize.minimize`` function (optional, default is ``'L-BFGS-B'``
+                       with no bounds given)
+        :type method: str
+        :param **kwargs: Additional keyword arguments to be passed to ``scipy.optimize.minimize``
+        :returns: minimum hyperparameter values in an array of shape ``(D + 1,)`` and the
+                  minimum negative log-likelihood value
+        :rtype: tuple containing a ndarray and a float
+        """
         
         self._set_params(theta0)
         
@@ -366,8 +395,53 @@ class GaussianProcess(object):
         return fmin_dict['x'], fmin_dict['fun']
     
     def learn_hyperparameters(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
-        "Fit hyperparameters by attempting to minimize the negative log-likelihood multiple times, returns best result"
+        """
+        Fit hyperparameters by attempting to minimize the negative log-likelihood
+        
+        Fits the hyperparameters by attempting to minimize the negative log-likelihood multiple times
+        from a given starting location and using a particular minimization method. The best result
+        found among all of the attempts is returned, unless all attempts to fit the parameters result
+        in an error (see below).
+        
+        If the method encounters an overflow (this can result because the parameter values stored are
+        the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
+        (occurs when the covariance matrix cannot be inverted, even with the addition of additional
+        "jitter" or noise added along the diagonal), the iteration is skipped. If all attempts to
+        find optimal hyperparameters result in an error, then the method raises an exception.
+        
+        The ``theta0`` parameter is the point at which the first iteration will start. If more than
+        one attempt is made, subsequent attempts will use random starting points.
+        
+        The user can specify the details of the minimization method, using any of the gradient-based
+        optimizers available in ``scipy.optimize.minimize``. Any additional parameters beyond the method
+        specification can be passed as keyword arguments.
+        
+        The method returns the minimum negative log-likelihood found and the parameter values at
+        which that minimum was obtained. The method also sets the current values of the hyperparameters
+        to these optimal values and pre-computes the matrices needed to make predictions.
+        
+        :param n_tries: Number of attempts to minimize the negative log-likelihood function.
+                        Must be a positive integer (optional, default is 15)
+        :type n_tries: int
+        :param theta0: Initial starting point for the first iteration. If present, must be
+                       array-like with shape ``(D + 1,)``. If ``None`` is given, then
+                       a random value is chosen. (Default is ``None``)
+        :type theta0: None or ndarray
+        :param method: Minimization method to be used. Can be any gradient-based optimization
+                       method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
+        :type method: str
+        :param **kwargs: Additional keyword arguments to be passed to the minimization routine.
+                         see available parameters in ``scipy.optimize.minimize`` for details.
+        :returns: Minimum negative log-likelihood values and hyperparameters (numpy array with shape
+                  ``(D + 1,)``) used to obtain those values. The method also sets the current values
+                  of the hyperparameters to these optimal values and pre-computes the matrices needed
+                  to make predictions.
+        :rtype: tuple containing a float and an ndarray
+        """
     
+        n_tries = int(n_tries)
+        assert n_tries > 0, "number of attempts must be positive"
+        
         np.seterr(over = 'raise')
         
         loglikelihood_values = []
