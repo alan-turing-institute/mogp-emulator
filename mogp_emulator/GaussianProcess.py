@@ -240,7 +240,21 @@ class GaussianProcess(object):
         return L, jitter
     
     def _prepare_likelihood(self):
-        "Precalculates matrices needed for fitting"
+        """
+        Pre-calculates matrices needed for fitting and making predictions
+        
+        Pre-calculates the matrices needed to compute the log-likelihood and make subsequent
+        predictions. This is called any time the hyperparameter values are changed in order
+        to ensure that all the information is needed to evaluate the log-likelihood and
+        its derivatives, which are needed when fitting the optimal hyperparameters.
+        
+        The method computes the covariance matrix (assuming a squared exponential kernel) 
+        and inverts it using the jittered cholesky decomposition. Some additional information
+        is also pre-computed and stored. This method has no inputs and no return value,
+        but it does modify the state of the object.
+        
+        :returns: None
+        """
         
         exp_theta = np.exp(self.theta)
         
@@ -278,7 +292,20 @@ class GaussianProcess(object):
         self._prepare_likelihood()
     
     def loglikelihood(self, theta):
-        "Calculate the negative loglikelihood at a particular value of the hyperparameters"
+        """
+        Calculate the negative log-likelihood at a particular value of the hyperparameters
+        
+        Calculate the negative log-likelihood for the given set of parameters. Calling this
+        method sets the parameter values and computes the needed inverse matrices in order
+        to evaluate the log-likelihood and its derivatives. In addition to returning the
+        log-likelihood value, it stores the current value of the hyperparameters and
+        log-likelihood in attributes of the object.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: negative log-likelihood
+        :rtype: float
+        """
         
         self._set_params(theta)
 
@@ -290,7 +317,28 @@ class GaussianProcess(object):
         return loglikelihood
     
     def partial_devs(self, theta):
-        "Calculate the partial derivatives of the negative loglikelihood wrt the hyper parameters"
+        """
+        Calculate the partial derivatives of the negative log-likelihood
+        
+        Calculate the partial derivatives of the negative log-likelihood with respect to
+        the hyperparameters. Note that this function is normally used only when fitting
+        the hyperparameters, and it is not needed to make predictions.
+        
+        During normal use, the ``partial_devs`` method is called after evaluating the
+        ``loglikelihood`` method. The implementation takes advantage of this by storing
+        the inverse of the covariance matrix, which is expensive to compute and is used
+        by both the ``loglikelihood`` and ``partial_devs`` methods. If the function
+        is evaluated with a different set of parameters than was previously used to set
+        the log-likelihood, the method calls ``_set_params`` to compute the needed
+        information. However, caling ``partial_devs`` does not evaluate the log-likelihood,
+        so it does not change the cached values of the parameters or log-likelihood.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: partial derivatives of the negative log-likelihood (array with shape
+                  ``(D + 1,)``)
+        :rtype: ndarray
+        """
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
