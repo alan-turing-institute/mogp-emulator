@@ -99,12 +99,14 @@ def run_model(n_emulators, n_simulations, n_testing, processes = None):
     gp = MultiOutputGP(inputs, targets)
     gp.learn_hyperparameters(processes = processes)
     
+    norm_const = np.mean(targets)
+    
     testing, test_targets = generate_test_data(n_testing, emulator_params)
     
     test_vals, unc, deriv = gp.predict(testing, do_deriv = False, do_unc = True, processes = processes)
     
-    return (np.sqrt(np.sum((test_vals - test_targets)**2))/float(n_emulators)/float(n_testing),
-            np.sqrt(np.sum(unc**2))/float(n_emulators)/float(n_testing))
+    return (np.sqrt(np.sum((test_vals - test_targets)**2)/float(n_emulators)/float(n_testing))/norm_const,
+            np.sqrt(np.sum(unc**2)/float(n_emulators)/float(n_testing))/norm_const**2)
     
 def plot_model_errors(n_emulators, n_testing, simulation_list, process_list = [None], n_iter = 10):
     "Makes plot showing accuracy of emulator as a function of n_simulations"
