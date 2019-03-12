@@ -1,3 +1,15 @@
+'''
+This benchmark performs convergence tests on a single emulator with variable numbers of input parameters.
+The example is based on the Rosenbrock function (see https://www.sfu.ca/~ssurjano/rosen.html). This
+function can be defined in an artibrary number of dimensions, so it provides a useful test for how
+emulators based on increasing numbers of parameters perform as the size of the training data is varied.
+As the number of training points increases, the prediction error and prediction variance should
+decrease. However, this will depend on the number of dimensions in the function -- in general, the
+size of the input space grows exponentially with the number of dimensions, while the samples 
+drawn here grow linearly with the number of dimensions. Thus, the higher dimensional emulators will
+perform worse for the same number of samples per dimension.
+'''
+
 import numpy as np
 from mogp_emulator import GaussianProcess
 from mogp_emulator.utils import lhd

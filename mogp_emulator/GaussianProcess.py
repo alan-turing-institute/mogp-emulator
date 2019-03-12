@@ -44,6 +44,7 @@ class GaussianProcess(object):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
         
     """
+    
     def __init__(self, *args):
         """
         Create a new GP Emulator
@@ -63,6 +64,7 @@ class GaussianProcess(object):
         object. This must be a 1D array of length ``n``.
         
         If two input arguments ``inputs`` and ``targets`` are given:
+        
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
                        ``D`` is the number of input parameters for each output.
@@ -71,12 +73,14 @@ class GaussianProcess(object):
         :type targets: ndarray
         
         If one input argument ``emulator_file`` is given:
+        
         :param emulator_file: Filename or file object for saved emulator parameters (using
                               the ``save_emulator`` method)
-        :type emulator_file: str or file
         
+        :type emulator_file: str or file
         :returns: New ``GaussianProcess`` instance
         :rtype: GaussianProcess
+        
         """
         
         emulator_file = None
@@ -174,6 +178,7 @@ class GaussianProcess(object):
         :returns: Number of training examples for the emulator object
         :rtype: int
         """
+        
         return self.n
         
     def get_D(self):
@@ -183,6 +188,7 @@ class GaussianProcess(object):
         :returns: Number of inputs for the emulator object
         :rtype: int
         """
+        
         return self.D
     
     def _jit_cholesky(self, Q, maxtries = 5):
@@ -210,6 +216,7 @@ class GaussianProcess(object):
                   the diagonal to achieve that result.
         :rtype: tuple containing an ndarray and a float
         """
+        
         assert int(maxtries) > 0, "maxtries must be a positive integer"
         
         Q = np.ascontiguousarray(Q)
@@ -429,13 +436,14 @@ class GaussianProcess(object):
         :param method: Minimization method to be used. Can be any gradient-based optimization
                        method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
         :type method: str
-        :param **kwargs: Additional keyword arguments to be passed to the minimization routine.
+        :param ``**kwargs``: Additional keyword arguments to be passed to the minimization routine.
                          see available parameters in ``scipy.optimize.minimize`` for details.
         :returns: Minimum negative log-likelihood values and hyperparameters (numpy array with shape
                   ``(D + 1,)``) used to obtain those values. The method also sets the current values
                   of the hyperparameters to these optimal values and pre-computes the matrices needed
                   to make predictions.
         :rtype: tuple containing a float and an ndarray
+        
         """
     
         n_tries = int(n_tries)
@@ -553,4 +561,5 @@ class GaussianProcess(object):
                   and inputs)
         :rtype: str
         """
+        
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"

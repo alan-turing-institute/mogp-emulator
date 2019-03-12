@@ -53,6 +53,7 @@ class MultiOutputGP(object):
                 [1.24593861e-07, 5.42016666e-02, 1.04035918e-01]]]))
         
     """
+    
     def __init__(self, *args):
         """
         Create a new multi-output GP Emulator
@@ -78,22 +79,25 @@ class MultiOutputGP(object):
         ``(n,)``, a single emulator is fit.
         
         If two input arguments ``inputs`` and ``targets`` are given:
+        
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
                        ``D`` is the number of input parameters for each output.
         :type inputs: ndarray
         :param targets: Numpy array holding emulator targets. Must be 2D or 1D with length
-                       ``n`` in the final dimension. The first dimension is of length
-                       ``n_emulators`` (defaults to a single emulator if the input is 1D)
+                        ``n`` in the final dimension. The first dimension is of length
+                        ``n_emulators`` (defaults to a single emulator if the input is 1D)
         :type targets: ndarray
         
         If one input argument ``emulator_file`` is given:
+        
         :param emulator_file: Filename or file object for saved emulator parameters (using
                               the ``save_emulator`` method)
         :type emulator_file: str or file
         
         :returns: New ``MultiOutputGP`` instance
         :rtype: MultiOutputGP
+        
         """
         
         emulator_file = None
@@ -195,6 +199,7 @@ class MultiOutputGP(object):
         :returns: Number of emulators in the object
         :rtype: int
         """
+        
         return self.n_emulators
         
     def get_n(self):
@@ -204,6 +209,7 @@ class MultiOutputGP(object):
         :returns: Number of training examples in each emulator in the object
         :rtype: int
         """
+        
         return self.n
         
     def get_D(self):
@@ -213,6 +219,7 @@ class MultiOutputGP(object):
         :returns: Number of inputs for each emulator in the object
         :rtype: int
         """
+        
         return self.D
         
     def _set_params(self, theta):
@@ -232,6 +239,7 @@ class MultiOutputGP(object):
         :type theta: ndarray
         :returns: None
         """
+        
         theta = np.array(theta)
         if self.n_emulators == 1 and theta.shape == (self.D + 1,):
             theta = np.reshape(theta, (1, self.D + 1))
@@ -256,13 +264,11 @@ class MultiOutputGP(object):
         negative log-likelihood and a numpy array holding the optimal parameters found for
         each model.
         
-        Note that fitting the hyperparameters will frequently result in a ``RuntimeWarning``.
-        This is because the fitting routine tries several different sets of initial 
-        conditions to ensure that the minimization routines does not get stuck in a
-        local minimum, and often certain sets of initial conditions lead to a poorly
-        conditions matrix inversion. This should only be a concern if the final
-        negative log-likelihood for any emulator is 9999, which means that all attempts
-        to fit that emulator resulting in a warning.
+        If the method encounters an overflow (this can result because the parameter values stored are
+        the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
+        (occurs when the covariance matrix cannot be inverted, even with the addition of additional
+        "jitter" or noise added along the diagonal), the iteration is skipped. If all attempts to
+        find optimal hyperparameters result in an error, then the method raises an exception.
         
         :param n_tries: (optional) The number of different initial conditions to try when
                         optimizing over the hyperparameters (must be a positive integer,
@@ -276,10 +282,16 @@ class MultiOutputGP(object):
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
         :type processes: int or None
+        :param method: Minimization method to be used. Can be any gradient-based optimization
+                       method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
+        :type method: str
+        :param ``**kwargs``: Additional keyword arguments to be passed to the minimization routine.
+                         see available parameters in ``scipy.optimize.minimize`` for details.
         :returns: List holding ``n_emulators`` tuples of length 2. Each tuple contains
                   the minimum negative log-likelihood for that particular emulator and a
                   numpy array of length ``D + 2`` holding the corresponding hyperparameters
         :rtype: list
+        
         """
         
         assert int(n_tries) > 0, "n_tries must be a positive integer"
@@ -352,6 +364,7 @@ class MultiOutputGP(object):
                   are replaced by ``None``.
         :rtype: tuple
         """
+        
         testing = np.array(testing)
         if testing.shape == (self.D,):
             testing = np.reshape(testing, (1, self.D))
@@ -383,6 +396,7 @@ class MultiOutputGP(object):
                   and array shapes)
         :rtype: str
         """
+        
         return ("Multi-Output Gaussian Process with:\n"+
                  str(self.get_n_emulators())+" emulators\n"+
                  str(self.get_n())+" training examples\n"+

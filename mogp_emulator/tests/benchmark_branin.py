@@ -1,3 +1,21 @@
+'''
+This benchmark performs convergence tests on multiple realizations of the 2D Branin function.
+Details of the 2D Branin function can be found at https://www.sfu.ca/~ssurjano/branin.html.
+This particular version uses 8 realizations of the Branin function, each with a different
+set of parameters. The code samples these 8 realizations simultaneously using a spacefilling
+Latin Hypercube experimental design with a varying number of target points, and then tests
+the convergence of the resulting emulators. As the number of targe points increases, the
+prediction error and prediction variance should decrease.
+
+(Note however that eventually, the predictions worsen once the number of target points becomes
+large enough that the points become too densely sampled. In this case, the points become
+co-linear and the resulting covariance matrix is singular and cannot be inverted. To avoid
+this problem, the code iteratively adds additional noise to the covariance function to
+stabilize the inversion. However, this noise reduces the accuracy of the predictions. The
+values chosen for this benchmark attempt to avoid this, but in some cases this still becomes
+a problem due to the inherent smoothness of the squared exponential covariance function.)
+'''
+
 import numpy as np
 from mogp_emulator import MultiOutputGP
 from mogp_emulator.utils import lhd
