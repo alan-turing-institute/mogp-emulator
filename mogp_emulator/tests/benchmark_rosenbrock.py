@@ -2,7 +2,11 @@ import numpy as np
 from mogp_emulator import GaussianProcess
 from mogp_emulator.utils import lhd
 from scipy.stats import uniform
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    makeplots = True
+except ImportError:
+    makeplots = False
 
 def rosenbrock(x):
     """
@@ -30,7 +34,7 @@ def generate_input_data(n_simulations, n_dimensions, method = "random"):
     if method == "random":
         inputs = np.random.uniform(low = -5., high = 10., size = (n_simulations, n_dimensions))
     elif method == "lhd":
-        inputs = lhd([uniform(loc = -5., scale = 15.)]*n_dimensions, n_simulations)
+        inputs = lhd([uniform(loc = -5., scale = 15.)]*n_dimensions, n_simulations, form="spacefilling")
     return inputs
 
 def generate_training_data(n_simulations, n_dimensions):
@@ -66,8 +70,29 @@ def run_model(n_simulations, n_dimensions, n_testing):
     return (np.sqrt(np.sum((test_vals - test_targets)**2)/float(n_testing))/norm_const,
             np.sqrt(np.sum(unc**2)/float(n_testing))/norm_const**2)
     
-def plot_model_errors(n_testing, dimension_list, simulation_list, n_iter = 10):
+def plot_model_errors(dimension_list, simulation_list, error, unc, n_testing):
     "Makes plot showing accuracy of emulator as a function of n_simulations"
+    
+    plt.figure(figsize=(4,3))
+    for dim, err in zip(dimension_list, error):
+        plt.semilogy(np.array(simulation_list), err, '-o', label = str(dim)+" dimensions")
+    plt.legend()
+    plt.xlabel('Number of simulations per dimension')
+    plt.ylabel('Relative prediction RMSE')
+    plt.title('Error for '+str(n_testing)+' predictions\nusing Rosenbrock function')
+    plt.savefig('rosenbrock_error.png',bbox_inches='tight')
+    
+    plt.figure(figsize=(4,3))
+    for dim, un in zip(dimension_list, unc):
+        plt.semilogy(np.array(simulation_list), un, '-o', label = str(dim)+" dimensions")
+    plt.legend()
+    plt.xlabel('Number of simulations per dimension')
+    plt.ylabel('Relative prediction variance')
+    plt.title('Uncertainty for '+str(n_testing)+' predictions\nusing Rosenbrock function')
+    plt.savefig('rosenbrock_unc.png',bbox_inches='tight')
+
+def run_all_models(n_testing, dimension_list, simulation_list, n_iter = 10):
+    "Runs all simulations, printing out results and optionally makes plots of results"
     
     n_simtrials = len(simulation_list)
     n_dimtrials = len(dimension_list)
@@ -97,23 +122,8 @@ def plot_model_errors(n_testing, dimension_list, simulation_list, n_iter = 10):
         for sim, un in zip(simulation_list, un_list):
             print('{:23}{:18}{}'.format(str(sim*dim), str(dim), str(un)))
     
-    plt.figure(figsize=(4,3))
-    for dim, err in zip(dimension_list, error):
-        plt.semilogy(np.array(simulation_list), err, '-o', label = str(dim)+" dimensions")
-    plt.legend()
-    plt.xlabel('Number of simulations per dimension')
-    plt.ylabel('Relative prediction RMSE')
-    plt.title('Error for '+str(n_testing)+' predictions\nusing Rosenbrock function')
-    plt.savefig('rosenbrock_error.png',bbox_inches='tight')
-    
-    plt.figure(figsize=(4,3))
-    for dim, un in zip(dimension_list, unc):
-        plt.semilogy(np.array(simulation_list), un, '-o', label = str(dim)+" dimensions")
-    plt.legend()
-    plt.xlabel('Number of simulations per dimension')
-    plt.ylabel('Relative prediction variance')
-    plt.title('Uncertainty for '+str(n_testing)+' predictions\nusing Rosenbrock function')
-    plt.savefig('rosenbrock_unc.png',bbox_inches='tight')
+    if makeplots:
+        plot_model_errors(dimension_list, simulation_list, error, unc, n_testing)
     
 if __name__ == '__main__':
-    plot_model_errors(100, [4, 6, 8], [i for i in range(2, 16)], 10)
+    run_all_models(100, [4, 6, 8], [i for i in range(2, 16)], 10)

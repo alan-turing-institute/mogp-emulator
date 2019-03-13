@@ -4,7 +4,6 @@ from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
-import warnings
 
 class GaussianProcess(object):
     """
