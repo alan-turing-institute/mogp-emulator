@@ -163,9 +163,9 @@ def test_GaussianProcess_prepare_likelihood():
     logdetQ_expected = -0.00029059870020992285
     gp.theta = theta
     gp._prepare_likelihood()
-    assert_allclose(gp.invQ, invQ_expected)
-    assert_allclose(gp.invQt, invQt_expected)
-    assert_allclose(gp.logdetQ, logdetQ_expected)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
     
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -178,9 +178,9 @@ def test_GaussianProcess_prepare_likelihood():
                               [-3.3691214036059972e-03, -3.3691214038620732e-03, 1.0000444018785022e+00]])
     invQt_expected = np.array([-4.9999876342845545e+05,  5.0000123658773920e+05, 3.9833320004952104e+00])
     logdetQ_expected = -13.122407278313416
-    assert_allclose(gp.invQ, invQ_expected)
-    assert_allclose(gp.invQt, invQt_expected)
-    assert_allclose(gp.logdetQ, logdetQ_expected)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
 
 def test_GaussianProcess_set_params():
     "Tests the _set_params method of GaussianProcess"
@@ -196,9 +196,9 @@ def test_GaussianProcess_set_params():
     logdetQ_expected = -0.00029059870020992285
     gp._set_params(theta)
     assert_allclose(theta, gp.theta)
-    assert_allclose(gp.invQ, invQ_expected)
-    assert_allclose(gp.invQt, invQt_expected)
-    assert_allclose(gp.logdetQ, logdetQ_expected)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
     
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -210,10 +210,10 @@ def test_GaussianProcess_set_params():
     invQt_expected = np.array([0.73575166572692  , 1.1036275725476148, 1.471511468650928 ])
     logdetQ_expected = 2.9999999999509863
     gp._set_params(theta)
-    assert_allclose(theta, gp.theta)
-    assert_allclose(gp.invQ, invQ_expected)
-    assert_allclose(gp.invQt, invQt_expected)
-    assert_allclose(gp.logdetQ, logdetQ_expected)
+    assert_allclose(theta, gp.theta, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
     
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -231,10 +231,10 @@ def test_GaussianProcess_loglikelihood():
     theta = np.zeros(4)
     expected_loglikelihood = 17.00784177045409
     actual_loglikelihood = gp.loglikelihood(theta)
-    assert_allclose(actual_loglikelihood, expected_loglikelihood)
-    assert_allclose(gp.theta, theta)
-    assert_allclose(gp.current_loglikelihood, expected_loglikelihood)
-    assert_allclose(gp.current_theta, theta)
+    assert_allclose(actual_loglikelihood, expected_loglikelihood, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.theta, theta, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.current_loglikelihood, expected_loglikelihood, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.current_theta, theta, atol = 1.e-8, rtol = 1.e-5)
     
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -296,14 +296,14 @@ def test_GaussianProcess_learn():
     min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
     min_loglikelihood_expected = 4.457233158665504
     min_theta_actual, min_loglikelihood_actual = gp._learn(theta)
-    assert_allclose(min_theta_expected, min_theta_actual)
-    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual)
+    assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
     
     min_theta_expected = np.array([ -2.7701167931095463, -20.181657894856162 , -21.27146085457964 , 2.0359426902424462])
     min_loglikelihood_expected = 4.457233396431864
     min_theta_actual, min_loglikelihood_actual = gp._learn(theta, method = 'CG')
-    assert_allclose(min_theta_expected, min_theta_actual)
-    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual)
+    assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
         
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
@@ -316,8 +316,8 @@ def test_GaussianProcess_learn_hyperparameters():
     min_loglikelihood_expected = 4.457233158665504
     min_loglikelihood_actual, min_theta_actual = gp.learn_hyperparameters(n_tries = 1, theta0 = theta)
     
-    assert_allclose(min_theta_expected, min_theta_actual)
-    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual)
+    assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -357,8 +357,8 @@ def test_GaussianProcess_predict():
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                          (predict_actual - predict_3)/delta]))
     
-    assert_allclose(predict_actual, predict_expected)
-    assert_allclose(unc_actual, unc_expected)
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
     
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
@@ -384,8 +384,8 @@ def test_GaussianProcess_predict():
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                                       (predict_actual - predict_3)/delta]))
     
-    assert_allclose(predict_actual, predict_expected)
-    assert_allclose(unc_actual, unc_expected)
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
 
 def test_GaussianProcess_predict_failures():
