@@ -6,7 +6,7 @@ values, optimizing hyperparameter values, and making predictions on unseen data.
 that implement experimental design and cross-validation routines for constructing simulation runs and
 verifying results.
 
-###Overview
+### Overview
 
 This Python package includes code implementing a fairly standard Gaussian Process regression. Given a set
 of input variables and target values, the Gaussian Process interpolates those values using a multivariate
@@ -32,16 +32,16 @@ to the co-linear points. In this case, the matrix inversion is stabilized by ite
 the diagonal of the matrix until the matrix can be successfully inverted. However, this procedure reduces 
 the accuracy of the resulting predictions.
 
-###Installation
+### Installation
 
-####Requirements
+#### Requirements
 
 The code requires Python 3.6 or later, and working Numpy and Scipy installations are required. The code
 includes a full suite of unit tests and several benchmark problems. Running the test suite requires pytest
 and the benchmarks make use of Matplotlib if you would like to visualize the results, though it is
 not required.
 
-####Download
+#### Download
 
 You can download the code as a zipped archive from the Github repository. This will download all files
 on the master branch, which can be unpacked and then used to install following the instructions
@@ -53,7 +53,7 @@ This will clone the entire git history of the software and check out the master 
 code has a master and devel branch available -- the master branch is relatively stable while the devel
 branch will be update more frequently with new features.
 
-####Installation
+#### Installation
 
 To install the dependencies, in the main `mopg_emulator` directory enter the following into the shell:
 
@@ -74,21 +74,21 @@ If you would like to always have the most active development version, install us
 This will insert symlinks to the repository files into the system Python installation so that files
 are updated whenever there are changes to the code files.
 
-###Testing the Installation
+### Testing the Installation
 
-####Unit Tests
+#### Unit Tests
 
 `mogp_emulator` includes a full set of unit tests. To run the test suite, you will need to install pytest.
 The tests can be run from the `mogp_emulator/tests` directory by entering `make tests` or `pytest`, which
 will run all tests and print out the results to the console.
 
-####Benchmarks
+#### Benchmarks
 
 The code includes a series of benchmarks that further illustrate the implementation. Benchmarks can be
 run from the `mogp_emulator/tests` directory by entering `make benchmarks` or `make rosenbrock`,
 `make branin`, or `make tsunami` to run the individual benchmarks.
 
-#####Single Emulator Convergence Tests
+##### Single Emulator Convergence Tests
 
 The first benchmark examines the convergence of a single emulator applied to the Rosenbrock function in
 several different dimensions (more details can be found at https://www.sfu.ca/~ssurjano/rosen.html).
@@ -97,7 +97,7 @@ for different numbers of input parameters. The benchmark evaluates the Rosenbroc
 8 dimensions and shows that the mean squared prediction error and the mean variance improve with the
 number of training points used. Matplotlib can optionally be used to visualize the results.
 
-#####Multi-Output Convergence Tests
+##### Multi-Output Convergence Tests
 
 The second benchmark examines the convergence of multiple emulators derived from the same input values.
 This benchmark is based on the 2D Branin function (more details on this function can be found at
@@ -106,7 +106,7 @@ function using different parameter values, and then examines the convergence of 
 emulators fit using different number of parameter values based on the prediction errors and
 variance values. The results can optionally be visualized using Matplotlib.
 
-#####Performance Benchmark
+##### Performance Benchmark
 
 A performance benchmark is included that uses a set of Tsunami simulation results to examine the
 speed at which the code fits multiple emulators in parallel. The code fits 8, 16, 32, and 64 emulators
@@ -114,7 +114,7 @@ using 1, 2, 4, and 8 processess and notes the time required to perform the fitti
 will depend on the number of cores on the computer -- once you exceed the number of cores, the performance
 will degrade. As with the other benchmarks, Matplotlib can optionally be used to plot the results.
 
-###Documentation
+### Documentation
 
 Building the documentation requires Sphinx/autodoc. In the `docs` directory, simply type:
 
@@ -127,11 +127,11 @@ This will build the HTML version of the documentation. A PDF version can be buil
 In both cases, the documentation files can be found in the corresponding directories in the `docs/_build`
 directory.
 
-###References
+### References
 
 (1) Rasmussen, C. E.; Williams, C. K. I. Gaussian Processes for Machine Learning, 3. print.; Adaptive computation and machine learning; MIT Press: Cambridge, Mass., 2008.
 
-###Contact
+### Contact
 
 This package is under active development by the Research Engineering Group at the Alan Turing Institute as part of
 several projects on Uncertainty Quantification. Feedback on the usability and features that you would find useful
