@@ -104,6 +104,8 @@ class ExperimentalDesign(object):
         sample_values = np.zeros((n_samples, self.get_n_parameters()))
         random_draws = self._draw_samples(n_samples)
         
+        assert np.all(random_draws >= 0.) and np.all(random_draws <= 1.), "error in generating random samples"
+        
         for (dist, index) in zip(self.distributions, range(self.get_n_parameters())):
             try:
                 sample_values[:,index] = dist(random_draws[:,index])
