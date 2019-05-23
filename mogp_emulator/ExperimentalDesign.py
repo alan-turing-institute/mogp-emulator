@@ -87,10 +87,33 @@ class ExperimentalDesign(object):
             return self.method
         except AttributeError:
             raise NotImplementedError("base class of ExperimentalDesign does not implement a method")
-        
-    def sample(self, n_samples):
-        "draw a set of n_samples from the experiment according to the given method"
+    
+    def _draw_samples(self, n_samples):
+        "Low level method for drawing random samples (all outputs will be between 0 and 1)"
         raise NotImplementedError
+    
+    def sample(self, n_samples):
+        """
+        draw samples from a generic experimental design. low level method creates random numbers between
+        0 and 1, while this method converts them into scaled parameter values using the ppfs
+        """
+        
+        n_samples = int(n_samples)
+        assert n_samples > 0, "number of samples must be positive"
+        
+        sample_values = np.zeros((n_samples, self.get_n_parameters()))
+        random_draws = self._draw_samples(n_samples)
+        
+        for (dist, index) in zip(self.distributions, range(self.get_n_parameters())):
+            try:
+                sample_values[:,index] = dist(random_draws[:,index])
+            except:
+                for sample_index in range(n_samples):
+                    sample_values[sample_index, index] = dist(random_draws[sample_index,index])
+        
+        assert np.all(np.isfinite(sample_values)), "error due to non-finite values of parameters"
+        
+        return sample_values
         
     def __str__(self):
         "returns a string representation of the ExperimentalDesign object"
@@ -108,22 +131,39 @@ class MonteCarloDesign(ExperimentalDesign):
         self.method = "Monte Carlo"
         super().__init__(*args)
         
-    def sample(self, n_samples):
+    def _draw_samples(self, n_samples):
         "draw a set of n_samples from the experiment according to the given method"
         
         n_samples = int(n_samples)
         assert n_samples > 0, "number of samples must be positive"
         
-        sample_values = np.zeros((n_samples, self.get_n_parameters()))
-        random_draws = np.random.random((n_samples, self.get_n_parameters()))
+        return np.random.random((n_samples, self.get_n_parameters()))
         
-        for (dist, index) in zip(self.distributions, range(self.get_n_parameters())):
-            try:
-                sample_values[:,index] = dist(random_draws[:,index])
-            except:
-                for sample_index in range(n_samples):
-                    sample_values[sample_index, index] = dist(random_draws[sample_index,index])
         
-        assert np.all(np.isfinite(sample_values)), "error due to non-finite values of parameters"
+class LatinHypercubeDesign(ExperimentalDesign):
+    "class representing a Latin Hypercube Design"
+    def __init__(self, *args):
+        "initialize a latin hypercube experimental design"
         
-        return sample_values
+        self.method = "Latin Hypercube"
+        super().__init__(*args)
+    
+    def _draw_samples(self, n_samples):
+        "low level method for drawing samples from a latin hypercube design"
+        
+        n_samples = int(n_samples)
+        assert n_samples > 0, "number of samples must be positive"
+        
+        n_parameters = self.get_n_parameters()
+
+        random_samples = np.reshape(np.tile(np.arange(n_samples, dtype = np.float)/float(n_samples), n_parameters),
+                                            (n_parameters, n_samples))
+                    
+        for row in random_samples:
+            np.random.shuffle(row)
+            
+        random_samples =  np.transpose(random_samples) + np.random.random((n_samples, n_parameters))/float(n_samples)
+        
+        assert np.all(random_samples >= 0.) and np.all(random_samples <= 1.), "error in generating latin hypercube samples"
+        
+        return random_samples
