@@ -83,12 +83,47 @@ class ExperimentalDesign(object):
         
     def get_method(self):
         "returns method"
-        raise NotImplementedError
+        try:
+            return self.method
+        except AttributeError:
+            raise NotImplementedError("base class of ExperimentalDesign does not implement a method")
         
-    def draw_sample(self, n_samples):
+    def sample(self, n_samples):
         "draw a set of n_samples from the experiment according to the given method"
         raise NotImplementedError
         
     def __str__(self):
         "returns a string representation of the ExperimentalDesign object"
-        return "Experimental Design with "+str(self.get_n_parameters())+" parameters"
+        try:
+            method = self.get_method()+" "
+        except NotImplementedError:
+            method = ""
+        return method+"Experimental Design with "+str(self.get_n_parameters())+" parameters"
+        
+class MonteCarloDesign(ExperimentalDesign):
+    "class representing an experimental design drawing uncorrelated parameters using Monte Carlo sampling"
+    def __init__(self, *args):
+        "initialize a monte carlo experimental design"
+        
+        self.method = "Monte Carlo"
+        super().__init__(*args)
+        
+    def sample(self, n_samples):
+        "draw a set of n_samples from the experiment according to the given method"
+        
+        n_samples = int(n_samples)
+        assert n_samples > 0, "number of samples must be positive"
+        
+        sample_values = np.zeros((n_samples, self.get_n_parameters()))
+        random_draws = np.random.random((n_samples, self.get_n_parameters()))
+        
+        for (dist, index) in zip(self.distributions, range(self.get_n_parameters())):
+            try:
+                sample_values[:,index] = dist(random_draws[:,index])
+            except:
+                for sample_index in range(n_samples):
+                    sample_values[sample_index, index] = dist(random_draws[sample_index,index])
+        
+        assert np.all(np.isfinite(sample_values)), "error due to non-finite values of parameters"
+        
+        return sample_values
