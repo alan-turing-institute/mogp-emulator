@@ -22,6 +22,7 @@ The ``MonteCarloDesign`` Class
 
 .. autoclass:: mogp_emulator.MonteCarloDesign
     :members:
+    :inherited-members:
     
     .. automethod:: __init__
 
@@ -35,5 +36,6 @@ The ``LatinHypercubeDesign`` Class
 
 .. autoclass:: mogp_emulator.LatinHypercubeDesign
     :members:
+    :inherited-members:
     
     .. automethod:: __init__
