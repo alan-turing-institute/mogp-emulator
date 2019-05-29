@@ -294,15 +294,133 @@ class ExperimentalDesign(object):
         return method+"Experimental Design with "+str(self.get_n_parameters())+" parameters"
         
 class MonteCarloDesign(ExperimentalDesign):
-    "class representing an experimental design drawing uncorrelated parameters using Monte Carlo sampling"
+    """
+    Class representing a one-shot design of experiments with uncorrelated parameters using Monte
+    Carlo Sampling
+    
+    This class provides an implementation for a class for designing experiments to sample
+    the parameter space of a complex model using random Monte Carlo sampling. The parameter space can
+    be specified in a variety of ways, but essentially the user must provide a Probability Point
+    Function (PPF, or inverse of the Cumulative Distribution Function) for each input parameter. Each
+    PPF function takes a single numeric input and maps from the interval :math:`[0,1]` to the desired
+    parameter distribution value for a given parameter, and each parameter has a separate function
+    describing its distribution. Note that this makes the assumption of no correlations between any of
+    the parameter values (a future version may implement an experimental design where there are such
+    parameter correlations). Once the design is initialized, a desired number of samples can be
+    drawn from the design, returning an array holding the desired number of samples from the
+    parameter space.
+    
+    Internally, the class holds the set of PPFs for all of the parameter values, and samples are
+    drawn by calling the ``sample`` method. To draw the samples, the ``_draw_samples`` is used
+    to generate a series of points in the :math:`[0,1]^n` hypercube using random Monte Carlo sampling,
+    where :math:`n` is the number of paramters. This set of samples from the hypercube is then mapped to
+    the parameter space using the given PPF functions.
+    
+    This design does not attempt to uniformly sample the space, but rather just makes random draws from
+    the parameter distributions. For this reason, small designs using this method may not sample the
+    parameter space very efficiently. However, generating a large number of samples using this protocol
+    can be done very efficiently, as drawing a sample only requires generating a series of pseduorandom
+    numbers. 
+    """
     def __init__(self, *args):
-        "initialize a monte carlo experimental design"
+        """
+        Create a new instance of a Monte Carlo experimental design
+    
+        Creates a new instance of a Monte Carlo design of experiments, which draws samples randomly 
+        from the parameter space of a complex model. It can be used to generate data for a Gaussian
+        Process emulator to fit the outputs of the complex model. Because the samples are drawn
+        randomly, small designs may not sample the space very well, but the samples can be drawn
+        quickly as they are entirely random.
+    
+        The experimental design can be initialized in several ways depending on the arguments
+        provided, ranging from the simplest to the most complicated.
+    
+        1. Provide an integer ``n`` indicating the number of input parameters. If this is used to
+           create an instance, it is assumed that all parameters are unformly distributed over
+           the :math:`n`-dimensional hypercube.
+        2. Provide an integer ``n`` and a tuple ``(a, b)`` of length 2 containing two numeric values
+           (where :math:`a < b`). In this case, all parameters are assumed to be uniformly distributed
+           over the interval :math:`[a,b]`.
+        3. Provide an integer ``n`` and a function that takes a single numeric input in the interval
+           :math:`[0,1]` and maps it to the parameter space. In this case, all parameters are assumed
+           to follow the provided Probability Point Function.
+        4. Provide a list of tuples of length 2 containing numeric values (as above, the first number
+           must smaller than the second number). The design then assumes that the number of parameters
+           is the length of the list, and each parameter follows a uniform distribution with the bounds
+           given by the respective tuple in the given list.
+        5. Provide a list of functions taking a single input (as above, each function must map the
+           interval :math:`[0,1]` to the parameter space). The number of parameters in the design is the
+           length of the list, and the given PPF functions define the parameter space for each input.
+    
+        More concretely, if one input parameter is given, you may initilize the class in any of the
+        following ways:
+    
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+    
+        or
+    
+        :param bounds_list: List of tuples containing two numeric values, each of which has the
+                           smaller number first. Each parameter then takes a uniform distribution
+                           with bounds given by each tuple.
+        :type bounds_list: list
+    
+        or
+    
+        :param ppf_list: List of functions or other callable, each of which accepts one argument
+                         and maps the interval :math:`[0,1]` to the parameter space. Each parameter
+                         follows the distribution given by the respective PPF function.
+        :type ppf_list: list
+    
+        and if two input parameters are given:
+    
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+        :param bounds: Tuple or other iterable containing two numeric values, where the smaller
+                       number must come first. Each parameter then takes a uniform distribution
+                       with bounds given by the numbers provided in the tuple.
+        :type bounds: tuple
+    
+        or
+    
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+        :param ppf: Function or other callable, which accepts one argument and maps the interval
+                    :math:`[0,1]` to the parameter space. Each parameter follows the distribution
+                    given by the PPF function.
+        :type ppf: function
+    
+        The ``scipy.stats`` package provides implementations of a wide range of distributions, with
+        pre-defined PPF functions. See the Scipy user manual for more details. Note that in order to
+        get a compatible PPF function that only takes a single input, you will need to set any parameters
+        needed to define the distribution.
+    
+        Internally, the class defines any PPF functions based on the input data and collects all of
+        the PPF functions in a list. The class also contains information on the method used to draw
+        samples from the design.
+        """
         
         self.method = "Monte Carlo"
         super().__init__(*args)
         
     def _draw_samples(self, n_samples):
-        "draw a set of n_samples from the experiment according to the given method"
+        """
+        Low level method for drawing random samples from a Monte Carlo design
+        
+        This method implements the low level method for sampling from a Monte Carlo design. All samples
+        drawn using this method are random points in the :math:`[0,1]^n` hypercube, where :math:`n` is
+        the number of parameters in the design. Once these are drawn, the actual parameter values are
+        obtained by transforming the samples using the provided PPF functions in the ``sample`` method.
+        
+        :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
+        :type n_samples: int
+        :returns: Random Monte Carlo samples drawn from the :math:`[0,1]^n` hypercube as a numpy
+                  array with shape ``(n_samples, n_parameters)``
+        :rtype: ndarray
+        """
         
         n_samples = int(n_samples)
         assert n_samples > 0, "number of samples must be positive"
