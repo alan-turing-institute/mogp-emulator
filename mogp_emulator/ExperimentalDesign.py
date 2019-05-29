@@ -215,13 +215,46 @@ class ExperimentalDesign(object):
             raise NotImplementedError("base class of ExperimentalDesign does not implement a method")
     
     def _draw_samples(self, n_samples):
-        "Low level method for drawing random samples (all outputs will be between 0 and 1)"
+        """
+        Low level method for drawing random samples from a design
+        
+        This method implements the low level method for sampling from a design. All samples drawn
+        using this method will lie in the :math:`[0,1]^n` hypercube, where :math:`n` is the number
+        of parameters in the design. Once these are drawn, the actual parameter values are obtained
+        by transforming the samples using the provided PPF functions.
+        
+        This method is not implemented for the base class. Derived classes will only need to
+        implement this method to get a working design, as all other pieces of code should be mostly
+        identical.
+        
+        :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
+        :type n_samples: int
+        :returns: Samples drawn from the :math:`[0,1]^n` hypercube as a numpy array with shape
+                  ``(n_samples, n_parameters)``
+        :rtype: ndarray
+        """
         raise NotImplementedError
     
     def sample(self, n_samples):
         """
-        draw samples from a generic experimental design. low level method creates random numbers between
-        0 and 1, while this method converts them into scaled parameter values using the ppfs
+        Draw parameter samples from the experimental design
+        
+        This method implements drawing parameter samples from the experimental design. The method does
+        this by calling the ``_draw_samples`` method to obtain samples from the :math:`[0,1]^n` hypercube,
+        where :math:`n` is the number of parameters. The ``sample``method then transforms these samples
+        drawn from the low level method to the actual parameter values using the PPF functions provided
+        when initilizing the object. Note that this method also checks that all parameter values are
+        finite; if any ``NaN`` values are returned, an error will be raised.
+        
+        Note that by implementing the sampling in this way, modifications to the method to draw samples
+        using a different protocol only needs to change the ``_draw_samples`` method. This makes it
+        simpler to define new designs, as only a single method needs to be altered.
+        
+        :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
+        :type n_samples: int
+        :returns: Samples drawn from the design parameter space as a numpy array with shape
+                  ``(n_samples, n_parameters)``
+        :rtype: ndarray
         """
         
         n_samples = int(n_samples)
