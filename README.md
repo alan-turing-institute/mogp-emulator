@@ -7,7 +7,7 @@ that implement experimental design and cross-validation routines for constructin
 verifying results.
 
 [![Build Status](https://travis-ci.com/alan-turing-institute/mogp_emulator.svg?branch=master)](https://travis-ci.com/alan-turing-institute/mogp_emulator)
-
+[![codecov](https://codecov.io/gh/alan-turing-institute/mogp_emulator/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/mogp_emulator)
 [![Documentation Status](https://readthedocs.org/projects/mogp-emulator/badge/?version=latest)](https://mogp-emulator.readthedocs.io/en/latest/?badge=latest)
 
 ### Overview
