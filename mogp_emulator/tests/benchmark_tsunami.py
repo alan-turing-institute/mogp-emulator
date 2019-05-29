@@ -1,58 +1,42 @@
+'''
+This benchmark examines the performance of emulators fit in parallel to multiple targets. The
+benchmark uses a set of tsunami simulations, where the inputs are 14 values of the seafloor
+displacement resulting from an earthquake, and the outputs are tsunami wave heights at
+different spatial locations. This benchmark fits 8, 16, 32, and 64 output points using
+1, 2, 4, and 8 processes, and records the time required per emulator to perform the fitting.
+The actual performance will depend on the specific machine and the number of cores available.
+Once the number of processes exceeds the number of cores on the machine, the fitting time will
+increase, so the results will depend on the exact setup used. For reference, tests on a quad core
+MacBook Pro found that the fitting took roughly 1 second per emulator on a single core, with the time
+per emulator dropping by about a factor of 2 when 4 processes were used.
+'''
+
 import numpy as np
 from mogp_emulator import MultiOutputGP
-import h5py
 from time import time
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    makeplots = True
+except ImportError:
+    makeplots = False
 
-def load_tsunami_data(filename):
-    "loads tsunami data from .mat file"
+def load_tsunami_data(n_emulators):
+    "loads tsunami data from npz archive"
     
-    f = h5py.File(filename)
-    
-    tc = np.squeeze(np.array(f['tc']))
-    xc = np.squeeze(np.array(f['xc']))
-    yc = np.squeeze(np.array(f['yc']))
-    
-    return tc, xc, yc
-    
-def create_GP_tsunami_data(tc, xc, yc, n_emulators):
-    "transforms arrays from tsunami data .mat file into format for multi-output emulator"
-    
-    # get inputs (same for all emulators) from first output
-    
-    first_datapoint = (xc == xc[0])
-    inputs = np.transpose(tc[:,first_datapoint])
-    
-    assert(inputs.shape == (210,14))
-    
-    n_emulators = int(n_emulators)
     assert(n_emulators > 0)
-    assert(n_emulators <= 894)
     
-    # function to correct for bad data in input data
+    f = np.load('tsunamidata.npz')
     
-    def n_to_index(n):
-        if n == 0:
-            return 0
-        elif n <= 3:
-            return n + 1
-        else:
-            return n + 4
+    assert('inputs' in f.files)
+    assert('targets' in f.files)
+    assert(f['inputs'].shape[0] == f['targets'].shape[1])
     
-    targets = np.zeros((n_emulators, 210))
-    start = 100
-    
-    for i in range(start, start + n_emulators):
-        flag = (xc == xc[n_to_index(i)])
-        targets[i - start] = yc[flag]
-    
-    return inputs, targets
+    return f['inputs'], f['targets'][:n_emulators]
  
-def fit_emulators(filename, n_emulators, processes = None):
+def fit_emulators(n_emulators, processes = None):
     "load data and fit emulators for tsunami data, returning the time required to fit the emulators"
-     
-    tc, xc, yc = load_tsunami_data(filename)
-    inputs, targets = create_GP_tsunami_data(tc, xc, yc, n_emulators)
+    
+    inputs, targets = load_tsunami_data(n_emulators)
     
     gp = MultiOutputGP(inputs, targets)
     
@@ -62,22 +46,8 @@ def fit_emulators(filename, n_emulators, processes = None):
     
     return finish_time - start_time
 
-def make_scaling_plot(n_emulators_list, process_list):
+def make_scaling_plot(n_emulators_list, process_list, execution_times):
     "create scaling plot showing time for fitting tsunami emulators"
-    
-    execution_times = []
-
-    for n_emulators in n_emulators_list:
-        emulator_execution_times = []
-        for processes in process_list:
-            emulator_execution_times.append(fit_emulators('gpgpgputestcase.mat', n_emulators, processes = processes))
-        execution_times.append(np.array(emulator_execution_times))
-    
-    print("\n")
-    print("Num. Emulators    Num. Processors    Execution Time (s)   Execution Time per Emulator (s)")
-    for n_emulators, exec_times in zip(n_emulators_list, execution_times):
-        for process, exec_time in zip(process_list, exec_times):
-            print("{:18}{:19}{:21}{}".format(str(n_emulators), str(process), str(exec_time), str(exec_time/float(n_emulators))))
     
     fig = plt.figure(figsize=(4,3))
     for n_emulators, exec_times in zip(n_emulators_list, execution_times):
@@ -88,7 +58,27 @@ def make_scaling_plot(n_emulators_list, process_list):
     plt.title("Benchmark on tsunami simulation data")
     plt.savefig('tsunami_scaling.png', bbox_inches='tight')
 
+def run_all_models(n_emulators_list, process_list):
+    "Run all sets of emulators with varying number of processes"
+    
+    execution_times = []
+
+    for n_emulators in n_emulators_list:
+        emulator_execution_times = []
+        for processes in process_list:
+            emulator_execution_times.append(fit_emulators(n_emulators, processes = processes))
+        execution_times.append(np.array(emulator_execution_times))
+    
+    print("\n")
+    print("Num. Emulators    Num. Processors    Execution Time (s)   Execution Time per Emulator (s)")
+    for n_emulators, exec_times in zip(n_emulators_list, execution_times):
+        for process, exec_time in zip(process_list, exec_times):
+            print("{:18}{:19}{:21}{}".format(str(n_emulators), str(process), str(exec_time), str(exec_time/float(n_emulators))))
+    
+    if makeplots:
+        make_scaling_plot(n_emulators_list, process_list, execution_times)
+
 if __name__ == "__main__":
     n_emulators_list = [8, 16, 32, 64]
     process_list = [1, 2, 4, 8]
-    make_scaling_plot(n_emulators_list, process_list)
+    run_all_models(n_emulators_list, process_list)

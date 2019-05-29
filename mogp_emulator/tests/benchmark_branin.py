@@ -1,8 +1,30 @@
+'''
+This benchmark performs convergence tests on multiple realizations of the 2D Branin function.
+Details of the 2D Branin function can be found at https://www.sfu.ca/~ssurjano/branin.html.
+This particular version uses 8 realizations of the Branin function, each with a different
+set of parameters. The code samples these 8 realizations simultaneously using a spacefilling
+Latin Hypercube experimental design with a varying number of target points, and then tests
+the convergence of the resulting emulators. As the number of targe points increases, the
+prediction error and prediction variance should decrease.
+
+(Note however that eventually, the predictions worsen once the number of target points becomes
+large enough that the points become too densely sampled. In this case, the points become
+co-linear and the resulting covariance matrix is singular and cannot be inverted. To avoid
+this problem, the code iteratively adds additional noise to the covariance function to
+stabilize the inversion. However, this noise reduces the accuracy of the predictions. The
+values chosen for this benchmark attempt to avoid this, but in some cases this still becomes
+a problem due to the inherent smoothness of the squared exponential covariance function.)
+'''
+
 import numpy as np
 from mogp_emulator import MultiOutputGP
 from mogp_emulator.utils import lhd
 from scipy.stats import uniform
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    makeplots = True
+except ImportError:
+    makeplots = False
 
 def branin_2d(x1, x2, params):
     "2D Branin function, see https://www.sfu.ca/~ssurjano/branin.html for more information"
@@ -52,7 +74,7 @@ def generate_input_data(n_simulations, method = "random"):
         inputs[:,0] = np.random.uniform(low = -5., high = 10., size = n_simulations)
         inputs[:,1] = np.random.uniform(low = 0., high = 15., size = n_simulations)
     elif method == "lhd":
-        inputs = lhd([uniform(loc = -5., scale = 15.), uniform(loc = 0., scale = 15.)], n_simulations)
+        inputs = lhd([uniform(loc = -5., scale = 15.), uniform(loc = 0., scale = 15.)], n_simulations, form="spacefilling")
     return inputs
     
 def generate_target_data(inputs, emulator_params):
@@ -107,9 +129,26 @@ def run_model(n_emulators, n_simulations, n_testing, processes = None):
     
     return (np.sqrt(np.sum((test_vals - test_targets)**2)/float(n_emulators)/float(n_testing))/norm_const,
             np.sqrt(np.sum(unc**2)/float(n_emulators)/float(n_testing))/norm_const**2)
-    
-def plot_model_errors(n_emulators, n_testing, simulation_list, process_list = [None], n_iter = 10):
+
+def plot_model_errors(simulation_list, error, unc, n_testing, n_emulators):
     "Makes plot showing accuracy of emulator as a function of n_simulations"
+    
+    plt.figure(figsize=(4,3))
+    plt.semilogy(simulation_list, error,'-o')
+    plt.xlabel('Number of simulations')
+    plt.ylabel('Average prediction RMSE')
+    plt.title('Error for '+str(n_testing)+' predictions\nusing '+str(n_emulators)+' 2D Branin functions')
+    plt.savefig('branin_2d_error.png',bbox_inches='tight')
+    
+    plt.figure(figsize=(4,3))
+    plt.semilogy(simulation_list, unc,'-o')
+    plt.xlabel('Number of simulations')
+    plt.ylabel('Average prediction variance')
+    plt.title('Uncertainty for '+str(n_testing)+' predictions\nusing '+str(n_emulators)+' 2D Branin functions')
+    plt.savefig('branin_2d_unc.png',bbox_inches='tight')
+    
+def run_all_models(n_emulators, n_testing, simulation_list, process_list = [None], n_iter = 10):
+    "Runs all models, printing out results and optionally making plots"
     
     n_simtrials = len(simulation_list)
     
@@ -135,19 +174,8 @@ def plot_model_errors(n_emulators, n_testing, simulation_list, process_list = [N
     for sim, un in zip(simulation_list, unc):
         print('{:19}{}'.format(str(sim), str(un)))
     
-    plt.figure(figsize=(4,3))
-    plt.semilogy(simulation_list, error,'-o')
-    plt.xlabel('Number of simulations')
-    plt.ylabel('Average prediction RMSE')
-    plt.title('Error for '+str(n_testing)+' predictions\nusing '+str(n_emulators)+' 2D Branin functions')
-    plt.savefig('branin_2d_error.png',bbox_inches='tight')
-    
-    plt.figure(figsize=(4,3))
-    plt.semilogy(simulation_list, unc,'-o')
-    plt.xlabel('Number of simulations')
-    plt.ylabel('Average prediction variance')
-    plt.title('Uncertainty for '+str(n_testing)+' predictions\nusing '+str(n_emulators)+' 2D Branin functions')
-    plt.savefig('branin_2d_unc.png',bbox_inches='tight')
+    if makeplots:
+        plot_model_errors(simulation_list, error, unc, n_testing, n_emulators)
     
 if __name__ == '__main__':
-    plot_model_errors(8, 100, [int(x) for x in np.linspace(10., 30., 11)], process_list = [4], n_iter = 10)
+    run_all_models(8, 100, [int(x) for x in np.linspace(10., 30., 11)], process_list = [4], n_iter = 10)

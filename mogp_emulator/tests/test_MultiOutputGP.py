@@ -153,8 +153,8 @@ def test_MultiOutputGP_set_params():
     theta_expected = np.zeros(4)
     gp._set_params(theta)
     for emulator, loglike_exp, theta_exp in zip(gp.emulators, loglike_expected, theta_expected):
-        assert_allclose(emulator.current_loglikelihood, loglike_exp)
-        assert_allclose(emulator.current_theta, theta_exp)
+        assert_allclose(emulator.current_loglikelihood, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(emulator.current_theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
         
 def test_MultiOutputGP_set_params_failures():
     "Test function for the _set_params method with bad inputs"
@@ -184,10 +184,10 @@ def test_MultiOutputGP_learn_hyperparameters():
     loglike_expected = [4.457233158665504]
     theta_expected = [np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])]
     for emulator, loglike_val, theta_val, loglike_exp, theta_exp in zip(gp.emulators, loglike, theta, loglike_expected, theta_expected):
-        assert_allclose(loglike_val, loglike_exp)
-        assert_allclose(theta_val, theta_exp)
-        assert_allclose(emulator.current_loglikelihood, loglike_exp)
-        assert_allclose(emulator.current_theta, theta_exp)
+        assert_allclose(loglike_val, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(theta_val, theta_exp, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(emulator.current_loglikelihood, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(emulator.current_theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
         
 def test_MultiOutputGP_learn_hyperparameters_failures():
     "Test function for the learn_hyperparameters method with bad inputs"
@@ -221,16 +221,14 @@ def test_MultiOutputGP_predict():
     
     deriv_fd = np.reshape(np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                          (predict_actual - predict_3)/delta])), (1, 2, 3))
-    print(deriv_actual)
-    print(deriv_fd)
     
-    assert_allclose(predict_actual, predict_expected)
-    assert_allclose(var_actual, var_expected)
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(var_actual, var_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol=1.e-8, rtol=1.e-5)
     
     predict_actual, var_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     
-    assert_allclose(predict_actual, predict_expected)
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert var_actual is None
     assert deriv_actual is None
 
