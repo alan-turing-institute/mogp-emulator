@@ -3,9 +3,117 @@ import scipy.stats
 from inspect import signature
 
 class ExperimentalDesign(object):
-    "class representing a one-shot design of experiments with uncorrelated parameters"
+    """
+    Base class representing a generic one-shot design of experiments with uncorrelated parameters
+    
+    This class provides the base implementation for a class for designing experiments to sample
+    the parameter space of a complex model. The parameter space can be specified in a variety
+    of ways, but essentially the user must provide a Probability Point Function (PPF, or inverse 
+    of the Cumulative Distribution Function) for each input parameter. Each PPF function takes a 
+    single numeric input and maps from the interval :math:`[0,1]` to the desired parameter
+    distribution value for a given parameter, and each parameter has a separate function describing 
+    its distribution. Note that this makes the assumption of no correlations between any of the
+    parameter values (a future version may implement an experimental design where there are such
+    parameter correlations). Once the design is initialized, a desired number of samples can be
+    drawn from the design, returning an array holding the desired number of samples from the
+    parameter space.
+    
+    Internally, the class holds the set of PPFs for all of the parameter values, and samples are
+    drawn by calling the ``sample`` method. To draw the samples, a specific method ``_draw_samples``
+    must be defined that generates a series of points in the :math:`[0,1]^n` hypercube, where
+    :math:`n` is the number of paramters. This set of samples from the hypercube is then mapped to
+    the parameter space using the given PPF functions. Thus, defining a new design protocol only
+    requires defining a new ``_draw_samples`` method and redefining the ``__init__`` method to set
+    the internal ``method`` attribute. By default, no ``_draw_samples`` method is defined, so the
+    base ``ExperimentalDesign`` class is only intended to be used to define new protocols (trying 
+    to sample from an ``ExperimentalDesign`` instance will return a ``NotImplementedError``).
+    """
     def __init__(self, *args):
-        "create new instance of an experimental design"
+        """
+        Create a new instance of an experimental design
+        
+        Creates a new instance of a design of experiments, which draws samples from the parameter
+        space of a complex model. It is often used to generate data for a Gaussian Process emulator
+        to fit the outputs of the complex model. This is a base class that does not implement the
+        method for sampling from the distribution; to use an experimental design in practice you
+        should use one of the derived classes provided or create your own.
+        
+        The experimental design can be initialized in several ways depending on the arguments
+        provided, ranging from the simplest to the most complicated.
+        
+        1. Provide an integer ``n`` indicating the number of input parameters. If this is used to
+           create an instance, it is assumed that all parameters are unformly distributed over
+           the :math:`n`-dimensional hypercube.
+        2. Provide an integer ``n`` and a tuple ``(a, b)`` of length 2 containing two numeric values
+           (where :math:`a < b`). In this case, all parameters are assumed to be uniformly distributed
+           over the interval :math:`[a,b]`.
+        3. Provide an integer ``n`` and a function that takes a single numeric input in the interval
+           :math:`[0,1]` and maps it to the parameter space. In this case, all parameters are assumed
+           to follow the provided Probability Point Function.
+        4. Provide a list of tuples of length 2 containing numeric values (as above, the first number
+           must smaller than the second number). The design then assumes that the number of parameters
+           is the length of the list, and each parameter follows a uniform distribution with the bounds
+           given by the respective tuple in the given list.
+        5. Provide a list of functions taking a single input (as above, each function must map the
+           interval :math:`[0,1]` to the parameter space). The number of parameters in the design is the
+           length of the list, and the given PPF functions define the parameter space for each input.
+        
+        More concretely, if one input parameter is given, you may initilize the class in any of the
+        following ways:
+        
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+        
+        or
+        
+        :param bounds_list: List of tuples containing two numeric values, each of which has the
+                           smaller number first. Each parameter then takes a uniform distribution
+                           with bounds given by each tuple.
+        :type bounds_list: list
+        
+        or
+        
+        :param ppf_list: List of functions or other callable, each of which accepts one argument
+                         and maps the interval :math:`[0,1]` to the parameter space. Each parameter
+                         follows the distribution given by the respective PPF function.
+        :type ppf_list: list
+        
+        and if two input parameters are given:
+        
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+        :param bounds: Tuple or other iterable containing two numeric values, where the smaller
+                       number must come first. Each parameter then takes a uniform distribution
+                       with bounds given by the numbers provided in the tuple.
+        :type bounds: tuple
+        
+        or
+        
+        :param n_parameters: Integer specifying the number of parameters (must be positive). The
+                             design will sample each parameter over the interval :math:`[0,1]`
+        :type n_parameters: int
+        :param ppf: Function or other callable, which accepts one argument and maps the interval
+                    :math:`[0,1]` to the parameter space. Each parameter follows the distribution
+                    given by the PPF function.
+        :type ppf: function
+        
+        The ``scipy.stats`` package provides implementations of a wide range of distributions, with
+        pre-defined PPF functions. See the Scipy user manual for more details. Note that in order to
+        get a compatible PPF function that only takes a single input, you will need to set any parameters
+        needed to define the distribution.
+        
+        Internally, the class defines any PPF functions based on the input data and collects all of
+        the PPF functions in a list. The class also contains information on the method used to draw
+        samples from the design.
+        
+        To create a usable implementation based on this class, the user must define the method
+        ``_draw_samples``, which takes a positive integer input ``n_samples`` and draws ``n_samples``
+        from the :math:`[0,1]^n` hypercube, where :math:`n` is the number of parameters. The user must
+        also modify the ``method`` attribute of the design in order to have the ``__str__`` method work
+        correctly. All other functionality should not require any changes from the base class.
+        """
         
         if len(args) == 1:
             try:
