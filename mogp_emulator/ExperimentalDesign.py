@@ -186,11 +186,29 @@ class ExperimentalDesign(object):
             
         
     def get_n_parameters(self):
-        "returns number of parameters"
+        """
+        Returns number of parameters in the experimental design
+        
+        This method returns the number of parameters in the experimental design. This is set when
+        initializing the object, an cannot be modified.
+        
+        :returns: Number of parameters in the experimental design.
+        :rtype: int
+        """
         return self.n_parameters
         
     def get_method(self):
-        "returns method"
+        """
+        Returns the method used to draw samples from the design
+        
+        This method returns the method used to draw samples from the experimental design. The base
+        class does not implement a method, so if you try to call this on the base class the code
+        will raise a ``NotImplementedError``. When deriving new designs from the base class,
+        the method should be set when calling the ``__init__`` method.
+        
+        :returns: Method used to draw samples from the design.
+        :rtype: str
+        """
         try:
             return self.method
         except AttributeError:
@@ -226,7 +244,16 @@ class ExperimentalDesign(object):
         return sample_values
         
     def __str__(self):
-        "returns a string representation of the ExperimentalDesign object"
+        """
+        Returns a string representation of the ExperimentalDesign object
+        
+        This method returns a string representation of the Experimental Design object. If a specific
+        method is set for a derived class from the base class, the string will include this method
+        in the string output. Otherwise, a generic string will be returned.
+        
+        :returns: String representation of the object
+        :rtype: str
+        """
         try:
             method = self.get_method()+" "
         except NotImplementedError:
