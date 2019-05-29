@@ -12,8 +12,7 @@ perform worse for the same number of samples per dimension.
 
 import numpy as np
 from mogp_emulator import GaussianProcess
-from mogp_emulator.utils import lhd
-from scipy.stats import uniform
+from mogp_emulator import MonteCarloDesign, LatinHypercubeDesign
 try:
     import matplotlib.pyplot as plt
     makeplots = True
@@ -44,9 +43,10 @@ def generate_input_data(n_simulations, n_dimensions, method = "random"):
     assert method == "random" or method == "lhd"
     
     if method == "random":
-        inputs = np.random.uniform(low = -5., high = 10., size = (n_simulations, n_dimensions))
+        ed = MonteCarloDesign(n_dimensions, (-5., 10.))
     elif method == "lhd":
-        inputs = lhd([uniform(loc = -5., scale = 15.)]*n_dimensions, n_simulations, form="spacefilling")
+        ed = LatinHypercubeDesign(n_dimensions, (-5., 10.))
+    inputs = ed.sample(n_simulations)
     return inputs
 
 def generate_training_data(n_simulations, n_dimensions):
