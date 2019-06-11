@@ -85,10 +85,11 @@ class GaussianProcess(object):
         
         emulator_file = None
         theta = None
+        jitter = None
         
         if len(args) == 1:
             emulator_file = args[0]
-            inputs, targets, theta = self._load_emulator(emulator_file)
+            inputs, targets, theta, jitter = self._load_emulator(emulator_file)
         elif len(args) == 2:
             inputs = np.array(args[0])
             targets = np.array(args[1])
@@ -109,6 +110,8 @@ class GaussianProcess(object):
         self.n = self.inputs.shape[0]
         self.D = self.inputs.shape[1]
         
+        self.jitter = jitter
+        
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
 
@@ -126,8 +129,8 @@ class GaussianProcess(object):
         :type filename: str or file
         :returns: inputs, targets, and (optionally) fitted parameter values from the
                   saved emulator file
-        :rtype: tuple containing 3 ndarrays or 2 ndarrays and None (if no theta values
-                are found in the emulator file)
+        :rtype: tuple containing 3 ndarrays and a float or 2 ndarrays and 2 None types
+                (if no theta or jitter values are found in the emulator file)
         """
         
         emulator_file = np.load(filename)
@@ -143,7 +146,15 @@ class GaussianProcess(object):
         except KeyError:
             theta = None
             
-        return inputs, targets, theta
+        try:
+            if emulator_file['jitter'] == None:
+                jitter = None
+            else:
+                jitter = float(emulator_file['jitter'])
+        except KeyError:
+            jitter = None
+            
+        return inputs, targets, theta, jitter
 
     def save_emulator(self, filename):
         """
@@ -163,12 +174,13 @@ class GaussianProcess(object):
         emulator_dict = {}
         emulator_dict['targets'] = self.targets
         emulator_dict['inputs'] = self.inputs
+        emulator_dict['jitter'] = self.jitter
         
         try:
             emulator_dict['theta'] = self.theta
         except AttributeError:
             pass
-        
+                    
         np.savez(filename, **emulator_dict)
 
     def get_n(self):
@@ -190,6 +202,65 @@ class GaussianProcess(object):
         """
         
         return self.D
+        
+    def get_params(self):
+        """
+        Returns emulator parameters
+        
+        Returns current parameters for the emulator as a numpy array if they have been fit. If no
+        parameters have been fit, returns None.
+        
+        :returns: Current parameter values (numpy array of length ``D + 1``), or ``None`` if the
+                  parameters have not been fit.
+        :rtype: ndarray or None
+        """
+        
+        try:
+            return self.theta
+        except AttributeError:
+            return None
+            
+    def get_jitter(self):
+        """
+        Returns emulator jitter parameter
+        
+        Returns current value of the jitter parameter. If the jitter is selected adaptively, returns None.
+        
+        :returns: Current jitter value, either a float or ``None``
+        :rtype: float or None
+        """
+        
+        return self.jitter
+    
+    def set_jitter(self, jitter):
+        """
+        Set the jitter parameter for the emulator
+        
+        Method for changing the ``jitter`` parameter for the emulator. When a new emulator is
+        initilized, this is set to None.
+        
+        The ``jitter`` parameter controls how noise is added to the covariance matrix in order to
+        stabilize the inversion or smooth the emulator predictions. If ``jitter`` is a non-negative
+        float, then that particular value is used for the jitter. Note that setting this parameter
+        to be zero enforces that the emulator strictly interpolates between points. Alternatively,
+        if ``jitter`` is set to be ``None``, the fitting routine will adaptively make the noise
+        parameter as large as is needed to ensure that the emulator can be fit.
+        
+        :param jitter: Controls how noise is added to the emulator. If ``jitter`` is a nonnegative
+                       float, then this manually sets the noise parameter (if negative, this will
+                       lead to an error), with ``jitter = 0`` resulting in interpolation with no
+                       smoothing noise added. ``jitter = None`` will adaptively select the
+                       smallest value of the noise term that still leads to a stable inversion of
+                       the matrix. Default behavior is ``jitter = None``.
+        :type jitter: None or float
+        :returns: None
+        :rtype: None
+        """
+        
+        if not jitter == None:
+            jitter = float(jitter)
+            assert jitter >= 0., "noise parameter must be nonnegative"
+        self.jitter = jitter
     
     def _jit_cholesky(self, Q, maxtries = 5):
         """
@@ -269,8 +340,12 @@ class GaussianProcess(object):
                        "sqeuclidean")
         self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
         
-        L, jitter = self._jit_cholesky(self.Q)
-        self.Z = self.Q + jitter*np.eye(self.n)
+        if self.jitter == None:
+            L, jitter = self._jit_cholesky(self.Q)
+            self.Z = self.Q + jitter*np.eye(self.n)
+        else:
+            self.Z = self.Q + self.jitter*np.eye(self.n)
+            L = linalg.cholesky(self.Z, lower=True)
         
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
         self.invQt = np.dot(self.invQ, self.targets)
@@ -348,7 +423,7 @@ class GaussianProcess(object):
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
-        
+            
         partials = np.zeros(self.D + 1)
         
         for d in range(self.D):
@@ -449,7 +524,7 @@ class GaussianProcess(object):
         n_tries = int(n_tries)
         assert n_tries > 0, "number of attempts must be positive"
         
-        np.seterr(over = 'raise')
+        np.seterr(divide = 'raise', over = 'raise', invalid = 'raise')
         
         loglikelihood_values = []
         theta_values = []
@@ -468,7 +543,7 @@ class GaussianProcess(object):
             except linalg.LinAlgError:
                 print("Matrix not positive definite, skipping this iteration")
             except FloatingPointError:
-                print("Overflow in optimization routine, skipping this iteration")
+                print("Floating point error in optimization routine, skipping this iteration")
                 
         if len(loglikelihood_values) == 0:
             raise RuntimeError("Minimization routine failed to return a value")

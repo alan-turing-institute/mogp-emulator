@@ -102,10 +102,11 @@ class MultiOutputGP(object):
         
         emulator_file = None
         theta = None
+        jitter = None
         
         if len(args) == 1:
             emulator_file = args[0]
-            inputs, targets, theta = self._load_emulators(emulator_file)
+            inputs, targets, theta, jitter = self._load_emulators(emulator_file)
         elif len(args) == 2:
             inputs, targets = args
         else:
@@ -129,6 +130,10 @@ class MultiOutputGP(object):
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
         
+        if not jitter == None:
+            for emulator, jitterval in zip(self.emulators, jitter):
+                emulator.set_jitter(jitterval)
+        
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
         
@@ -144,9 +149,9 @@ class MultiOutputGP(object):
         :param filename: File where the emulator parameters are saved. Can be a string
                          filename or a file object.
         :type filename: str or file
-        :returns: inputs, targets, and (optionally) fitted parameter values from the
+        :returns: inputs, targets, jitter, and (optionally) fitted parameter values from the
                   saved emulator file
-        :rtype: tuple containing 3 ndarrays or 2 ndarrays and None (if no theta values
+        :rtype: tuple containing 4 ndarrays or 3 ndarrays and None (if no theta values
                 are found in the emulator file)
         """
 
@@ -155,15 +160,16 @@ class MultiOutputGP(object):
         try:
             inputs = np.array(emulator_file['inputs'])
             targets = np.array(emulator_file['targets'])
+            jitter = emulator_file['jitter']
         except KeyError:
-            raise KeyError("Emulator file does not contain emulator inputs and targets")
+            raise KeyError("Emulator file does not contain emulator inputs, targets or jitter")
             
         try:
             theta = np.array(emulator_file['theta'])
         except KeyError:
             theta = None
             
-        return inputs, targets, theta
+        return inputs, targets, theta, jitter
         
     def save_emulators(self, filename):
         """
@@ -184,6 +190,7 @@ class MultiOutputGP(object):
         emulators_dict = {}
         emulators_dict['targets'] = np.array([emulator.targets for emulator in self.emulators])
         emulators_dict['inputs'] = self.emulators[0].inputs
+        emulators_dict['jitter'] = np.array([emulator.get_jitter() for emulator in self.emulators], dtype = object)
         
         try:
             emulators_dict['theta'] = np.array([emulator.current_theta for emulator in self.emulators])
@@ -221,6 +228,38 @@ class MultiOutputGP(object):
         """
         
         return self.D
+        
+    def get_jitter(self):
+        """
+        Returns value of jitter for all emulators
+        
+        Returns value of jitter for all emulators as a list. Values can be ``None``, or a nonnegative
+        float for each emulator.
+        
+        :returns: Jitter values for all emulators (list of length ``n_emulators`` containint floats or
+                  ``None``. Jitter type and values can vary across all emulators if desired.)
+        :rtype: list
+        """
+        return [emulator.get_jitter() for emulator in self.emulators]
+        
+    def set_jitter(self, jitter):
+        """
+        Sets value of jitter for all emulators
+        
+        Sets value of jitter for all emulators from values provided as a list or other iterable.
+        Values can be ``None``, or a nonnegative float for each emulator. The length of the input
+        list must have length ``n_emulators``.
+        
+        :param jitter: List of jitter values for all emulators (must be of length ``n_emulators``
+                       and contain floats or ``None``. Jitter type and values can vary across all
+                       emulators if desired.)
+        :type param: list
+        """
+        
+        assert len(jitter) == self.get_n_emulators(), "list of jitter values must match number of emulators"
+        
+        for emulator, jitterval in zip(self.emulators, jitter):
+            emulator.set_jitter(jitterval)
         
     def _set_params(self, theta):
         """
