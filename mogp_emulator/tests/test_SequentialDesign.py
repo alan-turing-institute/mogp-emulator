@@ -22,9 +22,8 @@ def test_SequentialDesign_init():
     assert sd.n_init == 10
     assert sd.n_cand == 50
     assert_allclose(sd.nugget, 1.)
-    assert sd.current_iteration == 0ß
+    assert sd.current_iteration == 0
     assert not sd.initialized
-    assert sd.initial_design == None
     assert sd.inputs == None
     assert sd.targets == None
     assert sd.candidates == None
@@ -39,7 +38,6 @@ def test_SequentialDesign_init():
     assert_allclose(sd.nugget, 0.1)
     assert sd.current_iteration == 0
     assert not sd.initialized
-    assert sd.initial_design == None
     assert sd.inputs == None
     assert sd.targets == None
     assert sd.candidates == None
@@ -78,3 +76,125 @@ def test_SequentialDesign_init_failures():
         
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f, nugget = -1.)
+        
+def test_SequentialDesign_get_n_parameters():
+    "test the get_n_parameters method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_n_parameters() == 3
+    
+def test_SequentialDesign_get_n_init():
+    "test the get_n_init method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f, n_init = 20)
+    assert sd.get_n_init() == 20
+    
+def test_SequentialDesign_get_n_samples():
+    "test the get_n_cand method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f, n_samples = 20)
+    assert sd.get_n_samples() == 20
+    
+def test_SequentialDesign_get_n_cand():
+    "test the get_n_cand method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f, n_cand = 20)
+    assert sd.get_n_cand() == 20
+    
+def test_SequentialDesign_get_nugget():
+    "test the get_nugget method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f, nugget = 0.1)
+    assert_allclose(sd.get_nugget(), 0.1)
+    
+def test_SequentialDesign_get_current_iteration():
+    "test the get_current_iteration method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_current_iteration() == 0
+    
+    sd.current_iteration = 20
+    assert sd.get_current_iteration() == 20
+    
+def test_SequentialDesign_get_inputs():
+    "test the get_inputs method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_inputs() == None
+    
+    sd.inputs = np.zeros((3, 4))
+    assert_allclose(sd.get_inputs(), np.zeros((3, 4)))
+    
+def test_SequentialDesign_get_targets():
+    "test the get_targets method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_targets() == None
+    
+    sd.targets = np.zeros((3, 4))
+    assert_allclose(sd.get_targets(), np.zeros((3, 4)))
+    
+def test_SequentialDesign_get_candidates():
+    "test the get_candidates method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_candidates() == None
+    
+    sd.candidates = np.zeros((3, 4))
+    assert_allclose(sd.get_candidates(), np.zeros((3, 4)))
+    
+def test_SequentialDesign_get_base_design():
+    "test the get_base_design method"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.array([1.])
+        
+    sd = SequentialDesign(ed, f)
+    assert sd.get_base_design() == "LatinHypercubeDesign"

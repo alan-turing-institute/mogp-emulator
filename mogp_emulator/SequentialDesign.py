@@ -37,9 +37,9 @@ class SequentialDesign(object):
             self.n_samples = None
         else:
             self.n_samples = int(n_samples)
-        self.n_init = n_init
-        self.n_cand = n_cand
-        self.nugget = nugget
+        self.n_init = int(n_init)
+        self.n_cand = int(n_cand)
+        self.nugget = float(nugget)
         
         self.current_iteration = 0
         self.initialized = False
@@ -49,43 +49,43 @@ class SequentialDesign(object):
     
     def get_n_parameters(self):
         "get number of parameters in design"
-        pass
+        return self.base_design.get_n_parameters()
     
     def get_n_init(self):
         "get number of initial design points"
-        pass
+        return self.n_init
         
     def get_n_samples(self):
         "get total number of samples"
-        pass
+        return self.n_samples
     
     def get_n_cand(self):
         "get number of candidate points"
-        pass
+        return self.n_cand
         
     def get_nugget(self):
         "get nugget parameter for smoothing predictions"
-        pass
+        return self.nugget
         
     def get_current_iteration(self):
         "get current iteration"
-        pass
+        return self.current_iteration
         
     def get_inputs(self):
         "get current design"
-        pass
+        return self.inputs
         
     def get_targets(self):
         "get current value of targets"
-        pass
+        return self.targets
         
     def get_candidates(self):
         "get current value of candidates"
-        pass
+        return self.candidates
         
     def get_base_design(self):
         "get type of base design"
-        pass
+        return type(self.base_design).__name__
     
     def generate_initial_design(self):
         "create initial design"
