@@ -117,7 +117,7 @@ class SequentialDesign(object):
         else:
             assert self.inputs.shape == (self.n_init, self.get_n_parameters()), "inputs have not been initialized correctly"
         
-        if len(np.array(targets).shape) == 1:
+        if len(np.atleast_1d(np.array(targets)).shape) == 1:
             targets = np.reshape(np.array(targets), (1, len(np.array(targets))))
             
         assert np.array(targets).shape == (self.n_targets, self.n_init), "initial targets must have shape (n_targets, n_init)"
@@ -242,3 +242,37 @@ class SequentialDesign(object):
         output_string += "current targets: "+str(self.get_targets())
         
         return output_string
+        
+        
+class MICEDesign(SequentialDesign):
+    "class representing a MICE Sequential Design"
+    def __init__(self, base_design, f = None, n_targets = 1, n_samples = None, n_init = 10, n_cand = 50,
+                 nugget = None, nugget_s = 1.):
+        "create new instance of a MICE sequential design"
+        
+        if not nugget == None:
+            if nugget < 0.:
+                raise ValueError("nugget parameter cannot be negative")
+                
+        if nugget_s < 0.:
+            raise ValueError("nugget smoothing parameter cannot be negative")
+        
+        if nugget == None:
+            self.nugget = nugget
+        else:
+            self.nugget = float(nugget)
+        self.nugget_s = float(nugget_s)
+        
+        super().__init__(base_design, f, n_targets, n_samples, n_init, n_cand)
+        
+    def get_nugget(self):
+        "get value of nugget parameter"
+        return self.nugget
+        
+    def get_nugget_s(self):
+        "get value of nugget_s parameter"
+        return self.nugget_s
+        
+    def _eval_metric(self):
+        "Evaluate MICE criterion on candidate points"
+        pass

@@ -4,7 +4,7 @@ import pytest
 from inspect import signature
 import types
 from ..ExperimentalDesign import LatinHypercubeDesign
-from ..SequentialDesign import SequentialDesign
+from ..SequentialDesign import SequentialDesign, MICEDesign
 
 def test_SequentialDesign_init():
     "test the init method of ExperimentalDesign"
@@ -587,3 +587,77 @@ def test_SequentialDesign_str():
     
     sd = SequentialDesign(ed, f, n_targets = 5, n_samples = 10, n_init = 5, n_cand = 10)
     assert str(sd) == expected_string
+    
+def test_MICEDesign_init():
+    "test the init method of MICEDesign"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    md = MICEDesign(ed)
+    
+    assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
+    assert md.f == None
+    assert md.n_targets == 1
+    assert md.n_samples == None
+    assert md.n_init == 10
+    assert md.n_cand == 50
+    assert md.current_iteration == 0
+    assert not md.initialized
+    assert md.inputs == None
+    assert md.targets == None
+    assert md.candidates == None
+    assert md.nugget == None
+    assert_allclose(md.nugget_s, 1.)
+    
+    def f(x):
+        return np.array([1.])
+    
+    md = MICEDesign(ed, f, 5, 20, 5, 40, 1.e-12, 0.1)
+    
+    assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
+    assert callable(md.f)
+    assert len(signature(md.f).parameters) == 1
+    assert md.n_targets == 5
+    assert md.n_samples == 20
+    assert md.n_init == 5
+    assert md.n_cand == 40
+    assert md.current_iteration == 0
+    assert not md.initialized
+    assert md.inputs == None
+    assert md.targets == None
+    assert md.candidates == None
+    assert_allclose(md.nugget, 1.e-12)
+    assert_allclose(md.nugget_s, 0.1)
+    
+def test_MICEDesign_init_failures():
+    "test occasions where MICE Design should fail upon initializing"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    with pytest.raises(ValueError):
+        md = MICEDesign(ed, nugget = -1.)
+        
+    with pytest.raises(ValueError):
+        md = MICEDesign(ed, nugget_s = -1.)
+        
+def test_MICEDesign_get_nugget():
+    "test the get_nugget method of MICE Design"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    md = MICEDesign(ed)
+    
+    assert md.get_nugget() == None
+    
+    md = MICEDesign(ed, nugget = 1.)
+    
+    assert_allclose(md.get_nugget(), 1.)
+    
+def test_MICEDesign_get_nugget_s():
+    "test the get_nugget_s method of MICE Design"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    md = MICEDesign(ed)
+    
+    assert_allclose(md.get_nugget_s(), 1.)
