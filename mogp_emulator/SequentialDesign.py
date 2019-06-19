@@ -4,17 +4,18 @@ from .ExperimentalDesign import ExperimentalDesign
 
 class SequentialDesign(object):
     "Base class for a sequential experimental design"
-    def __init__(self, base_design, f, n_targets = 1, n_samples = None, n_init = 10, n_cand = 50, nugget = 1.):
+    def __init__(self, base_design, f = None, n_targets = 1, n_samples = None, n_init = 10, n_cand = 50):
         "create new instance of an experimental design"
         
         if not isinstance(base_design, ExperimentalDesign):
             raise TypeError("base design must be a one-shot experimental design")
         
-        if not callable(f):
-            raise TypeError("simulator f must be a function or other callable")
+        if not f == None:
+            if not callable(f):
+                raise TypeError("simulator f must be a function or other callable")
             
-        if not len(signature(f).parameters) == 1:
-            raise ValueError("simulator f must accept all parameters as a single input array")
+            if not len(signature(f).parameters) == 1:
+                raise ValueError("simulator f must accept all parameters as a single input array")
         
         if int(n_targets) < 0:
             raise ValueError("number of targets must be positive")
@@ -30,9 +31,6 @@ class SequentialDesign(object):
             
         if int(n_cand) <= 0:
             raise ValueError("number of candidate design points must be positive")
-            
-        if float(nugget) <= 0:
-            raise ValueError("nugget smoothing parameter must be positive")
         
         self.base_design = base_design
         self.f = f
@@ -43,13 +41,16 @@ class SequentialDesign(object):
             self.n_samples = int(n_samples)
         self.n_init = int(n_init)
         self.n_cand = int(n_cand)
-        self.nugget = float(nugget)
         
         self.current_iteration = 0
         self.initialized = False
         self.inputs = None
         self.targets = None
         self.candidates = None
+    
+    def has_function(self):
+        "Determines if class contains a function for running the simulator"
+        return (not self.f == None)
     
     def get_n_targets(self):
         "get number of targets in design"
@@ -75,11 +76,6 @@ class SequentialDesign(object):
         "get number of candidate points"
         
         return self.n_cand
-        
-    def get_nugget(self):
-        "get nugget parameter for smoothing predictions"
-        
-        return self.nugget
         
     def get_current_iteration(self):
         "get current iteration"
@@ -132,6 +128,8 @@ class SequentialDesign(object):
     def run_init_design(self):
         "run initial design"
         
+        assert self.has_function(), "Design must have a bound function to use run_init_design"
+        
         inputs = self.generate_initial_design()
         targets = np.full((self.n_targets, self.n_init), np.nan)
         
@@ -152,6 +150,16 @@ class SequentialDesign(object):
     
     def get_next_point(self):
         "evaluate candidates to determine next point"
+        
+        if self.inputs is None:
+            raise ValueError("Initial design has not been generated")
+        else:
+            assert self.inputs.shape == (self.current_iteration, self.get_n_parameters()), "inputs have not been correctly updated"
+        
+        if self.targets is None:
+            raise ValueError("Initial targets have not been generated")
+        else:
+            assert self.targets.shape == (self.n_targets, self.current_iteration), "targets have not been correctly updated"
         
         self._generate_candidates()
         next_index = self._eval_metric()
@@ -179,8 +187,8 @@ class SequentialDesign(object):
         else:
             assert self.targets.shape == (self.n_targets, self.current_iteration), "targets have not been correctly updated"
         
-        if isinstance(target, float):
-            target = np.reshape(np.array(target), (1,))
+        target = np.atleast_1d(np.array(target))
+        target = np.reshape(target, (len(target),))
         assert target.shape == (self.n_targets,), "new target must have shape (n_targets,)"
         
         new_targets = np.empty((self.n_targets, self.current_iteration + 1))
@@ -189,11 +197,48 @@ class SequentialDesign(object):
         
         self.targets = np.array(new_targets)
         self.current_iteration = self.current_iteration + 1
+        
+    def run_next_point(self):
+        "do one iteration of the sequential design process"
+        
+        assert self.has_function(), "Design must have a bound function to use run_next_point"
+        
+        next_point = self.get_next_point()
+        next_target = np.array(self.f(next_point))
+        self.set_next_target(next_target)
     
     def run_sequential_design(self, n_samples = None):
         "run the entire sequential design"
-        pass
+        
+        assert self.has_function(), "Design must have a bound function to use run_sequential_design"
+        
+        if n_samples is None and self.n_samples is None:
+            raise ValueError("must specify n_samples either when initializing or calling run_sequential_design")
+            
+        if n_samples is None:
+            n_iter = self.n_samples
+        else:
+            n_iter = n_samples
+            
+        self.run_init_design()
+        
+        for i in range(n_iter):
+            self.run_next_point()
         
     def __str__(self):
         "returns string representation of design"
-        pass
+        
+        output_string = ""
+        output_string += type(self).__name__+" with\n"
+        output_string += self.get_base_design()+" base design\n"
+        if self.has_function():
+            output_string += "a bound simulator function\n"
+        output_string += str(self.get_n_targets())+" targets\n"
+        output_string += str(self.get_n_samples())+" total samples\n"
+        output_string += str(self.get_n_init())+" initial points\n"
+        output_string += str(self.get_n_cand())+" candidate points\n"
+        output_string += str(self.get_current_iteration())+" current samples\n"
+        output_string += "current inputs: "+str(self.get_inputs())+"\n"
+        output_string += "current targets: "+str(self.get_targets())
+        
+        return output_string
