@@ -61,9 +61,9 @@ class MultiOutputGP(object):
         Creates a new multi-output GP Emulator from either the input data and targets to
         be fit or a file holding the input/targets and (optionally) learned parameter values.
         
-        Arguments passed to the ``__init__`` method must be either two arguments which
-        are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
-        which is the filename (string or file handle) of a previously saved emulator.
+        Arguments passed to the ``__init__`` method must be two or three arguments which
+        are numpy arrays ``inputs`` and ``targets`` and optionally ``nugget``, described below,
+        or a single argument which is the filename (string or file handle) of a previously saved emulator.
         
         ``inputs`` is a 2D array-like object holding the input data, whose shape is
         ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
@@ -78,7 +78,13 @@ class MultiOutputGP(object):
         a total of ``n_emulators`` to the different target arrays, while if targets has shape
         ``(n,)``, a single emulator is fit.
         
-        If two input arguments ``inputs`` and ``targets`` are given:
+        ``nugget`` is a list or other iterable of nugget parameters for each emulator. Its
+        length must match the number of targets to be fit. The values must be ``None`` (adaptive
+        noise addition) or a non-negative float, and the emulators can have different noise
+        behaviors.
+        
+        If two  or three input arguments ``inputs``, ``targets``, and optionally ``nugget`` are
+        given:
         
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
@@ -88,6 +94,10 @@ class MultiOutputGP(object):
                         ``n`` in the final dimension. The first dimension is of length
                         ``n_emulators`` (defaults to a single emulator if the input is 1D)
         :type targets: ndarray
+        :param nugget: ``None`` or list or other iterable holding values for nugget parameter
+                       for each emulator. Length must be ``n_emulators``. Individual values
+                       can be ``None`` (adaptive noise addition), or a non-negative float.
+                       This parameter is optional, and defaults to ``None``
         
         If one input argument ``emulator_file`` is given:
         
@@ -102,13 +112,15 @@ class MultiOutputGP(object):
         
         emulator_file = None
         theta = None
-        jitter = None
+        nugget = None
         
         if len(args) == 1:
             emulator_file = args[0]
-            inputs, targets, theta, jitter = self._load_emulators(emulator_file)
+            inputs, targets, theta, nugget = self._load_emulators(emulator_file)
         elif len(args) == 2:
             inputs, targets = args
+        elif len(args) == 3:
+            inputs, targets, nugget = args
         else:
             raise ValueError("Bad number of inputs to create a MultiOutputGP (must be 2 arrays or a single filename)")
         
@@ -130,9 +142,11 @@ class MultiOutputGP(object):
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
         
-        if not jitter == None:
-            for emulator, jitterval in zip(self.emulators, jitter):
-                emulator.set_jitter(jitterval)
+        if not nugget is None:
+            if len(nugget) != self.n_emulators:
+                raise ValueError("length of nugget parameters does not match number of emulators")
+            for emulator, jitterval in zip(self.emulators, nugget):
+                emulator.set_nugget(jitterval)
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -149,7 +163,7 @@ class MultiOutputGP(object):
         :param filename: File where the emulator parameters are saved. Can be a string
                          filename or a file object.
         :type filename: str or file
-        :returns: inputs, targets, jitter, and (optionally) fitted parameter values from the
+        :returns: inputs, targets, nugget, and (optionally) fitted parameter values from the
                   saved emulator file
         :rtype: tuple containing 4 ndarrays or 3 ndarrays and None (if no theta values
                 are found in the emulator file)
@@ -160,16 +174,16 @@ class MultiOutputGP(object):
         try:
             inputs = np.array(emulator_file['inputs'])
             targets = np.array(emulator_file['targets'])
-            jitter = emulator_file['jitter']
+            nugget = emulator_file['nugget']
         except KeyError:
-            raise KeyError("Emulator file does not contain emulator inputs, targets or jitter")
+            raise KeyError("Emulator file does not contain emulator inputs, targets or nugget")
             
         try:
             theta = np.array(emulator_file['theta'])
         except KeyError:
             theta = None
             
-        return inputs, targets, theta, jitter
+        return inputs, targets, theta, nugget
         
     def save_emulators(self, filename):
         """
@@ -190,7 +204,7 @@ class MultiOutputGP(object):
         emulators_dict = {}
         emulators_dict['targets'] = np.array([emulator.targets for emulator in self.emulators])
         emulators_dict['inputs'] = self.emulators[0].inputs
-        emulators_dict['jitter'] = np.array([emulator.get_jitter() for emulator in self.emulators], dtype = object)
+        emulators_dict['nugget'] = np.array([emulator.get_nugget() for emulator in self.emulators], dtype = object)
         
         try:
             emulators_dict['theta'] = np.array([emulator.current_theta for emulator in self.emulators])
@@ -229,37 +243,37 @@ class MultiOutputGP(object):
         
         return self.D
         
-    def get_jitter(self):
+    def get_nugget(self):
         """
-        Returns value of jitter for all emulators
+        Returns value of nugget for all emulators
         
-        Returns value of jitter for all emulators as a list. Values can be ``None``, or a nonnegative
+        Returns value of nugget for all emulators as a list. Values can be ``None``, or a nonnegative
         float for each emulator.
         
-        :returns: Jitter values for all emulators (list of length ``n_emulators`` containint floats or
-                  ``None``. Jitter type and values can vary across all emulators if desired.)
+        :returns: nugget values for all emulators (list of length ``n_emulators`` containint floats or
+                  ``None``. nugget type and values can vary across all emulators if desired.)
         :rtype: list
         """
-        return [emulator.get_jitter() for emulator in self.emulators]
+        return [emulator.get_nugget() for emulator in self.emulators]
         
-    def set_jitter(self, jitter):
+    def set_nugget(self, nugget):
         """
-        Sets value of jitter for all emulators
+        Sets value of nugget for all emulators
         
-        Sets value of jitter for all emulators from values provided as a list or other iterable.
+        Sets value of nugget for all emulators from values provided as a list or other iterable.
         Values can be ``None``, or a nonnegative float for each emulator. The length of the input
         list must have length ``n_emulators``.
         
-        :param jitter: List of jitter values for all emulators (must be of length ``n_emulators``
-                       and contain floats or ``None``. Jitter type and values can vary across all
+        :param nugget: List of nugget values for all emulators (must be of length ``n_emulators``
+                       and contain floats or ``None``. Nugget type and values can vary across all
                        emulators if desired.)
         :type param: list
         """
         
-        assert len(jitter) == self.get_n_emulators(), "list of jitter values must match number of emulators"
+        assert len(nugget) == self.get_n_emulators(), "list of nugget values must match number of emulators"
         
-        for emulator, jitterval in zip(self.emulators, jitter):
-            emulator.set_jitter(jitterval)
+        for emulator, nuggetval in zip(self.emulators, nugget):
+            emulator.set_nugget(nuggetval)
         
     def _set_params(self, theta):
         """
@@ -306,7 +320,7 @@ class MultiOutputGP(object):
         If the method encounters an overflow (this can result because the parameter values stored are
         the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
         (occurs when the covariance matrix cannot be inverted, even with the addition of additional
-        "jitter" or noise added along the diagonal), the iteration is skipped. If all attempts to
+        "nugget" or noise added along the diagonal), the iteration is skipped. If all attempts to
         find optimal hyperparameters result in an error, then the method raises an exception.
         
         :param n_tries: (optional) The number of different initial conditions to try when

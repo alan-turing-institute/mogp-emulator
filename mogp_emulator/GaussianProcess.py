@@ -53,8 +53,10 @@ class GaussianProcess(object):
         file holding the input/targets and (optionally) learned parameter values.
         
         Arguments passed to the ``__init__`` method must be either two arguments which
-        are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
-        which is the filename (string or file handle) of a previously saved emulator.
+        are numpy arrays ``inputs`` and ``targets``, described below, three arguments
+        which are the same ``inputs`` and ``targets`` arrays plus a float representing
+        the ``nugget`` parameter, or a single argument which is the filename (string or file
+        handle) of a previously saved emulator.
         
         ``inputs`` is a 2D array-like object holding the input data, whose shape is
         ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
@@ -63,7 +65,14 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
         
-        If two input arguments ``inputs`` and ``targets`` are given:
+        ``nugget`` is the additional noise added to the emulator targets when fitting. This
+        can take on values ``None`` (in which case, noise will be added adaptively to
+        stabilize fitting), or a non-negative float (in which case, a fixed noise level
+        will be used). If no value is specified for the ``nugget`` parameter, ``None``
+        is the default.
+        
+        If two or three input arguments ``inputs``, ``targets``, and optionally ``nugget`` are
+        given:
         
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
@@ -71,6 +80,10 @@ class GaussianProcess(object):
         :type inputs: ndarray
         :param targets: Numpy array holding emulator targets. Must be 1D with length ``n``
         :type targets: ndarray
+        :param nugget: Noise to be added to the diagonal or ``None``. A float specifies the
+                       noise level explicitly, while if ``None`` is given, the noise will set
+                       to be as small as possible to ensure stable inversion of the covariance
+                       matrix. Optional, default is ``None``.
         
         If one input argument ``emulator_file`` is given:
         
@@ -85,12 +98,12 @@ class GaussianProcess(object):
         
         emulator_file = None
         theta = None
-        jitter = None
+        nugget = None
         
         if len(args) == 1:
             emulator_file = args[0]
-            inputs, targets, theta, jitter = self._load_emulator(emulator_file)
-        elif len(args) == 2:
+            inputs, targets, theta, nugget = self._load_emulator(emulator_file)
+        elif len(args) == 2 or len(args) == 3:
             inputs = np.array(args[0])
             targets = np.array(args[1])
             if targets.shape == (1,) and len(inputs.shape) == 1:
@@ -101,6 +114,12 @@ class GaussianProcess(object):
                 raise ValueError("Targets must be a 1D array")
             if not len(targets) == inputs.shape[0]:
                 raise ValueError("First dimensions of inputs and targets must be the same length")
+            if len(args) == 3:
+                nugget = args[2]
+                if not nugget == None:
+                    nugget = float(nugget)
+                    if nugget < 0.:
+                        raise ValueError("nugget parameter must be nonnegative or None")
         else:
             raise ValueError("Init method of GaussianProcess requires 1 (file) or 2 (input array, target array) arguments")
 
@@ -110,7 +129,7 @@ class GaussianProcess(object):
         self.n = self.inputs.shape[0]
         self.D = self.inputs.shape[1]
         
-        self.jitter = jitter
+        self.nugget = nugget
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -129,8 +148,8 @@ class GaussianProcess(object):
         :type filename: str or file
         :returns: inputs, targets, and (optionally) fitted parameter values from the
                   saved emulator file
-        :rtype: tuple containing 3 ndarrays and a float or 2 ndarrays and 2 None types
-                (if no theta or jitter values are found in the emulator file)
+        :rtype: tuple containing 3 ndarrays and a float or 2 ndarrays, a None type, and
+                a float (if no theta values are found in the emulator file)
         """
         
         emulator_file = np.load(filename)
@@ -147,14 +166,14 @@ class GaussianProcess(object):
             theta = None
             
         try:
-            if emulator_file['jitter'] == None:
-                jitter = None
+            if emulator_file['nugget'] == None:
+                nugget = None
             else:
-                jitter = float(emulator_file['jitter'])
+                nugget = float(emulator_file['nugget'])
         except KeyError:
-            jitter = None
+            nugget = None
             
-        return inputs, targets, theta, jitter
+        return inputs, targets, theta, nugget
 
     def save_emulator(self, filename):
         """
@@ -174,7 +193,7 @@ class GaussianProcess(object):
         emulator_dict = {}
         emulator_dict['targets'] = self.targets
         emulator_dict['inputs'] = self.inputs
-        emulator_dict['jitter'] = self.jitter
+        emulator_dict['nugget'] = self.nugget
         
         try:
             emulator_dict['theta'] = self.theta
@@ -220,47 +239,47 @@ class GaussianProcess(object):
         except AttributeError:
             return None
             
-    def get_jitter(self):
+    def get_nugget(self):
         """
-        Returns emulator jitter parameter
+        Returns emulator nugget parameter
         
-        Returns current value of the jitter parameter. If the jitter is selected adaptively, returns None.
+        Returns current value of the nugget parameter. If the nugget is selected adaptively, returns None.
         
-        :returns: Current jitter value, either a float or ``None``
+        :returns: Current nugget value, either a float or ``None``
         :rtype: float or None
         """
         
-        return self.jitter
+        return self.nugget
     
-    def set_jitter(self, jitter):
+    def set_nugget(self, nugget):
         """
-        Set the jitter parameter for the emulator
+        Set the nugget parameter for the emulator
         
-        Method for changing the ``jitter`` parameter for the emulator. When a new emulator is
+        Method for changing the ``nugget`` parameter for the emulator. When a new emulator is
         initilized, this is set to None.
         
-        The ``jitter`` parameter controls how noise is added to the covariance matrix in order to
-        stabilize the inversion or smooth the emulator predictions. If ``jitter`` is a non-negative
-        float, then that particular value is used for the jitter. Note that setting this parameter
+        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
+        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
+        float, then that particular value is used for the nugget. Note that setting this parameter
         to be zero enforces that the emulator strictly interpolates between points. Alternatively,
-        if ``jitter`` is set to be ``None``, the fitting routine will adaptively make the noise
+        if ``nugget`` is set to be ``None``, the fitting routine will adaptively make the noise
         parameter as large as is needed to ensure that the emulator can be fit.
         
-        :param jitter: Controls how noise is added to the emulator. If ``jitter`` is a nonnegative
+        :param nugget: Controls how noise is added to the emulator. If ``nugget`` is a nonnegative
                        float, then this manually sets the noise parameter (if negative, this will
-                       lead to an error), with ``jitter = 0`` resulting in interpolation with no
-                       smoothing noise added. ``jitter = None`` will adaptively select the
+                       lead to an error), with ``nugget = 0`` resulting in interpolation with no
+                       smoothing noise added. ``nugget = None`` will adaptively select the
                        smallest value of the noise term that still leads to a stable inversion of
-                       the matrix. Default behavior is ``jitter = None``.
-        :type jitter: None or float
+                       the matrix. Default behavior is ``nugget = None``.
+        :type nugget: None or float
         :returns: None
         :rtype: None
         """
         
-        if not jitter == None:
-            jitter = float(jitter)
-            assert jitter >= 0., "noise parameter must be nonnegative"
-        self.jitter = jitter
+        if not nugget == None:
+            nugget = float(nugget)
+            assert nugget >= 0., "noise parameter must be nonnegative"
+        self.nugget = nugget
     
     def _jit_cholesky(self, Q, maxtries = 5):
         """
@@ -275,7 +294,7 @@ class GaussianProcess(object):
         be done, and if it cannot it successively adds noise to the diagonal (starting with 1.e-6 times
         the mean of the diagonal and incrementing by a factor of 10 each time) until the matrix can be
         decomposed or the algorithm reaches ``maxtries`` attempts. The routine returns the lower
-        triangular matrix and the amount of jitter necessary to stabilize the decomposition.
+        triangular matrix and the amount of noise necessary to stabilize the decomposition.
         
         :param Q: The matrix to be inverted as an array of shape ``(n,n)``. Must be a symmetric positive
                   definite matrix.
@@ -340,11 +359,11 @@ class GaussianProcess(object):
                        "sqeuclidean")
         self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
         
-        if self.jitter == None:
-            L, jitter = self._jit_cholesky(self.Q)
-            self.Z = self.Q + jitter*np.eye(self.n)
+        if self.nugget == None:
+            L, nugget = self._jit_cholesky(self.Q)
+            self.Z = self.Q + nugget*np.eye(self.n)
         else:
-            self.Z = self.Q + self.jitter*np.eye(self.n)
+            self.Z = self.Q + self.nugget*np.eye(self.n)
             L = linalg.cholesky(self.Z, lower=True)
         
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
@@ -487,8 +506,9 @@ class GaussianProcess(object):
         If the method encounters an overflow (this can result because the parameter values stored are
         the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
         (occurs when the covariance matrix cannot be inverted, even with the addition of additional
-        "jitter" or noise added along the diagonal), the iteration is skipped. If all attempts to
-        find optimal hyperparameters result in an error, then the method raises an exception.
+        noise added along the diagonal if adaptive noise was selected by setting the nugget parameter
+        to be None), the iteration is skipped. If all attempts to find optimal hyperparameters result
+        in an error, then the method raises an exception.
         
         The ``theta0`` parameter is the point at which the first iteration will start. If more than
         one attempt is made, subsequent attempts will use random starting points.

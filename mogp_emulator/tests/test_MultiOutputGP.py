@@ -12,7 +12,7 @@ def test_MultiOutputGP_init():
     for emulator, yvals in zip(gp.emulators, y):
         assert_allclose(emulator.inputs, x)
         assert_allclose(emulator.targets, yvals)
-        assert emulator.jitter == None
+        assert emulator.nugget == None
     assert gp.n_emulators == 2
     assert gp.n == 1
     assert gp.D == 3
@@ -25,12 +25,12 @@ def test_MultiOutputGP_init():
     assert gp.n_emulators == 1
     assert gp.n == 2
     assert gp.D == 3
-    assert gp.emulators[0].jitter == None
+    assert gp.emulators[0].nugget == None
     
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
                                       targets = np.array([[2., 4.]]),
-                                      jitter = np.array([None], dtype = object))
+                                      nugget = np.array([None], dtype = object))
         tmp.seek(0)
         gp = MultiOutputGP(tmp)
         
@@ -41,7 +41,7 @@ def test_MultiOutputGP_init():
     assert gp.n_emulators == 1
     assert gp.n == 2
     assert gp.D == 3
-    assert gp.emulators[0].jitter == None
+    assert gp.emulators[0].nugget == None
     
     with pytest.raises(AttributeError):
         gp.emulators[0].current_theta
@@ -49,7 +49,7 @@ def test_MultiOutputGP_init():
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
                                       targets = np.array([[2., 4.]]),
-                                      jitter = np.array([1.e-6], dtype = object),
+                                      nugget = np.array([1.e-6], dtype = object),
                                       theta = np.array([[1., 2., 3., 4.]]))
         tmp.seek(0)
         gp = MultiOutputGP(tmp)
@@ -59,7 +59,7 @@ def test_MultiOutputGP_init():
     theta = np.array([1., 2., 3., 4.])
     assert_allclose(gp.emulators[0].inputs, x)
     assert_allclose(gp.emulators[0].targets, y)
-    assert_allclose(gp.emulators[0].jitter, 1.e-6)
+    assert_allclose(gp.emulators[0].nugget, 1.e-6)
     assert_allclose(gp.emulators[0].current_theta, theta)
     assert gp.n_emulators == 1
     assert gp.n == 2
@@ -71,6 +71,18 @@ def test_MultiOutputGP_init_failures():
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.reshape(np.array([2.]), (1, 1))
     z = np.array([3.])
+    with pytest.raises(ValueError):
+        gp = MultiOutputGP(x, y, z, z)
+        
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.reshape(np.array([2.]), (1, 1))
+    z = np.array([-3.])
+    with pytest.raises(AssertionError):
+        gp = MultiOutputGP(x, y, z)
+        
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.reshape(np.array([2.]), (1, 1))
+    z = np.array([3., 4.])
     with pytest.raises(ValueError):
         gp = MultiOutputGP(x, y, z)
 
@@ -106,7 +118,7 @@ def test_MultiOutputGP_save_emulators():
         emulator_file = np.load(tmp)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
-        assert emulator_file['jitter'][0] == None
+        assert emulator_file['nugget'][0] == None
         with pytest.raises(KeyError):
             emulator_file['theta']
         
@@ -116,7 +128,7 @@ def test_MultiOutputGP_save_emulators():
     theta = np.array([np.array([-15.258941170727503, -98.2891773079696  , -56.75514771203786 ,
         13.350449073864349 ])])
     gp._set_params(theta)
-    gp.emulators[0].set_jitter(1.e-6)
+    gp.emulators[0].set_nugget(1.e-6)
     
     with TemporaryFile() as tmp:
         gp.save_emulators(tmp)
@@ -124,7 +136,7 @@ def test_MultiOutputGP_save_emulators():
         emulator_file = np.load(tmp)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
-        assert_allclose(np.array(emulator_file['jitter'], dtype=float), 1.e-6)
+        assert_allclose(np.array(emulator_file['nugget'], dtype=float), 1.e-6)
         assert_allclose(emulator_file['theta'], theta)
 
 def test_MultiOutputGP_get_n_emulators():
@@ -153,29 +165,29 @@ def test_MultiOutputGP_get_D():
     gp = MultiOutputGP(x, y)
     assert gp.get_D() == 3
 
-def test_MultiOutputGP_get_jitter():
-    "Test function for the get_jitter method"
+def test_MultiOutputGP_get_nugget():
+    "Test function for the get_nugget method"
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.reshape(np.array([2.]), (1, 1))
     gp = MultiOutputGP(x, y)
-    assert gp.get_jitter() == [None]
+    assert gp.get_nugget() == [None]
     
-    gp.emulators[0].set_jitter(1.e-6)
-    assert_allclose(np.array(gp.get_jitter()), 1.e-6)
+    gp.emulators[0].set_nugget(1.e-6)
+    assert_allclose(np.array(gp.get_nugget()), 1.e-6)
     
-def test_MultiOutputGP_set_jitter():
-    "Test function for the get_jitter method"
+def test_MultiOutputGP_set_nugget():
+    "Test function for the set_nugget method"
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.reshape(np.array([2.]), (1, 1))
     gp = MultiOutputGP(x, y)
-    gp.set_jitter([None])
-    assert gp.emulators[0].get_jitter() == None
+    gp.set_nugget([None])
+    assert gp.emulators[0].get_nugget() == None
     
-    gp.set_jitter([1.e-6])
-    assert_allclose(np.array(gp.emulators[0].get_jitter()), 1.e-6)
+    gp.set_nugget([1.e-6])
+    assert_allclose(np.array(gp.emulators[0].get_nugget()), 1.e-6)
     
     with pytest.raises(AssertionError):
-        gp.set_jitter([-1.])
+        gp.set_nugget([-1.])
 
 def test_MultiOutputGP_set_params():
     "Test function for the _set_params method"
