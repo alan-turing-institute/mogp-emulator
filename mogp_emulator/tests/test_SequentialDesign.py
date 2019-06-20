@@ -5,6 +5,7 @@ from inspect import signature
 import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign
+from ..MultiOutputGP import MultiOutputGP
 
 def test_SequentialDesign_init():
     "test the init method of ExperimentalDesign"
@@ -601,6 +602,7 @@ def test_MICEDesign_init():
     assert md.n_samples == None
     assert md.n_init == 10
     assert md.n_cand == 50
+    assert md.n_eval == 20
     assert md.current_iteration == 0
     assert not md.initialized
     assert md.inputs == None
@@ -612,7 +614,7 @@ def test_MICEDesign_init():
     def f(x):
         return np.array([1.])
     
-    md = MICEDesign(ed, f, 5, 20, 5, 40, 1.e-12, 0.1)
+    md = MICEDesign(ed, f, 5, 20, 5, 40, 10, 1.e-12, 0.1)
     
     assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
     assert callable(md.f)
@@ -621,6 +623,7 @@ def test_MICEDesign_init():
     assert md.n_samples == 20
     assert md.n_init == 5
     assert md.n_cand == 40
+    assert md.n_eval == 10
     assert md.current_iteration == 0
     assert not md.initialized
     assert md.inputs == None
@@ -634,6 +637,9 @@ def test_MICEDesign_init_failures():
     
     ed = LatinHypercubeDesign(3)
     
+    with pytest.raises(ValueError):
+        md = MICEDesign(ed, n_eval = -1)
+
     with pytest.raises(ValueError):
         md = MICEDesign(ed, nugget = -1.)
         
@@ -661,3 +667,56 @@ def test_MICEDesign_get_nugget_s():
     md = MICEDesign(ed)
     
     assert_allclose(md.get_nugget_s(), 1.)
+    
+def test_MICEDesign_MICE_criterion():
+    "test the function to compute the MICE criterion"
+    
+    np.random.seed(74632)
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.sum(x)
+        
+    md = MICEDesign(ed, f, n_init = 4, n_cand = 4)
+    
+    md.run_init_design()
+    md._generate_candidates()
+    
+    md.gp = MultiOutputGP(md.get_inputs(), md.get_targets())
+    md.gp.learn_hyperparameters()
+    
+    md.current_params = np.array([emulator.current_theta for emulator in md.gp.emulators])
+    
+    metric = md._MICE_criterion(0)
+    
+    metric_expected = 0.0899339018405139
+    
+    assert_allclose(metric, metric_expected)
+    
+    with pytest.raises(AssertionError):
+        metric = md._MICE_criterion(-1)
+        
+    with pytest.raises(AssertionError):
+        metric = md._MICE_criterion(5)
+        
+def test_MICEDesign_eval_metric():
+    "test the _eval_metric method of MICE Design"
+    
+    np.random.seed(74632)
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.sum(x)
+        
+    md = MICEDesign(ed, f, n_init = 4, n_cand = 4, n_eval = 4)
+    
+    md.run_init_design()
+    md._generate_candidates()
+    
+    best_point = md._eval_metric()
+    
+    best_point_expected = 0
+    
+    assert best_point == best_point_expected

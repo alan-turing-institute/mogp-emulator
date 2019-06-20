@@ -1,6 +1,7 @@
 import numpy as np
 from inspect import signature
 from .ExperimentalDesign import ExperimentalDesign
+from .MultiOutputGP import MultiOutputGP
 
 class SequentialDesign(object):
     "Base class for a sequential experimental design"
@@ -122,7 +123,7 @@ class SequentialDesign(object):
             
         assert np.array(targets).shape == (self.n_targets, self.n_init), "initial targets must have shape (n_targets, n_init)"
         
-        self.targets = np.array(targets)
+        self.targets = np.atleast_1d(targets)
         self.initialized = True
     
     def run_init_design(self):
@@ -247,8 +248,11 @@ class SequentialDesign(object):
 class MICEDesign(SequentialDesign):
     "class representing a MICE Sequential Design"
     def __init__(self, base_design, f = None, n_targets = 1, n_samples = None, n_init = 10, n_cand = 50,
-                 nugget = None, nugget_s = 1.):
+                 n_eval = 20, nugget = None, nugget_s = 1.):
         "create new instance of a MICE sequential design"
+        
+        if n_eval <= 0:
+            raise ValueError("number of candidates to evaluate must be positive")
         
         if not nugget == None:
             if nugget < 0.:
@@ -256,6 +260,8 @@ class MICEDesign(SequentialDesign):
                 
         if nugget_s < 0.:
             raise ValueError("nugget smoothing parameter cannot be negative")
+        
+        self.n_eval = n_eval
         
         if nugget == None:
             self.nugget = nugget
@@ -272,7 +278,40 @@ class MICEDesign(SequentialDesign):
     def get_nugget_s(self):
         "get value of nugget_s parameter"
         return self.nugget_s
+    
+    def _MICE_criterion(self, data_point):
+        "compute MICE criterion for a single point"
         
+        data_point = int(data_point)
+        
+        assert data_point >= 0 and data_point < self.n_cand, "test point index is out of range"
+        
+        gp2 = MultiOutputGP(self.candidates[np.arange(self.n_cand) != data_point], np.ones((self.n_targets, self.n_cand - 1)),
+                              [self.nugget_s]*self.n_targets)
+        gp2._set_params(self.current_params)
+        
+        _, unc1, _ = self.gp.predict(self.candidates[data_point], do_unc = True)
+        _, unc2, _ = gp2.predict(self.candidates[data_point], do_unc = True)
+        
+        mice_criter =  np.mean(unc1/unc2)
+        
+        assert np.isfinite(mice_criter), "error in computing MICE critera"
+        
+        return float(mice_criter)
+    
     def _eval_metric(self):
         "Evaluate MICE criterion on candidate points"
-        pass
+        
+        self.gp = MultiOutputGP(self.inputs, self.targets, [self.nugget]*self.n_targets)
+        self.gp.learn_hyperparameters()
+        
+        self.current_params = np.array([emulator.current_theta for emulator in self.gp.emulators])
+        
+        eval_points = np.random.choice(self.n_cand, self.n_eval, replace = False)
+        
+        results = []
+        
+        for point in eval_points:
+            results.append(self._MICE_criterion(point))
+            
+        return eval_points[np.argmax(results)]
