@@ -4,7 +4,7 @@ import pytest
 from inspect import signature
 import types
 from ..ExperimentalDesign import LatinHypercubeDesign
-from ..SequentialDesign import SequentialDesign, MICEDesign
+from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..MultiOutputGP import MultiOutputGP
 
 def test_SequentialDesign_init():
@@ -70,9 +70,6 @@ def test_SequentialDesign_init_failures():
         
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f, n_init = -1)
-    
-    with pytest.raises(ValueError):
-        sd = SequentialDesign(ed, f, n_samples = 10, n_init = 20)
         
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f, n_cand = -1)
@@ -602,7 +599,6 @@ def test_MICEDesign_init():
     assert md.n_samples == None
     assert md.n_init == 10
     assert md.n_cand == 50
-    assert md.n_eval == 20
     assert md.current_iteration == 0
     assert not md.initialized
     assert md.inputs == None
@@ -614,7 +610,7 @@ def test_MICEDesign_init():
     def f(x):
         return np.array([1.])
     
-    md = MICEDesign(ed, f, 5, 20, 5, 40, 10, 1.e-12, 0.1)
+    md = MICEDesign(ed, f, 5, 20, 5, 40, 1.e-12, 0.1)
     
     assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
     assert callable(md.f)
@@ -623,7 +619,6 @@ def test_MICEDesign_init():
     assert md.n_samples == 20
     assert md.n_init == 5
     assert md.n_cand == 40
-    assert md.n_eval == 10
     assert md.current_iteration == 0
     assert not md.initialized
     assert md.inputs == None
@@ -636,9 +631,6 @@ def test_MICEDesign_init_failures():
     "test occasions where MICE Design should fail upon initializing"
     
     ed = LatinHypercubeDesign(3)
-    
-    with pytest.raises(ValueError):
-        md = MICEDesign(ed, n_eval = -1)
 
     with pytest.raises(ValueError):
         md = MICEDesign(ed, nugget = -1.)
@@ -686,7 +678,8 @@ def test_MICEDesign_MICE_criterion():
     md.gp = MultiOutputGP(md.get_inputs(), md.get_targets())
     md.gp.learn_hyperparameters()
     
-    md.current_params = np.array([emulator.current_theta for emulator in md.gp.emulators])
+    md.gp_fast = MICEFastGP(md.candidates, np.ones(4), 1.)
+    md.gp_fast._set_params(np.array([emulator.current_theta for emulator in md.gp.emulators])[0])
     
     metric = md._MICE_criterion(0)
     
@@ -710,7 +703,7 @@ def test_MICEDesign_eval_metric():
     def f(x):
         return np.sum(x)
         
-    md = MICEDesign(ed, f, n_init = 4, n_cand = 4, n_eval = 4)
+    md = MICEDesign(ed, f, n_init = 4, n_cand = 4)
     
     md.run_init_design()
     md._generate_candidates()
@@ -720,3 +713,19 @@ def test_MICEDesign_eval_metric():
     best_point_expected = 0
     
     assert best_point == best_point_expected
+    
+def test_MICEFastGP():
+    "test the correction formula for the modified GP for Fast MICE"
+    
+    gp = MICEFastGP(np.reshape([1., 2., 3., 4], (4, 1)), [1., 1., 1., 1.])
+    gp._set_params([0., -1.])
+    result = gp.fast_predict(3)
+    result_expected = 0.191061906777163
+    
+    assert_allclose(result, result_expected)
+    
+    with pytest.raises(AssertionError):
+        result = gp.fast_predict(-1)
+        
+    with pytest.raises(AssertionError):
+        result = gp.fast_predict(5)

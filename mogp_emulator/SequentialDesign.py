@@ -1,7 +1,9 @@
 import numpy as np
+from scipy.spatial.distance import cdist
 from inspect import signature
 from .ExperimentalDesign import ExperimentalDesign
 from .MultiOutputGP import MultiOutputGP
+from .GaussianProcess import GaussianProcess
 
 class SequentialDesign(object):
     "Base class for a sequential experimental design"
@@ -26,8 +28,8 @@ class SequentialDesign(object):
                 
         if int(n_init) <= 0:
             raise ValueError("number of initial design points must be positive")
-            
-        if (not n_samples == None) and int(n_samples) < int(n_init):
+        
+        if (not n_samples == None) and n_samples <= 0:
             raise ValueError("number of samples less than initial design size")
             
         if int(n_cand) <= 0:
@@ -244,15 +246,38 @@ class SequentialDesign(object):
         
         return output_string
         
+
+class MICEFastGP(GaussianProcess):
+    "class implementing Woodbury identity for fast predictions"
+    def fast_predict(self, index):
+        """
+        Make a corrected prediction for an input vector
+        """
         
+        index = int(index)
+        assert index >= 0 and index < self.n, "index must be 0 <= index < n" 
+
+        indices = (np.arange(self.n) != index)
+        
+        exp_theta = np.exp(self.theta)
+
+        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
+                      np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[index, :], (1, self.D)), "sqeuclidean")
+
+        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        
+        invQ_mod = (self.invQ[indices][:, indices] -
+                    1./self.invQ[index, index]*np.outer(self.invQ[indices, index], self.invQ[indices, index]))
+        
+        var = exp_theta[self.D] - np.sum(Ktest * np.dot(invQ_mod, Ktest), axis=0)
+        
+        return var
+
 class MICEDesign(SequentialDesign):
     "class representing a MICE Sequential Design"
     def __init__(self, base_design, f = None, n_targets = 1, n_samples = None, n_init = 10, n_cand = 50,
-                 n_eval = 20, nugget = None, nugget_s = 1.):
+                 nugget = None, nugget_s = 1.):
         "create new instance of a MICE sequential design"
-        
-        if n_eval <= 0:
-            raise ValueError("number of candidates to evaluate must be positive")
         
         if not nugget == None:
             if nugget < 0.:
@@ -260,8 +285,6 @@ class MICEDesign(SequentialDesign):
                 
         if nugget_s < 0.:
             raise ValueError("nugget smoothing parameter cannot be negative")
-        
-        self.n_eval = n_eval
         
         if nugget == None:
             self.nugget = nugget
@@ -286,14 +309,10 @@ class MICEDesign(SequentialDesign):
         
         assert data_point >= 0 and data_point < self.n_cand, "test point index is out of range"
         
-        gp2 = MultiOutputGP(self.candidates[np.arange(self.n_cand) != data_point], np.ones((self.n_targets, self.n_cand - 1)),
-                              [self.nugget_s]*self.n_targets)
-        gp2._set_params(self.current_params)
-        
         _, unc1, _ = self.gp.predict(self.candidates[data_point], do_unc = True)
-        _, unc2, _ = gp2.predict(self.candidates[data_point], do_unc = True)
+        unc2 = self.gp_fast.fast_predict(data_point)
         
-        mice_criter =  np.mean(unc1/unc2)
+        mice_criter =  np.mean(unc1)/unc2
         
         assert np.isfinite(mice_criter), "error in computing MICE critera"
         
@@ -305,13 +324,12 @@ class MICEDesign(SequentialDesign):
         self.gp = MultiOutputGP(self.inputs, self.targets, [self.nugget]*self.n_targets)
         self.gp.learn_hyperparameters()
         
-        self.current_params = np.array([emulator.current_theta for emulator in self.gp.emulators])
-        
-        eval_points = np.random.choice(self.n_cand, self.n_eval, replace = False)
+        self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), self.nugget_s)
+        self.gp_fast._set_params(np.array([emulator.current_theta for emulator in self.gp.emulators])[0])
         
         results = []
         
-        for point in eval_points:
+        for point in range(self.n_cand):
             results.append(self._MICE_criterion(point))
             
-        return eval_points[np.argmax(results)]
+        return np.argmax(results)
