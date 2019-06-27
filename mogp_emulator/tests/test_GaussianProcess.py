@@ -15,6 +15,7 @@ def test_GaussianProcess_init():
     assert_allclose(y, gp.targets)
     assert gp.D == 3
     assert gp.n == 1
+    assert gp.nugget == None
     
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
@@ -23,6 +24,7 @@ def test_GaussianProcess_init():
     assert_allclose(y, gp.targets)
     assert gp.D == 2
     assert gp.n == 3
+    assert gp.nugget == None
     
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2.])
@@ -31,10 +33,30 @@ def test_GaussianProcess_init():
     assert_allclose(y, gp.targets)
     assert gp.D == 6
     assert gp.n == 1
+    assert gp.nugget == None
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y, 1.)
+    assert_allclose(x, gp.inputs)
+    assert_allclose(y, gp.targets)
+    assert gp.D == 3
+    assert gp.n == 1
+    assert gp.nugget == 1.
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y, None)
+    assert_allclose(x, gp.inputs)
+    assert_allclose(y, gp.targets)
+    assert gp.D == 3
+    assert gp.n == 1
+    assert gp.nugget == None
 
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
-                                      targets = np.array([2., 4.]))
+                                      targets = np.array([2., 4.]),
+                                      nugget = None)
         tmp.seek(0)
         gp = GaussianProcess(tmp)
         
@@ -44,13 +66,15 @@ def test_GaussianProcess_init():
     assert_allclose(gp.targets, y)
     assert gp.n == 2
     assert gp.D == 3
+    assert gp.nugget == None
     with pytest.raises(AttributeError):
         gp.theta
-
+    
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
                                       targets = np.array([2., 4.]),
-                                      theta = np.array([1., 2., 3., 4.]))
+                                      theta = np.array([1., 2., 3., 4.]),
+                                      nugget = 1.e-6)
         tmp.seek(0)
         gp = GaussianProcess(tmp)
         
@@ -60,6 +84,7 @@ def test_GaussianProcess_init():
     assert_allclose(gp.inputs, x)
     assert_allclose(gp.targets, y)
     assert_allclose(gp.theta, theta)
+    assert_allclose(gp.nugget, 1.e-6)
     assert gp.n == 2
     assert gp.D == 3
     
@@ -71,7 +96,7 @@ def test_GaussianProcess_init_failures():
     y = np.array([2.])
     z = np.array([4.])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y, z)
+        gp = GaussianProcess(x, y, z, z)
         
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2., 3.])
@@ -87,6 +112,11 @@ def test_GaussianProcess_init_failures():
     y = np.array([[2., 3.], [4., 5]])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y)
+        
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    with pytest.raises(ValueError):
+        gp = GaussianProcess(x, y, -1.)
 
 def test_GaussianProcess_save_emulators():
     "Test function for the save_emulators method"
@@ -101,12 +131,13 @@ def test_GaussianProcess_save_emulators():
         emulator_file = np.load(tmp)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
+        assert emulator_file['nugget'] == None
         with pytest.raises(KeyError):
             emulator_file['theta']
         
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (3,))
-    gp = GaussianProcess(x, y)
+    gp = GaussianProcess(x, y, 1.e-6)
     theta = np.zeros(4)
     gp._set_params(theta)
     
@@ -117,6 +148,72 @@ def test_GaussianProcess_save_emulators():
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert_allclose(emulator_file['theta'], theta)
+        assert_allclose(emulator_file['nugget'], 1.e-6)
+
+def test_GaussianProcess_get_n():
+    "Tests the get_n method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    assert gp.get_n() == 1
+
+def test_GaussianProcess_get_D():
+    "Tests the get_D method of Gaussian Process"
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    assert gp.get_D() == 3
+
+def test_GaussianProcess_get_params():
+    "Tests the get_params method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    theta_expected = np.zeros(4)
+    gp.theta = np.zeros(4)
+    assert_allclose(gp.get_params(), theta_expected)
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    assert gp.get_params() == None
+    
+def test_GaussianProcess_get_nugget():
+    "Tests the get_nugget method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    assert gp.get_nugget() == None
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y, 1.e-6)
+    assert_allclose(gp.get_nugget(), 1.e-6)
+    
+def test_GaussianProcess_set_nugget():
+    "Tests the set_nugget method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    gp.set_nugget(None)
+    assert gp.nugget == None
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    gp.set_nugget(1.e-6)
+    assert_allclose(gp.nugget, 1.e-6)
+    
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GaussianProcess(x, y)
+    with pytest.raises(AssertionError):
+        gp.set_nugget(-1.e-6)
 
 def test_GaussianProcess_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine in Gaussian Process"
@@ -167,6 +264,13 @@ def test_GaussianProcess_prepare_likelihood():
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
     
+    gp.set_nugget(0.)
+    gp.theta = theta
+    gp._prepare_likelihood()
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -181,6 +285,23 @@ def test_GaussianProcess_prepare_likelihood():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    gp.set_nugget(1.e-6)
+    gp.theta = theta
+    gp._prepare_likelihood()
+    invQ_expected = np.array([[ 5.0000025001932273e+05, -4.9999974999687175e+05, -3.3691214036059968e-03],
+                              [-4.9999974999687175e+05,  5.0000025001932273e+05, -3.3691214038620732e-03],
+                              [-3.3691214036059972e-03, -3.3691214038620732e-03, 1.0000444018785022e+00]])
+    invQt_expected = np.array([-4.9999876342845545e+05,  5.0000123658773920e+05, 3.9833320004952104e+00])
+    logdetQ_expected = -13.122407278313416
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    gp.set_nugget(0.)
+    gp.theta = theta
+    with pytest.raises(linalg.LinAlgError):
+        gp._prepare_likelihood()
 
 def test_GaussianProcess_set_params():
     "Tests the _set_params method of GaussianProcess"
@@ -211,6 +332,32 @@ def test_GaussianProcess_set_params():
     logdetQ_expected = 2.9999999999509863
     gp._set_params(theta)
     assert_allclose(theta, gp.theta, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    invQ_expected = np.array([[ 5.0000025001932273e+05, -4.9999974999687175e+05, -3.3691214036059968e-03],
+                              [-4.9999974999687175e+05,  5.0000025001932273e+05, -3.3691214038620732e-03],
+                              [-3.3691214036059972e-03, -3.3691214038620732e-03, 1.0000444018785022e+00]])
+    invQt_expected = np.array([-4.9999876342845545e+05,  5.0000123658773920e+05, 3.9833320004952104e+00])
+    logdetQ_expected = -13.122407278313416
+    gp._set_params(theta)
+    assert_allclose(theta, gp.theta, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    invQ_expected = np.array([[ 5.0000025001932273e+05, -4.9999974999687175e+05, -3.3691214036059968e-03],
+                              [-4.9999974999687175e+05,  5.0000025001932273e+05, -3.3691214038620732e-03],
+                              [-3.3691214036059972e-03, -3.3691214038620732e-03, 1.0000444018785022e+00]])
+    invQt_expected = np.array([-4.9999876342845545e+05,  5.0000123658773920e+05, 3.9833320004952104e+00])
+    logdetQ_expected = -13.122407278313416
+    gp.set_nugget(1.e-6)
+    gp._set_params(theta)
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
@@ -334,7 +481,7 @@ def test_GaussianProcess_learn_hyperparameters():
 
 def test_GaussianProcess_predict():
     """
-    Tests the predict method of GaussianProcess -- note does the test only checks the derivatives
+    Tests the predict method of GaussianProcess -- note the test only checks the derivatives
     via finite differences rather than analytical results as I have not dug through references
     to find the appropriate expressions
     """
@@ -408,22 +555,6 @@ def test_GaussianProcess_predict_failures():
     x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
     with pytest.raises(AssertionError):
         gp.predict(x_star)
-
-def test_GaussianProcess_get_n():
-    "Tests the get_n method of GaussianProcess"
-    
-    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-    y = np.array([2.])
-    gp = GaussianProcess(x, y)
-    assert gp.get_n() == 1
-
-def test_GaussianProcess_get_D():
-    "Tests the get_D method of Gaussian Process"
-    
-    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-    y = np.array([2.])
-    gp = GaussianProcess(x, y)
-    assert gp.get_D() == 3
 
 def test_GaussianProcess_str():
     "Test function for string method"
