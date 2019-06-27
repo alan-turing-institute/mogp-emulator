@@ -18,7 +18,6 @@ def test_SequentialDesign_init():
     sd = SequentialDesign(ed)
     assert type(sd.base_design).__name__ == 'LatinHypercubeDesign'
     assert sd.f == None
-    assert sd.n_targets == 1
     assert sd.n_samples == None
     assert sd.n_init == 10
     assert sd.n_cand == 50
@@ -28,11 +27,10 @@ def test_SequentialDesign_init():
     assert sd.targets == None
     assert sd.candidates == None
     
-    sd = SequentialDesign(ed, f, n_targets = 5, n_samples = 100, n_init = 20, n_cand = 100)
+    sd = SequentialDesign(ed, f, n_samples = 100, n_init = 20, n_cand = 100)
     assert type(sd.base_design).__name__ == 'LatinHypercubeDesign'
     assert callable(sd.f)
     assert len(signature(sd.f).parameters) == 1
-    assert sd.n_targets == 5
     assert sd.n_samples == 100
     assert sd.n_init == 20
     assert sd.n_cand == 100
@@ -61,9 +59,6 @@ def test_SequentialDesign_init_failures():
     
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f2)
-        
-    with pytest.raises(ValueError):
-        sd = SequentialDesign(ed, f, n_targets = -1)
            
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f, n_samples = -1)
@@ -87,17 +82,6 @@ def test_SequentialDesign_has_function():
         
     sd = SequentialDesign(ed, f)
     assert sd.has_function()
-
-def test_SequentialDesign_get_n_targets():
-    "test the get_n_targets method"
-    
-    ed = LatinHypercubeDesign(3)
-    
-    def f(x):
-        return np.array([1.])
-        
-    sd = SequentialDesign(ed, f, n_targets = 3)
-    assert sd.get_n_targets() == 3
 
 def test_SequentialDesign_get_n_parameters():
     "test the get_n_parameters method"
@@ -183,8 +167,8 @@ def test_SequentialDesign_get_targets():
     sd = SequentialDesign(ed, f)
     assert sd.get_targets() == None
     
-    sd.targets = np.zeros((3, 4))
-    assert_allclose(sd.get_targets(), np.zeros((3, 4)))
+    sd.targets = np.zeros(4)
+    assert_allclose(sd.get_targets(), np.zeros(4))
     
 def test_SequentialDesign_get_candidates():
     "test the get_candidates method"
@@ -249,11 +233,11 @@ def test_SequentialDesign_set_initial_targets():
     targets_expected = np.array([np.sum(i) for i in initial_design_expected])
     sd.generate_initial_design()
     sd.set_initial_targets(targets_expected)
-    assert_allclose(sd.targets, np.reshape(targets_expected, (1,4)))
+    assert_allclose(sd.targets, np.reshape(targets_expected, (4,)))
     assert sd.initialized
     
     sd = SequentialDesign(ed, f, n_init = 4)
-    targets_expected = np.array([[np.sum(i) for i in initial_design_expected]])
+    targets_expected = np.array([np.sum(i) for i in initial_design_expected])
     sd.generate_initial_design()
     sd.set_initial_targets(targets_expected)
     assert_allclose(sd.targets, targets_expected)
@@ -288,7 +272,7 @@ def test_SequentialDesign_run_init_design():
                                         [0.0684779421445063, 0.9308367720360009, 0.1428493015158686],
                                         [0.6345029195085983, 0.6651343562344474, 0.8827198350687029],
                                         [0.4531112960399023, 0.3977273628763245, 0.5867585643640021]])
-    targets_expected = np.array([[np.sum(i) for i in initial_design_expected]])
+    targets_expected = np.array([np.sum(i) for i in initial_design_expected])
     sd.run_init_design()
     assert_allclose(sd.inputs, initial_design_expected)
     assert_allclose(sd.targets, targets_expected)
@@ -418,7 +402,7 @@ def test_SequentialDesign_set_next_target():
                                 [0.6345029195085983, 0.6651343562344474, 0.8827198350687029],
                                 [0.4531112960399023, 0.3977273628763245, 0.5867585643640021],
                                 [3.9602716910300234e-01, 4.3469440375712098e-02, 9.3294684823072194e-01]])
-    targets_expected = np.array([[np.sum(i) for i in inputs_expected]])
+    targets_expected = np.array([np.sum(i) for i in inputs_expected])
     
     sd.set_next_target(new_target)
     assert_allclose(sd.targets, targets_expected)
@@ -488,7 +472,7 @@ def test_SequentialDesign_run_next_point():
                                 [0.6345029195085983, 0.6651343562344474, 0.8827198350687029],
                                 [0.4531112960399023, 0.3977273628763245, 0.5867585643640021],
                                 [3.9602716910300234e-01, 4.3469440375712098e-02, 9.3294684823072194e-01]])
-    targets_expected = np.array([[np.sum(i) for i in inputs_expected]])
+    targets_expected = np.array([np.sum(i) for i in inputs_expected])
     
     assert_allclose(sd.inputs, inputs_expected)
     assert_allclose(sd.targets, targets_expected)
@@ -520,7 +504,7 @@ def test_SequentialDesign_run_sequential_design():
                                 [0.1314127131166828, 0.3850568631590907, 0.2234836206262954],
                                 [0.1648353557812244, 0.0994384529732742, 0.4715221513612055],
                                 [0.8739475357732106, 0.058541390000348 , 0.3103313392459021]])
-    targets_expected = np.array([[np.sum(i) for i in inputs_expected]])
+    targets_expected = np.array([np.sum(i) for i in inputs_expected])
     
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
@@ -560,7 +544,6 @@ def test_SequentialDesign_str():
     expected_string = ""
     expected_string += "SequentialDesign with\n"
     expected_string += "LatinHypercubeDesign base design\n"
-    expected_string += "1 targets\n"
     expected_string += "None total samples\n"
     expected_string += "10 initial points\n"
     expected_string += "50 candidate points\n"
@@ -575,7 +558,6 @@ def test_SequentialDesign_str():
     expected_string += "SequentialDesign with\n"
     expected_string += "LatinHypercubeDesign base design\n"
     expected_string += "a bound simulator function\n"
-    expected_string += "5 targets\n"
     expected_string += "10 total samples\n"
     expected_string += "5 initial points\n"
     expected_string += "10 candidate points\n"
@@ -583,7 +565,7 @@ def test_SequentialDesign_str():
     expected_string += "current inputs: None\n"
     expected_string += "current targets: None"
     
-    sd = SequentialDesign(ed, f, n_targets = 5, n_samples = 10, n_init = 5, n_cand = 10)
+    sd = SequentialDesign(ed, f, n_samples = 10, n_init = 5, n_cand = 10)
     assert str(sd) == expected_string
     
 def test_MICEDesign_init():
@@ -595,7 +577,6 @@ def test_MICEDesign_init():
     
     assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
     assert md.f == None
-    assert md.n_targets == 1
     assert md.n_samples == None
     assert md.n_init == 10
     assert md.n_cand == 50
@@ -610,12 +591,11 @@ def test_MICEDesign_init():
     def f(x):
         return np.array([1.])
     
-    md = MICEDesign(ed, f, 5, 20, 5, 40, 1.e-12, 0.1)
+    md = MICEDesign(ed, f, 20, 5, 40, 1.e-12, 0.1)
     
     assert type(md.base_design).__name__ == 'LatinHypercubeDesign'
     assert callable(md.f)
     assert len(signature(md.f).parameters) == 1
-    assert md.n_targets == 5
     assert md.n_samples == 20
     assert md.n_init == 5
     assert md.n_cand == 40
