@@ -245,30 +245,77 @@ class SequentialDesign(object):
         return type(self.base_design).__name__
     
     def generate_initial_design(self):
-        "create initial design"
+        """
+        Create initial design
+        
+        Method to set the initial design inputs. Generates the desired number of points for the initial
+        design by drawing from the base design. Method sets the ``inputs`` attribute of the
+        ``SequentialDesign`` instance, but also returns the initial design as a numpy array if the
+        simulations are to be run manually. This method can be run repeatedly to draw different
+        initial designs if the initial target values have not been set, but once the targets have been
+        set the method will not overwrite them to prevent corruption of the design.
+        
+        :returns: Initial design points, a 2D numpy array with shape ``(n_init, n_parameters)``
+        :rtype: ndarray
+        """
+        
+        assert not self.initialized, "initial design has already been created"
         
         self.inputs = self.base_design.sample(self.n_init)
         self.current_iteration = self.n_init
         return self.inputs
     
     def set_initial_targets(self, targets):
-        "set initial targets"
+        """
+        Set initial design target values
+        
+        Method to set the initial design targets. Generates the desired number of points for the initial
+        design by drawing from the base design. Method sets the ``inputs`` attribute of the
+        ``SequentialDesign`` instance, but also returns the initial design as a numpy array if the
+        simulations are to be run manually. This method can be run repeatedly to draw different
+        initial designs if the initial target values have not been set, but once the targets have been
+        set the method will not overwrite them to prevent corruption of the design.
+        
+        Target values must be an array with length ``(n_init,)``, with values obtained by running
+        the initial design through the simulation. Note that this means the initial design must
+        be created prior to running this method -- if this method is called prior to
+        ``generate_initial_design``, the code will raise an error.
+        
+        :param targets: Initial value of targets, must be a 1D numpy array with shape ``(n_init,)``
+        :type targets: ndarray
+        :returns: None
+        :rtype: None
+        """
         
         if self.inputs is None:
             raise ValueError("Initial design has not been generated")
         else:
             assert self.inputs.shape == (self.n_init, self.get_n_parameters()), "inputs have not been initialized correctly"
         
-        if len(np.atleast_1d(np.array(targets)).shape) == 1:
-            targets = np.reshape(np.array(targets), (len(np.array(targets)),))
-            
+        targets = np.atleast_1d(np.squeeze(np.array(targets)))
         assert np.array(targets).shape == (self.n_init,), "initial targets must have shape (n_init,)"
         
-        self.targets = np.atleast_1d(targets)
+        self.targets = np.array(targets)
         self.initialized = True
     
     def run_init_design(self):
-        "run initial design"
+        """
+        Run initial design
+        
+        Method to run the initial design by generating the initial design, evaluating the function on
+        all design points, and setting the target values. Note that this requires having a bound function
+        to the class in order to evaluate the design points internally. It is a shortcut to running
+        ``generate_initial_design``, evaluating the initial design points, and then using
+        ``set_initial_targets`` to set the target values, with some additional checks along the way.
+        
+        If the initial design has already been fully run, this method will raise an error as the
+        method to generate the initial design checks this prior to overwriting the initial targets.
+        Note also that this method checks that the outputs of the bound function match up with
+        the expected array sizes and that all outputs are finite before updating the initial targets.
+        
+        :returns: None
+        :rtype: None
+        """
         
         assert self.has_function(), "Design must have a bound function to use run_init_design"
         
@@ -282,16 +329,46 @@ class SequentialDesign(object):
         self.set_initial_targets(targets)
         
     def _generate_candidates(self):
-        "generate candidates for next iteration"
+        """
+        Generate candidates for next iteration
+        
+        Internal method for generating candidates for the next iteration of the sequential design.
+        Draws the desired number of points from the base design and sets the internal ``candidates``
+        attribute to the resuting candidate design points.
+        
+        :returns: None
+        :rtype: None
+        """
         
         self.candidates = self.base_design.sample(self.n_cand)
     
     def _eval_metric(self):
-        "evaluate metric for selecting next point on candidates"
+        """
+        Evaluate metric for selecting next point
+        
+        Apply the metric used for sequential design to all candidate points and returns the index of the
+        best candidate. This is not implemented for the base implementation, and is the only method
+        that should need to be updated in order to create a new type of sequential design.
+        
+        :returns: Index of best candidate from the possible next design points. Must be an integer
+                  0 <= index < n_cand
+        :rtype: int
+        """
         raise NotImplementedError("Base class for Sequential Design does not implement an evaluation metric")
     
     def get_next_point(self):
-        "evaluate candidates to determine next point"
+        """
+        Evaluate candidates to determine next point
+        
+        Public method for determining the next point in the design. Internally, it checks that the inputs
+        and target arrays are as expected for correctly drawing a new point, generates prospective candidates,
+        and then evaluates them using the desired metric in order to select the best one. It updates the
+        ``inputs`` array and returns the next point to be evaluated as a 1D numpy array of length
+        ``n_parameters``.
+        
+        :returns: Next design point, a 1D numpy array of length ``n_parameters``
+        :rtype: ndarray
+        """
         
         if self.inputs is None:
             raise ValueError("Initial design has not been generated")
@@ -317,7 +394,23 @@ class SequentialDesign(object):
         return next_point
     
     def set_next_target(self, target):
-        "set value of next target"
+        """
+        Set value of next target
+        
+        Updates the target array with the correct value (from running the actual simulation) of the
+        latest design point determined using ``get_next_point``. The target input must be a float
+        or an array of length 1. The code internally checks the inputs and targets for any problems
+        that may have occurred in updating them correctly, and if all is well then updates the
+        target array and increments the number of iterations. If the design has not been
+        correctly initialized, or ``get_next_point`` has not been previously run, this method
+        will raise an error.
+        
+        :param target: New target value found from evaluating the simulation on the latest design
+                       point found from the ``get_next_point`` method.
+        :type target: float or length 1 array
+        :returns: None
+        :rtype: None
+        """
         
         if self.inputs is None:
             raise ValueError("Initial design has not been generated")
@@ -341,7 +434,19 @@ class SequentialDesign(object):
         self.current_iteration = self.current_iteration + 1
         
     def run_next_point(self):
-        "do one iteration of the sequential design process"
+        """
+        Perform one iteration of the sequential design process
+        
+        Method for performing an iteration of the sequential design process. This is a shortcut for
+        generating and evaluating the candidates to find the best next design point, evaluating
+        the function on the next point, and then updating the targets array with the value.
+        This requires a function be bound to the class instance to automatically run the
+        simulation. This will also automatically update the ``current_iteration`` attribute,
+        which can be used to determine the number of sequential design steps that have been run.
+        
+        :returns: None
+        :rtype: None
+        """
         
         assert self.has_function(), "Design must have a bound function to use run_next_point"
         
@@ -350,7 +455,29 @@ class SequentialDesign(object):
         self.set_next_target(next_target)
     
     def run_sequential_design(self, n_samples = None):
-        "run the entire sequential design"
+        """
+        Run the entire sequential design
+        
+        Method to run all steps of the sequential design process. Note that the class instance must
+        have a bound function for evaluating the design points to run all steps automatically. If
+        such a method is not provided, the design steps must be run manually.
+        
+        The desired number of samples to be drawn can either be specified when initializing the
+        class instance or when calling this method. If a number of samples is provided on
+        both occasions, then the number provided when calling ``run_sequential_design`` is used.
+        
+        Internally, this method is a wrapper to ``run_init_design`` and then calling
+        ``run_next_point`` a total of ``n_samples`` times. Note that this means that the total
+        number of design points is ``n_init + n_samples``.
+        
+        :param n_samples: Number of sequential design steps to be run. Optional if the number was
+                          specified upon initialization. Default is ``None`` (default to number
+                          set when initializing). If numbers are provided on both occasions, the
+                          number set here is used. If a number is provided, must be positive.
+        :type n_samples: int or None
+        :returns: None
+        :rtype: None
+        """
         
         assert self.has_function(), "Design must have a bound function to use run_sequential_design"
         
@@ -368,7 +495,15 @@ class SequentialDesign(object):
             self.run_next_point()
         
     def __str__(self):
-        "returns string representation of design"
+        """
+        Returns string representation of a sequential design
+        
+        Returns a string representation of the sequential design. Contains information on the base
+        design, the number of points used in the different steps, and the input and target values.
+        
+        :returns: String representation of the sequential design
+        :rtype: str
+        """
         
         output_string = ""
         output_string += type(self).__name__+" with\n"
@@ -386,10 +521,40 @@ class SequentialDesign(object):
         
 
 class MICEFastGP(GaussianProcess):
-    "class implementing Woodbury identity for fast predictions"
+    """
+    Derived GaussianProcess class implementing the Woodbury matrix identity for fast predictions
+    
+    This class implements a Gaussian Process that is used in the MICE Sequential Design. The GP
+    is fit using all candidate points from the sequential design, and the uses the Woodbury
+    matrix identity to correct that fit to exclude the candidate point in question. This reduces
+    the cost of fitting the GP from O(n^3) to O(n^2), which can dramatically speed up this
+    process for large numbers of candidate points. This is mostly used for the particular
+    application to the MICE sequential design, but could potentially have other applications
+    where many candidate points are to be considered one at a time.
+    """
     def fast_predict(self, index):
         """
-        Make a corrected prediction for an input vector
+        Make a fast prediction using one input point to a fit GP
+        
+        This method is used to correct a Gaussian Process fit to a set of candidate points to
+        evaluate the uncertainty at the candidate point. It is used in the MICE sequential
+        design procedure to examine the mutual information between candidate points by determining
+        how well correlated the design point is in question to the remainder of the candidates.
+        It uses the Woodbury matrix identity to correct the existing GP fit (which requires
+        O(n^3) operations) using O(n^2) operations, speeding up the process significantly for
+        large candidate design sizes.
+        
+        The method requires a fit GP, and the index of the input point that is to be excluded.
+        The method then corrects the GP fit and computes the uncertainty of the prediction
+        on the excluded point returning the uncertainty as a float.
+        
+        :param index: Index of input point to be excluded in the fit and to which the prediction
+                      will be applied. Must be an integer with 0 <= index < n (where n is the number
+                      of target points in the fit GP, or the number of candidate points when
+                      applied to the MICE procedure).
+        :type index: int
+        :returns: Uncertainty in the corrected fit applied to the given index point
+        :rtype: float
         """
         
         index = int(index)
@@ -412,10 +577,72 @@ class MICEFastGP(GaussianProcess):
         return var
 
 class MICEDesign(SequentialDesign):
-    "class representing a MICE Sequential Design"
+    """
+    Class representing a Mutual Information for Computer Experiments (MICE) sequential
+    experimental design
+    
+    This class provides an implementation of the MICE algorithm, which uses Mutual Information
+    as the criterion for selecting new points in a sequential design. The idea in MICE is to
+    select design points based on the point that provides the most information on the function
+    values in the entire design space. This is a straightforward application of a sequential
+    design procedure, though the class requires a few additional parameters in order to
+    compute the MICE criteria.
+    
+    These additional parameters are nugget parameters provided to the Gaussian Process fit to
+    smooth the predictions when evaluating the Mutual Information criteria. Essentially, since
+    experimental design often requires sampling from a high dimensional space, this cannot be
+    done in a way that guarantees that all candidate points are equally spaced. The Mutual
+    Information criterion is sensitive to how these candidate points are distributed in space,
+    so the nugget parameter provides some smoothing that makes the criterion less dependent on
+    the distribution of the candidate points. Typical values of the smoothing nugget parameters
+    (``nugget_s`` in this implementation) are 1, though this may depend on the application.
+    
+    Other than the smoothing parameters, the implementation follows the base procedure for a
+    sequential design. The implementation adds methods for querying the nugget parameters
+    and an additional helper function for computing the Mutual Information criterion, but
+    other methods are identical.
+    """
     def __init__(self, base_design, f = None, n_samples = None, n_init = 10, n_cand = 50,
                  nugget = None, nugget_s = 1.):
-        "create new instance of a MICE sequential design"
+        """
+        Create new instance of a MICE sequential design
+                 
+        Method to initialize a new MICE design. Parameters are largely the same as for the base
+        ``SequentialDesign`` class, with a few additional nugget parameters for computing the
+        Mutual Information criterion. A base design must be provided (must be a subclass of the
+        ``ExperimentalDesign`` class), plus optionally a function to be evaluated in the design.
+        Additional parameters include the number of samples, the number of initial design points,
+        the number of candidate points, the nugget parameter for the base GP, and the smoothing
+        nugget parameter for smoothing the uncertainty predictions on the candidate design points.
+        Note that the total number of design points is ``n_init + n_samples``.
+                 
+        :param base_design: Base one-shot experimental design (must be a subclass of
+                            ``ExperimentalDesign``). This contains the information on the
+                            parameter space to be sampled.
+        :type base_design: ExperimentalDesign
+        :param f: Function to be evaluated for the design. Must take all parameter values as a single
+                  input array and return a single float or an array of length 1
+        :type f: function or other callable
+        :param n_samples: Number of sequential design points to be drawn. If specified, this must be
+                          a positive integer. Note that this is in addition to the number of initial
+                          points, meaning that the total design size will be ``n_samples + n_init``. 
+                          This can also be specified when running the full design. This parameter is
+                          optional, and defaults to ``None`` (meaning the number of samples is set when
+                          running the design, or that samples will be added manually).
+        :type n_samples: int or None
+        :param n_init: Number of points in the inital design before the sequential steps begin. Must
+                       be a positive integer. Optional, default value is 10.
+        :type n_init: int
+        :param n_cand: Number of candidates to consider at each sequential design step. Must be a positive
+                       integer. Optional, default value is 50.
+        :param nugget: Nugget parameter for base GP predictions. Must be a non-negative float or ``None``,
+                       where ``None`` indicates that the nugget parameter is selected adaptively. Optional,
+                       default value is ``None``.
+        :type nugget: float or None
+        :param nugget_s: Smoothing nugget parameter for smoothing the predictions on the candidate space.
+                         Must be a non-negative float. Default value is 1.
+        :type nugget_s: float
+        """
         
         if not nugget == None:
             if nugget < 0.:
@@ -433,15 +660,53 @@ class MICEDesign(SequentialDesign):
         super().__init__(base_design, f, n_samples, n_init, n_cand)
         
     def get_nugget(self):
-        "get value of nugget parameter"
+        """
+        Get value of nugget parameter for base GP
+        
+        Returns the nugget value for the base GP (used to actually fit the inputs to targets).
+        Can be a float or None (meaning fitting will adaptively add noise to stabilize matrix
+        inversion as needed).
+        
+        :returns: Nugget parameter, can be a float or None for adaptive noise addition.
+        :rtype: float or None
+        """
         return self.nugget
         
     def get_nugget_s(self):
-        "get value of nugget_s parameter"
+        """
+        Get value of smoothing nugget parameter
+        
+        Returns the value of the smoothing nugget parameter for the GP used to evaluate the mutual
+        information criterion. This GP examines the correlation between a candidate design point and
+        the other candidate points, which requires smoothing to ensure that the correlation measure is
+        not biased by the distribution of the candidate points in space. This parameter must be a
+        nonnegative float (typical values used are 1, though this may depend on the application).
+        
+        :returns: Nugget parameter for smoothing predictions from candidate points made on a candidate 
+                  point. Typical values are 1.
+        :rtype: float
+        """
         return self.nugget_s
     
     def _MICE_criterion(self, data_point):
-        "compute MICE criterion for a single point"
+        """
+        Compute the MICE criterion for a single candidate point
+        
+        This internal method computes the MICE criterion for a single candidate point. Requires
+        input of the index of a candidate point to be considered (must be an integer satisfying
+        ``0 <= index < n_cand``). It involves fitting a corrected GP to the candidate points other
+        than the one under consideration (using the ``MICEFastGP`` class to correct the fit
+        via the Woodbury matrix identity), and then computing the MICE criterion based on
+        the predictions of the base GP on the point and the corrected GP fit. The MICE
+        criterion is then the variance of the base GP divided by the variance of the corrected
+        candidate GP. Value returned is the MICE criterion for the point in question.
+        
+        :param data_point: Index of the candidate point under consideration. Must be an integer
+                           with ``0 <= index < n_cand``.
+        :type data_point: int
+        :returns: MICE criterion for the data point in question
+        :rtype: float
+        """
         
         data_point = int(data_point)
         
@@ -457,7 +722,23 @@ class MICEDesign(SequentialDesign):
         return float(mice_criter)
     
     def _eval_metric(self):
-        "Evaluate MICE criterion on candidate points"
+        """
+        Evaluate MICE criterion on all candidate points and select new design point
+        
+        This internal method computes the MICE criterion on all candidate points and returns
+        the index of the point with the maximum value. It does so by first fitting a base GP
+        to all points in the current design, and then fitting a dummy GP to all candidate
+        design points using the parameter values determined from the base GP fit. The MICE
+        criterion does not depend on the target values, since the parameters are determined
+        via the base GP and the MICE criterion only depends on the uncertainty of the
+        candidate GP (which is independent of the target values). These fit GPs are then used
+        to compute the MICE criterion for each candidate point, and the method returns the
+        index of the point that had the maximum value of the MICE criterion.
+        
+        :returns: Index of the candidate with the maximum MICE score (integer with
+                  ``0 <= index < n_cand``)
+        :rtype: int
+        """
         
         self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
         self.gp.learn_hyperparameters()

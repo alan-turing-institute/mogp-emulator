@@ -215,6 +215,12 @@ def test_SequentialDesign_generate_initial_design():
     assert_allclose(sd.inputs, initial_design_expected)
     assert sd.current_iteration == 4
     
+    sd = SequentialDesign(ed, f, n_init = 4)
+    sd.run_init_design()
+    
+    with pytest.raises(AssertionError):
+        sd.generate_initial_design()
+    
 def test_SequentialDesign_set_initial_targets():
     "test the set_initial_targets method"
     
