@@ -352,12 +352,7 @@ class GaussianProcess(object):
         :returns: None
         """
         
-        exp_theta = np.exp(self.theta)
-        
-        self.Q = cdist(np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       "sqeuclidean")
-        self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
+        self.Q = squared_exponential(self.inputs, self.inputs, self.theta)
         
         if self.nugget == None:
             L, nugget = self._jit_cholesky(self.Q)
@@ -628,10 +623,7 @@ class GaussianProcess(object):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * self.inputs,
-                      np.sqrt(exp_theta[: (self.D)]) * testing, "sqeuclidean")
-
-        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        Ktest = squared_exponential(self.inputs, testing, self.theta)
 
         mu = np.dot(Ktest.T, self.invQt)
         

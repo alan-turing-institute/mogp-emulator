@@ -445,12 +445,7 @@ def test_GaussianProcess_learn():
     min_theta_actual, min_loglikelihood_actual = gp._learn(theta)
     assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
-    
-    min_theta_expected = np.array([ -2.7701167931095463, -20.181657894856162 , -21.27146085457964 , 2.0359426902424462])
-    min_loglikelihood_expected = 4.457233396431864
-    min_theta_actual, min_loglikelihood_actual = gp._learn(theta, method = 'CG')
-    assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-4)
-    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
+
         
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
