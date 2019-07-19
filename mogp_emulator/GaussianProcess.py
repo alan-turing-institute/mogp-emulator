@@ -1,5 +1,5 @@
 import numpy as np
-from .Kernel import squared_exponential, matern_5_2
+from .Kernel import squared_exponential, squared_exponential_deriv, matern_5_2
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy import linalg
@@ -441,13 +441,10 @@ class GaussianProcess(object):
             
         partials = np.zeros(self.D + 1)
         
-        for d in range(self.D):
-            dKdtheta = 0.5 * cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
-                                   np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean") * self.Q
-            partials[d] = (0.5 * np.exp(self.theta[d]) * (np.dot(self.invQt, np.dot(dKdtheta, self.invQt))
-                           - np.sum(self.invQ * dKdtheta)))
+        dKdtheta = squared_exponential_deriv(self.inputs, self.inputs, self.theta)
         
-        partials[self.D] = -0.5 * (np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ * self.Q))
+        for d in range(self.D + 1):
+            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
         
         return partials
     
