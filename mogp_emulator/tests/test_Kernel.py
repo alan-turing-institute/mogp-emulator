@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..Kernel import calc_r, squared_exponential, squared_exponential_deriv, matern_5_2
+from ..Kernel import calc_r, squared_exponential, squared_exponential_deriv, matern_5_2, matern_5_2_deriv
 
 def test_calc_r():
     "test function for calc_r function for kernels"
@@ -261,3 +261,107 @@ def test_matern_5_2_failures():
     
     with pytest.raises(AssertionError):
         matern_5_2(x, y, params)
+        
+def test_matern_5_2_deriv():
+    "test computing the gradient of the matern 5/2 kernel"
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+    
+    deriv = np.zeros((2, 2, 2))
+    
+    D = np.array([[1., 2.], [0., 1.]])
+    
+    deriv[-1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    deriv[0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+    
+    D = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+    D1 = np.array([[1., 2.], [0., 1.]])
+    D2 = np.array([[2., 1.], [1., 2.]])
+    
+    deriv = np.zeros((3, 2, 2))
+    
+    deriv[-1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    deriv[0] = -0.5*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    deriv[1] = -0.5*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), np.log(2.)])
+    
+    D = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])
+    D1 = np.array([[1., 2.], [0., 1.]])
+    D2 = np.array([[2., 1.], [1., 2.]])
+    
+    deriv = np.zeros((3, 2, 2))
+    
+    deriv[-1] = 2.*(1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    deriv[0] = -0.5*2.*2.*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    deriv[1] = -0.5*2.*4.*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+                    
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+    
+    deriv = np.zeros((2, 2, 2))
+    
+    D = np.array([[1., 2.], [0., 1.]])
+    
+    deriv[-1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    deriv[0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+
+def test_matern_5_2_deriv_failures():
+    "test scenarios where matern_5_2_deriv should raise an exception"
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
+    
+    params = np.array([[0., 0.], [0., 0.]])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
+        
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
+        
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_deriv(x, y, params)
