@@ -712,3 +712,15 @@ def squared_exponential(x1, x2, params):
     
     return Q
     
+def matern_5_2(x1, x2, params):
+    "compute covariance using the matern 5/2 kernel"
+    
+    params = np.array(params)
+    assert params.ndim == 1, "parameters must be a vector"
+    D = len(params)
+    assert D >= 2, "minimum number of parameters in a covariance kernel is 2"
+    
+    Q = calc_r(x1, x2, params)
+    Q = np.exp(params[D - 1]) * (1. + np.sqrt(5.)*Q + 5./3.*Q**2)*np.exp(-np.sqrt(5.) * Q)
+    
+    return Q
