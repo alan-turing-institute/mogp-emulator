@@ -33,9 +33,9 @@ def calc_r(x1, x2, params):
         else:
             x2 = np.reshape(x2, (1, D - 1))
     
-    exp_theta = np.exp(params)
+    exp_theta = np.exp(-params[:(D - 1)])
     
-    r_matrix = cdist(np.sqrt(exp_theta[:(D - 1)])*x1, np.sqrt(exp_theta[:(D-1)])*x2, "euclidean")
+    r_matrix = cdist(x1, x2, "seuclidean", V = exp_theta)
     
     return r_matrix
     
