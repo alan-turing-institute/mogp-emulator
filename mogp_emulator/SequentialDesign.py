@@ -564,10 +564,8 @@ class MICEFastGP(GaussianProcess):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
-                      np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[index, :], (1, self.D)), "sqeuclidean")
-
-        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        Ktest = self.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
+                              np.reshape(self.inputs[index, :], (1, self.D)), self.theta)
         
         invQ_mod = (self.invQ[indices][:, indices] -
                     1./self.invQ[index, index]*np.outer(self.invQ[indices, index], self.invQ[indices, index]))
