@@ -5,7 +5,7 @@ from inspect import signature
 import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
-from ..MultiOutputGP import MultiOutputGP
+from ..GaussianProcess import GaussianProcess
 
 def test_SequentialDesign_init():
     "test the init method of ExperimentalDesign"
@@ -661,15 +661,15 @@ def test_MICEDesign_MICE_criterion():
     md.run_init_design()
     md._generate_candidates()
     
-    md.gp = MultiOutputGP(md.get_inputs(), md.get_targets())
+    md.gp = GaussianProcess(md.get_inputs(), md.get_targets())
     md.gp.learn_hyperparameters()
     
     md.gp_fast = MICEFastGP(md.candidates, np.ones(4), 1.)
-    md.gp_fast._set_params(np.array([emulator.current_theta for emulator in md.gp.emulators])[0])
+    md.gp_fast._set_params(md.gp.current_theta)
     
     metric = md._MICE_criterion(0)
     
-    metric_expected = 0.0899339018405139
+    metric_expected = 0.0899338596342571
     
     assert_allclose(metric, metric_expected)
     

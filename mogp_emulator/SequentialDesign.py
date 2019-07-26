@@ -741,7 +741,7 @@ class MICEDesign(SequentialDesign):
         self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
         self.gp.learn_hyperparameters()
         
-        self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), self.nugget_s)
+        self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), np.exp(self.gp.current_theta[-1])*self.nugget_s)
         self.gp_fast._set_params(self.gp.current_theta)
         
         results = []
