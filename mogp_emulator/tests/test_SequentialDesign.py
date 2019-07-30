@@ -538,7 +538,11 @@ def test_SequentialDesign_run_sequential_design():
     sd = SequentialDesign(ed)
     with pytest.raises(AssertionError):
         sd.run_sequential_design()
-        
+
+    sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
+    with pytest.raises(AssertionError):
+        sd.run_sequential_design(n_samples = -1)
+
 def test_SequentialDesign_str():
     "test string method of sequential design"
     

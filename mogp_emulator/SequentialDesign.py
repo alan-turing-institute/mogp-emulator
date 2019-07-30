@@ -59,7 +59,7 @@ class SequentialDesign(object):
                   input array and return a single float or an array of length 1
         :type f: function or other callable
         :param n_samples: Number of sequential design points to be drawn. If specified, this must be
-                          a positive integer. Note that this is in addition to the number of initial
+                          a non-negative integer. Note that this is in addition to the number of initial
                           points, meaning that the total design size will be ``n_samples + n_init``. 
                           This can also be specified when running the full design. This parameter is
                           optional, and defaults to ``None`` (meaning the number of samples is set when
@@ -82,8 +82,8 @@ class SequentialDesign(object):
             if not len(signature(f).parameters) == 1:
                 raise ValueError("simulator f must accept all parameters as a single input array")
         
-        if (not n_samples == None) and int(n_samples) <= 0:
-            raise ValueError("number of samples must be positive")
+        if (not n_samples == None) and int(n_samples) < 0:
+            raise ValueError("number of samples must be nonzero")
                 
         if int(n_init) <= 0:
             raise ValueError("number of initial design points must be positive")
@@ -473,7 +473,7 @@ class SequentialDesign(object):
         :param n_samples: Number of sequential design steps to be run. Optional if the number was
                           specified upon initialization. Default is ``None`` (default to number
                           set when initializing). If numbers are provided on both occasions, the
-                          number set here is used. If a number is provided, must be positive.
+                          number set here is used. If a number is provided, must be non-negative.
         :type n_samples: int or None
         :returns: None
         :rtype: None
@@ -489,6 +489,8 @@ class SequentialDesign(object):
         else:
             n_iter = n_samples
             
+        assert n_iter >= 0, "number of samples must be non-negative"
+
         self.run_init_design()
         
         for i in range(n_iter):
@@ -738,11 +740,21 @@ class MICEDesign(SequentialDesign):
         :rtype: int
         """
         
-        self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
-        self.gp.learn_hyperparameters()
-        
-        self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), np.exp(self.gp.current_theta[-1])*self.nugget_s)
-        self.gp_fast._set_params(self.gp.current_theta)
+        numtries = 10
+
+        for i in range(numtries):
+            try:
+                self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
+                self.gp.learn_hyperparameters()
+
+                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), np.exp(self.gp.current_theta[-1])*self.nugget_s)
+                self.gp_fast._set_params(self.gp.current_theta)
+                break
+            except FloatingPointError:
+                if i < numtries - 1:
+                    continue
+                else:
+                    raise FloatingPointError("Unable to find parameters suitable for both GPs")
         
         results = []
         
