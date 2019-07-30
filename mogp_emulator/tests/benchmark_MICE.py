@@ -18,6 +18,7 @@ a problem due to the inherent smoothness of the squared exponential covariance f
 import numpy as np
 from mogp_emulator import GaussianProcess
 from mogp_emulator import MICEDesign, MonteCarloDesign, LatinHypercubeDesign
+from mogp_emulator.Kernel import squared_exponential, squared_exponential_deriv, matern_5_2, matern_5_2_deriv
 from scipy.stats import uniform
 try:
     import matplotlib.pyplot as plt
@@ -25,7 +26,15 @@ try:
 except ImportError:
     makeplots = False
 
-problem = 'oscillatory'
+problem = 'branin'
+kernel = 'matern_5_2'
+
+if kernel == 'sqexp':
+    kernel_f = squared_exponential
+    kernel_deriv = squared_exponential_deriv
+else:
+    kernel_f = matern_5_2
+    kernel_deriv = matern_5_2_deriv
 
 def branin_2d(x):
     "2D Branin function, see https://www.sfu.ca/~ssurjano/branin.html for more information"
@@ -113,7 +122,7 @@ def run_model(n_simulations, n_testing):
     print('running MICE')
     ed = LatinHypercubeDesign(design_space)
     
-    n_init = 4
+    n_init = 5
     
     md = MICEDesign(ed, f, n_samples = n_simulations - n_init, n_init = n_init, n_cand = 100)
     
@@ -125,19 +134,23 @@ def run_model(n_simulations, n_testing):
     print('fitting GPs')
     
     gp_mice = GaussianProcess(inputs_mice, np.squeeze(targets_mice))
+    gp_mice.kernel_f = kernel_f
+    gp_mice.kernel_deriv = kernel_deriv
     gp_mice.learn_hyperparameters()
     
     # run LHD model
     inputs, targets = generate_training_data(n_simulations)
     
     gp = GaussianProcess(inputs, targets)
+    gp.kernel_f = kernel_f
+    gp.kernel_deriv = kernel_deriv
     gp.learn_hyperparameters()
-    
-    norm_const = np.mean(targets)
     
     print("making predictions")
 
     testing, test_targets = generate_test_data(n_testing)
+    
+    norm_const = np.max(test_targets)-np.min(test_targets)
     
     test_vals_mice, unc_mice, deriv = gp_mice.predict(testing, do_deriv = False, do_unc = True)
     test_vals, unc, deriv = gp.predict(testing, do_deriv = False, do_unc = True)
@@ -206,4 +219,4 @@ def run_all_models(n_testing, simulation_list, n_iter = 10):
         plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testing)
     
 if __name__ == '__main__':
-    run_all_models(100, [int(x) for x in simulations], n_iter = 1)
+    run_all_models(100, [int(x) for x in simulations], n_iter = 10)
