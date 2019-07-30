@@ -166,7 +166,7 @@ def plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testi
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, error_mice,'-o', label = 'MICE')
     plt.semilogy(simulation_list, error,'-x', label = 'LHD')
-    plt.xlabel('Number of simulations')
+    plt.xlabel('Number of design points')
     plt.ylabel('Average prediction RMSE')
     plt.legend()
     plt.title('Error for '+str(n_testing)+' predictions')
@@ -175,7 +175,7 @@ def plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testi
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, unc_mice,'-o', label = "MICE")
     plt.semilogy(simulation_list, unc,'-x', label = 'LHD')
-    plt.xlabel('Number of simulations')
+    plt.xlabel('Number of design points')
     plt.ylabel('Average prediction variance')
     plt.legend()
     plt.title('Uncertainty for '+str(n_testing)+' predictions')
@@ -206,12 +206,12 @@ def run_all_models(n_testing, simulation_list, n_iter = 10):
     
     print("\n")
     print("Convergence test results:")
-    print("Num. simulations    RMSE LHD            RMSE MICE")
+    print("Num. design points  RMSE LHD            RMSE MICE")
     for sim, err, mice_err in zip(simulation_list, error, error_mice):
         print('{:19} {:19} {:19}'.format(str(sim), str(err), str(mice_err)))
         
     print("\n")
-    print("Num. simulations    Variance LHD        Variance MICE")
+    print("Num. design points  Variance LHD        Variance MICE")
     for sim, un, mice_un in zip(simulation_list, unc, unc_mice):
         print('{:19} {:19} {:19}'.format(str(sim), str(un), str(mice_un)))
     
