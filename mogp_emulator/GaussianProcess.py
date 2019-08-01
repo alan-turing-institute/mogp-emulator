@@ -449,6 +449,27 @@ class GaussianProcess(object):
             partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
         
         return partials
+        
+    def hessian(self, theta):
+        "compute hessian of negative log-likelihood function"
+        
+        if not np.allclose(np.array(theta), self.theta):
+            self._set_params(theta)
+            
+        hessian = np.zeros((self.D + 1, self.D + 1))
+        
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
+        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
+        
+        for d1 in range(self.D + 1):
+            for d2 in range(self.D + 1):
+                hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt, 
+                                        2.*np.linalg.multi_dot([dKdtheta[d1], self.invQ, dKdtheta[d2]])-d2Kdtheta2[d1, d2],
+                                        self.invQt])-
+                                        np.trace(np.linalg.multi_dot([self.invQ, dKdtheta[d1], self.invQ, dKdtheta[d2]])
+                                                 -np.dot(self.invQ, d2Kdtheta2[d1, d2])))
+                
+        return hessian
     
     def _learn(self, theta0, method = 'L-BFGS-B', **kwargs):
         """
