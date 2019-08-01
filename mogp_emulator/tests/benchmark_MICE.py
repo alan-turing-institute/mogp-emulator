@@ -18,7 +18,7 @@ a problem due to the inherent smoothness of the squared exponential covariance f
 import numpy as np
 from mogp_emulator import GaussianProcess
 from mogp_emulator import MICEDesign, MonteCarloDesign, LatinHypercubeDesign
-from mogp_emulator.Kernel import squared_exponential, squared_exponential_deriv, matern_5_2, matern_5_2_deriv
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 from scipy.stats import uniform
 try:
     import matplotlib.pyplot as plt
@@ -30,11 +30,9 @@ problem = 'branin'
 kernel = 'matern_5_2'
 
 if kernel == 'sqexp':
-    kernel_f = squared_exponential
-    kernel_deriv = squared_exponential_deriv
+    kernel = SquaredExponential()
 else:
-    kernel_f = matern_5_2
-    kernel_deriv = matern_5_2_deriv
+    kernel = Matern52()
 
 def branin_2d(x):
     "2D Branin function, see https://www.sfu.ca/~ssurjano/branin.html for more information"
@@ -134,16 +132,14 @@ def run_model(n_simulations, n_testing):
     print('fitting GPs')
     
     gp_mice = GaussianProcess(inputs_mice, np.squeeze(targets_mice))
-    gp_mice.kernel_f = kernel_f
-    gp_mice.kernel_deriv = kernel_deriv
+    gp_mice.kernel = kernel
     gp_mice.learn_hyperparameters()
     
     # run LHD model
     inputs, targets = generate_training_data(n_simulations)
     
     gp = GaussianProcess(inputs, targets)
-    gp.kernel_f = kernel_f
-    gp.kernel_deriv = kernel_deriv
+    gp.kernel = kernel
     gp.learn_hyperparameters()
     
     print("making predictions")

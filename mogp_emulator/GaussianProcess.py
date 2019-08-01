@@ -1,5 +1,5 @@
 import numpy as np
-from .Kernel import squared_exponential, squared_exponential_deriv, matern_5_2, matern_5_2_deriv
+from .Kernel import SquaredExponential
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy import linalg
@@ -132,9 +132,7 @@ class GaussianProcess(object):
         
         self.nugget = nugget
         
-        self.kernel = "squared_exponential"
-        self.kernel_f = squared_exponential
-        self.kernel_deriv = squared_exponential_deriv
+        self.kernel =  SquaredExponential()
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -357,7 +355,7 @@ class GaussianProcess(object):
         :returns: None
         """
         
-        self.Q = self.kernel_f(self.inputs, self.inputs, self.theta)
+        self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
         
         if self.nugget == None:
             L, nugget = self._jit_cholesky(self.Q)
@@ -445,7 +443,7 @@ class GaussianProcess(object):
             
         partials = np.zeros(self.D + 1)
         
-        dKdtheta = self.kernel_deriv(self.inputs, self.inputs, self.theta)
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
         
         for d in range(self.D + 1):
             partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
@@ -625,7 +623,7 @@ class GaussianProcess(object):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = self.kernel_f(self.inputs, testing, self.theta)
+        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
 
         mu = np.dot(Ktest.T, self.invQt)
         
