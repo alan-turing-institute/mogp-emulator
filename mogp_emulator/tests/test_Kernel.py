@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..Kernel import calc_r, squared_exponential, squared_exponential_deriv, matern_5_2, matern_5_2_deriv
+from ..Kernel import (calc_r, calc_drdtheta, calc_d2rdtheta2, 
+                      squared_exponential_K, squared_exponential_dKdr, squared_exponential_d2Kdr2,
+                      squared_exponential, squared_exponential_deriv, squared_exponential_hessian,
+                      matern_5_2_K, matern_5_2_dKdr, matern_5_2_d2Kdr2,
+                      matern_5_2, matern_5_2_deriv, matern_5_2_hessian)
 
 def test_calc_r():
     "test function for calc_r function for kernels"
@@ -74,7 +78,277 @@ def test_calc_r_failures():
     
     with pytest.raises(AssertionError):
         calc_r(x, y, params)
+
+def test_calc_drdtheta():
+    "test calc_drdtheta function"
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+    
+    r = np.array([[1., 2.], [1., 1.]])
+    
+    deriv = np.zeros((1, 2, 2))
+    deriv[0] = 0.5*np.array([[1., 4.], [0., 1.]])/r
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([dx, 0.])))/dx
+    
+    assert_allclose(calc_drdtheta(x, y, params), deriv)
+    assert_allclose(calc_drdtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+    
+    r = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+    
+    deriv = np.zeros((2, 2, 2))
+    deriv[0] = 0.5*np.array([[1., 4.], [0., 1.]])/r
+    deriv[1] = 0.5*np.array([[4., 1.], [1., 4.]])/r
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([0., dx, 0.])))/dx
+    
+    assert_allclose(calc_drdtheta(x, y, params), deriv)
+    assert_allclose(calc_drdtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+    deriv = np.zeros((2, 2, 2))
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), 0.])
+    
+    r = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])
+    
+    deriv = np.zeros((2, 2, 2))
+    deriv[0] = 0.5*2.*np.array([[1., 4.], [0., 1.]])/r
+    deriv[1] = 0.5*4.*np.array([[4., 1.], [1., 4.]])/r
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([0., dx, 0.])))/dx
+    
+    assert_allclose(calc_drdtheta(x, y, params), deriv)
+    assert_allclose(calc_drdtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+                    
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+    
+    r = np.array([[1., 2.], [1., 1.]])
+    
+    deriv = np.zeros((1, 2, 2))
+    deriv[0] = 0.5*np.array([[1., 4.], [0., 1.]])/r
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (calc_r(x, y, params) - calc_r(x, y, params - np.array([dx, 0.])))/dx
+    
+    assert_allclose(calc_drdtheta(x, y, params), deriv)
+    assert_allclose(calc_drdtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+def test_calc_drdtheta_failures():
+    "test situations where calc_drdtheta should fail"
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
+    
+    params = np.array([[0., 0.], [0., 0.]])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
         
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
+        
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
+        
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_drdtheta(x, y, params)
+    
+def test_calc_d2rdtheta2():
+    "test calc_d2rdtheta2 function"
+    
+    dx = 1.e-6
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+    
+    r = np.array([[1., 2.], [1., 1.]])
+    
+    deriv = np.zeros((1, 1, 2, 2))
+    deriv[0, 0] = 0.5*np.array([[1., 4.], [0., 1.]])/r - 0.25*np.array([[1., 4.], [0., 1.]])**2/r**3
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([dx, 0.]))[0])/dx
+    
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv)
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+    
+    r = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+    
+    deriv = np.zeros((2, 2, 2, 2))
+    x12 = np.array([[1., 4.], [0., 1.]])
+    x22 = np.array([[4., 1.], [1., 4.]])
+    deriv[0, 0] = 0.5*x12/r-0.25*x12*x12/r**3
+    deriv[0, 1] = -0.25*x12*x22/r**3
+    deriv[1, 0] = -0.25*x22*x12/r**3
+    deriv[1, 1] = 0.5*x22/r-0.25*x22*x22/r**3
+    deriv_fd = np.zeros((2, 2, 2, 2))
+    deriv_fd[0, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([dx, 0., 0.]))[0])/dx
+    deriv_fd[0, 1] = (calc_drdtheta(x, y, params)[1] - calc_drdtheta(x, y, params - np.array([dx, 0., 0.]))[1])/dx
+    deriv_fd[1, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([0., dx, 0.]))[0])/dx
+    deriv_fd[1, 1] = (calc_drdtheta(x, y, params)[1] - calc_drdtheta(x, y, params - np.array([0., dx, 0.]))[1])/dx
+    
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv)
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), 0.])
+    
+    r = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])
+    
+    deriv = np.zeros((2, 2, 2, 2))
+    x12 = np.array([[1., 4.], [0., 1.]])
+    x22 = np.array([[4., 1.], [1., 4.]])
+    deriv[0, 0] = 2.*0.5*x12/r-2.*2.*0.25*x12**2/r**3
+    deriv[0, 1] = -2.*4.*0.25*x12*x22/r**3
+    deriv[1, 0] = -4.*2.*0.25*x22*x12/r**3
+    deriv[1, 1] = 4.*0.5*x22/r-4.*4.*0.25*x22*x22/r**3
+    deriv_fd = np.zeros((2, 2, 2, 2))
+    deriv_fd[0, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([dx, 0., 0.]))[0])/dx
+    deriv_fd[0, 1] = (calc_drdtheta(x, y, params)[1] - calc_drdtheta(x, y, params - np.array([dx, 0., 0.]))[1])/dx
+    deriv_fd[1, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([0., dx, 0.]))[0])/dx
+    deriv_fd[1, 1] = (calc_drdtheta(x, y, params)[1] - calc_drdtheta(x, y, params - np.array([0., dx, 0.]))[1])/dx
+    
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv)
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+                    
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+    
+    r = np.array([[1., 2.], [1., 1.]])
+    
+    deriv = np.zeros((1, 1, 2, 2))
+    deriv[0, 0] = 0.5*np.array([[1., 4.], [0., 1.]])/r - 0.25*np.array([[1., 4.], [0., 1.]])**2/r**3
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (calc_drdtheta(x, y, params)[0] - calc_drdtheta(x, y, params - np.array([dx, 0.]))[0])/dx
+    
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv)
+    assert_allclose(calc_d2rdtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+    
+def test_calc_d2rdtheta2_failures():
+    "test situations where calc_d2rdtheta2 should fail"
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+    
+    params = np.array([[0., 0.], [0., 0.]])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+        
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+        
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        calc_d2rdtheta2(x, y, params)
+
+def test_squared_exponential_K():
+    "test squared exponential K(r) function"
+    
+    assert_allclose(squared_exponential_K(1.), np.exp(-0.5))
+
+    assert_allclose(squared_exponential_K(np.array([[1., 2.], [3., 4.]])), np.exp(-0.5*np.array([[1., 4.], [9., 16.]])))
+
+    with pytest.raises(AssertionError):
+        squared_exponential_K(-1.)
+    
+def test_squared_exponential_dKdr():
+    "test squared exponential dK/dr function"
+    
+    dx = 1.e-6
+    
+    assert_allclose(squared_exponential_dKdr(1.), -np.exp(-0.5))
+    assert_allclose(squared_exponential_dKdr(1.), (squared_exponential_K(1.)-squared_exponential_K(1.-dx))/dx, rtol = 1.e-5)
+
+    r = np.array([[1., 2.], [3., 4.]])
+
+    assert_allclose(squared_exponential_dKdr(r), -r*np.exp(-0.5*r**2))
+    assert_allclose(squared_exponential_dKdr(r), (squared_exponential_K(r)-squared_exponential_K(r-dx))/dx, rtol = 1.e-5)
+
+    with pytest.raises(AssertionError):
+        squared_exponential_dKdr(-1.)
+    
+def test_squared_exponential_d2Kdr2():
+    "test squared exponential d2K/dr2 function"
+    
+    dx = 1.e-6
+    
+    assert_allclose(squared_exponential_d2Kdr2(1.), 0.)
+    assert_allclose(squared_exponential_d2Kdr2(1.), (squared_exponential_dKdr(1.)-squared_exponential_dKdr(1.-dx))/dx, atol = 1.e-5)
+
+    r = np.array([[1., 2.], [3., 4.]])
+
+    assert_allclose(squared_exponential_d2Kdr2(r), (r**2 - 1.)*np.exp(-0.5*r**2))
+    assert_allclose(squared_exponential_d2Kdr2(r), (squared_exponential_dKdr(r)-squared_exponential_dKdr(r-dx))/dx, rtol = 1.e-5, atol = 1.e-5)
+
+    with pytest.raises(AssertionError):
+        squared_exponential_d2Kdr2(-1.)
+
 def test_squared_exponential():
     "test squared exponential covariance kernel"
     
@@ -122,6 +396,8 @@ def test_squared_exponential_failures():
 def test_squared_exponential_deriv():
     "test the computation of the gradient of the squared exponential kernel"
 
+    dx = 1.e-6
+
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
     params = np.array([0., 0.])
@@ -130,8 +406,12 @@ def test_squared_exponential_deriv():
     
     deriv[-1] = np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2)
     deriv[0] = -0.5*np.array([[1., 4.],[0., 1.]])*np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2)
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([dx, 0.])))/dx
+    deriv_fd[1] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., dx])))/dx
     
     assert_allclose(squared_exponential_deriv(x, y, params), deriv)
+    assert_allclose(squared_exponential_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
     
     x = np.array([[1., 2.], [2., 3.]])
     y = np.array([[2., 4.], [3., 1.]])
@@ -142,8 +422,13 @@ def test_squared_exponential_deriv():
     deriv[-1] = np.exp(-0.5*np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])**2)
     deriv[0] = -0.5*np.array([[1., 4.],[0., 1.]])*deriv[-1]
     deriv[1] = -0.5*np.array([[4., 1.],[1., 4.]])*deriv[-1]
+    deriv_fd = np.zeros((3, 2, 2))
+    deriv_fd[0] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., 0., dx])))/dx
     
     assert_allclose(squared_exponential_deriv(x, y, params), deriv)
+    assert_allclose(squared_exponential_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
     
     x = np.array([[1., 2.], [2., 3.]])
     y = np.array([[2., 4.], [3., 1.]])
@@ -154,8 +439,13 @@ def test_squared_exponential_deriv():
     deriv[-1] = 2.*np.exp(-0.5*np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])**2)
     deriv[0] = -0.5*np.array([[2., 8.],[0., 2.]])*deriv[-1]
     deriv[1] = -0.5*np.array([[16., 4.],[4., 16.]])*deriv[-1]
+    deriv_fd = np.zeros((3, 2, 2))
+    deriv_fd[0] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., 0., dx])))/dx
     
     assert_allclose(squared_exponential_deriv(x, y, params), deriv)
+    assert_allclose(squared_exponential_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
                     
     x = np.array([1., 2.])
     y = np.array([2., 3.])
@@ -165,8 +455,12 @@ def test_squared_exponential_deriv():
     
     deriv[-1] = np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2)
     deriv[0] = -0.5*np.array([[1., 4.],[0., 1.]])*np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2)
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([dx, 0.])))/dx
+    deriv_fd[1] = (squared_exponential(x, y, params)-squared_exponential(x, y, params - np.array([0., dx])))/dx
     
     assert_allclose(squared_exponential_deriv(x, y, params), deriv)
+    assert_allclose(squared_exponential_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
 
 def test_squared_exponential_deriv_failures():
     "test scenarios where squared_exponential should raise an exception"
@@ -210,6 +504,200 @@ def test_squared_exponential_deriv_failures():
     
     with pytest.raises(AssertionError):
         squared_exponential_deriv(x, y, params)
+
+def test_squared_exponential_hessian():
+    "test the function to compute the squared exponential hessian"
+    
+    dx = 1.e-6
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+    
+    hess = np.zeros((2, 2, 2, 2))
+    r2 = np.array([[1., 4.], [0., 1.]])
+    hess[0, 0] = (-0.5*r2+0.25*r2**2)*np.exp(-0.5*r2)
+    hess[0, 1] = -0.5*np.exp(-0.5*r2)*r2
+    hess[1, 0] = -0.5*np.exp(-0.5*r2)*r2
+    hess[1, 1] = np.exp(-0.5*r2)
+    hess_fd = np.zeros((2, 2, 2, 2))
+    hess_fd[0, 0] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([dx, 0.]))[0])/dx
+    hess_fd[1, 0] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([dx, 0.]))[1])/dx
+    hess_fd[0, 1] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., dx]))[0])/dx
+    hess_fd[1, 1] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., dx]))[1])/dx
+    
+    assert_allclose(squared_exponential_hessian(x, y, params), hess)
+    assert_allclose(squared_exponential_hessian(x, y, params), hess_fd, atol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+    
+    hess = np.zeros((3, 3, 2, 2))
+    
+    r2 = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])**2
+    x12 = np.array([[1., 4.],[0., 1.]])
+    x22 = np.array([[4., 1.],[1., 4.]])
+    hess[0, 0] = (-0.5*x12+0.25*x12**2)*np.exp(-0.5*r2)
+    hess[0, 1] = 0.25*np.exp(-0.5*r2)*x12*x22
+    hess[1, 0] = 0.25*np.exp(-0.5*r2)*x12*x22
+    hess[1, 1] = (-0.5*x22+0.25*x22**2)*np.exp(-0.5*r2)
+    hess[0, 2] = -0.5*np.exp(-0.5*r2)*x12
+    hess[2, 0] = -0.5*np.exp(-0.5*r2)*x12
+    hess[1, 2] = -0.5*np.exp(-0.5*r2)*x22
+    hess[2, 1] = -0.5*np.exp(-0.5*r2)*x22
+    hess[2, 2] = np.exp(-0.5*r2)
+    hess_fd = np.zeros((3, 3, 2, 2))
+    hess_fd[0, 0] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[0])/dx
+    hess_fd[1, 0] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[1])/dx
+    hess_fd[0, 1] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[0])/dx
+    hess_fd[1, 1] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[1])/dx
+    hess_fd[0, 2] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[0])/dx
+    hess_fd[2, 0] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[2])/dx
+    hess_fd[2, 1] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[2])/dx
+    hess_fd[1, 2] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[1])/dx
+    hess_fd[2, 2] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[2])/dx
+
+    assert_allclose(squared_exponential_hessian(x, y, params), hess)
+    assert_allclose(squared_exponential_hessian(x, y, params), hess_fd, atol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), np.log(2.)])
+    
+    hess = np.zeros((3, 3, 2, 2))
+    
+    r2 = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])**2
+    x12 = np.array([[1., 4.],[0., 1.]])
+    x22 = np.array([[4., 1.],[1., 4.]])
+    hess[0, 0] = (-0.5*x12+0.25*x12**2)*2.*2.*2.*np.exp(-0.5*r2)
+    hess[0, 1] = 0.25*2.*4.*2.*np.exp(-0.5*r2)*x12*x22
+    hess[1, 0] = 0.25*np.exp(-0.5*r2)*x12*x22
+    hess[1, 1] = (-0.5*x22+0.25*x22**2)*np.exp(-0.5*r2)
+    hess[0, 2] = -0.5*np.exp(-0.5*r2)*x12
+    hess[2, 0] = -0.5*np.exp(-0.5*r2)*x12
+    hess[1, 2] = -0.5*2.*4.*np.exp(-0.5*r2)*x22
+    hess[2, 1] = -0.5*2.*4.*np.exp(-0.5*r2)*x22
+    hess[2, 2] = 2.*np.exp(-0.5*r2)
+    hess_fd = np.zeros((3, 3, 2, 2))
+    hess_fd[0, 0] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[0])/dx
+    hess_fd[1, 0] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[1])/dx
+    hess_fd[0, 1] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[0])/dx
+    hess_fd[1, 1] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[1])/dx
+    hess_fd[0, 2] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[0])/dx
+    hess_fd[2, 0] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([dx, 0., 0.]))[2])/dx
+    hess_fd[2, 1] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([0., dx, 0.]))[2])/dx
+    hess_fd[1, 2] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[1])/dx
+    hess_fd[2, 2] = (squared_exponential_deriv(x, y, params)[2]-squared_exponential_deriv(x, y, params-np.array([0., 0., dx]))[2])/dx
+
+    assert_allclose(squared_exponential_hessian(x, y, params)[1,2], hess[1,2])
+    assert_allclose(squared_exponential_hessian(x, y, params), hess_fd, atol = 1.e-5)
+                    
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+    
+    hess = np.zeros((2, 2, 2, 2))
+    r2 = np.array([[1., 4.], [0., 1.]])
+    hess[0, 0] = (-0.5*r2+0.25*r2**2)*np.exp(-0.5*r2)
+    hess[0, 1] = -0.5*np.exp(-0.5*r2)*r2
+    hess[1, 0] = -0.5*np.exp(-0.5*r2)*r2
+    hess[1, 1] = np.exp(-0.5*r2)
+    hess_fd = np.zeros((2, 2, 2, 2))
+    hess_fd[0, 0] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([dx, 0.]))[0])/dx
+    hess_fd[1, 0] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([dx, 0.]))[1])/dx
+    hess_fd[0, 1] = (squared_exponential_deriv(x, y, params)[0]-squared_exponential_deriv(x, y, params-np.array([0., dx]))[0])/dx
+    hess_fd[1, 1] = (squared_exponential_deriv(x, y, params)[1]-squared_exponential_deriv(x, y, params-np.array([0., dx]))[1])/dx
+    
+    assert_allclose(squared_exponential_hessian(x, y, params), hess)
+    assert_allclose(squared_exponential_hessian(x, y, params), hess_fd, atol = 1.e-5)
+
+def test_squared_exponential_hessian_failures():
+    "test situaitons where squared_exponential_hessian should fail"
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+    
+    params = np.array([[0., 0.], [0., 0.]])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+        
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+        
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_hessian(x, y, params)
+
+def test_matern_5_2_K():
+    "test matern 5/2 K(r) function"
+    
+    assert_allclose(matern_5_2_K(1.), (1.+np.sqrt(5.)+5./3.)*np.exp(-np.sqrt(5.)))
+
+    r = np.array([[1., 2.], [3., 4.]])
+
+    assert_allclose(matern_5_2_K(r), (1.+np.sqrt(5.)*r+5./3.*r**2)*np.exp(-np.sqrt(5.)*r))
+
+    with pytest.raises(AssertionError):
+        matern_5_2_K(-1.)
+    
+def test_matern_5_2_dKdr():
+    "test matern 5/2 dK/dr function"
+    
+    dx = 1.e-6
+    
+    assert_allclose(matern_5_2_dKdr(1.), -5./3.*(1.+np.sqrt(5.))*np.exp(-np.sqrt(5.)))
+    assert_allclose(matern_5_2_dKdr(1.), (matern_5_2_K(1.)-matern_5_2_K(1.-dx))/dx, rtol = 1.e-5)
+
+    r = np.array([[1., 2.], [3., 4.]])
+
+    assert_allclose(matern_5_2_dKdr(r), -5./3.*r*(1.+np.sqrt(5.)*r)*np.exp(-np.sqrt(5.)*r))
+    assert_allclose(matern_5_2_dKdr(r), (matern_5_2_K(r)-matern_5_2_K(r - dx))/dx, rtol = 1.e-5)
+
+    with pytest.raises(AssertionError):
+        matern_5_2_dKdr(-1.)
+    
+def test_matern_5_2_d2Kdr2():
+    "test squared exponential d2K/dr2 function"
+    
+    dx = 1.e-6
+    
+    assert_allclose(matern_5_2_d2Kdr2(1.), 5./3.*(5.-np.sqrt(5.)-1.)*np.exp(-np.sqrt(5.)))
+    assert_allclose(matern_5_2_d2Kdr2(1.), (matern_5_2_dKdr(1.)-matern_5_2_dKdr(1.-dx))/dx, rtol = 1.e-5)
+
+    r = np.array([[1., 2.], [3., 4.]])
+
+    assert_allclose(matern_5_2_d2Kdr2(r), 5./3.*(5.*r**2-np.sqrt(5.)*r-1.)*np.exp(-np.sqrt(5.)*r))
+    assert_allclose(matern_5_2_d2Kdr2(r), (matern_5_2_dKdr(r)-matern_5_2_dKdr(r - dx))/dx, rtol = 1.e-5)
+    
+    with pytest.raises(AssertionError):
+        squared_exponential_d2Kdr2(-1.)
 
 def test_matern_5_2():
     "test matern 5/2 covariance kernel"
@@ -265,6 +753,8 @@ def test_matern_5_2_failures():
 def test_matern_5_2_deriv():
     "test computing the gradient of the matern 5/2 kernel"
     
+    dx = 1.e-6
+    
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
     params = np.array([0., 0.])
@@ -276,7 +766,12 @@ def test_matern_5_2_deriv():
     deriv[-1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
     deriv[0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([dx, 0.])))/dx
+    deriv_fd[1] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0., dx])))/dx
+    
     assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
     
     x = np.array([[1., 2.], [2., 3.]])
     y = np.array([[2., 4.], [3., 1.]])
@@ -292,7 +787,13 @@ def test_matern_5_2_deriv():
     deriv[0] = -0.5*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     deriv[1] = -0.5*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     
+    deriv_fd = np.zeros((3, 2, 2))
+    deriv_fd[0] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0., 0., dx])))/dx
+    
     assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
     
     x = np.array([[1., 2.], [2., 3.]])
     y = np.array([[2., 4.], [3., 1.]])
@@ -308,7 +809,13 @@ def test_matern_5_2_deriv():
     deriv[0] = -0.5*2.*2.*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     deriv[1] = -0.5*2.*4.*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     
+    deriv_fd = np.zeros((3, 2, 2))
+    deriv_fd[0] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0., 0., dx])))/dx
+    
     assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
                     
     x = np.array([1., 2.])
     y = np.array([2., 3.])
@@ -321,7 +828,12 @@ def test_matern_5_2_deriv():
     deriv[-1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
     deriv[0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
     
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([dx, 0.])))/dx
+    deriv_fd[1] = (matern_5_2(x, y, params)-matern_5_2(x, y, params - np.array([0, dx])))/dx
+    
     assert_allclose(matern_5_2_deriv(x, y, params), deriv)
+    assert_allclose(matern_5_2_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
 
 def test_matern_5_2_deriv_failures():
     "test scenarios where matern_5_2_deriv should raise an exception"
@@ -365,3 +877,161 @@ def test_matern_5_2_deriv_failures():
     
     with pytest.raises(AssertionError):
         matern_5_2_deriv(x, y, params)
+        
+def test_matern_5_2_hessian():
+    "test the function to compute the squared exponential hessian"
+    
+    dx = 1.e-6
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    D = np.array([[1., 2.], [0., 1.]])
+    
+    hess = np.zeros((2, 2, 2, 2))
+    hess[0, 0] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D**4-(1.+np.sqrt(5.)*D)*D**2/2.)
+    hess[0, 1] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    
+    hess_fd = np.zeros((2, 2, 2, 2))
+    hess_fd[0, 0] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([dx, 0.]))[0])/dx
+    hess_fd[0, 1] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., dx]))[0])/dx
+    hess_fd[1, 0] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([dx, 0.]))[1])/dx
+    hess_fd[1, 1] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., dx]))[1])/dx
+    
+    assert_allclose(matern_5_2_hessian(x, y, params), hess)
+    assert_allclose(matern_5_2_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+    
+    D = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+    D1 = np.array([[1., 2.], [0., 1.]])
+    D2 = np.array([[2., 1.], [1., 2.]])
+    
+    hess = np.zeros((3, 3, 2, 2))
+    
+    hess[0, 0] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D1**4-(1.+np.sqrt(5.)*D)*D1**2/2.)
+    hess[0, 1] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D1**2*D2**2)
+    hess[1, 0] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D1**2*D2**2)
+    hess[1, 1] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D2**4-(1.+np.sqrt(5.)*D)*D2**2/2.)
+    hess[0, 2] = -0.5*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 0] = -0.5*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 2] = -0.5*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 1] = -0.5*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 2] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    
+    hess_fd = np.zeros((3, 3, 2, 2))
+    hess_fd[0, 0] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[0])/dx
+    hess_fd[0, 1] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[0])/dx
+    hess_fd[1, 0] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[1])/dx
+    hess_fd[1, 1] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[1])/dx
+    hess_fd[0, 2] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[0])/dx
+    hess_fd[2, 0] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[2])/dx
+    hess_fd[1, 2] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[1])/dx
+    hess_fd[2, 1] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[2])/dx
+    hess_fd[2, 2] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[2])/dx
+    
+    assert_allclose(matern_5_2_hessian(x, y, params), hess)
+    assert_allclose(matern_5_2_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+    
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), np.log(2.)])
+    
+    D = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])
+    D1 = np.array([[1., 2.], [0., 1.]])
+    D2 = np.array([[2., 1.], [1., 2.]])
+    
+    hess = np.zeros((3, 3, 2, 2))
+    
+    hess[0, 0] = 5./3.*2.*np.exp(-np.sqrt(5.)*D)*(5./4.*2.*2.*D1**4-(1.+np.sqrt(5.)*D)*2.*D1**2/2.)
+    hess[0, 1] = 5./3.*2.*np.exp(-np.sqrt(5.)*D)*(5./4.*2.*4.*D1**2*D2**2)
+    hess[1, 0] = 5./3.*2.*np.exp(-np.sqrt(5.)*D)*(5./4.*2.*4.*D1**2*D2**2)
+    hess[1, 1] = 5./3.*2.*np.exp(-np.sqrt(5.)*D)*(5./4.*4.*4.*D2**4-(1.+np.sqrt(5.)*D)*4.*D2**2/2.)
+    hess[0, 2] = -0.5*2.*2.*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 0] = -0.5*2.*2.*D1**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 2] = -0.5*2.*4.*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 1] = -0.5*2.*4.*D2**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[2, 2] = 2.*(1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    
+    hess_fd = np.zeros((3, 3, 2, 2))
+    hess_fd[0, 0] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[0])/dx
+    hess_fd[0, 1] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[0])/dx
+    hess_fd[1, 0] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[1])/dx
+    hess_fd[1, 1] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[1])/dx
+    hess_fd[0, 2] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[0])/dx
+    hess_fd[2, 0] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([dx, 0., 0.]))[2])/dx
+    hess_fd[1, 2] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[1])/dx
+    hess_fd[2, 1] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([0., dx, 0.]))[2])/dx
+    hess_fd[2, 2] = (matern_5_2_deriv(x, y, params)[2]-matern_5_2_deriv(x, y, params-np.array([0., 0., dx]))[2])/dx
+    
+    assert_allclose(matern_5_2_hessian(x, y, params), hess)
+    assert_allclose(matern_5_2_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+                    
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+    
+    D = np.array([[1., 2.], [0., 1.]])
+    
+    hess = np.zeros((2, 2, 2, 2))
+    hess[0, 0] = 5./3.*np.exp(-np.sqrt(5.)*D)*(5./4.*D**4-(1.+np.sqrt(5.)*D)*D**2/2.)
+    hess[0, 1] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 0] = -0.5*D**2*5./3.*(1.+np.sqrt(5.)*D)*np.exp(-np.sqrt(5.)*D)
+    hess[1, 1] = (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D)
+    
+    hess_fd = np.zeros((2, 2, 2, 2))
+    hess_fd[0, 0] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([dx, 0.]))[0])/dx
+    hess_fd[0, 1] = (matern_5_2_deriv(x, y, params)[0]-matern_5_2_deriv(x, y, params-np.array([0., dx]))[0])/dx
+    hess_fd[1, 0] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([dx, 0.]))[1])/dx
+    hess_fd[1, 1] = (matern_5_2_deriv(x, y, params)[1]-matern_5_2_deriv(x, y, params-np.array([0., dx]))[1])/dx
+    
+    assert_allclose(matern_5_2_hessian(x, y, params), hess)
+    assert_allclose(matern_5_2_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+
+def test_matern_5_2_hessian_failures():
+    "test situaitons where squared_exponential_hessian should fail"
+    
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
+    
+    params = np.array([[0., 0.], [0., 0.]])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
+        
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
+        
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
+        
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+    
+    with pytest.raises(AssertionError):
+        matern_5_2_hessian(x, y, params)
