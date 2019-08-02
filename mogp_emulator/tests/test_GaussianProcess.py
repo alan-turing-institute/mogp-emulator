@@ -546,6 +546,34 @@ def test_GaussianProcess_hessian():
     hessian_actual = gp.hessian(new_theta)
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
 
+def test_GaussianProcess_compute_local_covariance():
+    "Test method to compute local covariance"
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3)) 
+    y = np.array([2., 3., 4.]) 
+    gp = GaussianProcess(x, y) 
+    theta = np.array([ -2.770112571305776, -25.559083252151222, -23.37268466647295, 2.035946172810567])
+    gp._set_params(theta)
+    gp.mle_theta = theta
+    
+    cov_expected = np.array([[ 5.2334002861595219e-01, -5.5692324961402118e-01, -1.2647444334415132e+00, -4.7420841785839668e-01],
+                             [-5.5692324961402129e-01,  1.0367253634403032e+09,  6.1520087942740198e-01, -2.4147524896766978e-01],
+                             [-1.2647444334415130e+00,  6.1520087942740187e-01,  2.2051845246175849e+08, -1.1825129773545225e-01],
+                             [-4.7420841785839674e-01, -2.4147524896766978e-01, -1.1825129773545225e-01,  1.0963600855110882e+00]])
+    
+    cov_actual = gp.compute_local_covariance()
+    
+    assert_allclose(cov_actual, cov_expected)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3)) 
+    y = np.array([2., 3., 4.]) 
+    gp = GaussianProcess(x, y)
+    gp._set_params(np.zeros(4))
+    gp.mle_theta = np.zeros(4)
+    
+    with pytest.raises(linalg.LinAlgError):
+        gp.compute_local_covariance()
+
 def test_GaussianProcess_learn():
     "Test the _learn method of GaussianProcess"
     

@@ -599,6 +599,40 @@ class GaussianProcess(object):
         
         return loglikelihood_values[idx], theta_values[idx]
     
+    def compute_local_covariance(self):
+        "invert hessian matrix to get local covariance. will raise an error if not symmetric positive definite"
+
+        if self.mle_theta is None:
+            self.learn_hyperparameters()
+
+        hess = self.hessian(self.mle_theta)
+    
+        assert hess.ndim == 2
+        assert hess.shape[0] == hess.shape[1]
+    
+        try:
+            L = np.linalg.cholesky(hess)
+            cov = np.linalg.inv(L.T).dot(np.linalg.inv(L))
+        except linalg.LinAlgError:
+            raise linalg.LinAlgError("Hessian matrix is not symmetric positive definite, optimization may not have converged")
+        
+        return cov
+    
+    def learn_hyperparameters_MLE(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
+        "Equivalent to learn_hyperparameters"
+        
+        self.learn_hyperparameters(n_tries, theta0, method, **kwargs)
+    
+    def learn_hyperparameters_normalapprox(self, n_samples = 1000):
+        "sample hyperparameters via MLE and then assuming a multivariate normal distribution around the MLE value"
+        
+        pass
+        
+    def learn_hyperparameters_MCMC(self, n_samples = 1000, thin = 0):
+        "sample hyperparameters using MCMC"
+    
+        pass
+    
     def _predict_single(self, testing, do_deriv = True, do_unc = True):
         "predict for a single set of parameter values"
         
