@@ -626,7 +626,17 @@ class GaussianProcess(object):
     def learn_hyperparameters_normalapprox(self, n_samples = 1000):
         "sample hyperparameters via MLE and then assuming a multivariate normal distribution around the MLE value"
         
-        pass
+        n_samples = int(n_samples)
+        assert n_samples > 0
+    
+        n_params = self.D + 1
+        
+        if self.mle_theta is None:
+            self.learn_hyperparameters()
+        
+        cov = self.compute_local_covariance()
+    
+        self.samples = np.random.multivariate_normal(self.mle_theta, cov, size=n_samples)
         
     def learn_hyperparameters_MCMC(self, n_samples = 1000, thin = 0):
         "sample hyperparameters using MCMC"

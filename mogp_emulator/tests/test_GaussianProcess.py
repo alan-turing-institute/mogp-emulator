@@ -615,6 +615,26 @@ def test_GaussianProcess_learn_hyperparameters():
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(n_tries = -1)
 
+def test_GaussianProcess_learn_hyperparameters_normalapprox():
+    "test the method to learn hyperparameters via normal approximation around the MLE solution"
+
+    np.random.seed(4532)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1)) 
+    y = np.linspace(0., 10.) 
+    gp = GaussianProcess(x, y)
+    gp.learn_hyperparameters_normalapprox(n_samples = 4)
+    
+    samples_expected = np.array([[-2.1798139941810755,  1.3951266574358445],
+                              [-2.8569227619470587,  1.4961351227085802],
+                              [-4.178717685602986 ,  2.095024451881066 ],
+                              [-3.7173995375318185,  2.445171732490624 ]])
+                              
+    assert_allclose(gp.samples, samples_expected)
+    
+    with pytest.raises(AssertionError):
+        gp.learn_hyperparameters_normalapprox(n_samples = -1)
+
 def test_GaussianProcess_predict_single():
     "Test the _single_predict method of GaussianProcess"
 
