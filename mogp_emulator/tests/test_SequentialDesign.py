@@ -669,13 +669,13 @@ def test_MICEDesign_MICE_criterion():
     md.gp.learn_hyperparameters()
     
     md.gp_fast = MICEFastGP(md.candidates, np.ones(4), 1.)
-    md.gp_fast._set_params(md.gp.current_theta)
+    md.gp_fast._set_params(md.gp.theta)
     
     metric = md._MICE_criterion(0)
     
     metric_expected = 0.0899338596342571
     
-    assert_allclose(metric, metric_expected)
+    assert_allclose(metric, metric_expected, rtol = 1.e-6)
     
     with pytest.raises(AssertionError):
         metric = md._MICE_criterion(-1)

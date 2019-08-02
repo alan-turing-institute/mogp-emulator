@@ -42,9 +42,7 @@ def test_MultiOutputGP_init():
     assert gp.n == 2
     assert gp.D == 3
     assert gp.emulators[0].nugget == None
-    
-    with pytest.raises(AttributeError):
-        gp.emulators[0].current_theta
+    assert gp.emulators[0].theta is None
 
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
@@ -60,7 +58,7 @@ def test_MultiOutputGP_init():
     assert_allclose(gp.emulators[0].inputs, x)
     assert_allclose(gp.emulators[0].targets, y)
     assert_allclose(gp.emulators[0].nugget, 1.e-6)
-    assert_allclose(gp.emulators[0].current_theta, theta)
+    assert_allclose(gp.emulators[0].theta, theta)
     assert gp.n_emulators == 1
     assert gp.n == 2
     assert gp.D == 3
@@ -119,8 +117,7 @@ def test_MultiOutputGP_save_emulators():
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert emulator_file['nugget'][0] == None
-        with pytest.raises(KeyError):
-            emulator_file['theta']
+        assert emulator_file['theta'][0] is None
         
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (1, 3))
@@ -195,12 +192,10 @@ def test_MultiOutputGP_set_params():
     y = np.array([[2., 3., 4.]])
     gp = MultiOutputGP(x, y)
     theta = np.zeros(4)
-    loglike_expected = [17.00784177045409]
     theta_expected = np.zeros(4)
     gp._set_params(theta)
-    for emulator, loglike_exp, theta_exp in zip(gp.emulators, loglike_expected, theta_expected):
-        assert_allclose(emulator.current_loglikelihood, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
-        assert_allclose(emulator.current_theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
+    for emulator, theta_exp in zip(gp.emulators, theta_expected):
+        assert_allclose(emulator.theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
         
 def test_MultiOutputGP_set_params_failures():
     "Test function for the _set_params method with bad inputs"
@@ -232,8 +227,7 @@ def test_MultiOutputGP_learn_hyperparameters():
     for emulator, loglike_val, theta_val, loglike_exp, theta_exp in zip(gp.emulators, loglike, theta, loglike_expected, theta_expected):
         assert_allclose(loglike_val, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
         assert_allclose(theta_val, theta_exp, atol = 1.e-8, rtol = 1.e-5)
-        assert_allclose(emulator.current_loglikelihood, loglike_exp, atol = 1.e-8, rtol = 1.e-5)
-        assert_allclose(emulator.current_theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(emulator.theta, theta_exp, atol = 1.e-8, rtol = 1.e-5)
         
 def test_MultiOutputGP_learn_hyperparameters_failures():
     "Test function for the learn_hyperparameters method with bad inputs"

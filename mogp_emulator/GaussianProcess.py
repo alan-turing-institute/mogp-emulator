@@ -5,6 +5,7 @@ from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
+import warnings
 
 class GaussianProcess(object):
     """
@@ -136,6 +137,11 @@ class GaussianProcess(object):
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
+        else:
+            self.theta = None
+            
+        self.mle_theta = None
+        self.samples = None
 
     def _load_emulator(self, filename):
         """
@@ -164,7 +170,10 @@ class GaussianProcess(object):
             raise KeyError("Emulator file does not contain emulator inputs and targets")
             
         try:
-            theta = np.array(emulator_file['theta'])
+            if emulator_file['theta'] is None:
+                theta = None
+            else:
+                theta = np.array(emulator_file['theta'])
         except KeyError:
             theta = None
             
@@ -197,11 +206,7 @@ class GaussianProcess(object):
         emulator_dict['targets'] = self.targets
         emulator_dict['inputs'] = self.inputs
         emulator_dict['nugget'] = self.nugget
-        
-        try:
-            emulator_dict['theta'] = self.theta
-        except AttributeError:
-            pass
+        emulator_dict['theta'] = self.theta
                     
         np.savez(filename, **emulator_dict)
 
@@ -237,10 +242,7 @@ class GaussianProcess(object):
         :rtype: ndarray or None
         """
         
-        try:
-            return self.theta
-        except AttributeError:
-            return None
+        return self.theta
             
     def get_nugget(self):
         """
@@ -355,6 +357,8 @@ class GaussianProcess(object):
         :returns: None
         """
         
+        assert not self.theta is None, "Must set a parameter value to fit a GP"
+        
         self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
         
         if self.nugget == None:
@@ -410,8 +414,7 @@ class GaussianProcess(object):
         loglikelihood = (0.5 * self.logdetQ +
                          0.5 * np.dot(self.targets, self.invQt) +
                          0.5 * self.n * np.log(2. * np.pi))
-        self.current_theta = theta
-        self.current_loglikelihood = loglikelihood
+
         return loglikelihood
     
     def partial_devs(self, theta):
@@ -437,6 +440,8 @@ class GaussianProcess(object):
                   ``(D + 1,)``)
         :rtype: ndarray
         """
+
+        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
@@ -452,6 +457,8 @@ class GaussianProcess(object):
         
     def hessian(self, theta):
         "compute hessian of negative log-likelihood function"
+        
+        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
@@ -585,13 +592,82 @@ class GaussianProcess(object):
             raise RuntimeError("Minimization routine failed to return a value")
             
         loglikelihood_values = np.array(loglikelihood_values)
-        idx = np.argsort(loglikelihood_values)[0]
+        idx = np.argmin(loglikelihood_values)
         
         self._set_params(theta_values[idx])
+        self.mle_theta = theta_values[idx]
         
         return loglikelihood_values[idx], theta_values[idx]
     
-    def predict(self, testing, do_deriv = True, do_unc = True):
+    def _predict_single(self, testing, do_deriv = True, do_unc = True):
+        "predict for a single set of parameter values"
+        
+        testing = np.array(testing)
+        if len(testing.shape) == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert len(testing.shape) == 2
+                        
+        n_testing, D = np.shape(testing)
+        assert D == self.D
+        
+        exp_theta = np.exp(self.theta)
+
+        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
+
+        mu = np.dot(Ktest.T, self.invQt)
+        
+        var = None
+        if do_unc:
+            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
+        
+        deriv = None
+        if do_deriv:
+            deriv = np.zeros((n_testing, self.D))
+            for d in range(self.D):
+                aa = (self.inputs[:, d].flatten()[None, :] - testing[:, d].flatten()[:, None])
+                c = Ktest * aa.T
+                deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
+                
+        return mu, var, deriv
+    
+    def _predict_samples(self, testing, do_deriv = True, do_unc = True):
+        "predict from a set of samples"
+        
+        testing = np.array(testing)
+        if len(testing.shape) == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert len(testing.shape) == 2
+                        
+        n_testing, D = np.shape(testing)
+        assert D == self.D
+        
+        if self.samples is None:
+            warnings.warn("hyperparameter samples have not been drawn, trying single parameter predictions")
+            return self.predict(testing, do_deriv, do_unc, predict_from_samples = False)
+        
+        n_samples = self.samples.shape[0]
+
+        mu = np.zeros((n_samples, n_testing))
+        var = np.zeros((n_samples, n_testing))
+        deriv = np.zeros((n_samples, n_testing, self.D))
+
+        for i in range(n_samples):
+            self._set_params(self.samples[i])
+            mu[i], var[i], deriv[i] = self._predict_single(testing, do_deriv, do_unc)
+        
+        mu_mean = np.mean(mu, axis = 0)
+        if do_unc:
+            var_mean = np.mean(var, axis = 0)+np.var(mu, axis = 0)
+        else:
+            var_mean = None
+        if do_deriv:
+            deriv_mean = np.mean(deriv, axis = 0)
+        else:
+            deriv_mean = None
+        
+        return mu_mean, var_mean, deriv_mean
+    
+    def predict(self, testing, do_deriv = True, do_unc = True, predict_from_samples = False):
         """
         Make a prediction for a set of input vectors
         
@@ -634,32 +710,17 @@ class GaussianProcess(object):
         :rtype: tuple
         """
         
-        testing = np.array(testing)
-        if len(testing.shape) == 1:
-            testing = np.reshape(testing, (1, len(testing)))
-        assert len(testing.shape) == 2
-                        
-        n_testing, D = np.shape(testing)
-        assert D == self.D
+        assert not self.theta is None, "Must set a parameter value to make predictions"
         
-        exp_theta = np.exp(self.theta)
-
-        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
-
-        mu = np.dot(Ktest.T, self.invQt)
+        if predict_from_samples:
+            return self._predict_samples(testing, do_deriv, do_unc)
+        else:
+            if self.mle_theta is None:
+                warnings.warn("Warning: GP has not been fit")
+            elif not np.allclose(self.mle_theta, self.theta):
+                warnings.warn("Warning: Current parameters are not MLE values")
+            return self._predict_single(testing, do_deriv, do_unc)
         
-        var = None
-        if do_unc:
-            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
-        
-        deriv = None
-        if do_deriv:
-            deriv = np.zeros((n_testing, self.D))
-            for d in range(self.D):
-                aa = (self.inputs[:, d].flatten()[None, :] - testing[:, d].flatten()[:, None])
-                c = Ktest * aa.T
-                deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
-        return mu, var, deriv
         
     def __str__(self):
         """
