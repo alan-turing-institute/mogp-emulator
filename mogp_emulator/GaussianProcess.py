@@ -1,5 +1,6 @@
 import numpy as np
 from .Kernel import SquaredExponential
+from .MCMC import sample_MCMC
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy import linalg
@@ -640,9 +641,31 @@ class GaussianProcess(object):
         
     def learn_hyperparameters_MCMC(self, n_samples = 1000, thin = 0):
         "sample hyperparameters using MCMC"
-    
-        pass
-    
+
+        n_samples = int(n_samples)
+        thin = int(thin)
+
+        assert n_samples > 0
+        assert thin >= 0
+
+        n_params = self.D + 1
+        
+        if self.mle_theta is None:
+            self.learn_hyperparameters()
+
+        step_size = 2.4/np.sqrt(n_params)*self.compute_local_covariance()
+
+        self.samples, rejected, acceptance, first_lag = sample_MCMC(self.loglikelihood,
+                                                                    self.mle_theta, step_size,
+                                                                    n_samples, thin, loglike_sign = -1.)
+
+        if acceptance < 0.2 or acceptance > 0.6:
+            warnings.warn("acceptance rate of "+str(100.*acceptance)+"% not within bounds")
+            
+        if np.max(first_lag) > 3./np.sqrt(len(self.samples)):
+            warnings.warn("autocorrelation of "+str(np.max(first_lag))+
+                          " not within bounds. posterior may be multimodal or require thinning.")
+
     def _predict_single(self, testing, do_deriv = True, do_unc = True):
         "predict for a single set of parameter values"
         

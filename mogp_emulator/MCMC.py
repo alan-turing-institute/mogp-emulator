@@ -1,5 +1,6 @@
 import numpy as np
 from inspect import signature
+import warnings
 
 def MH_proposal(current_params, step_sizes):
     "propose new point in MCMC"
@@ -24,9 +25,14 @@ def MCMC_step(loglikelihood, current_param, step_sizes, loglike_sign = 1.):
     assert loglike_sign == 1. or loglike_sign == -1., "loglikelihood sign must be +/- 1"
     
     next_point = MH_proposal(current_param, step_sizes)
-    
-    H = loglike_sign*(-loglikelihood(current_param) + loglikelihood(next_point))
-    
+
+    try:
+        H = loglike_sign*(-loglikelihood(current_param) + loglikelihood(next_point))
+    except FloatingPointError:
+        H = np.nan
+    except AssertionError:
+        H = np.nan
+
     if H >= np.log(np.random.random()) and np.isfinite(H):
         accept = True
     else:
@@ -74,7 +80,8 @@ def sample_MCMC(loglikelihood, start, step_size, n_samples = 1000, thin = 0, log
     if n_samples > 1:
         for i in range(n_params):
             autocorr = np.correlate(thinned[:,i]-np.mean(thinned[:,i]), thinned[:,i]-np.mean(thinned[:,i]), mode="full")
-            first_lag[i] = autocorr[np.argmax(autocorr)+1]/np.max(autocorr)
+            if np.max(autocorr) > 0.:
+                first_lag[i] = autocorr[np.argmax(autocorr)+1]/np.max(autocorr)
 
     return thinned, np.array(rejected), acceptance, first_lag
 
@@ -104,7 +111,7 @@ def autothin_samples(signal):
                     break
     
     if maxthin == 0:
-        print("automatic thinning failed, posterior distribution may be multimodal")
+        warnings.warn("automatic thinning failed, posterior distribution may be multimodal")
         maxthin = 1
         
     return maxthin

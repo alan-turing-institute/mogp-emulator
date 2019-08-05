@@ -626,14 +626,72 @@ def test_GaussianProcess_learn_hyperparameters_normalapprox():
     gp.learn_hyperparameters_normalapprox(n_samples = 4)
     
     samples_expected = np.array([[-2.1798139941810755,  1.3951266574358445],
-                              [-2.8569227619470587,  1.4961351227085802],
-                              [-4.178717685602986 ,  2.095024451881066 ],
-                              [-3.7173995375318185,  2.445171732490624 ]])
+                                 [-2.8569227619470587,  1.4961351227085802],
+                                 [-4.178717685602986 ,  2.095024451881066 ],
+                                 [-3.7173995375318185,  2.445171732490624 ]])
                               
     assert_allclose(gp.samples, samples_expected)
     
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters_normalapprox(n_samples = -1)
+
+def test_GaussianProcess_learn_hyperparameters_MCMC():
+    "test method to fit hyperparameters via MCMC"
+
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 1)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818],
+                                 [-3.506084393287192,  1.500944133661814]])
+
+    assert_allclose(gp.samples, samples_expected)
+
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 2)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818]])
+
+    assert_allclose(gp.samples, samples_expected)
+    
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 0)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818],
+                                 [-3.506084393287192,  1.500944133661814]])
+
+    assert_allclose(gp.samples, samples_expected)
+
+    with pytest.raises(AssertionError):
+        gp.learn_hyperparameters_MCMC(n_samples = -1)
 
 def test_GaussianProcess_predict_single():
     "Test the _single_predict method of GaussianProcess"

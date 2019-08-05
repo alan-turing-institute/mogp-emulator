@@ -94,7 +94,8 @@ def test_sample_MCMC():
     
     np.random.seed(438)
     
-    samples, rejected, acceptance, first_lag = sample_MCMC(loglikelihood, current_param, cov, n_samples = 4, thin = 0)
+    with pytest.warns(Warning):
+        samples, rejected, acceptance, first_lag = sample_MCMC(loglikelihood, current_param, cov, n_samples = 4, thin = 0)
     
     assert_allclose(samples, samples_expected)
     assert_allclose(rejected, rejected_expected)
@@ -150,7 +151,8 @@ def test_autothin_samples():
     
     a = np.zeros(9)
     
-    assert autothin_samples(a) == 1
+    with pytest.warns(Warning):
+        assert autothin_samples(a) == 1
     
     a = np.zeros((2, 2, 2))
     
