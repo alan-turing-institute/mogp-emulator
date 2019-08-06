@@ -1,173 +1,208 @@
 #ifndef GP_GPU_HPP
 #define GP_GPU_HPP
 
+#include <armadillo>
+#include <algorithm>
+#include <string>
+#include <assert.h>
 #include <stdexcept>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
-#include "gp.hpp"
 #include "cov_gpu.hpp"
 
-// based on DenseGP in gp.hpp, but for the GPU
-// Can only be initialized by reading the from a file
-class DenseGP_GPU : public GP {
+using arma::ivec;
+using arma::vec;
+using arma::Col;
+using arma::rowvec;
+using arma::mat;
+using arma::Mat;
+using arma::arma_ascii;
+using arma::arma_binary;
 
-	// hyperparameters on the device
-	REAL *theta_d;
-	
-	unsigned int N, Ninput;
+typedef int obs_kind;
+typedef ivec vec_obs_kind;
 
-	// training inputs (rows)
-	mat xs;
-	vec ts;
-	vec_obs_kind Ts;
+// The GP class
+// By convention, members ending "_d" are allocated on the device
+class DenseGP_GPU {
+    // hyperparameters on the host
+    vec theta;
 
-	// xs, on the device, row major order
-	REAL *xs_d;
+    // hyperparameters on the device
+    REAL *theta_d;
 
-	// covariance matrix and its inverse
-	mat C, invC;
+    unsigned int N, Ninput;
 
-	// precomputed product, used in the prediction
-	vec invCts;
-	// same, but on the CUDA device
-	REAL *invCts_d;
-	
-	// preallocated work array (length N) on the CUDA device
-	REAL *work_d;
+    // training inputs (rows)
+    mat xs;
+    vec ts;
+    vec_obs_kind Ts;
 
-	const int xnew_size = 20000;
-	REAL *xnew_d, *work_mat_d, *alpha_d, *result_d;
+    // xs, on the device, row major order
+    REAL *xs_d;
 
-	// handle for CUBLAS calls
-	cublasHandle_t cublasHandle;
+    // covariance matrix and its inverse
+    mat C, invC;
 
-	vec noise(void) const {
-		return hypers.rows(0,3);//hypers.rows(0,Ninput);
-	}
-	
-	// The remaining hyperparameters (e.g. lengthscales etc)
-	vec theta(void) const {
-		return hypers.rows(4,7); //hypers.rows(Ninput+1, hypers.n_rows-1);
-	}
+    // precomputed product, used in the prediction
+    vec invCts;
+    // same, but on the CUDA device
+    REAL *invCts_d;
 
-	virtual void update_matrices(void) { throw std::runtime_error("update_matrices not implemented"); }
-	virtual double log_lik(void) const { throw std::runtime_error("log_lik not implemented"); }
+    // preallocated work array (length N) on the CUDA device
+    REAL *work_d;
+
+    // work arrays
+    REAL *xnew_d, *work_mat_d, *alpha_d, *result_d;
+
+    // batch size (for allocation)
+    const int xnew_size = 20000;
+
+    // handle for CUBLAS calls
+    cublasHandle_t cublasHandle;
 
 public:
-	virtual int data_length(void) const
-	{
-		return N;
-	}
+    int data_length(void) const
+    {
+        return N;
+    }
 
-	virtual double predict(vec xnew, obs_kind Tnew, vec& work) const final
-	{
-		// work === k, of length N
-		// for (unsigned i=0; i<N; i++) {
-		// 	work(i) = cov(Tnew, Ts(i), xnew, xs.row(i).t(), theta());
-		// }
-		// cudaMemcpy(work_d, work.memptr(), N*sizeof(double), cudaMemcpyHostToDevice);
-		// input for
-		REAL *xnew_d;
-		Col<REAL> xnewf = arma::conv_to<Col<REAL> >::from(xnew);
-		if (cudaMalloc((void**)(&xnew_d), Ninput*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (xnew_d)");
-		}
-		
-		cudaMemcpy(xnew_d, xnewf.memptr(), Ninput*sizeof(REAL), cudaMemcpyHostToDevice);
-		cov_all_wrapper(work_d, N, xs.n_cols, xnew_d, xs_d, theta_d);
-		
-		REAL result;
-		CUBLASDOT(cublasHandle, N, work_d, 1, invCts_d, 1, &result);
-		return double(result);
-	}
+    vec get_hypers(void) const
+    {
+        return theta;
+    }
+    
+    double predict(vec xnew, obs_kind Tnew, vec& work) const
+    {
+        REAL *xnew_d;
+        Col<REAL> xnewf = arma::conv_to<Col<REAL> >::from(xnew);
+        if (cudaMalloc((void**)(&xnew_d), Ninput*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (xnew_d)");
+        }
 
-	virtual void predict_batch(Col<REAL> &result, Mat<REAL> xnew, obs_kind Tnew) const final
-	{
-		REAL alpha = 1.0, beta = 0.0;
-		cudaMemcpy(xnew_d, xnew.memptr(), Ninput*xnew.n_cols*sizeof(REAL), cudaMemcpyHostToDevice);
-		cov_batch_wrapper(work_mat_d, xnew.n_cols, N, Ninput, xnew_d, xs_d, theta_d);
-		
-		//cublasSetPointerMode(cublasHandle, CUBLAS_POINTER_MODE_DEVICE);
-		
-		cublasStatus_t status = CUBLASGEMV(cublasHandle, CUBLAS_OP_N, xnew.n_cols, N, &alpha, work_mat_d, xnew.n_cols, invCts_d, 1, &beta, result_d, 1);
-		
-		//cublasStatus_t status = cublasDgemv(cublasHandle, CUBLAS_OP_N, 1, 1, &alpha, work_mat_d, 1, invCts_d, 1, &beta, result_d, 1);
-		cudaDeviceSynchronize();
-		//if (status != CUBLAS_STATUS_SUCCESS) { throw std::runtime_error("cublas failure"); }
-		
-		// double result;
-		// result = -2.0;
+        cudaMemcpy(xnew_d, xnewf.memptr(), Ninput*sizeof(REAL),
+                   cudaMemcpyHostToDevice);
 
-		cudaError_t err = cudaMemcpy(result.memptr(), result_d, result.n_rows*sizeof(REAL), cudaMemcpyDeviceToHost);
-		if (err != cudaSuccess) { printf("%s line %d: CUDA Error: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); }
-	}
+        cov_all_gpu(work_d, N, xs.n_cols, xnew_d, xs_d, theta_d);
 
-	virtual double predict(vec xnew, obs_kind Tnew) const final
-	{
-		vec k(N);
-		return predict(xnew, Tnew, k);
-	}
+        REAL result;
+        CUBLASDOT(cublasHandle, N, work_d, 1, invCts_d, 1, &result);
 
-	DenseGP_GPU(std::string filename)
-	{
-		std::ifstream in(filename);
-		in >> N >> Ninput;
-		hypers.load(in, arma_binary);
-		xs.load(in, arma_binary);
-		ts.load(in, arma_binary);
-		Ts.load(in, arma_binary);
-		C.load(in, arma_binary);
-		invC.load(in, arma_binary);
-		invCts.load(in, arma_binary);		
+        return double(result);
+    }
 
-		Col<REAL> theta_tmp (arma::conv_to<Col<REAL> >::from(theta()));
+    void predict_batch(Col<REAL> &result, Mat<REAL> xnew, obs_kind Tnew) const
+    {
+        REAL alpha = 1.0, beta = 0.0;
 
-		cublasStatus_t status;
-		status = cublasCreate(&cublasHandle);
-		if (status != CUBLAS_STATUS_SUCCESS)
-		{
-			throw std::runtime_error("CUBLAS initialization error\n");
-		}
+        cudaMemcpy(xnew_d, xnew.memptr(), Ninput*xnew.n_cols*sizeof(REAL),
+                   cudaMemcpyHostToDevice);
 
-		if (cudaMalloc((void**)(&invCts_d), N*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (invCts_d)");
-		}
+        cov_batch_gpu(work_mat_d, xnew.n_cols, N, Ninput, xnew_d, xs_d,
+                      theta_d);
 
-		if (cudaMalloc((void**)(&work_d), N*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (work_d)");
-		}
+        cublasStatus_t status =
+            CUBLASGEMV(cublasHandle, CUBLAS_OP_N, xnew.n_cols, N, &alpha,
+                       work_mat_d, xnew.n_cols, invCts_d, 1, &beta, result_d,
+                       1);
 
-		if (cudaMalloc((void**)(&theta_d), theta_tmp.n_rows*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (theta_d)");
-		}
-		
-		if (cudaMalloc((void**)(&xs_d), N*Ninput*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (xs_d)");
-		}
+        cudaDeviceSynchronize();
 
+        cudaError_t err =
+            cudaMemcpy(result.memptr(), result_d, result.n_rows*sizeof(REAL),
+                       cudaMemcpyDeviceToHost);
 
-		if (cudaMalloc((void**)(&xnew_d), Ninput*xnew_size*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (xnew_d)");
-		}
-		if (cudaMalloc((void**)(&work_mat_d), N*xnew_size*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (work_mat_d)");
-		}
-		if (cudaMalloc((void**)(&result_d), xnew_size*sizeof(REAL)) != cudaSuccess) {
-			throw std::runtime_error("Device allocation failure (result_d)");
-		}
+        if (err != cudaSuccess)
+        {
+            printf("predict_batch: A CUDA Error occured: %s\n",
+                   cudaGetErrorString(err));
+        }
+    }
 
-		Col<REAL> RinvCts (arma::conv_to<Col<REAL> >::from(invCts));
-		cudaMemcpy(invCts_d, RinvCts.memptr(), N*sizeof(REAL), cudaMemcpyHostToDevice);
-		cudaMemcpy(theta_d, theta_tmp.memptr(), theta_tmp.n_rows*sizeof(REAL), cudaMemcpyHostToDevice);
-		Mat<REAL> xs_transpose (arma::conv_to<Mat<REAL> >::from(xs.t()));
-		cudaMemcpy(xs_d, xs_transpose.memptr(), N*Ninput*sizeof(REAL), cudaMemcpyHostToDevice);
-	}
+    DenseGP_GPU(unsigned int N_, unsigned int Ninput_,
+                const double *theta_, const double *xs_, const double *ts_,
+                const int *Ts_, const double *Q_, const double *invQ_,
+                const double *invQt_)
+        :
+        N(N_),
+        Ninput(Ninput_),
+        theta(theta_, Ninput + 1),
+        xs(xs_, Ninput, N),
+        ts(ts_, N),
+        Ts(Ts_, N),
+        C(Q_, N, N),
+        invC(invQ_, N, N),
+        invCts(invQt_, N, N)
+    {
+        Col<REAL> theta_tmp (arma::conv_to<Col<REAL> >::from(theta));
 
-	// ~DenseGP_GPU()
-	// {
-		
-	// }
+        cublasStatus_t status;
+        status = cublasCreate(&cublasHandle);
+        if (status != CUBLAS_STATUS_SUCCESS)
+        {
+            throw std::runtime_error("CUBLAS initialization error\n");
+        }
+
+        if (cudaMalloc((void**)(&invCts_d), N*sizeof(REAL)) != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (invCts_d)");
+        }
+
+        if (cudaMalloc((void**)(&work_d), N*sizeof(REAL)) != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (work_d)");
+        }
+
+        if (cudaMalloc((void**)(&theta_d), theta_tmp.n_rows*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (theta_d)");
+        }
+
+        if (cudaMalloc((void**)(&xs_d), N*Ninput*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (xs_d)");
+        }
+
+        if (cudaMalloc((void**)(&xnew_d), Ninput*xnew_size*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (xnew_d)");
+        }
+
+        if (cudaMalloc((void**)(&work_mat_d), N*xnew_size*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (work_mat_d)");
+        }
+
+        if (cudaMalloc((void**)(&result_d), xnew_size*sizeof(REAL))
+            != cudaSuccess)
+        {
+            throw std::runtime_error("Device allocation failure (result_d)");
+        }
+
+        Col<REAL> RinvCts (arma::conv_to<Col<REAL> >::from(invCts));
+        cudaMemcpy(invCts_d, RinvCts.memptr(), N*sizeof(REAL),
+                   cudaMemcpyHostToDevice);
+
+        cudaMemcpy(theta_d, theta_tmp.memptr(), theta_tmp.n_rows*sizeof(REAL),
+                   cudaMemcpyHostToDevice);
+
+        Mat<REAL> xs_transpose (arma::conv_to<Mat<REAL> >::from(xs.t()));
+        cudaMemcpy(xs_d, xs_transpose.memptr(), N*Ninput*sizeof(REAL),
+                   cudaMemcpyHostToDevice);
+    }
+
+    // write this: cuda free etc?
+    // ~DenseGP_GPU()
+    // {
+
+    // }
 };
 
 #endif

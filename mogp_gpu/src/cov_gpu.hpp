@@ -5,13 +5,19 @@ typedef double REAL;
 #define CUBLASDOT cublasDdot
 #define CUBLASGEMV cublasDgemv
 
-// squared exponential covariance function
+// Squared exponential covariance function
 
-void cov_all_wrapper(REAL *result, int N, int n_dim, REAL *xnew, REAL *xs, REAL *theta);
+// Performs a single evaluation of the covariance function, for inputs
+// x and y; that is, Cov(x(:), y(:); theta).
+void cov_val_gpu(REAL *result_d, int Ninput, REAL *x_d, REAL *y_d,
+                 REAL *theta_d);
 
-void cov_val_wrapper(REAL *result_d, int n_dim, REAL *x, REAL *y, REAL *hypers);
+// Computes the vector k_i = Cov(xnew(:), xs(i,:); theta).
+void cov_all_gpu(REAL *result_d, int N, int Ninput, REAL *xnew_d, REAL *xs_d,
+                 REAL *theta_d);
 
-void cov_batch_wrapper(REAL *result, int Nnew, int N, int n_dim, REAL *xsnew, 
-		       REAL *xs, REAL *theta);
+// Computes the submatrix K_ij = Cov(xsnew(i,:), xs(j,:); theta)
+void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
+                   REAL *xs_d, REAL *theta_d);
 
 #endif
