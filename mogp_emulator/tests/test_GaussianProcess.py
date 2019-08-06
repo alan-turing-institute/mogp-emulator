@@ -139,7 +139,7 @@ def test_GaussianProcess_save_emulators():
         
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (3,))
-    gp = GaussianProcess(x, y, 1.e-6)
+    gp = GaussianProcessGPU(x, y, 1.e-6)
     theta = np.zeros(4)
     gp._set_params(theta)
     
@@ -802,14 +802,17 @@ def test_GaussianProcess_predict():
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
+    gp_gpu = GaussianProcess(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = theta
+
+    gp_gpu._set_params(theta)
+
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
-    
     delta = 1.e-8
     predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
     predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
@@ -817,13 +820,16 @@ def test_GaussianProcess_predict():
     
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                          (predict_actual - predict_3)/delta]))
-    
+
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
     
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
+    print(predict_actual)
+    print(predict_expected)
+
     assert unc_actual is None
     assert deriv_actual is None
     
@@ -873,6 +879,19 @@ def test_GaussianProcess_predict():
     assert unc_actual is None
     assert deriv_actual is None
 
+def test_GaussianProcessGPU_predict():
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcessGPU(x, y)
+    theta = np.ones(4)
+    gp._set_params(theta)
+    x_star = np.array([4., 0., 2.])
+    predict_expected = 0.0174176198731851
+    
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
+    assert_allclose(predict_actual, predict_expected)
+
+    
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs or warnings"
 
@@ -944,4 +963,4 @@ def test_GaussianProcess_pickle():
     print(gp.get_n())
     gp_pickle = pickle.dumps(gp)
     gp_unpickle = pickle.loads(gp_pickle)
-    print(gp_unpickle.get_n())
+    assert(gp_unpickle.get_n() == 3)

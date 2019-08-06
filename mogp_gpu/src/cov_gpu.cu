@@ -5,16 +5,16 @@
 __device__ REAL cov_val_d(int Ninput, REAL *x_d, REAL *y_d, REAL *theta_d)
 {
     REAL s = 0.0;
-    for (unsigned int i=0; i<Ninput; i++)
+    for (unsigned int i=0; i < Ninput; i++)
     {
-        s += pow(x[i] - y[i], REAL(2.0)) / (theta_d[i] * theta_d[i]);
+        s += pow(x_d[i] - y_d[i], REAL(2.0)) * exp(theta_d[i]);
     }
-    return theta_d[Ninput] * exp(-0.5 * s);
+    return exp(-0.5 * s + theta_d[Ninput]);
 }
 
 ////////////////////
 __global__ void cov_val_kernel(REAL *result_d, int Ninput, REAL *x_d,
-                                 REAL *y_d, REAL *theta_d)
+                               REAL *y_d, REAL *theta_d)
 {
     *result_d = cov_val_d(Ninput, x_d, y_d, theta_d);
 }
