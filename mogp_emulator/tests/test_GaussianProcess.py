@@ -2,91 +2,95 @@ from tempfile import TemporaryFile
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..GaussianProcess import GaussianProcess
+from .. import GaussianProcess
+from .. import GaussianProcessGPU
 from scipy import linalg
+import pickle
 
 def test_GaussianProcess_init():
     "Test function for correct functioning of the init method of GaussianProcess"
-    
-    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-    y = np.array([2.])
-    gp = GaussianProcess(x, y)
-    assert_allclose(x, gp.inputs)
-    assert_allclose(y, gp.targets)
-    assert gp.D == 3
-    assert gp.n == 1
-    assert gp.nugget == None
-    
-    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
-    y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
-    assert_allclose(x, gp.inputs)
-    assert_allclose(y, gp.targets)
-    assert gp.D == 2
-    assert gp.n == 3
-    assert gp.nugget == None
-    
-    x = np.array([1., 2., 3., 4., 5., 6.])
-    y = np.array([2.])
-    gp = GaussianProcess(x, y)
-    assert_allclose(np.array([x]), gp.inputs)
-    assert_allclose(y, gp.targets)
-    assert gp.D == 6
-    assert gp.n == 1
-    assert gp.nugget == None
-    
-    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-    y = np.array([2.])
-    gp = GaussianProcess(x, y, 1.)
-    assert_allclose(x, gp.inputs)
-    assert_allclose(y, gp.targets)
-    assert gp.D == 3
-    assert gp.n == 1
-    assert gp.nugget == 1.
-    
-    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-    y = np.array([2.])
-    gp = GaussianProcess(x, y, None)
-    assert_allclose(x, gp.inputs)
-    assert_allclose(y, gp.targets)
-    assert gp.D == 3
-    assert gp.n == 1
-    assert gp.nugget == None
 
-    with TemporaryFile() as tmp:
-        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
-                                      targets = np.array([2., 4.]),
-                                      nugget = None)
-        tmp.seek(0)
-        gp = GaussianProcess(tmp)
-        
-    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
-    y = np.array([2., 4.])
-    assert_allclose(gp.inputs, x)
-    assert_allclose(gp.targets, y)
-    assert gp.n == 2
-    assert gp.D == 3
-    assert gp.nugget == None
-    assert gp.theta is None
-    
-    with TemporaryFile() as tmp:
-        np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
-                                      targets = np.array([2., 4.]),
-                                      theta = np.array([1., 2., 3., 4.]),
-                                      nugget = 1.e-6)
-        tmp.seek(0)
-        gp = GaussianProcess(tmp)
-        
-    x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
-    y = np.array([2., 4.])
-    theta = np.array([1., 2., 3., 4.])
-    assert_allclose(gp.inputs, x)
-    assert_allclose(gp.targets, y)
-    assert_allclose(gp.theta, theta)
-    assert_allclose(gp.nugget, 1.e-6)
-    assert gp.n == 2
-    assert gp.D == 3
-    
+    for GP in [GaussianProcess, GaussianProcessGPU]:
+        x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+        y = np.array([2.])
+        gp = GP(x, y)
+        assert_allclose(x, gp.inputs)
+        assert_allclose(y, gp.targets)
+        assert gp.D == 3
+        assert gp.n == 1
+        assert gp.nugget == None
+
+        x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
+        y = np.array([2., 3., 4.])
+        gp = GP(x, y)
+        assert_allclose(x, gp.inputs)
+        assert_allclose(y, gp.targets)
+        assert gp.D == 2
+        assert gp.n == 3
+        assert gp.nugget == None
+
+        x = np.array([1., 2., 3., 4., 5., 6.])
+        y = np.array([2.])
+        gp = GP(x, y)
+        assert_allclose(np.array([x]), gp.inputs)
+        assert_allclose(y, gp.targets)
+        assert gp.D == 6
+        assert gp.n == 1
+        assert gp.nugget == None
+
+        x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+        y = np.array([2.])
+        gp = GP(x, y, 1.)
+        assert_allclose(x, gp.inputs)
+        assert_allclose(y, gp.targets)
+        assert gp.D == 3
+        assert gp.n == 1
+        assert gp.nugget == 1.
+
+        x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+        y = np.array([2.])
+        gp = GP(x, y, None)
+        assert_allclose(x, gp.inputs)
+        assert_allclose(y, gp.targets)
+        assert gp.D == 3
+        assert gp.n == 1
+        assert gp.nugget == None
+
+        with TemporaryFile() as tmp:
+            np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                          targets = np.array([2., 4.]),
+                                          nugget = None)
+            tmp.seek(0)
+            gp = GP(tmp)
+
+        x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+        y = np.array([2., 4.])
+        assert_allclose(gp.inputs, x)
+        assert_allclose(gp.targets, y)
+        assert gp.n == 2
+        assert gp.D == 3
+        assert gp.nugget == None
+        with pytest.raises(AttributeError):
+            gp.theta
+
+        with TemporaryFile() as tmp:
+            np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
+                                          targets = np.array([2., 4.]),
+                                          theta = np.array([1., 2., 3., 4.]),
+                                          nugget = 1.e-6)
+            tmp.seek(0)
+            gp = GP(tmp)
+
+        x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
+        y = np.array([2., 4.])
+        theta = np.array([1., 2., 3., 4.])
+        assert_allclose(gp.inputs, x)
+        assert_allclose(gp.targets, y)
+        assert_allclose(gp.theta, theta)
+        assert_allclose(gp.nugget, 1.e-6)
+        assert gp.n == 2
+        assert gp.D == 3
+
 
 def test_GaussianProcess_init_failures():
     "Tests that GaussianProcess fails correctly with bad inputs"
@@ -932,4 +936,12 @@ def test_GaussianProcess_str():
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
-    
+
+def test_GaussianProcess_pickle():
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcessGPU(x, y)
+    print(gp.get_n())
+    gp_pickle = pickle.dumps(gp)
+    gp_unpickle = pickle.loads(gp_pickle)
+    print(gp_unpickle.get_n())
