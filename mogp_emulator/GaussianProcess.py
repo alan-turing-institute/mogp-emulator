@@ -622,7 +622,7 @@ class GaussianProcess(object):
     def learn_hyperparameters_MLE(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
         "Equivalent to learn_hyperparameters"
         
-        self.learn_hyperparameters(n_tries, theta0, method, **kwargs)
+        return self.learn_hyperparameters(n_tries, theta0, method, **kwargs)
     
     def learn_hyperparameters_normalapprox(self, n_samples = 1000):
         "sample hyperparameters via MLE and then assuming a multivariate normal distribution around the MLE value"

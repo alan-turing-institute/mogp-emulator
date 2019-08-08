@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import LinAlgError
 from inspect import signature
 import warnings
 
@@ -28,9 +29,7 @@ def MCMC_step(loglikelihood, current_param, step_sizes, loglike_sign = 1.):
 
     try:
         H = loglike_sign*(-loglikelihood(current_param) + loglikelihood(next_point))
-    except FloatingPointError:
-        H = np.nan
-    except AssertionError:
+    except (FloatingPointError, AssertionError, LinAlgError):
         H = np.nan
 
     if H >= np.log(np.random.random()) and np.isfinite(H):
