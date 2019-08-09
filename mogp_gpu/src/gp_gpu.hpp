@@ -102,6 +102,11 @@ public:
         REAL result;
         CUBLASDOT(cublasHandle, N, work_d, 1, invCts_d, 1, &result);
 
+        std::cout << "C = " << C << std::endl;
+        std::cout << "invC = " << invC << std::endl;
+        std::cout << "invCts = " << invCts << std::endl;
+        std::cout << "result = " << result << std::endl;
+        
         return double(result);
     }
 
@@ -207,8 +212,6 @@ public:
         Mat<REAL> xs_transpose (arma::conv_to<Mat<REAL> >::from(xs));
         cudaMemcpy(xs_d, xs_transpose.memptr(), N*Ninput*sizeof(REAL),
                    cudaMemcpyHostToDevice);
-
-        std::cout << "Reached end of DenseGP_GPU constructor!\n";
     }
 
     // write this: cuda free etc?
