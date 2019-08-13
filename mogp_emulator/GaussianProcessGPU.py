@@ -134,50 +134,71 @@ class GPGPU(object):
             self.lib_wrapper._destroy_gp(self.handle)
 
     def predict(self, xnew):
-        if self.gp_okay():
+        if self.ready():
             assert(xnew.shape == (self.Ninput,))
-            return self._lib_wrapper._predict(self.handle, xnew)
+            result = self._lib_wrapper._predict(self.handle, xnew)
+            if (self._lib_wrapper._status(self.handle) == 0):
+                return result
+            else:
+                msg = ("Error when calling predict on the GPU: " +
+                       self._lib_wrapper._error_string(self.handle).decode())
+                print(msg)
+                raise RuntimeError(msg)
         else:
             raise RuntimeError("GPU interface unavailable")
 
 
-class GaussianProcessGPU(object):
+class GaussianProcessGPU(GaussianProcess):
     mogp_gpu = GPGPULibrary()
     
     def __init__(self, *args):
+        ## Flag to indicate whether the GPGPU object reported that it
+        ## was ready.  This is cumbersome, but needed because we
+        ## cannot pickle GPGPU objects
+        self.device_ready = False
+        
         if len(args) == 1 and type(args[0]) == GaussianProcess:
             self.gp = args[0]
+            raise NotImplementedError("Haven't yet implemented construction "
+                                      "from GaussianProcess")
         else:
-            self.gp = GaussianProcess(*args)
+            self.gp = super().__init__(*args)
 
-    def _set_params(self, theta):
-        self.gp._set_params(theta)
-        inputs = self.gp.inputs
+    def _device_gp_create(self):
+        """Attempt to update the various GP data on the device"""
+        inputs = self.inputs
         if inputs.ndim == 1:
             inputs = expand_dims(inputs, axis=1)
+
         self.gpgpu = self.mogp_gpu.make_gp(
-            self.gp.get_params(), inputs, self.gp.targets, self.gp.Q,
-            self.gp.invQ, self.gp.invQt)
+            self.get_params(), inputs, self.targets, self.Q, self.invQ,
+            self.invQt)
+        if (self.gpgpu.ready()):
+            self.device_ready = True
+            
+    def _set_params(self, theta):
+        super()._set_params(theta)
+        self._device_gp_create()
 
     def predict(self, testing, do_deriv = True, do_unc = True, use_gpu = True):
-        if use_gpu:
+        if use_gpu and not do_deriv and not do_unc:
             try:
                 return (self.gpgpu.predict(testing), None, None)
             except RuntimeError:
                 pass
-        return self.gp.predict(testing, do_deriv, do_unc)
+        return super().predict(testing, do_deriv, do_unc)
 
-    ## Delegate other properties to gp
-    def __getattr__(self, name):
-        if 'gp' not in vars(self):
-            raise AttributeError
-        return getattr(self.gp, name)    
-            
-    ## __setstate__ and __getstate__ for pickling: only pickle the gp,
-    ## then reinitialize because the ctypes members won't pickle.
+    ## __setstate__ and __getstate__ for pickling: don't pickle "gpgpu",
+    ## since the ctypes members won't pickle, reinitialize after.
     ## (Pickling is required to use multiprocessing.)
     def __setstate__(self, state):
-        self.__init__(state)
+        self.__dict__ = state
+        # possibly set back to True by subsequent call to _device_update()
+        self.device_ready = False
+        self._device_gp_create()
 
     def __getstate__(self):
-        return self.gp
+        copy_dict = self.__dict__
+        del copy_dict["gpgpu"]
+        return copy_dict
+        

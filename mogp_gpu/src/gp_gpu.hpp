@@ -204,7 +204,6 @@ public:
         cudaMemcpy(invCts_d, RinvCts.memptr(), N*sizeof(REAL),
                    cudaMemcpyHostToDevice);
 
-        std::cout << "theta.n_rows = " << theta_tmp.n_rows  << std::endl;
         cudaMemcpy(theta_d, theta_tmp.memptr(), theta_tmp.n_rows*sizeof(REAL),
                    cudaMemcpyHostToDevice);
 

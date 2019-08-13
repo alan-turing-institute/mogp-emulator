@@ -827,8 +827,6 @@ def test_GaussianProcess_predict():
     
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
-    print(predict_actual)
-    print(predict_expected)
 
     assert unc_actual is None
     assert deriv_actual is None
@@ -960,7 +958,17 @@ def test_GaussianProcess_pickle():
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcessGPU(x, y)
-    print(gp.get_n())
+    theta = np.ones(4)
+    gp._set_params(theta)
+
     gp_pickle = pickle.dumps(gp)
     gp_unpickle = pickle.loads(gp_pickle)
+
     assert(gp_unpickle.get_n() == 3)
+
+    x_star = np.array([4., 0., 2.])
+    predict_expected = 0.0174176198731851   
+    predict_actual, unc_actual, deriv_actual = gp_unpickle.predict(
+        x_star, do_deriv = False, do_unc = False)
+
+    assert_allclose(predict_actual, predict_expected)

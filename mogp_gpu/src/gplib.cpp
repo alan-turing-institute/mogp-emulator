@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -15,14 +16,7 @@ extern "C" {
     {
         return 0.1134;
     }
-    
-    // int gplib_check_cublas(void) {
-    //     cublasHandle_t cublasHandle;
-    //     cublasCreate(&cublasHandle);
-    //     cublasStatus_t status;
-        
-    // }
-    
+
     // Return an error code from the last operation performed
     int gplib_status(void *handle) {
         return static_cast<gplib_handle *>(handle)->status;
@@ -63,8 +57,16 @@ extern "C" {
     
     double gplib_predict(void *handle, double *xs)
     {
-        DenseGP_GPU *gp = static_cast<gplib_handle *>(handle)->gp;
-        return gp->predict(xs);
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            double result = h->gp->predict(xs);
+            h->status = 0;
+            return result;
+        } catch (std::runtime_error& e) {
+            h->status = 1;
+            h->message = e.what();
+            return nan("");
+        }
     }
     
 // double gplib_predict_batch(void *handle, int Nnew, double *xs, double *result)
