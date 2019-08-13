@@ -83,12 +83,18 @@ class GPGPULibrary(object):
             self._predict.restype  = ctypes.c_double
             self._predict.argtypes = [ctypes.c_void_p, _ndarray_1d]
 
+            self._update_theta = self.lib.gplib_update_theta
+            self._update_theta.restype  = None
+            self._update_theta.argtypes = [ctypes.c_void_p,
+                                           _ndarray_1d,
+                                           _ndarray_1d]
+            
             self._status = self.lib.gplib_status
-            self._status.restype = ctypes.c_int
+            self._status.restype  = ctypes.c_int
             self._status.argtypes = [ctypes.c_void_p]
 
             self._error_string = self.lib.gplib_error_string
-            self._error_string.restype = ctypes.c_char_p
+            self._error_string.restype  = ctypes.c_char_p
             self._error_string.argtypes = [ctypes.c_void_p]
             
     def have_gpu(self):
@@ -101,19 +107,20 @@ class GPGPULibrary(object):
 class GPGPU(object):
     def __init__(self, lib_wrapper, theta, xs, ts, Q, invQ, invQt):
         self._lib_wrapper = lib_wrapper
-        self._ready = False
 
+        self.N = xs.shape[0]
+        self.Ninput = xs.shape[1]
+
+        assert(xs.ndim     == 2)
+        assert(ts.shape    == (self.N,))
+        assert(theta.shape == (self.Ninput + 1,))
+        assert(Q.shape     == (self.N, self.N))
+        assert(invQ.shape  == (self.N, self.N))
+        assert(invQt.shape == (self.N,))
+        
+        self._ready = False        
+        
         if self._lib_wrapper.have_gpu():
-            self.N = xs.shape[0]
-            self.Ninput = xs.shape[1]
-
-            assert(xs.ndim     == 2)
-            assert(ts.shape    == (self.N,))
-            assert(theta.shape == (self.Ninput + 1,))
-            assert(Q.shape     == (self.N, self.N))
-            assert(invQ.shape  == (self.N, self.N))
-            assert(invQt.shape == (self.N,))
-
             self.handle = self._lib_wrapper._make_gp(self.N, self.Ninput, theta,
                                                      xs, ts, Q, invQ, invQt)
 
@@ -133,20 +140,39 @@ class GPGPU(object):
             and self.gp_okay()):
             self.lib_wrapper._destroy_gp(self.handle)
 
-    def predict(self, xnew):
+
+    def _call_gpu(self, call, name, *args):
         if self.ready():
-            assert(xnew.shape == (self.Ninput,))
-            result = self._lib_wrapper._predict(self.handle, xnew)
+            result = call(*args)
             if (self._lib_wrapper._status(self.handle) == 0):
                 return result
             else:
-                msg = ("Error when calling predict on the GPU: " +
-                       self._lib_wrapper._error_string(self.handle).decode())
+                msg = ("Error when calling " + name + " on the GPU: "
+                       + self._lib_wrapper._error_string(self.handle).decode())
                 print(msg)
                 raise RuntimeError(msg)
         else:
             raise RuntimeError("GPU interface unavailable")
+    
+            
+    def predict(self, xnew):
+        assert(xnew.shape == (self.Ninput,))
+        
+        return self._call_gpu(
+            lambda xnew: self._lib_wrapper._predict(self.handle, xnew),
+            __name__, xnew)
 
+
+    def update_theta(self, theta, invQt):
+        assert(theta.shape == (self.Ninput + 1,))
+        assert(invQt.shape == (self.N,))
+
+        return self._call_gpu(
+            lambda theta, invQt: self._lib_wrapper._update_theta(self.handle,
+                                                                 theta, invQt),
+            __name__, theta, invQt)
+
+        
 
 class GaussianProcessGPU(GaussianProcess):
     mogp_gpu = GPGPULibrary()
@@ -178,7 +204,10 @@ class GaussianProcessGPU(GaussianProcess):
             
     def _set_params(self, theta):
         super()._set_params(theta)
-        self._device_gp_create()
+        if self.device_ready:
+            self.gpgpu.update_theta(self.theta, self.invQt)
+        else:
+            self._device_gp_create()
 
     def predict(self, testing, do_deriv = True, do_unc = True, use_gpu = True):
         if use_gpu and not do_deriv and not do_unc:
@@ -187,7 +216,7 @@ class GaussianProcessGPU(GaussianProcess):
             except RuntimeError:
                 pass
         return super().predict(testing, do_deriv, do_unc)
-
+    
     ## __setstate__ and __getstate__ for pickling: don't pickle "gpgpu",
     ## since the ctypes members won't pickle, reinitialize after.
     ## (Pickling is required to use multiprocessing.)
