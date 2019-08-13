@@ -33,12 +33,15 @@ extern "C" {
                         const double *Q, const double *invQ,
                         const double *invQt)
     {
+        // size_t free, total;
+        // cudaMemGetInfo(&free, &total);
+
         auto handle = new gplib_handle;
         try {
             auto gp = new DenseGP_GPU(N, Ninput, theta, xs, ts, Q, invQ, invQt);
             handle->gp = gp;
             handle->status = 0;
-        } catch(std::runtime_error& e) {
+        } catch(const std::exception& e) {
             handle->status = 1;
             handle->gp = nullptr;
             handle->message = e.what();
@@ -62,10 +65,23 @@ extern "C" {
             double result = h->gp->predict(xs);
             h->status = 0;
             return result;
-        } catch (std::runtime_error& e) {
+        } catch (const std::exception& e) {
             h->status = 1;
             h->message = e.what();
             return nan("");
+        }
+    }
+
+    void gplib_update_theta(void *handle, const double *theta,
+                            const double *invQt)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            h->gp->update_theta(theta, invQt);
+            h->status = 0;
+        } catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();           
         }
     }
     
