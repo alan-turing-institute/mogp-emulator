@@ -36,6 +36,3 @@ The ``MICEFastGP`` Class
 
 .. autoclass:: mogp_emulator.SequentialDesign.MICEFastGP
     :members:
-    :inherited-members:
-    
-    .. automethod:: __init__
