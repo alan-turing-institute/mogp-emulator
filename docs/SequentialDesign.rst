@@ -1,26 +1,26 @@
-.. _ExperimentalDesign:
+.. _SequentialDesign:
 
 **********************************
-The ``ExperimentalDesign`` Class
+The ``SequentialDesign`` Class
 **********************************
 
-.. automodule:: mogp_emulator.ExperimentalDesign.ExperimentalDesign
+.. automodule:: mogp_emulator.SequentialDesign.SequentialDesign
     :noindex:
 
-.. autoclass:: mogp_emulator.ExperimentalDesign.ExperimentalDesign
+.. autoclass:: mogp_emulator.SequentialDesign.SequentialDesign
     :members:
     
     .. automethod:: __init__
     
     
 **********************************
-The ``MonteCarloDesign`` Class
+The ``MICEDesign`` Class
 **********************************
 
-.. automodule:: mogp_emulator.MonteCarloDesign
+.. automodule:: mogp_emulator.MICEDesign
     :noindex:
 
-.. autoclass:: mogp_emulator.MonteCarloDesign
+.. autoclass:: mogp_emulator.MICEDesign
     :members:
     :inherited-members:
     
@@ -28,13 +28,13 @@ The ``MonteCarloDesign`` Class
 
 
 **********************************
-The ``LatinHypercubeDesign`` Class
+The ``MICEFastGP`` Class
 **********************************
 
-.. automodule:: mogp_emulator.LatinHypercubeDesign
+.. automodule:: mogp_emulator.SequentialDesign.MICEFastGP
     :noindex:
 
-.. autoclass:: mogp_emulator.LatinHypercubeDesign
+.. autoclass:: mogp_emulator.SequentialDesign.MICEFastGP
     :members:
     :inherited-members:
     
