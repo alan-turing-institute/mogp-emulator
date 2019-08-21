@@ -33,6 +33,16 @@ class Kernel(object):
     creating a new ``Kernal`` instance.
     """ 
     def __str__(self):
+        """
+        Defines a string representation of the kernel
+        
+        Returns a string representation of the kernel. Note that since the kernel just
+        collects methods for kernel evaluations together with no data, this is just a basic
+        string that will not change for different instances of the class.
+        
+        :returns: String representation of the kernel
+        :rtype: str
+        """
         return "Stationary Kernel"
 
     def _check_inputs(self, x1, x2, params):
@@ -439,10 +449,28 @@ class Kernel(object):
         raise NotImplementedError("base Kernel class does not implement kernel derivatives")
 
 class SquaredExponential(Kernel):
-    "squared exponential kernel"
+    """
+    Implementation of the squared exponential kernel
+    
+    Class representing a squared exponential kernel. It derives from the base class for a
+    stationary kernel, using the scaled Euclidean distance metric. The subclass then just
+    defines the kernel function and its derivatives.
+    """
 
     def calc_K(self, r):
-        "compute K(r) for the squared exponential kernel"
+        """
+        Compute K(r) for the squared exponential kernel
+        
+        This method implements the squared exponential kernel function as a function of distance.
+        Given an array of distances, this function evaluates the kernel function of those values,
+        returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel evaluations, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -451,7 +479,19 @@ class SquaredExponential(Kernel):
         return np.exp(-0.5*r**2)
     
     def calc_dKdr(self, r):
-        "compute dK/dr for the squared exponential kernel"
+        """
+        Calculate first derivative of the squared exponential kernel as a function of distance
+        
+        This method implements the first derivative of the squared exponential kernel function
+        as a function of distance. Given an array of distances, this function evaluates the derivative
+        function of those values, returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel derivatives, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -460,7 +500,19 @@ class SquaredExponential(Kernel):
         return -r*np.exp(-0.5*r**2)
     
     def calc_d2Kdr2(self, r):
-        "compute d2K/dr2 for the squared exponential kernel"
+        """
+        Calculate second derivative of the squared exponential kernel as a function of distance
+        
+        This method implements the second derivative of the squared exponential kernel function
+        as a function of distance. Given an array of distances, this function evaluates the
+        second derivative function of those values, returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel second derivatives, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -469,13 +521,40 @@ class SquaredExponential(Kernel):
         return (r**2 - 1.)*np.exp(-0.5*r**2)
         
     def __str__(self):
-        "string representation of kernel"
+        """
+        Defines a string representation of the squared exponential kernel
+        
+        Returns a string representation of the squared exponential kernel. Note that since
+        the kernel just collects methods for kernel evaluations together with no data, this
+        is just a basic string that will not change for different instances of the class.
+        
+        :returns: String representation of the kernel
+        :rtype: str
+        """
         return "Squared Exponential Kernel"
 
 class Matern52(Kernel):
-    "matern 5/2 kernel"
+    """
+    Implementation of the Matern 5/2 kernel
+    
+    Class representing the Matern 5/2 kernel. It derives from the base class for a
+    stationary kernel, using the scaled Euclidean distance metric. The subclass then just
+    defines the kernel function and its derivatives.
+    """
     def calc_K(self, r):
-        "compute K(r) for the matern 5/2 kernel"
+        """
+        Compute K(r) for the Matern 5/2 kernel
+        
+        This method implements the Matern 5/2 kernel function as a function of distance.
+        Given an array of distances, this function evaluates the kernel function of those values,
+        returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel evaluations, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -484,7 +563,19 @@ class Matern52(Kernel):
         return (1.+np.sqrt(5.)*r+5./3.*r**2)*np.exp(-np.sqrt(5.)*r)
     
     def calc_dKdr(self, r):
-        "compute dK/dr for the the matern 5/2 kernel"
+        """
+        Calculate first derivative of the Matern 5/2 kernel as a function of distance
+        
+        This method implements the first derivative of the Matern 5/2 kernel function
+        as a function of distance. Given an array of distances, this function evaluates the derivative
+        function of those values, returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel derivatives, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -493,7 +584,19 @@ class Matern52(Kernel):
         return -5./3.*r*(1.+np.sqrt(5.)*r)*np.exp(-np.sqrt(5.)*r)
     
     def calc_d2Kdr2(self, r):
-        "compute d2K/dr2 for the the matern 5/2 kernel"
+        """
+        Calculate second derivative of the squared exponential kernel as a function of distance
+        
+        This method implements the second derivative of the squared exponential kernel function
+        as a function of distance. Given an array of distances, this function evaluates the
+        second derivative function of those values, returning an array of the same shape.
+        
+        :param r: Array holding distances between all points. All values in this array must be
+                  non-negative.
+        :type r: array-like
+        :returns: Array holding kernel second derivatives, with the same shape as the input ``r``
+        :rtype: ndarray
+        """
     
         assert np.all(r >= 0.), "kernel distances must be positive"
     
@@ -502,7 +605,16 @@ class Matern52(Kernel):
         return 5./3.*(5.*r**2-np.sqrt(5.)*r-1.)*np.exp(-np.sqrt(5.)*r)
         
     def __str__(self):
-        "string representation of kernel"
+        """
+        Defines a string representation of the Matern 5/2 kernel
+        
+        Returns a string representation of the Matern 5/2 kernel. Note that since
+        the kernel just collects methods for kernel evaluations together with no data, this
+        is just a basic string that will not change for different instances of the class.
+        
+        :returns: String representation of the kernel
+        :rtype: str
+        """
         return "Matern 5/2 Kernel"
 
     
