@@ -216,7 +216,7 @@ def test_SequentialDesign_generate_initial_design():
     assert sd.current_iteration == 4
     
     sd = SequentialDesign(ed, f, n_init = 4)
-    sd.run_init_design()
+    sd.run_initial_design()
     
     with pytest.raises(AssertionError):
         sd.generate_initial_design()
@@ -263,7 +263,7 @@ def test_SequentialDesign_set_initial_targets():
     with pytest.raises(AssertionError):
         sd.set_initial_targets(targets_expected)
         
-def test_SequentialDesign_run_init_design():
+def test_SequentialDesign_run_initial_design():
     "test method to run initial design"
     
     np.random.seed(74632)
@@ -279,7 +279,7 @@ def test_SequentialDesign_run_init_design():
                                         [0.6345029195085983, 0.6651343562344474, 0.8827198350687029],
                                         [0.4531112960399023, 0.3977273628763245, 0.5867585643640021]])
     targets_expected = np.array([np.sum(i) for i in initial_design_expected])
-    sd.run_init_design()
+    sd.run_initial_design()
     assert_allclose(sd.inputs, initial_design_expected)
     assert_allclose(sd.targets, targets_expected)
     assert sd.initialized
@@ -287,7 +287,7 @@ def test_SequentialDesign_run_init_design():
     
     sd = SequentialDesign(ed)
     with pytest.raises(AssertionError):
-        sd.run_init_design()
+        sd.run_initial_design()
     
 def test_SequentialDesign_generate_candidates():
     "test the _generate_candidates method"
@@ -336,7 +336,7 @@ def test_SequentialDesign_get_next_point():
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     next_point = sd.get_next_point()
     
     next_point_expected = np.array([3.9602716910300234e-01, 4.3469440375712098e-02, 9.3294684823072194e-01])
@@ -369,7 +369,7 @@ def test_SequentialDesign_get_next_point():
         
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     sd.inputs = np.zeros((5,3))
     
     with pytest.raises(AssertionError):
@@ -377,7 +377,7 @@ def test_SequentialDesign_get_next_point():
         
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     sd.targets = np.zeros((5,3))
     
     with pytest.raises(AssertionError):
@@ -399,7 +399,7 @@ def test_SequentialDesign_set_next_target():
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     next_point = sd.get_next_point()
     new_target = np.reshape(np.array(np.sum(next_point)), (1,))
     
@@ -418,7 +418,7 @@ def test_SequentialDesign_set_next_target():
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     next_point = sd.get_next_point()
     
     with pytest.raises(AssertionError):
@@ -441,14 +441,14 @@ def test_SequentialDesign_set_next_target():
         
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     
     with pytest.raises(AssertionError):
         sd.set_next_target(next_target)
         
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     sd.get_next_point()
     sd.targets = np.zeros((5,3))
     
@@ -470,7 +470,7 @@ def test_SequentialDesign_run_next_point():
         
     sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
     sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
-    sd.run_init_design()
+    sd.run_initial_design()
     sd.run_next_point()
     
     inputs_expected = np.array([[0.9660431763890672, 0.2080126306969736, 0.2576380063570568],
@@ -662,7 +662,7 @@ def test_MICEDesign_MICE_criterion():
         
     md = MICEDesign(ed, f, n_init = 4, n_cand = 4)
     
-    md.run_init_design()
+    md.run_initial_design()
     md._generate_candidates()
     
     md.gp = GaussianProcess(md.get_inputs(), md.get_targets())
@@ -695,7 +695,7 @@ def test_MICEDesign_eval_metric():
         
     md = MICEDesign(ed, f, n_init = 4, n_cand = 4)
     
-    md.run_init_design()
+    md.run_initial_design()
     md._generate_candidates()
     
     best_point = md._eval_metric()

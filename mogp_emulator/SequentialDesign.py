@@ -298,7 +298,7 @@ class SequentialDesign(object):
         self.targets = np.array(targets)
         self.initialized = True
     
-    def run_init_design(self):
+    def run_initial_design(self):
         """
         Run initial design
         
@@ -317,7 +317,7 @@ class SequentialDesign(object):
         :rtype: None
         """
         
-        assert self.has_function(), "Design must have a bound function to use run_init_design"
+        assert self.has_function(), "Design must have a bound function to use run_initial_design"
         
         inputs = self.generate_initial_design()
         targets = np.full((self.n_init,), np.nan)
@@ -466,7 +466,7 @@ class SequentialDesign(object):
         class instance or when calling this method. If a number of samples is provided on
         both occasions, then the number provided when calling ``run_sequential_design`` is used.
         
-        Internally, this method is a wrapper to ``run_init_design`` and then calling
+        Internally, this method is a wrapper to ``run_initial_design`` and then calling
         ``run_next_point`` a total of ``n_samples`` times. Note that this means that the total
         number of design points is ``n_init + n_samples``.
         
@@ -491,7 +491,7 @@ class SequentialDesign(object):
             
         assert n_iter >= 0, "number of samples must be non-negative"
 
-        self.run_init_design()
+        self.run_initial_design()
         
         for i in range(n_iter):
             self.run_next_point()
