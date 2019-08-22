@@ -425,7 +425,7 @@ class GaussianProcess(object):
         During normal use, the ``partial_devs`` method is called after evaluating the
         ``loglikelihood`` method. The implementation takes advantage of this by storing
         the inverse of the covariance matrix, which is expensive to compute and is used
-        by both the ``loglikelihood`` and ``partial_devs`` methods. If the function
+        by the ``loglikelihood``, ``partial_devs``, and ``hessian`` methods. If the function
         is evaluated with a different set of parameters than was previously used to set
         the log-likelihood, the method calls ``_set_params`` to compute the needed
         information. However, caling ``partial_devs`` does not evaluate the log-likelihood,
@@ -451,7 +451,30 @@ class GaussianProcess(object):
         return partials
         
     def hessian(self, theta):
-        "compute hessian of negative log-likelihood function"
+        """
+        Calculate the Hessian of the negative log-likelihood
+        
+        Calculate the Hessian of the negative log-likelihood with respect to
+        the hyperparameters. Note that this function is normally used only when fitting
+        the hyperparameters, and it is not needed to make predictions. It is also used
+        to estimate an appropriate step size when fitting hyperparameters using
+        the lognormal approximation or MCMC sampling.
+        
+        When used in an optimization routine, the ``hessian`` method is called after
+        evaluating the ``loglikelihood`` method. The implementation takes advantage of
+        this by storing the inverse of the covariance matrix, which is expensive to
+        compute and is used by the ``loglikelihood`` and ``partial_devs`` methods as well.
+        If the function is evaluated with a different set of parameters than was previously
+        used to set the log-likelihood, the method calls ``_set_params`` to compute the needed
+        information. However, caling ``hessian`` does not evaluate the log-likelihood,
+        so it does not change the cached values of the parameters or log-likelihood.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-likelihood (array with shape
+                  ``(D + 1, D + 1)``)
+        :rtype: ndarray
+        """
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
