@@ -418,7 +418,71 @@ def test_SequentialDesign_eval_metric():
     
     with pytest.raises(NotImplementedError):
         sd._eval_metric()
+
+def test_SequentialDesign_estimate_next_target():
+    "test the estimate next point method of sequential design"
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.sum(x)
         
+    sd = SequentialDesign(ed, f)
+    
+    with pytest.raises(NotImplementedError):
+        sd._estimate_next_target(np.array([0., 1., 2.]))
+
+def test_SequentialDesign_get_batch_points():
+    "test the get_batch_points method of a MICE design"
+    
+    np.random.seed(74632)
+    
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.sum(x)
+        
+    sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
+    
+    def tmp_eval_metric(self):
+        return 0
+    
+    def tmp_estimate_next_target(self, next_point):
+        return np.array([1.])
+    
+    sd._eval_metric = types.MethodType(tmp_eval_metric, sd)
+    sd._estimate_next_target = types.MethodType(tmp_estimate_next_target, sd)
+    
+    sd.run_initial_design()
+    
+    next_points = sd.get_batch_points(2)
+    
+    assert_allclose(next_points, np.array([[3.9602716910300234e-01, 4.3469440375712098e-02, 9.3294684823072194e-01],
+                                           [0.1314127131166828, 0.3850568631590907, 0.2234836206262954]]))
+    assert_allclose(sd.inputs, np.array([[0.9660431763890672, 0.2080126306969736, 0.2576380063570568],
+                                         [0.0684779421445063, 0.9308367720360009, 0.1428493015158686],
+                                         [0.6345029195085983, 0.6651343562344474, 0.8827198350687029],
+                                         [0.4531112960399023, 0.3977273628763245, 0.5867585643640021],
+                                         [3.9602716910300234e-01, 4.3469440375712098e-02, 9.3294684823072194e-01],
+                                         [0.1314127131166828, 0.3850568631590907, 0.2234836206262954]]))
+    assert_allclose(sd.targets, np.array([1.4316938134430974, 1.1421640156963757, 2.1823571108117488,
+                                          1.437597223280229 ]))
+    assert sd.current_iteration == 4
+
+    # check raises error if number of batch points is negative
+
+    ed = LatinHypercubeDesign(3)
+    
+    def f(x):
+        return np.sum(x)
+        
+    sd = SequentialDesign(ed, f, n_init = 4, n_cand = 4)
+    
+    sd.run_initial_design()
+
+    with pytest.raises(AssertionError):
+        sd.get_batch_points(-1)
+
 def test_SequentialDesign_get_next_point():
     "test the get_next_point method"
     
@@ -481,7 +545,38 @@ def test_SequentialDesign_get_next_point():
     
     with pytest.raises(AssertionError):
         next_point = sd.get_next_point()
+
+def test_SequentialDesign_set_batch_targets():
+    "test the set_batch_targets method"
     
+    ed = LatinHypercubeDesign(3)
+    
+    sd = SequentialDesign(ed, n_init = 4, n_cand = 4)
+    
+    sd.inputs = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9],
+                          [0.15, 0.25, 0.35], [0.45, 0.55, 0.65], [0.75, 0.85, 0.95]])
+    sd.targets = np.array([1., 2., 3., 4.])
+    sd.current_iteration = 4
+    sd.initialized = True
+    
+    sd.set_batch_targets(np.array([5., 6.]))
+    
+    assert_allclose(sd.targets, np.array([1., 2., 3., 4., 5., 6.]))
+    assert sd.current_iteration == 6
+    
+    # failure if new_targets wrong shape
+    
+    ed = LatinHypercubeDesign(3)
+    
+    sd = SequentialDesign(ed, n_init = 4, n_cand = 4)
+    
+    sd.inputs = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9],
+                          [0.15, 0.25, 0.35], [0.45, 0.55, 0.65], [0.75, 0.85, 0.95]])
+    sd.targets = np.array([1., 2., 3., 4.])
+    
+    with pytest.raises(AssertionError):
+        sd.set_batch_targets(np.array([5., 6., 7.]))
+
 def test_SequentialDesign_set_next_target():
     "test the set_next_target method"
     
@@ -748,7 +843,22 @@ def test_MICEDesign_get_nugget_s():
     md = MICEDesign(ed)
     
     assert_allclose(md.get_nugget_s(), 1.)
+
+def test_MICEDesign_estimate_next_target():
+    "test the estimate next target method for a MICE design"
     
+    ed = LatinHypercubeDesign(3)
+    md = MICEDesign(ed)
+    
+    md.gp = GaussianProcess(np.array([[1., 2., 3.], [4., 5., 6]]), np.array([2., 4.]))
+    md.gp.mle_theta = np.zeros(4)
+    md.gp._set_params(np.zeros(4))
+    
+    assert_allclose(np.array([0.0018237589305011]), md._estimate_next_target(np.zeros(3)))
+    
+    with pytest.raises(AssertionError):
+        md._estimate_next_target(np.zeros(2))
+
 def test_MICEDesign_MICE_criterion():
     "test the function to compute the MICE criterion"
     
