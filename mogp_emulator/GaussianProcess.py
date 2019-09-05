@@ -685,7 +685,7 @@ class GaussianProcess(object):
         
         var = None
         if do_unc:
-            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
+            var = np.maximum(exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0), 0.)
         
         deriv = None
         if do_deriv:
