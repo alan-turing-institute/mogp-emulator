@@ -106,6 +106,84 @@ class SequentialDesign(object):
         self.targets = None
         self.candidates = None
     
+    def save_design(self, filename):
+        """
+        Save current state of the sequential design
+        
+        Saves the current state of the sequential design by writing the current
+        values of ``inputs``, ``targets``, and ``candidates`` to file as a ``.npz``
+        file. To re-load a saved design, use the ``load_design`` method.
+        
+        Note that this method only dumps the arrays holding the inputs, targets, and
+        candidates to a ``.npz`` file. It does not ensure that the function or base
+        design are consistent, so it is up to the user to ensure that the new design
+        parameters are the same as the parameters for the old one.
+        
+        :param filename: Filename or file object where design will be saved
+        :type filename: str or file
+        :returns: None
+        """
+        
+        design_dict = {}
+        design_dict['inputs'] = self.inputs
+        design_dict['targets'] = self.targets
+        design_dict['candidates'] = self.candidates
+                    
+        np.savez(filename, **design_dict)
+        
+    def load_design(self, filename):
+        """
+        Load previously saved sequential design
+        
+        Loads a previously saved sequential design from file. Loads the arrays for
+        ``inputs``, ``targets``, and ``candidates`` from file and sets other internal
+        data to be consistent. It performs a few checks for consistency to ensure
+        that the loaded design is compatible with the selected parameters, however,
+        it does not completely check everything for consistency (in particular, it does
+        not make any attempt to ensure that the exact base design or function are
+        identical to what was previously used). It is up to the user to ensure that
+        these are consistent with the previous instance of the design.
+        
+        :param filename: Filename or file object from which the design will be loaded
+        :type filename: str or file
+        :returns: None
+        """
+        
+        design_file = np.load(filename)
+        
+        self.inputs = np.array(design_file['inputs'])
+        if np.all(self.inputs) == None:
+            self.inputs = None
+        
+        self.targets = np.array(design_file['targets'])
+        if np.all(self.targets) == None:
+            self.targets = None
+        
+        self.candidates = np.array(design_file['candidates'])
+        if np.all(self.candidates) == None:
+            self.candidates = None
+
+        # perform some checks (note this is not exhaustive)
+        
+        if self.inputs is None:
+            assert self.targets is None, "Cannot have targets without corresponding inputs"
+        else:
+            if not self.targets is None:
+                assert self.targets.ndim == 1, "bad number of dimensions for targets"
+                assert self.targets.shape[0] <= self.inputs.shape[0], "targets cannot be longer than inputs"
+                self.initialized = True
+                self.current_iteration = self.targets.shape[0]
+            assert self.get_n_parameters() == self.inputs.shape[1], "Bad shape for inputs"
+            if self.inputs.shape[1] < self.n_init:
+                print("n_init greater than number of inputs, changing n_init")
+                self.n_init = self.inputs.shape[1]
+    
+        if not self.candidates is None:
+            assert self.get_n_parameters() == self.candidates.shape[1], "Bad shape for candidates"
+            if self.candidates.shape[0] != self.n_cand:
+                print("shape of candidates differs from n_cand, candidates will be overridden")
+        
+        
     def has_function(self):
         """
         Determines if class contains a function for running the simulator
@@ -658,7 +736,7 @@ class MICEDesign(SequentialDesign):
         self.nugget_s = float(nugget_s)
         
         super().__init__(base_design, f, n_samples, n_init, n_cand)
-        
+    
     def get_nugget(self):
         """
         Get value of nugget parameter for base GP

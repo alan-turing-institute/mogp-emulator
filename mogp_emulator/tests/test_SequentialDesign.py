@@ -6,6 +6,7 @@ import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..GaussianProcess import GaussianProcess
+from tempfile import TemporaryFile
 
 def test_SequentialDesign_init():
     "test the init method of ExperimentalDesign"
@@ -68,6 +69,104 @@ def test_SequentialDesign_init_failures():
         
     with pytest.raises(ValueError):
         sd = SequentialDesign(ed, f, n_cand = -1)
+
+def test_SequentialDesign_save_design():
+    "test the save_design method"
+    
+    ed = LatinHypercubeDesign(3)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    sd.inputs = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+    sd.targets = np.array([2., 4.])
+    sd.candidates = np.array([[0.7, 0.8, 0.9], [0.15, 0.25, 0.35], [0.45, 0.55, 0.65]])
+    
+    with TemporaryFile() as tmp:
+        sd.save_design(tmp)
+        tmp.seek(0)
+        design_file = np.load(tmp)
+        assert_allclose(design_file['inputs'], np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]))
+        assert_allclose(design_file['targets'], np.array([2., 4.]))
+        assert_allclose(design_file['candidates'], np.array([[0.7, 0.8, 0.9],
+                                                             [0.15, 0.25, 0.35], [0.45, 0.55, 0.65]]))
+    
+def test_SequentialDesign_load_design():
+    "test the load_design method"
+    
+    ed = LatinHypercubeDesign(3)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+                                      targets = np.array([2., 4.]),
+                                      candidates = np.array([[0.7, 0.8, 0.9],
+                                                             [0.15, 0.25, 0.35],
+                                                             [0.45, 0.55, 0.65]]))
+        tmp.seek(0)
+        sd.load_design(tmp)
+        
+    assert_allclose(sd.inputs, np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]))
+    assert_allclose(sd.targets, np.array([2., 4.]))
+    assert_allclose(sd.candidates, np.array([[0.7, 0.8, 0.9],
+                                             [0.15, 0.25, 0.35],
+                                             [0.45, 0.55, 0.65]]))
+    assert sd.initialized
+    assert sd.current_iteration == 2
+    
+    # disagreement between base design and inputs
+    
+    ed = LatinHypercubeDesign(2)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+                                      targets = np.array([2., 4.]),
+                                      candidates = np.array([[0.7, 0.8, 0.9],
+                                                             [0.15, 0.25, 0.35],
+                                                             [0.45, 0.55, 0.65]]))
+        tmp.seek(0)
+        with pytest.raises(AssertionError):
+            sd.load_design(tmp)
+    
+    # disagreement between shape of inputs and candidates
+    
+    ed = LatinHypercubeDesign(3)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+                                      targets = np.array([2., 4.]),
+                                      candidates = np.array([[0.7, 0.8],
+                                                             [0.15, 0.25],
+                                                             [0.45, 0.55]]))
+        tmp.seek(0)
+        with pytest.raises(AssertionError):
+            sd.load_design(tmp)
+    
+    # error due to targets having a bad shape
+    
+    ed = LatinHypercubeDesign(3)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs=np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+                                      targets = np.array([2., 4., 5.]),
+                                      candidates = np.array([[0.7, 0.8],
+                                                             [0.15, 0.25],
+                                                             [0.45, 0.55]]))
+        tmp.seek(0)
+        with pytest.raises(AssertionError):
+            sd.load_design(tmp)
+            
+    # error due to existing targets but no inputs
+    
+    ed = LatinHypercubeDesign(3)
+    sd = SequentialDesign(ed, n_init = 2, n_cand = 3)
+    
+    with TemporaryFile() as tmp:
+        np.savez(tmp, inputs = None, targets = np.array([2., 4., 5.]), candidates = None)
+        tmp.seek(0)
+        with pytest.raises(AssertionError):
+            sd.load_design(tmp)
 
 def test_SequentialDesign_has_function():
     "test has_function method"
