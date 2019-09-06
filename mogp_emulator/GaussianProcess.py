@@ -562,7 +562,6 @@ class GaussianProcess(object):
                   of the hyperparameters to these optimal values and pre-computes the matrices needed
                   to make predictions.
         :rtype: tuple containing a float and an ndarray
-        
         """
     
         n_tries = int(n_tries)
@@ -601,7 +600,20 @@ class GaussianProcess(object):
         return loglikelihood_values[idx], theta_values[idx]
     
     def compute_local_covariance(self):
-        "invert hessian matrix to get local covariance. will raise an error if not symmetric positive definite"
+        """
+        Estimate local covariance matrix around the MLE parameters
+        
+        This method inverts the hessian matrix to get the local covariance matrix around the
+        MLE parameters. Note that if the MLE parameters have not been estimated, they will be
+        found first prior to inverting the Hessian. The local Hessian should be positive definite
+        if the MLE parameters are at a local minimum of the negative log-likelihood, so if the
+        routine encounters a non-positive definite matrix it will raise an error. Returns the
+        inverse of the Hessian matrix evaluated at the MLE parameter values.
+        
+        :returns: Inverse of the Hessian matrix evaluated at the MLE parameter values. This is
+                  a 2D array with shape ``(D + 1, D + 1)``.
+        :rtype: ndarray
+        """
 
         if self.mle_theta is None:
             self.learn_hyperparameters()
@@ -620,12 +632,75 @@ class GaussianProcess(object):
         return cov
     
     def learn_hyperparameters_MLE(self, n_tries = 15, theta0 = None, method = 'L-BFGS-B', **kwargs):
-        "Equivalent to learn_hyperparameters"
+        """
+        Fit hyperparameters by attempting to minimize the negative log-likelihood
+        
+        This method an alias for ``learn_hyperparameters`` to distinguish it from other methods
+        for estimating hyperparameters.
+        
+        Fits the hyperparameters by attempting to minimize the negative log-likelihood multiple times
+        from a given starting location and using a particular minimization method. The best result
+        found among all of the attempts is returned, unless all attempts to fit the parameters result
+        in an error (see below).
+        
+        If the method encounters an overflow (this can result because the parameter values stored are
+        the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
+        (occurs when the covariance matrix cannot be inverted, even with the addition of additional
+        noise added along the diagonal if adaptive noise was selected by setting the nugget parameter
+        to be None), the iteration is skipped. If all attempts to find optimal hyperparameters result
+        in an error, then the method raises an exception.
+        
+        The ``theta0`` parameter is the point at which the first iteration will start. If more than
+        one attempt is made, subsequent attempts will use random starting points.
+        
+        The user can specify the details of the minimization method, using any of the gradient-based
+        optimizers available in ``scipy.optimize.minimize``. Any additional parameters beyond the method
+        specification can be passed as keyword arguments.
+        
+        The method returns the minimum negative log-likelihood found and the parameter values at
+        which that minimum was obtained. The method also sets the current values of the hyperparameters
+        to these optimal values and pre-computes the matrices needed to make predictions.
+        
+        :param n_tries: Number of attempts to minimize the negative log-likelihood function.
+                        Must be a positive integer (optional, default is 15)
+        :type n_tries: int
+        :param theta0: Initial starting point for the first iteration. If present, must be
+                       array-like with shape ``(D + 1,)``. If ``None`` is given, then
+                       a random value is chosen. (Default is ``None``)
+        :type theta0: None or ndarray
+        :param method: Minimization method to be used. Can be any gradient-based optimization
+                       method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
+        :type method: str
+        :param ``**kwargs``: Additional keyword arguments to be passed to the minimization routine.
+                         see available parameters in ``scipy.optimize.minimize`` for details.
+        :returns: Minimum negative log-likelihood values and hyperparameters (numpy array with shape
+                  ``(D + 1,)``) used to obtain those values. The method also sets the current values
+                  of the hyperparameters to these optimal values and pre-computes the matrices needed
+                  to make predictions.
+        :rtype: tuple containing a float and an ndarray
+        """
         
         return self.learn_hyperparameters(n_tries, theta0, method, **kwargs)
     
     def learn_hyperparameters_normalapprox(self, n_samples = 1000):
-        "sample hyperparameters via MLE and then assuming a multivariate normal distribution around the MLE value"
+        """
+        Sample hyperparameters via a normal approximation around MLE solution
+        
+        Sample hyperparameters via a multivariate normal approximation around the MLE parameters.
+        This method first obtains an MLE estimate of the hyperparameters, and then draws
+        samples assuming the posterior follows an approximate normal distribution around the MLE
+        value. This is a reasonable approximation for most unimodal posterior distributions,
+        and it is computationally much cheaper than using full MCMC estimation. The local
+        covariance matrix is found by inverting the Hessian around the MLE parameters, and then
+        samples are generated using a multivariate normal distribution. Does not return a value,
+        but sets the ``samples`` class attribute to a 2D array with shape ``(n_samples, D + 1)``,
+        where the first dimension indicates the different samples and the second dimension specifies
+        the different hyperparameters.
+        
+        :param n_samples: Number of samples to be drawn. Must be a positive integer.
+        :type n_samples: int
+        :returns: None
+        """
         
         n_samples = int(n_samples)
         assert n_samples > 0
@@ -640,7 +715,48 @@ class GaussianProcess(object):
         self.samples = np.random.multivariate_normal(self.mle_theta, cov, size=n_samples)
         
     def learn_hyperparameters_MCMC(self, n_samples = 1000, thin = 0):
-        "sample hyperparameters using MCMC"
+        """
+        Sample hyperparameters via MCMC estimation
+        
+        Sample hyperparameters via MCMC estimation. Parameters are found by doing a random
+        walk in parameter space, choosing new points via the Metropolis-Hastings algorithm.
+        Steps are drawn from a multivariate normal distribution around the current parameters,
+        and the steps are accepted and rejected based on the marginal log-likelihood function.
+        The chain is started from the MLE parameter values, and the step sizes are estimated
+        by inverting the local Hessian at the MLE solution. Because of this, the MCMC chain
+        does not require a "burn-in" phase. Optional parameters specify the number of MCMC
+        steps to take (must be a positive integer, default is 1000) and information about
+        how to thin the MCMC chain to obtain uncorrelated samples.
+        
+        Thinning may be specified with a non-negative integer. If a positive integer is
+        given, the chain will be thinned by only keeping every ``thin`` steps. Note that
+        ``thin = 1`` means that the chain will not be thinned. If ``thin = 0`` is given
+        (the default value), the chain will automatically be thinned by computing the
+        autocorrelation of the chain for each parameter separately and estimating the value
+        needed to eliminate correlations in the chain. If the autothinning method fails
+        (usually occurrs if the posterior is multimodal), the chain will not be thinned
+        and a warning will be given. More details on the autothinning procedure are
+        described in the corresponding function.
+        
+        Does not return a value, but sets the ``samples`` class attribute to a 2D array with shape
+        ``(n_chain, D + 1)``, where the first dimension indicates the different samples and the
+        second dimension specifies the different hyperparameters. Note that ``n_chain``
+        will only be the same as ``n_samples`` if ``thin = 1`` is specified or if
+        autothinning fails. If you wish to obtain a specific number of samples in the thinned
+        chain, you will need to modify ``n_samples`` and ``thin`` appropriately.
+        
+        Note that at present, the return information from the MCMC sampler is not returned
+        or cached. The code does give a warning if a problem arises, in particular if the
+        acceptance rate is not within the target range of 20% to 60% or if the final MCMC
+        chain has a first lag autocorrelation that indicates samples may not be independent.
+        If either of these warnings occur, the MCMC chain may require further inspection.
+        At the moment, this can only be done by re-running the MCMC samples using the function
+        ``sample_MCMC`` in the ``MCMC`` submodule manually.
+        
+        :param n_samples: Number of MCMC steps to be taken. Must be a positive integer.
+        :type n_samples: int
+        :returns: None
+        """
 
         n_samples = int(n_samples)
         thin = int(thin)
@@ -667,7 +783,43 @@ class GaussianProcess(object):
                           " not within bounds. posterior may be multimodal or require thinning.")
 
     def _predict_single(self, testing, do_deriv = True, do_unc = True):
-        "predict for a single set of parameter values"
+        """
+        Make a prediction for a set of input vectors for a single set of hyperparameters
+        
+        Note that the class provides a public ``predict`` method which calls this method for the
+        appropriate case, so this should not need to be used in ordinary circumstances.
+        
+        Makes predictions for the emulator on a given set of input vectors. The input vectors
+        must be passed as a ``(n_predict, D)`` or ``(D,)`` shaped array-like object, where
+        ``n_predict`` is the number of different prediction points under consideration and
+        ``D`` is the number of inputs to the emulator. If the prediction inputs array has shape
+        ``(D,)``, then the method assumes ``n_predict == 1``. The prediction is returned as an
+        ``(n_predict, )`` shaped numpy array as the first return value from the method.
+        
+        Optionally, the emulator can also calculate the variances in the predictions 
+        and the derivatives with respect to each input parameter. If the uncertainties are
+        computed, they are returned as the second output from the method as an ``(n_predict,)``
+        shaped numpy array. If the derivatives are computed, they are returned as the third
+        output from the method as an ``(n_predict, D)`` shaped numpy array.
+        
+        :param testing: Array-like object holding the points where predictions will be made.
+                        Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
+        :type testing: ndarray
+        :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
+                         If ``False`` the method returns ``None`` in place of the derivative
+                         array. Default value is ``True``.
+        :type do_deriv: bool
+        :param do_unc: (optional) Flag indicating if the uncertainties are to be computed.
+                         If ``False`` the method returns ``None`` in place of the uncertainty
+                         array. Default value is ``True``.
+        :type do_unc: bool
+        :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
+                  respectively. Predictions and uncertainties have shape ``(n_predict,)``
+                  while the derivatives have shape ``(n_predict, D)``. If the ``do_unc`` or
+                  ``do_deriv`` flags are set to ``False``, then those arrays are replaced by
+                  ``None``.
+        :rtype: tuple
+        """
         
         testing = np.array(testing)
         if len(testing.shape) == 1:
@@ -698,7 +850,52 @@ class GaussianProcess(object):
         return mu, var, deriv
     
     def _predict_samples(self, testing, do_deriv = True, do_unc = True):
-        "predict from a set of samples"
+        """
+        Make a prediction for a set of input vectors for a set of hyperparameter posterior samples
+        
+        Note that the class provides a public ``predict`` method which calls this method for the
+        appropriate case, so this should not need to be used in ordinary circumstances.
+        
+        Makes predictions for the emulator on a given set of input vectors. The input vectors
+        must be passed as a ``(n_predict, D)`` or ``(D,)`` shaped array-like object, where
+        ``n_predict`` is the number of different prediction points under consideration and
+        ``D`` is the number of inputs to the emulator. If the prediction inputs array has shape
+        ``(D,)``, then the method assumes ``n_predict == 1``. The prediction is returned as an
+        ``(n_predict, )`` shaped numpy array as the first return value from the method.
+        
+        Optionally, the emulator can also calculate the variances in the predictions 
+        and the derivatives with respect to each input parameter. If the uncertainties are
+        computed, they are returned as the second output from the method as an ``(n_predict,)``
+        shaped numpy array. If the derivatives are computed, they are returned as the third
+        output from the method as an ``(n_predict, D)`` shaped numpy array.
+        
+        For this method to work, hyperparameter samples must have been drawn via the
+        ``learn_hyperparameters_normalapprox`` or ``learn_hyperparameters_MCMC``
+        methods. If samples have not been drawn, predictions fall back onto using the MLE
+        parameters as a single set of parameters. Note that the code does not save the inverted
+        covariance matrix for each set of hyperparameter samples, so these predictions can be
+        expensive for large numbers of samples or large numbers of inputs as the matrix inverse
+        must be computed for each hyperparameter samples. Predictions from a single set of
+        parameters used the cached matrix inverse, so these predictions are much more efficient.
+        
+        :param testing: Array-like object holding the points where predictions will be made.
+                        Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
+        :type testing: ndarray
+        :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
+                         If ``False`` the method returns ``None`` in place of the derivative
+                         array. Default value is ``True``.
+        :type do_deriv: bool
+        :param do_unc: (optional) Flag indicating if the uncertainties are to be computed.
+                         If ``False`` the method returns ``None`` in place of the uncertainty
+                         array. Default value is ``True``.
+        :type do_unc: bool
+        :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
+                  respectively. Predictions and uncertainties have shape ``(n_predict,)``
+                  while the derivatives have shape ``(n_predict, D)``. If the ``do_unc`` or
+                  ``do_deriv`` flags are set to ``False``, then those arrays are replaced by
+                  ``None``.
+        :rtype: tuple
+        """
         
         testing = np.array(testing)
         if len(testing.shape) == 1:
@@ -745,14 +942,30 @@ class GaussianProcess(object):
         ``(D,)``, then the method assumes ``n_predict == 1``. The prediction is returned as an
         ``(n_predict, )`` shaped numpy array as the first return value from the method.
         
-        Optionally, the emulator can also calculate the uncertainties in the predictions 
+        Optionally, the emulator can also calculate the variances in the predictions 
         and the derivatives with respect to each input parameter. If the uncertainties are
         computed, they are returned as the second output from the method as an ``(n_predict,)``
         shaped numpy array. If the derivatives are computed, they are returned as the third
         output from the method as an ``(n_predict, D)`` shaped numpy array.
         
-        As with the fitting, this computation can be done independently for each emulator
-        and thus can be done in parallel.
+        If predictions based on samples of the hyperparameters (drawn by either assuming a
+        normal posterior or using MCMC sampling) are desired, hyperparameter samples must have
+        been drawn via the ``learn_hyperparameters_normalapprox`` or ``learn_hyperparameters_MCMC``
+        methods. This is controlled by setting ``predict_from_samples = True``. If samples
+        have not been drawn, predictions fall back onto using the MLE parameters as a single set
+        of parameters. Default behavior is to use a single set of parameters. Note that the
+        code does not save the inverted covariance matrix for each set of hyperparameter
+        samples, so these predictions can be expensive for large numbers of samples or
+        large numbers of inputs as the matrix inverse must be computed for each hyperparameter
+        samples. Predictions from a single set of parameters used the cached matrix inverse,
+        so these predictions are much more efficient.
+        
+        If predictions from a single set of parameters are desired, and the GP does not have
+        a current set of parameters, the code raises an error. If the code does have a current
+        set of parameters but the MLE parameters have not been estimated, it gives a warning
+        but continues with the predictions using the current parameters. If it has current
+        parameters as well as MLE parameters but they differ, the code issues a warning but
+        continues with the predictions using the current parameters.
         
         :param testing: Array-like object holding the points where predictions will be made.
                         Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
@@ -765,10 +978,9 @@ class GaussianProcess(object):
                          If ``False`` the method returns ``None`` in place of the uncertainty
                          array. Default value is ``True``.
         :type do_unc: bool
-        :param processes: (optional) Number of processes to use when making the predictions.
-                          Must be a positive integer or ``None`` to use the number of
-                          processors on the computer (default is ``None``)
-        :type processes: int or None
+        :param predict_from_samples: (optional) Flag indicating if predictions are to be made
+                                     from samples. Default is ``False``
+        :type predict_from_samples: bool
         :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
                   respectively. Predictions and uncertainties have shape ``(n_predict,)``
                   while the derivatives have shape ``(n_predict, D)``. If the ``do_unc`` or
