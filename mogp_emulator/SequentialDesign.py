@@ -59,7 +59,7 @@ class SequentialDesign(object):
                   input array and return a single float or an array of length 1
         :type f: function or other callable
         :param n_samples: Number of sequential design points to be drawn. If specified, this must be
-                          a positive integer. Note that this is in addition to the number of initial
+                          a non-negative integer. Note that this is in addition to the number of initial
                           points, meaning that the total design size will be ``n_samples + n_init``. 
                           This can also be specified when running the full design. This parameter is
                           optional, and defaults to ``None`` (meaning the number of samples is set when
@@ -82,8 +82,8 @@ class SequentialDesign(object):
             if not len(signature(f).parameters) == 1:
                 raise ValueError("simulator f must accept all parameters as a single input array")
         
-        if (not n_samples == None) and int(n_samples) <= 0:
-            raise ValueError("number of samples must be positive")
+        if (not n_samples == None) and int(n_samples) < 0:
+            raise ValueError("number of samples must be nonzero")
                 
         if int(n_init) <= 0:
             raise ValueError("number of initial design points must be positive")
@@ -106,6 +106,84 @@ class SequentialDesign(object):
         self.targets = None
         self.candidates = None
     
+    def save_design(self, filename):
+        """
+        Save current state of the sequential design
+        
+        Saves the current state of the sequential design by writing the current
+        values of ``inputs``, ``targets``, and ``candidates`` to file as a ``.npz``
+        file. To re-load a saved design, use the ``load_design`` method.
+        
+        Note that this method only dumps the arrays holding the inputs, targets, and
+        candidates to a ``.npz`` file. It does not ensure that the function or base
+        design are consistent, so it is up to the user to ensure that the new design
+        parameters are the same as the parameters for the old one.
+        
+        :param filename: Filename or file object where design will be saved
+        :type filename: str or file
+        :returns: None
+        """
+        
+        design_dict = {}
+        design_dict['inputs'] = self.inputs
+        design_dict['targets'] = self.targets
+        design_dict['candidates'] = self.candidates
+                    
+        np.savez(filename, **design_dict)
+        
+    def load_design(self, filename):
+        """
+        Load previously saved sequential design
+        
+        Loads a previously saved sequential design from file. Loads the arrays for
+        ``inputs``, ``targets``, and ``candidates`` from file and sets other internal
+        data to be consistent. It performs a few checks for consistency to ensure
+        that the loaded design is compatible with the selected parameters, however,
+        it does not completely check everything for consistency (in particular, it does
+        not make any attempt to ensure that the exact base design or function are
+        identical to what was previously used). It is up to the user to ensure that
+        these are consistent with the previous instance of the design.
+        
+        :param filename: Filename or file object from which the design will be loaded
+        :type filename: str or file
+        :returns: None
+        """
+        
+        design_file = np.load(filename)
+        
+        self.inputs = np.array(design_file['inputs'])
+        if np.all(self.inputs) == None:
+            self.inputs = None
+        
+        self.targets = np.array(design_file['targets'])
+        if np.all(self.targets) == None:
+            self.targets = None
+        
+        self.candidates = np.array(design_file['candidates'])
+        if np.all(self.candidates) == None:
+            self.candidates = None
+
+        # perform some checks (note this is not exhaustive)
+        
+        if self.inputs is None:
+            assert self.targets is None, "Cannot have targets without corresponding inputs"
+        else:
+            if not self.targets is None:
+                assert self.targets.ndim == 1, "bad number of dimensions for targets"
+                assert self.targets.shape[0] <= self.inputs.shape[0], "targets cannot be longer than inputs"
+                self.initialized = True
+                self.current_iteration = self.targets.shape[0]
+            assert self.get_n_parameters() == self.inputs.shape[1], "Bad shape for inputs"
+            if self.inputs.shape[1] < self.n_init:
+                print("n_init greater than number of inputs, changing n_init")
+                self.n_init = self.inputs.shape[1]
+    
+        if not self.candidates is None:
+            assert self.get_n_parameters() == self.candidates.shape[1], "Bad shape for candidates"
+            if self.candidates.shape[0] != self.n_cand:
+                print("shape of candidates differs from n_cand, candidates will be overridden")
+        
+        
     def has_function(self):
         """
         Determines if class contains a function for running the simulator
@@ -298,7 +376,7 @@ class SequentialDesign(object):
         self.targets = np.array(targets)
         self.initialized = True
     
-    def run_init_design(self):
+    def run_initial_design(self):
         """
         Run initial design
         
@@ -317,7 +395,7 @@ class SequentialDesign(object):
         :rtype: None
         """
         
-        assert self.has_function(), "Design must have a bound function to use run_init_design"
+        assert self.has_function(), "Design must have a bound function to use run_initial_design"
         
         inputs = self.generate_initial_design()
         targets = np.full((self.n_init,), np.nan)
@@ -356,6 +434,57 @@ class SequentialDesign(object):
         """
         raise NotImplementedError("Base class for Sequential Design does not implement an evaluation metric")
     
+    def _estimate_next_target(self, next_point):
+        """
+        Estimate value of simulator for a point in a Sequential design
+        
+        This method is used for the batch version of a sequential design. Instead of updating
+        the targets with the known solution, this method is used to estimate the function
+        instead. This is method-specific, so this is not defined for the base class but instead
+        should be defined in the subclass. Returns an array of length 1 holding the prediction.
+        
+        :param next_point: Input to be simulated. Must be an array of shape ``(n_parameters,)``
+        :type next_point: ndarray
+        :returns: Estimated simulation value for the given input as an array of length 1
+        :rtype: ndarray
+        """
+        raise NotImplementedError("_estimate_next_point not implemented for base SequentialDesign")
+    
+    def get_batch_points(self, n_points):
+        """
+        Batch version of get_next_point for a Sequential Design
+        
+        This method returns a batch of design points to run from a Sequential Design. This is
+        useful if simulations can be run in parallel, which speeds up the ability to
+        generate designs efficiently. The method simply calls ``get_next_point`` the
+        required number of times, but rather than using the true value of the simulation
+        it instead substitutes the predicted value that is method-specific. This can be
+        implemented in a subclass by defining the method ``_estimate_next_target``.
+        
+        :param n_points: Size of batch to generate for the next set of simulation points.
+                         This parameter determines the shape of the output array. Must
+                         be a positive integer.
+        :type n_points: int
+        :returns: Set of batch points chosen using the batch version of the design
+                  as a numpy array with shape ``(n_points, n_parameters)``
+        :rtype: ndarray
+        """
+        
+        assert n_points > 0, "n_points must be positive"
+        
+        batch_points = np.zeros((n_points, self.get_n_parameters()))
+        
+        for i in range(n_points):
+            batch_points[i] = self.get_next_point()
+            next_target = self._estimate_next_target(batch_points[i])
+            self.set_next_target(next_target)
+            
+        self.current_iteration = self.current_iteration - n_points
+        new_targets = np.array(self.targets[:self.current_iteration])
+        self.targets = np.array(new_targets)
+        
+        return batch_points
+    
     def get_next_point(self):
         """
         Evaluate candidates to determine next point
@@ -392,6 +521,43 @@ class SequentialDesign(object):
         self.inputs = np.array(new_inputs)
         
         return next_point
+    
+    def set_batch_targets(self, new_targets):
+        """
+        Batch version of set_next_target for a Sequential Design
+        
+        This method updates the targets array for a batch set of simulations. The input
+        array must have shape ``(n_points,)``, where ``n_points`` is the number of points
+        selected when calling ``get_batch_points``. Disagreement between these two values
+        will result in an error.
+        
+        :param new_targets: Array holding results from the simulations. Must be an array
+                            of shape ``(n_points,)``, where ``n_points`` is set when
+                            calling ``get_batch_points``
+        :type new_targets: ndarray
+        :returns: None
+        """
+        if self.inputs is None:
+            raise ValueError("Initial design has not been generated")
+        else:
+            n_points = self.inputs.shape[0] - self.current_iteration
+            assert self.inputs.shape == (self.current_iteration + n_points, self.get_n_parameters()), "inputs have not been correctly updated"
+        
+        if self.targets is None:
+            raise ValueError("Initial targets have not been generated")
+        else:
+            assert self.targets.shape == (self.current_iteration,), "targets have not been correctly updated"
+        
+        new_targets = np.atleast_1d(np.array(new_targets))
+        new_targets = np.reshape(new_targets, (len(new_targets),))
+        assert new_targets.shape == (n_points,), "new targets must have length n_points"
+        
+        updated_targets = np.empty((self.current_iteration + n_points,))
+        updated_targets[:-n_points] = self.targets
+        updated_targets[-n_points:] = np.array(new_targets)
+        
+        self.targets = np.array(updated_targets)
+        self.current_iteration = self.current_iteration + n_points
     
     def set_next_target(self, target):
         """
@@ -466,14 +632,14 @@ class SequentialDesign(object):
         class instance or when calling this method. If a number of samples is provided on
         both occasions, then the number provided when calling ``run_sequential_design`` is used.
         
-        Internally, this method is a wrapper to ``run_init_design`` and then calling
+        Internally, this method is a wrapper to ``run_initial_design`` and then calling
         ``run_next_point`` a total of ``n_samples`` times. Note that this means that the total
         number of design points is ``n_init + n_samples``.
         
         :param n_samples: Number of sequential design steps to be run. Optional if the number was
                           specified upon initialization. Default is ``None`` (default to number
                           set when initializing). If numbers are provided on both occasions, the
-                          number set here is used. If a number is provided, must be positive.
+                          number set here is used. If a number is provided, must be non-negative.
         :type n_samples: int or None
         :returns: None
         :rtype: None
@@ -489,7 +655,9 @@ class SequentialDesign(object):
         else:
             n_iter = n_samples
             
-        self.run_init_design()
+        assert n_iter >= 0, "number of samples must be non-negative"
+
+        self.run_initial_design()
         
         for i in range(n_iter):
             self.run_next_point()
@@ -564,10 +732,8 @@ class MICEFastGP(GaussianProcess):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
-                      np.sqrt(exp_theta[: (self.D)]) * np.reshape(self.inputs[index, :], (1, self.D)), "sqeuclidean")
-
-        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        Ktest = self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
+                                     np.reshape(self.inputs[index, :], (1, self.D)), self.theta)
         
         invQ_mod = (self.invQ[indices][:, indices] -
                     1./self.invQ[index, index]*np.outer(self.invQ[indices, index], self.invQ[indices, index]))
@@ -658,7 +824,7 @@ class MICEDesign(SequentialDesign):
         self.nugget_s = float(nugget_s)
         
         super().__init__(base_design, f, n_samples, n_init, n_cand)
-        
+    
     def get_nugget(self):
         """
         Get value of nugget parameter for base GP
@@ -687,6 +853,26 @@ class MICEDesign(SequentialDesign):
         :rtype: float
         """
         return self.nugget_s
+    
+    def _estimate_next_target(self, next_point):
+        """
+        Estimate value of simulator for a point in a MICE design
+        
+        This method is used for the batch version of a sequential design. Instead of updating
+        the targets with the known solution, this method is used to estimate the function
+        instead. For the MICEDesign, this is just the prediction of the current design GP
+        for the point. Returns an array of length 1 holding the prediction.
+        
+        :param next_point: Input to be simulated. Must be an array of shape ``(n_parameters,)``
+        :type next_point: ndarray
+        :returns: Estimated simulation value for the given input as an array of length 1
+        :rtype: ndarray
+        """
+        
+        next_point = np.array(next_point)
+        assert next_point.shape == (self.get_n_parameters(),), "bad shape for next_point"
+        
+        return self.gp.predict(next_point)[0]
     
     def _MICE_criterion(self, data_point):
         """
@@ -740,11 +926,21 @@ class MICEDesign(SequentialDesign):
         :rtype: int
         """
         
-        self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
-        self.gp.learn_hyperparameters()
-        
-        self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), self.nugget_s)
-        self.gp_fast._set_params(self.gp.current_theta)
+        numtries = 10
+
+        for i in range(numtries):
+            try:
+                self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
+                self.gp.learn_hyperparameters()
+
+                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), np.exp(self.gp.current_theta[-1])*self.nugget_s)
+                self.gp_fast._set_params(self.gp.current_theta)
+                break
+            except FloatingPointError:
+                if i < numtries - 1:
+                    continue
+                else:
+                    raise FloatingPointError("Unable to find parameters suitable for both GPs")
         
         results = []
         

@@ -4,10 +4,10 @@
 The ``ExperimentalDesign`` Class
 **********************************
 
-.. automodule:: mogp_emulator.ExperimentalDesign
+.. automodule:: mogp_emulator.ExperimentalDesign.ExperimentalDesign
     :noindex:
 
-.. autoclass:: mogp_emulator.ExperimentalDesign
+.. autoclass:: mogp_emulator.ExperimentalDesign.ExperimentalDesign
     :members:
     
     .. automethod:: __init__

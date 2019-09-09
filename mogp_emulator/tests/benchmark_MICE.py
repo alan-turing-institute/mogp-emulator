@@ -18,6 +18,7 @@ a problem due to the inherent smoothness of the squared exponential covariance f
 import numpy as np
 from mogp_emulator import GaussianProcess
 from mogp_emulator import MICEDesign, MonteCarloDesign, LatinHypercubeDesign
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 from scipy.stats import uniform
 try:
     import matplotlib.pyplot as plt
@@ -25,7 +26,13 @@ try:
 except ImportError:
     makeplots = False
 
-problem = 'oscillatory'
+problem = 'branin'
+kernel = 'matern_5_2'
+
+if kernel == 'sqexp':
+    kernel = SquaredExponential()
+else:
+    kernel = Matern52()
 
 def branin_2d(x):
     "2D Branin function, see https://www.sfu.ca/~ssurjano/branin.html for more information"
@@ -113,7 +120,7 @@ def run_model(n_simulations, n_testing):
     print('running MICE')
     ed = LatinHypercubeDesign(design_space)
     
-    n_init = 4
+    n_init = 5
     
     md = MICEDesign(ed, f, n_samples = n_simulations - n_init, n_init = n_init, n_cand = 100)
     
@@ -125,19 +132,21 @@ def run_model(n_simulations, n_testing):
     print('fitting GPs')
     
     gp_mice = GaussianProcess(inputs_mice, np.squeeze(targets_mice))
+    gp_mice.kernel = kernel
     gp_mice.learn_hyperparameters()
     
     # run LHD model
     inputs, targets = generate_training_data(n_simulations)
     
     gp = GaussianProcess(inputs, targets)
+    gp.kernel = kernel
     gp.learn_hyperparameters()
-    
-    norm_const = np.mean(targets)
     
     print("making predictions")
 
     testing, test_targets = generate_test_data(n_testing)
+    
+    norm_const = np.max(test_targets)-np.min(test_targets)
     
     test_vals_mice, unc_mice, deriv = gp_mice.predict(testing, do_deriv = False, do_unc = True)
     test_vals, unc, deriv = gp.predict(testing, do_deriv = False, do_unc = True)
@@ -153,7 +162,7 @@ def plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testi
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, error_mice,'-o', label = 'MICE')
     plt.semilogy(simulation_list, error,'-x', label = 'LHD')
-    plt.xlabel('Number of simulations')
+    plt.xlabel('Number of design points')
     plt.ylabel('Average prediction RMSE')
     plt.legend()
     plt.title('Error for '+str(n_testing)+' predictions')
@@ -162,7 +171,7 @@ def plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testi
     plt.figure(figsize=(4,3))
     plt.semilogy(simulation_list, unc_mice,'-o', label = "MICE")
     plt.semilogy(simulation_list, unc,'-x', label = 'LHD')
-    plt.xlabel('Number of simulations')
+    plt.xlabel('Number of design points')
     plt.ylabel('Average prediction variance')
     plt.legend()
     plt.title('Uncertainty for '+str(n_testing)+' predictions')
@@ -193,12 +202,12 @@ def run_all_models(n_testing, simulation_list, n_iter = 10):
     
     print("\n")
     print("Convergence test results:")
-    print("Num. simulations    RMSE LHD            RMSE MICE")
+    print("Num. design points  RMSE LHD            RMSE MICE")
     for sim, err, mice_err in zip(simulation_list, error, error_mice):
         print('{:19} {:19} {:19}'.format(str(sim), str(err), str(mice_err)))
         
     print("\n")
-    print("Num. simulations    Variance LHD        Variance MICE")
+    print("Num. design points  Variance LHD        Variance MICE")
     for sim, un, mice_un in zip(simulation_list, unc, unc_mice):
         print('{:19} {:19} {:19}'.format(str(sim), str(un), str(mice_un)))
     
@@ -206,4 +215,4 @@ def run_all_models(n_testing, simulation_list, n_iter = 10):
         plot_model_errors(simulation_list, error, unc, error_mice, unc_mice, n_testing)
     
 if __name__ == '__main__':
-    run_all_models(100, [int(x) for x in simulations], n_iter = 1)
+    run_all_models(100, [int(x) for x in simulations], n_iter = 10)

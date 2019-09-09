@@ -1,4 +1,5 @@
 import numpy as np
+from .Kernel import SquaredExponential
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy import linalg
@@ -130,6 +131,8 @@ class GaussianProcess(object):
         self.D = self.inputs.shape[1]
         
         self.nugget = nugget
+        
+        self.kernel =  SquaredExponential()
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -352,12 +355,7 @@ class GaussianProcess(object):
         :returns: None
         """
         
-        exp_theta = np.exp(self.theta)
-        
-        self.Q = cdist(np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       "sqeuclidean")
-        self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
+        self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
         
         if self.nugget == None:
             L, nugget = self._jit_cholesky(self.Q)
@@ -427,7 +425,7 @@ class GaussianProcess(object):
         During normal use, the ``partial_devs`` method is called after evaluating the
         ``loglikelihood`` method. The implementation takes advantage of this by storing
         the inverse of the covariance matrix, which is expensive to compute and is used
-        by both the ``loglikelihood`` and ``partial_devs`` methods. If the function
+        by the ``loglikelihood``, ``partial_devs``, and ``hessian`` methods. If the function
         is evaluated with a different set of parameters than was previously used to set
         the log-likelihood, the method calls ``_set_params`` to compute the needed
         information. However, caling ``partial_devs`` does not evaluate the log-likelihood,
@@ -445,15 +443,56 @@ class GaussianProcess(object):
             
         partials = np.zeros(self.D + 1)
         
-        for d in range(self.D):
-            dKdtheta = 0.5 * cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
-                                   np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean") * self.Q
-            partials[d] = (0.5 * np.exp(self.theta[d]) * (np.dot(self.invQt, np.dot(dKdtheta, self.invQt))
-                           - np.sum(self.invQ * dKdtheta)))
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
         
-        partials[self.D] = -0.5 * (np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ * self.Q))
+        for d in range(self.D + 1):
+            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
         
         return partials
+        
+    def hessian(self, theta):
+        """
+        Calculate the Hessian of the negative log-likelihood
+        
+        Calculate the Hessian of the negative log-likelihood with respect to
+        the hyperparameters. Note that this function is normally used only when fitting
+        the hyperparameters, and it is not needed to make predictions. It is also used
+        to estimate an appropriate step size when fitting hyperparameters using
+        the lognormal approximation or MCMC sampling.
+        
+        When used in an optimization routine, the ``hessian`` method is called after
+        evaluating the ``loglikelihood`` method. The implementation takes advantage of
+        this by storing the inverse of the covariance matrix, which is expensive to
+        compute and is used by the ``loglikelihood`` and ``partial_devs`` methods as well.
+        If the function is evaluated with a different set of parameters than was previously
+        used to set the log-likelihood, the method calls ``_set_params`` to compute the needed
+        information. However, caling ``hessian`` does not evaluate the log-likelihood,
+        so it does not change the cached values of the parameters or log-likelihood.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-likelihood (array with shape
+                  ``(D + 1, D + 1)``)
+        :rtype: ndarray
+        """
+        
+        if not np.allclose(np.array(theta), self.theta):
+            self._set_params(theta)
+            
+        hessian = np.zeros((self.D + 1, self.D + 1))
+        
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
+        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
+        
+        for d1 in range(self.D + 1):
+            for d2 in range(self.D + 1):
+                hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt, 
+                                        2.*np.linalg.multi_dot([dKdtheta[d1], self.invQ, dKdtheta[d2]])-d2Kdtheta2[d1, d2],
+                                        self.invQt])-
+                                        np.trace(np.linalg.multi_dot([self.invQ, dKdtheta[d1], self.invQ, dKdtheta[d2]])
+                                                 -np.dot(self.invQ, d2Kdtheta2[d1, d2])))
+                
+        return hessian
     
     def _learn(self, theta0, method = 'L-BFGS-B', **kwargs):
         """
@@ -628,16 +667,13 @@ class GaussianProcess(object):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * self.inputs,
-                      np.sqrt(exp_theta[: (self.D)]) * testing, "sqeuclidean")
-
-        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
 
         mu = np.dot(Ktest.T, self.invQt)
         
         var = None
         if do_unc:
-            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
+            var = np.maximum(exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0), 0.)
         
         deriv = None
         if do_deriv:
@@ -658,3 +694,4 @@ class GaussianProcess(object):
         """
         
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"
+        

@@ -2,7 +2,7 @@ from tempfile import TemporaryFile
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from .. import GaussianProcess
+from ..GaussianProcess import GaussianProcess
 from scipy import linalg
 
 def test_GaussianProcess_init():
@@ -433,6 +433,123 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(new_theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
 
+def test_GaussianProcess_hessian():
+    "test the hessian method of GaussianProcess"
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    dtheta = 1.e-6
+    hessian_expected = np.zeros((4, 4))
+    hessian_expected[0, 0] = -1.0158836934314412
+    hessian_expected[0, 1] = -0.550852654584278
+    hessian_expected[0, 2] = -0.2896355405877978
+    hessian_expected[0, 3] = -0.5221446503589787
+    hessian_expected[1, 0] = -0.550852654584278
+    hessian_expected[1, 1] = -0.3605958354413885
+    hessian_expected[1, 2] = -0.36835202261668
+    hessian_expected[1, 3] = -0.384353092048885
+    hessian_expected[2, 0] = -0.2896355405877978
+    hessian_expected[2, 1] = -0.36835202261668
+    hessian_expected[2, 2] = -0.0713607346004307
+    hessian_expected[2, 3] = -0.216844530304092
+    hessian_expected[3, 0] = -0.5221446503589788
+    hessian_expected[3, 1] = -0.384353092048885
+    hessian_expected[3, 2] = -0.21684453030409206
+    hessian_expected[3, 3] = 14.251171470190169
+    hessian_fd = np.zeros((4, 4))
+    hessian_fd[0, 0] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[0])/dtheta
+    hessian_fd[0, 1] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[0])/dtheta
+    hessian_fd[0, 2] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[0])/dtheta
+    hessian_fd[0, 3] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[0])/dtheta
+    hessian_fd[1, 0] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[1])/dtheta
+    hessian_fd[1, 1] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[1])/dtheta
+    hessian_fd[1, 2] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[1])/dtheta
+    hessian_fd[1, 3] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[1])/dtheta
+    hessian_fd[2, 0] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[2])/dtheta
+    hessian_fd[2, 1] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[2])/dtheta
+    hessian_fd[2, 2] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[2])/dtheta
+    hessian_fd[2, 3] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[2])/dtheta
+    hessian_fd[3, 0] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[3])/dtheta
+    hessian_fd[3, 1] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[3])/dtheta
+    hessian_fd[3, 2] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[3])/dtheta
+    hessian_fd[3, 3] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[3])/dtheta
+    hessian_actual = gp.hessian(theta)
+    assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
+    assert_allclose(hessian_actual, hessian_fd, rtol = 1.e-5, atol = 1.e-8)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = -1.*np.ones(4)
+    gp._set_params(theta)
+    dtheta = 2.e-5
+    hessian_expected = np.zeros((4,4))
+    hessian_expected[0, 0] = 2.425105736706968
+    hessian_expected[0, 1] = -0.7592369859894426
+    hessian_expected[0, 2] = 0.08478040182448324
+    hessian_expected[0, 3] = -5.582509570382468
+    hessian_expected[1, 0] = -0.7592369859894423
+    hessian_expected[1, 1] = 2.1779257865718
+    hessian_expected[1, 2] = -0.5537146428134243
+    hessian_expected[1, 3] = -3.6647301216097365
+    hessian_expected[2, 0] = 0.08478040182448301
+    hessian_expected[2, 1] = -0.5537146428134241
+    hessian_expected[2, 2] = 1.5652039104733786
+    hessian_expected[2, 3] = -1.8439118038868478
+    hessian_expected[3, 0] = -5.582509570382468
+    hessian_expected[3, 1] = -3.664730121609735
+    hessian_expected[3, 2] = -1.8439118038868476
+    hessian_expected[3, 3] = 30.208300617396674
+    hessian_actual = gp.hessian(theta)
+    hessian_fd = np.zeros((4, 4))
+    hessian_fd[0, 0] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[0])/dtheta
+    hessian_fd[0, 1] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[0])/dtheta
+    hessian_fd[0, 2] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[0])/dtheta
+    hessian_fd[0, 3] = (gp.partial_devs(theta)[0]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[0])/dtheta
+    hessian_fd[1, 0] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[1])/dtheta
+    hessian_fd[1, 1] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[1])/dtheta
+    hessian_fd[1, 2] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[1])/dtheta
+    hessian_fd[1, 3] = (gp.partial_devs(theta)[1]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[1])/dtheta
+    hessian_fd[2, 0] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[2])/dtheta
+    hessian_fd[2, 1] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[2])/dtheta
+    hessian_fd[2, 2] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[2])/dtheta
+    hessian_fd[2, 3] = (gp.partial_devs(theta)[2]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[2])/dtheta
+    hessian_fd[3, 0] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([dtheta, 0., 0., 0.]))[3])/dtheta
+    hessian_fd[3, 1] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., dtheta, 0., 0.]))[3])/dtheta
+    hessian_fd[3, 2] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., 0., dtheta, 0.]))[3])/dtheta
+    hessian_fd[3, 3] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[3])/dtheta
+    assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
+    assert_allclose(hessian_actual, hessian_fd, rtol = 2.e-4, atol = 1.e-8)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    new_theta = np.ones(4)
+    hessian_expected = np.zeros((4, 4))
+    hessian_expected[0, 0] = -0.0010297819788006634
+    hessian_expected[0, 1] = -0.0007149385821463147
+    hessian_expected[0, 2] = -0.0002995290148774177
+    hessian_expected[0, 3] = -0.0001765500790860304
+    hessian_expected[1, 0] = -0.0007149385821463147
+    hessian_expected[1, 1] = -0.0007779100486468533
+    hessian_expected[1, 2] = -0.0004766253650867711
+    hessian_expected[1, 3] = -0.00017534323660931483
+    hessian_expected[2, 0] = -0.0002995290148774177
+    hessian_expected[2, 1] = -0.00047662536508677103
+    hessian_expected[2, 2] = -0.00027159517134287816
+    hessian_expected[2, 3] = -9.267617781552426e-05
+    hessian_expected[3, 0] = -0.0001765500790860304
+    hessian_expected[3, 1] = -0.00017534323660931483
+    hessian_expected[3, 2] = -9.267617781552426e-05
+    hessian_expected[3, 3] = 5.334215961850198
+    hessian_actual = gp.hessian(new_theta)
+    assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
+
 def test_GaussianProcess_learn():
     "Test the _learn method of GaussianProcess"
     
@@ -445,12 +562,7 @@ def test_GaussianProcess_learn():
     min_theta_actual, min_loglikelihood_actual = gp._learn(theta)
     assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
-    
-    min_theta_expected = np.array([ -2.7701167931095463, -20.181657894856162 , -21.27146085457964 , 2.0359426902424462])
-    min_loglikelihood_expected = 4.457233396431864
-    min_theta_actual, min_loglikelihood_actual = gp._learn(theta, method = 'CG')
-    assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-4)
-    assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
+
         
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
@@ -563,3 +675,4 @@ def test_GaussianProcess_str():
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
+    
