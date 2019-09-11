@@ -118,6 +118,13 @@ using 1, 2, 4, and 8 processess and notes the time required to perform the fitti
 will depend on the number of cores on the computer -- once you exceed the number of cores, the performance
 will degrade. As with the other benchmarks, Matplotlib can optionally be used to plot the results.
 
+##### MCMC Benchmark
+
+A benchmark applying the software to fitting an emulator with MCMC sampling is included. The code
+draws hyperparameter samples and compares the resulting posterior distributions with the values
+found via maximum likelihood estimation. If Matplotlib is installed, a histogram of the parameter
+samples is shown.
+
 ### Documentation
 
 Building the documentation requires Sphinx/autodoc. In the `docs` directory, simply type:
