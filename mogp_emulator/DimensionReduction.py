@@ -88,6 +88,7 @@ def gram_matrix(X, k):
     ## that dist(x,x) == 0, which might not be the case for an arbitrary k.
     return cdist(X, X, k)
 
+
 def gram_matrix_sqexp(X, sigma2):
     r"""Computes the Gram matrix of `X` under the squared expontial kernel.
     Equivalent to, but more efficient than, calling ``gram_matrix(X,
@@ -135,7 +136,7 @@ class gKDR(object):
     Python/NumPy.  It is due to be replaced with a Fortran
     implementation, but this should not affect the interface.
     """
-    
+
     def __init__(self, X, Y, K, EPS=1E-8, SGX=None, SGY=None):
         """Create a gKDR object
         
@@ -194,28 +195,28 @@ class gKDR(object):
 
         Kx = gram_matrix_sqexp(X, SGX2)
         Ky = gram_matrix_sqexp(Y, SGY2)
-        
-        Dx = np.reshape(np.tile(X,(N,1)), (N,N,M), order='F').copy()
-        Xij = Dx - np.transpose(Dx, (1,0,2))
+
+        Dx = np.reshape(np.tile(X, (N, 1)), (N, N, M), order='F').copy()
+        Xij = Dx - np.transpose(Dx, (1, 0, 2))
         Xij = Xij / SGX2
-        H = Xij * np.tile(Kx[:,:,np.newaxis], (1,1,M))
-        
+        H = Xij * np.tile(Kx[:, :, np.newaxis], (1, 1, M))
+
         tmp = np.linalg.solve(Kx + N*EPS*I, Ky)
         F = np.linalg.solve((Kx + N*EPS*I).T, tmp.T).T
 
-        Hm = np.reshape(H,(N,N*M), order='F')       
-        HH = np.reshape(Hm.T @ Hm, (N,M,N,M), order='F')      
-        HHm = np.reshape(np.transpose(HH, (0,2,1,3)), (N*N,M,M), order='F')
-        Fm = np.tile(np.reshape(F, (N*N,1,1), order='F'), (1,M,M))
-        R = np.reshape(np.sum(HHm * Fm, 0), (M,M), order='F')
-        
+        Hm = np.reshape(H, (N, N*M), order='F')
+        HH = np.reshape(Hm.T @ Hm, (N, M, N, M), order='F')
+        HHm = np.reshape(np.transpose(HH, (0, 2, 1, 3)), (N*N, M, M),
+                         order='F')
+        Fm = np.tile(np.reshape(F, (N*N, 1, 1), order='F'), (1, M, M))
+        R = np.reshape(np.sum(HHm * Fm, 0), (M, M), order='F')
+
         L, V = np.linalg.eig(R)
         idx = np.argsort(L, 0)[::-1] # sort descending
 
         self.K = K
         self.B = V[:, idx]
 
-        
     def __call__(self, X):
         """Calling a gKDR object with a vector of N inputs returns the inputs
         mapped to the reduced space.
@@ -226,4 +227,4 @@ class gKDR(object):
         :rtype: ndarray, of shape `(N, K)`
         :returns:  `N` coordinates (rows) in the reduced `K`-dimensional space
         """
-        return X @ self.B[:,0:self.K]
+        return X @ self.B[:, 0:self.K]
