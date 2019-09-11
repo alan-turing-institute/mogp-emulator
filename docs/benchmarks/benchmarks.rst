@@ -8,4 +8,4 @@ GP Emulator Benchmarks
    rosenbrock
    branin
    tsunami
-   mcmc
+   mcmc_benchmark
