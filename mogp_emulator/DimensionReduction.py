@@ -188,7 +188,7 @@ class gKDR(object):
         if SGY is None:
             SGY = median_dist(Y)
 
-        I = np.eye(N)
+        eye = np.eye(N)
 
         SGX2 = max(SGX*SGX, sys.float_info.min)
         SGY2 = max(SGY*SGY, sys.float_info.min)
@@ -201,8 +201,8 @@ class gKDR(object):
         Xij = Xij / SGX2
         H = Xij * np.tile(Kx[:, :, np.newaxis], (1, 1, M))
 
-        tmp = np.linalg.solve(Kx + N*EPS*I, Ky)
-        F = np.linalg.solve((Kx + N*EPS*I).T, tmp.T).T
+        tmp = np.linalg.solve(Kx + N*EPS*eye, Ky)
+        F = np.linalg.solve((Kx + N*EPS*eye).T, tmp.T).T
 
         Hm = np.reshape(H, (N, N*M), order='F')
         HH = np.reshape(Hm.T @ Hm, (N, M, N, M), order='F')
