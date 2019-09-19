@@ -8,5 +8,6 @@ formats: all
 python:
   version: 3.6
   install:
-    - method: setuptools
     - requirements: requirements.txt
+    - method: setuptools
+      path: package
