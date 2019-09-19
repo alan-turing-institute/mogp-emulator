@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
 from scipy import linalg
+from numpy.testing import assert_allclose
 from .. import gKDR
+from ..DimensionReduction import median_dist, gram_matrix_sqexp, gram_matrix
 from .. import GaussianProcess
 
 def test_DimensionReduction_basic():
@@ -43,3 +45,51 @@ def test_DimensionReduction_GP():
     # check that the fit was reasonable in both cases
     assert(np.max(np.abs(Ynew - Yexpect)) <= 0.02)
     assert(np.max(np.abs(Ynew_red - Yexpect)) <= 0.02)
+
+
+def test_DimensionReduction_B():
+    """Test that a dimension reduction gives the same result as a
+    pre-computed result from the Fukumizu matlab code (see
+    [Fukumizu1]_)."""
+
+    X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    Y = np.array([0.1, 1.0, 3.0, 3.6])
+    dr = gKDR(X,Y,2,SGX=1.0,SGY=2.0)
+
+    B_expected = np.array([[-0.2653073259794961, -0.9641638982982144],
+                           [-0.9641638982982144,  0.2653073259794961]])
+    
+    for i in range(B_expected.shape[1]):
+        assert_allclose((dr.B[:,i]/B_expected[:,i])**2, 1.0)
+
+def test_DimensionReduction_median_dist():
+    X1 = np.array([[0.0], [1.0], [2.0]])
+    assert_allclose(median_dist(X1), 1)
+
+    X2 = np.array([[0.0], [1.0], [2.0], [3.0]])
+    assert_allclose(median_dist(X2), 1.5)
+
+def test_DimensionReduction_gram_matrix():
+    X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    def k_dot(x0, x1):
+        return np.dot(x0, x1)
+
+    def k_sqexp(x0, x1):
+        d = x0 - x1
+        return np.exp(-0.5 * np.dot(d, d))
+    
+    G_dot = gram_matrix(X, k_dot)
+    assert_allclose(G_dot, np.array([[0.0, 0.0, 0.0, 0.0],
+                                     [0.0, 1.0, 0.0, 1.0],
+                                     [0.0, 0.0, 1.0, 1.0],
+                                     [0.0, 1.0, 1.0, 2.0]]))
+
+    G_sqexp1 = gram_matrix_sqexp(X, 1.0)
+    G_sqexp2 = gram_matrix(X, k_sqexp)
+    G_sqexp_expected = np.exp(np.array([[ 0.0, -0.5, -0.5, -1.0],
+                                        [-0.5,  0.0, -1.0, -0.5],
+                                        [-0.5, -1.0,  0.0, -0.5],
+                                        [-1.0, -0.5, -0.5,  0.0]]))
+
+    assert_allclose(G_sqexp1, G_sqexp_expected)
+    assert_allclose(G_sqexp2, G_sqexp_expected)

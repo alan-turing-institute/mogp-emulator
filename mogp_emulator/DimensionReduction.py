@@ -68,7 +68,7 @@ regression on the reduced input space:
 """
 
 import numpy as np
-from scipy.spatial.distance import pdist, squareform
+from scipy.spatial.distance import cdist, pdist, squareform
 
 def gram_matrix(X, k):
     """Computes the Gram matrix of `X`
@@ -83,7 +83,9 @@ def gram_matrix(X, k):
     :returns: The gram matrix of `X` under the kernel `k`, that is,
               :math:`G_{ij} = k(X_i, X_j)`
     """
-    return squareform(pdist(X, k))
+    ## note: do not use squareform(pdist(X, k)) here, since it assumes
+    ## that dist(x,x) == 0, which might not be the case for an arbitrary k.
+    return cdist(X, X, k)
 
 def gram_matrix_sqexp(X, sigma2):
     """Computes the Gram matrix of `X` under the squared expontial kernel.
