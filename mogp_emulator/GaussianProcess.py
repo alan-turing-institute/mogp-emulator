@@ -1,7 +1,6 @@
 import numpy as np
 from .Kernel import SquaredExponential
 from scipy.optimize import minimize
-from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
@@ -36,7 +35,7 @@ class GaussianProcess(object):
         >>> gp.get_D()
         3
         >>> np.random.seed(47)
-        >>> mogp.learn_hyperparameters()
+        >>> gp.learn_hyperparameters()
         (5.140462159403397, array([-13.02460687,  -4.02939647, -39.2203646 ,   3.25809653]))
         >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
         >>> gp.predict(x_predict)
