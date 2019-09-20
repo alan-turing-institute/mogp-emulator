@@ -67,6 +67,7 @@ regression on the reduced input space:
 
 """
 
+import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
 
@@ -153,24 +154,32 @@ class gKDR(object):
         :param K: The number of reduced dimensions to use (`0 <= K <= M`).
 
         :type EPS: float
-        :param EPS: The regularization parameter, default `1e-08`.
+        :param EPS: The regularization parameter, default `1e-08`; `EPS >= 0`
 
         :type SGX: float | NoneType
-        :param SGX: Optional, default `None`.  The kernel parameter representing the 
+        :param SGX: Optional, default `None`. The kernel parameter representing the 
                     scale of variation on the input space.  If `None`, then the median distance
                     between pairs of input points (`X`) is used (as computed by
-                    :func:`mogp_emulator.DimensionReduction.median_dist`)
+                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
+                    passed, then this must be positive.
  
         :type SGY: float | NoneType
-        :param SGY: Optional, default `None`.  Optional, default `None`.  The kernel
-                     parameter representing the scale of variation on the output space.  If
-                     `None`, then the median distance between pairs of output values (`Y`) is used (as
-                     computed by :func:`mogp_emulator.DimensionReduction.median_dist`)
+        :param SGY: Optional, default `None`. The kernel parameter representing the 
+                    scale of variation on the output space.  If `None`, then the median distance
+                    between pairs of output values (`Y`) is used (as computed by
+                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
+                    passed, then this must be positive.
         """
-        
+
         ## Note: see the Matlab implementation ...
+
         N, M = np.shape(X)
 
+        assert(K >= 0 and K <= M)
+        assert(EPS >= 0)
+        assert(SGX > 0.0)
+        assert(SGY > 0.0)
+        
         Y = np.reshape(Y, (N,1))
         
         if SGX is None:
@@ -180,8 +189,8 @@ class gKDR(object):
 
         I = np.eye(N)
 
-        SGX2 = SGX*SGX
-        SGY2 = SGY*SGY
+        SGX2 = max(SGX*SGX, sys.float_info.min)
+        SGY2 = max(SGY*SGY, sys.float_info.min)
 
         Kx = gram_matrix_sqexp(X, SGX2)
         Ky = gram_matrix_sqexp(Y, SGY2)
