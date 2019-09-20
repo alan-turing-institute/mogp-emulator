@@ -149,7 +149,7 @@ class SequentialDesign(object):
         :returns: None
         """
         
-        design_file = np.load(filename)
+        design_file = np.load(filename, allow_pickle=True)
         
         self.inputs = np.array(design_file['inputs'])
         if np.all(self.inputs) == None:

@@ -154,7 +154,7 @@ class GaussianProcess(object):
                 a float (if no theta values are found in the emulator file)
         """
         
-        emulator_file = np.load(filename)
+        emulator_file = np.load(filename, allow_pickle=True)
         
         try:
             inputs = np.array(emulator_file['inputs'])
@@ -693,4 +693,3 @@ class GaussianProcess(object):
         """
         
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"
-        
