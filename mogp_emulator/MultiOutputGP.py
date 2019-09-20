@@ -169,7 +169,7 @@ class MultiOutputGP(object):
                 are found in the emulator file)
         """
 
-        emulator_file = np.load(filename)
+        emulator_file = np.load(filename, allow_pickle=True)
         
         try:
             inputs = np.array(emulator_file['inputs'])
