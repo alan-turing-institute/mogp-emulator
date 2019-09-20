@@ -88,7 +88,7 @@ def gram_matrix(X, k):
     return cdist(X, X, k)
 
 def gram_matrix_sqexp(X, sigma2):
-    """Computes the Gram matrix of `X` under the squared expontial kernel.
+    r"""Computes the Gram matrix of `X` under the squared expontial kernel.
     Equivalent to, but more efficient than, calling ``gram_matrix(X,
     k_sqexp)``
 
