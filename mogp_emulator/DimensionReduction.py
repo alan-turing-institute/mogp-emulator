@@ -177,9 +177,9 @@ class gKDR(object):
 
         assert(K >= 0 and K <= M)
         assert(EPS >= 0)
-        assert(SGX > 0.0)
-        assert(SGY > 0.0)
-        
+        assert(SGX > 0.0 or SGX is None)
+        assert(SGY > 0.0 or SGY is None)
+
         Y = np.reshape(Y, (N,1))
         
         if SGX is None:
