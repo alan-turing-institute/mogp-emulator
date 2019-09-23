@@ -156,11 +156,23 @@ class GPGPU(object):
     
             
     def predict(self, xnew):
-        assert(xnew.shape == (self.Ninput,))
+        if xnew.ndim == 1:
+            assert(xnew.shape == (self.Ninput,))
         
-        return self._call_gpu(
-            lambda xnew: self._lib_wrapper._predict(self.handle, xnew),
-            __name__, xnew)
+            return self._call_gpu(
+                lambda xnew: self._lib_wrapper._predict(self.handle, xnew),
+                __name__, xnew)
+
+        ## until _predict_batch is implemented, use a simple loop
+        elif xnew.ndim == 2:
+            assert(xnew.shape[1] == self.Ninput)
+            Npredict = xnew.shape[0]
+            result = np.zeros(Npredict)
+            for i in range(Npredict):
+                result[i] = self._call_gpu(
+                    lambda xnew: self._lib_wrapper._predict(self.handle, xnew[i,:]),
+                    __name__, xnew)
+            return result
 
 
     def update_theta(self, theta, invQt):
