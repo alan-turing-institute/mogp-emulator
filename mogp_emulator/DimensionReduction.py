@@ -71,6 +71,7 @@ import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
 
+
 def gram_matrix(X, k):
     """Computes the Gram matrix of `X`
 
@@ -147,7 +148,7 @@ class gKDR(object):
 
         :type X: ndarray, of shape (N, M)
         :param X: `N` rows of `M` dimensional input vectors
-        
+
         :type Y: ndarray, of shape (N,)
         :param Y: `N` response values
 
@@ -214,7 +215,7 @@ class gKDR(object):
         R = np.reshape(np.sum(HHm * Fm, 0), (M, M), order='F')
 
         L, V = np.linalg.eig(R)
-        idx = np.argsort(L, 0)[::-1] # sort descending
+        idx = np.argsort(L, 0)[::-1]  # sort descending
 
         self.K = K
         self.B = V[:, idx]
