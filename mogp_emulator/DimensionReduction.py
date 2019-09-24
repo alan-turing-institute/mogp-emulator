@@ -1,6 +1,6 @@
 """This module provides classes and utilities for performing dimension
-reduction.  Currently there is a single class :class:`mogp_emulator.gKDR` which implements
-the method of Fukumizu and Leng [FL13]_.
+reduction.  Currently there is a single class :class:`mogp_emulator.gKDR` which
+implements the method of Fukumizu and Leng [FL13]_.
 
 Example: ::
 
@@ -13,12 +13,12 @@ Example: ::
   >>> dr(xnew)
   array([0.60092477])
 
-In this example, the reduction was performed from a two- to a
-one-dimensional input space.  The value returned by ``dr(xnew)`` is
-the input coordinate `xnew` transformed to the reduced space.
+In this example, the reduction was performed from a two- to a one-dimensional
+input space.  The value returned by ``dr(xnew)`` is the input coordinate `xnew`
+transformed to the reduced space.
 
-The following example illustrates how to perform Gaussian process
-regression on the reduced input space:
+The following example illustrates how to perform Gaussian process regression on
+the reduced input space:
 
 ::
 
@@ -84,8 +84,8 @@ def gram_matrix(X, k):
     :returns: The gram matrix of `X` under the kernel `k`, that is,
               :math:`G_{ij} = k(X_i, X_j)`
     """
-    ## note: do not use squareform(pdist(X, k)) here, since it assumes
-    ## that dist(x,x) == 0, which might not be the case for an arbitrary k.
+    # note: do not use squareform(pdist(X, k)) here, since it assumes
+    # that dist(x,x) == 0, which might not be the case for an arbitrary k.
     return cdist(X, X, k)
 
 
@@ -102,8 +102,9 @@ def gram_matrix_sqexp(X, sigma2):
     :param sigma2: The variance parameter of the squared exponential kernel
 
     :returns: The gram matrix of `X` under the squared exponential
-              kernel `k_sqexp` with variance parameter `sigma2` (:math:`=\sigma^2`), that
-              is, :math:`G_{ij} = k_{sqexp}(X_i, X_j; \sigma^2)`
+              kernel `k_sqexp` with variance parameter `sigma2`
+              (:math:`=\sigma^2`), that is, :math:`G_{ij} = k_{sqexp}(X_i, X_j;
+              \sigma^2)`
 
     """
     return np.exp(-0.5 * squareform(pdist(X, 'sqeuclidean')) / sigma2)
@@ -120,31 +121,30 @@ class gKDR(object):
 
     """Dimension reduction by the gKDR method.
 
-    See link [Fukumizu1]_ (and in particular, [FL13]_) for details of
-    the method.
+    See link [Fukumizu1]_ (and in particular, [FL13]_) for details of the
+    method.
 
-    Note that this is a simpler and faster method than the original
-    "KDR" method by the same authors (but with an added
-    approximation).  The KDR method will be implemented separately.
+    Note that this is a simpler and faster method than the original "KDR"
+    method by the same authors (but with an added approximation).  The KDR
+    method will be implemented separately.
 
-    An instance of this class is callable, with the ``__call__``
-    method taking an input coordinate and mapping it to a reduced
-    coordinate.
+    An instance of this class is callable, with the ``__call__`` method taking
+    an input coordinate and mapping it to a reduced coordinate.
 
-    Note that this class currently implements a *direct* translation
-    of the Matlab implementation of KernelDeriv (see link above) into
-    Python/NumPy.  It is due to be replaced with a Fortran
-    implementation, but this should not affect the interface.
+    Note that this class currently implements a *direct* translation of the
+    Matlab implementation of KernelDeriv (see link above) into Python/NumPy.
+    It is due to be replaced with a Fortran implementation, but this should not
+    affect the interface.
     """
 
     def __init__(self, X, Y, K, EPS=1E-8, SGX=None, SGY=None):
         """Create a gKDR object
-        
-        Given some `M`-dimensional inputs (explanatory variables) `X`,
-        and corresponding one-dimensional outputs (responses) `Y`, use
-        the gKDR method to produce a reduced version of the input
-        space with `K` dimensions.
-        
+
+        Given some `M`-dimensional inputs (explanatory variables) `X`, and
+        corresponding one-dimensional outputs (responses) `Y`, use the gKDR
+        method to produce a reduced version of the input space with `K`
+        dimensions.
+
         :type X: ndarray, of shape (N, M)
         :param X: `N` rows of `M` dimensional input vectors
         
@@ -158,21 +158,23 @@ class gKDR(object):
         :param EPS: The regularization parameter, default `1e-08`; `EPS >= 0`
 
         :type SGX: float | NoneType
-        :param SGX: Optional, default `None`. The kernel parameter representing the 
-                    scale of variation on the input space.  If `None`, then the median distance
-                    between pairs of input points (`X`) is used (as computed by
-                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
-                    passed, then this must be positive.
- 
+        :param SGX: Optional, default `None`. The kernel parameter representing
+                    the scale of variation on the input space.  If `None`, then
+                    the median distance between pairs of input points (`X`) is
+                    used (as computed by
+                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If
+                    a float is passed, then this must be positive.
+
         :type SGY: float | NoneType
-        :param SGY: Optional, default `None`. The kernel parameter representing the 
-                    scale of variation on the output space.  If `None`, then the median distance
-                    between pairs of output values (`Y`) is used (as computed by
-                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
-                    passed, then this must be positive.
+        :param SGY: Optional, default `None`. The kernel parameter representing
+                    the scale of variation on the output space.  If `None`,
+                    then the median distance between pairs of output values
+                    (`Y`) is used (as computed by
+                    :func:`mogp_emulator.DimensionReduction.median_dist`).  If
+                    a float is passed, then this must be positive.
         """
 
-        ## Note: see the Matlab implementation ...
+        # Note: see the Matlab implementation ...
 
         N, M = np.shape(X)
 
@@ -181,8 +183,8 @@ class gKDR(object):
         assert(SGX is None or SGX > 0.0)
         assert(SGY is None or SGY > 0.0)
 
-        Y = np.reshape(Y, (N,1))
-        
+        Y = np.reshape(Y, (N, 1))
+
         if SGX is None:
             SGX = median_dist(X)
         if SGY is None:
