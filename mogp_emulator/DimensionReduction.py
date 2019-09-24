@@ -231,3 +231,43 @@ class gKDR(object):
         :returns:  `N` coordinates (rows) in the reduced `K`-dimensional space
         """
         return X @ self.B[:, 0:self.K]
+
+
+class KDR(object):
+    """
+    Dimension reduction using the KDR method
+    """
+
+    def __init__(self, X, Y, SGY=None, K=None, gKDR=None):
+        N, M = np.shape(X)
+
+        # Initialise the projection matrix using gKDR estimate if it is
+        # provided, otherwise generate a random initial projection matrix
+        if gKDR:
+            self.B = gKDR.B[:, 0:gKDR.K]
+        elif K:
+            self.B = np.random.random([M, K])
+
+        # Singular value decomposition of projection matrix
+        self.B, D, _ = np.svd(self.B)
+
+        # Determine Gram matrix of Y in the RBF kernel
+        if gKDR:
+            Ky = gKDR.Ky
+        else:
+            if SGY is None:
+                SGY = median_dist(Y)
+                SGY2 = SGY*SGY
+            Ky = gram_matrix_sqexp(Y, SGY2)
+
+        # Orthogonalise Ky
+        unit = np.ones(N, N)
+        eye = np.eye(N)
+        Q = eye - unit/N
+        Ky_o = self._othogonalise(Ky, Q)
+
+    @staticmethod
+    def _orthogonalise(a, Q):
+        o = Q @ a @ Q
+        o = (o + o.T) / 2.
+        return o
