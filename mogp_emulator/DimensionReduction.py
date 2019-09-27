@@ -257,7 +257,7 @@ class KDR(object):
         # If an initial guess for the projection matrix (B) is not provided,
         # generate a random one
         if B is None:
-            self.B = np.random.random([M, K])
+            B = np.random.random([M, K])
 
         # Determine Ky, SGY and SGX. If gKDR has been conducted this is
         # duplicated work. It would be preferred to eventually fetch SGY, SGX
@@ -282,7 +282,7 @@ class KDR(object):
 
         # Flatten B for optimisation, scipy.optimize.minimize accepts a 1D
         # numpy array as the objective function arguments
-        B_flat = self.B.flatten()
+        B_flat = B.flatten()
         # Minimise the objective function
         result = minimize(self._objective_function, B_flat,
                           args=(M, K, X, SGX2, N, EPS, Q, eye, Ky_o))
@@ -298,7 +298,7 @@ class KDR(object):
         B, *_ = np.linalg.svd(B)
 
         # Z corresponds to U in the paper
-        Z = X @ self.B
+        Z = X @ B
         Kz = gram_matrix_sqexp(Z, sigma2=SGX2)
         Kz = self._orthogonalise(Kz, Q)
 
