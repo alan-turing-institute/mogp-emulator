@@ -70,6 +70,7 @@ the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
+from scipy.optimize import minimize
 
 
 def gram_matrix(X, k):
@@ -238,33 +239,67 @@ class KDR(object):
     Dimension reduction using the KDR method
     """
 
-    def __init__(self, X, Y, SGY=None, K=None, gKDR=None):
+    @classmethod
+    def from_gKDR(cls, X, Y, gKDR):
+        """
+        Construct a KDR object using a gKDR object as an initial guess for the
+        projection matrix.
+        """
+        B = gKDR.B[:, 0:gKDR.K]
+        K = gKDR.K
+
+        return cls(X, Y, K, B=B)
+
+    def __init__(self, X, Y, K, EPS=1e-8, SGX=None, SGY=None, B=None):
         N, M = np.shape(X)
 
-        # Initialise the projection matrix using gKDR estimate if it is
-        # provided, otherwise generate a random initial projection matrix
-        if gKDR:
-            self.B = gKDR.B[:, 0:gKDR.K]
-        elif K:
+        # If an initial guess for the projection matrix (B) is not provided,
+        # generate a random one
+        if B is None:
             self.B = np.random.random([M, K])
 
-        # Singular value decomposition of projection matrix
-        self.B, D, _ = np.svd(self.B)
+        # Determine Ky, SGY and SGX. If gKDR has been conducted this is
+        # duplicated work. It would be preferred to eventually fetch SGY, SGX
+        # and Ky from the gKDR object.
+        if SGY is None:
+            SGY = median_dist(Y)
+            SGY2 = SGY*SGY
+        Ky = gram_matrix_sqexp(Y, SGY2)
+        if SGX is None:
+            SGX = median_dist(X)
+            SGX2 = SGX*SGX
 
-        # Determine Gram matrix of Y in the RBF kernel
-        if gKDR:
-            Ky = gKDR.Ky
-        else:
-            if SGY is None:
-                SGY = median_dist(Y)
-                SGY2 = SGY*SGY
-            Ky = gram_matrix_sqexp(Y, SGY2)
-
-        # Orthogonalise Ky
+        # orthogonalisation matrix
         unit = np.ones(N, N)
         eye = np.eye(N)
         Q = eye - unit/N
+
+        # Orthogonalise Ky
+        # Ky_o is the orthogonalised Gram matrix, corresponding to \hat{K}_y in
+        # the paper
         Ky_o = self._othogonalise(Ky, Q)
+
+        # Flatten B for optimisation, scipy.optimize.minimize accepts a 1D
+        # numpy array as the objective function arguments
+        B_flat = self.B.flatten()
+        # Minimise the objective function
+        result = minimize(self._objective_function, B_flat,
+                          args=(M, K, X, SGX2, N, EPS, Q, eye, Ky_o))
+        # Reshape the optimised B from the minimisation result
+        self.B = result.x.reshape([M, K])
+
+    def _objective_function(self, B_flat, M, K, X, SGX2, N, EPS, Q, eye, Ky_o):
+        B = B_flat.reshape([M, K])
+        # Singular value decomposition of projection matrix
+        B, _ = np.linalg.svd(B)
+
+        # Z corresponds to U in the paper
+        Z = X @ self.B
+        Kz = gram_matrix_sqexp(Z, sigma2=SGX2)
+        Kz = self._orthogonalise(Kz, Q)
+
+        mz = np.linalg.inv(Kz + N*EPS*eye)
+        return np.sum(Ky_o * mz)
 
     @staticmethod
     def _orthogonalise(a, Q):
