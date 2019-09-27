@@ -252,6 +252,7 @@ class KDR(object):
 
     def __init__(self, X, Y, K, EPS=1e-8, SGX=None, SGY=None, B=None):
         N, M = np.shape(X)
+        self.K = K
 
         # If an initial guess for the projection matrix (B) is not provided,
         # generate a random one
@@ -263,21 +264,21 @@ class KDR(object):
         # and Ky from the gKDR object.
         if SGY is None:
             SGY = median_dist(Y)
-            SGY2 = SGY*SGY
+        SGY2 = SGY*SGY
         Ky = gram_matrix_sqexp(Y, SGY2)
         if SGX is None:
             SGX = median_dist(X)
-            SGX2 = SGX*SGX
+        SGX2 = SGX*SGX
 
         # orthogonalisation matrix
-        unit = np.ones(N, N)
+        unit = np.ones([N, N])
         eye = np.eye(N)
         Q = eye - unit/N
 
         # Orthogonalise Ky
         # Ky_o is the orthogonalised Gram matrix, corresponding to \hat{K}_y in
         # the paper
-        Ky_o = self._othogonalise(Ky, Q)
+        Ky_o = self._orthogonalise(Ky, Q)
 
         # Flatten B for optimisation, scipy.optimize.minimize accepts a 1D
         # numpy array as the objective function arguments
@@ -288,10 +289,13 @@ class KDR(object):
         # Reshape the optimised B from the minimisation result
         self.B = result.x.reshape([M, K])
 
+    def __call__(self, X):
+        return X @ self.B[:, 0:self.K]
+
     def _objective_function(self, B_flat, M, K, X, SGX2, N, EPS, Q, eye, Ky_o):
         B = B_flat.reshape([M, K])
         # Singular value decomposition of projection matrix
-        B, _ = np.linalg.svd(B)
+        B, *_ = np.linalg.svd(B)
 
         # Z corresponds to U in the paper
         Z = X @ self.B
