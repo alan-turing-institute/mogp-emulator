@@ -252,6 +252,7 @@ class KDR(object):
 
     def __init__(self, X, Y, K, EPS=1e-8, SGX=None, SGY=None, B=None):
         N, M = np.shape(X)
+        Y = np.reshape(Y, (N, 1))
         self.K = K
 
         # If an initial guess for the projection matrix (B) is not provided,
