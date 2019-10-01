@@ -245,7 +245,7 @@ class KDR(object):
         Construct a KDR object using a gKDR object as an initial guess for the
         projection matrix.
         """
-        B = gKDR.B[:, 0:gKDR.K]
+        B = gKDR.B[:, 0:gKDR.K].copy()
         K = gKDR.K
 
         return cls(X, Y, K, B=B)
