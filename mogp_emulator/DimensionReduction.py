@@ -299,7 +299,7 @@ class KDR(object):
     def _objective_function(self, B_flat, M, K, X, SGX2, N, EPS, Q, eye, Ky_o):
         B = B_flat.reshape([M, K])
         # Singular value decomposition of projection matrix
-        B, *_ = np.linalg.svd(B)
+        B, *_ = np.linalg.svd(B, full_matrices=False)
 
         # Z corresponds to U in the paper
         Z = X @ B
