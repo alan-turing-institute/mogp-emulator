@@ -240,13 +240,14 @@ class KDR(object):
     """
 
     @classmethod
-    def from_gKDR(cls, X, Y, gKDR, EPS=1e-8, SGX=None, SGY=None):
+    def from_gKDR(cls, X, Y, gKDR, K=None, EPS=1e-8, SGX=None, SGY=None):
         """
         Construct a KDR object using a gKDR object as an initial guess for the
         projection matrix.
         """
-        B = gKDR.B[:, 0:gKDR.K].copy()
-        K = gKDR.K
+        if K is None:
+            K = gKDR.K
+        B = gKDR.B[:, 0:K].copy()
 
         return cls(X, Y, K, EPS=EPS, SGX=SGX, SGY=SGY, B=B)
 
