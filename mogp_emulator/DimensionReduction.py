@@ -265,11 +265,13 @@ class KDR(object):
         # and Ky from the gKDR object.
         if SGY is None:
             SGY = median_dist(Y)
-        SGY2 = SGY*SGY
-        Ky = gram_matrix_sqexp(Y, SGY2)
         if SGX is None:
             SGX = median_dist(X)
-        SGX2 = SGX*SGX
+
+        SGX2 = max(SGX*SGX, sys.float_info.min)
+        SGY2 = max(SGY*SGY, sys.float_info.min)
+
+        Ky = gram_matrix_sqexp(Y, SGY2)
 
         # orthogonalisation matrix
         unit = np.ones([N, N])
