@@ -777,6 +777,12 @@ class GaussianProcess(object):
         
         :param n_samples: Number of MCMC steps to be taken. Must be a positive integer.
         :type n_samples: int
+        :param thin: Specifies how the chain is thinned to remove correlations. Must be
+                     a non-negative integer. If a positive integer ``k`` is used, it will 
+                     keep every ``k`` samples. Note that ``thin = 1`` indicates that the
+                     chain will not be thinned. ``thin = 0`` will attempt to autothin
+                     the chain using the autocorrelation of the MCMC chain. Default is 0.
+        :type thin: int
         :returns: None
         """
 
