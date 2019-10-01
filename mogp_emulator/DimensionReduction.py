@@ -287,12 +287,17 @@ class KDR(object):
         # Flatten B for optimisation, scipy.optimize.minimize accepts a 1D
         # numpy array as the objective function arguments
         B_flat = B.flatten()
+
+        # Calculate initial value of the objective function
+        self.initial = self._objective_function(B_flat, M, K, X, SGX2, N, EPS,
+                                                Q, eye, Ky_o)
+
         # Minimise the objective function
-        result = minimize(self._objective_function, B_flat,
-                          method='Nelder-Mead',
-                          args=(M, K, X, SGX2, N, EPS, Q, eye, Ky_o))
+        self.result = minimize(self._objective_function, B_flat,
+                               method='Nelder-Mead',
+                               args=(M, K, X, SGX2, N, EPS, Q, eye, Ky_o))
         # Reshape the optimised B from the minimisation result
-        self.B = result.x.reshape([M, K])
+        self.B = self.result.x.reshape([M, K])
 
     def __call__(self, X):
         return X @ self.B[:, 0:self.K]
