@@ -1,4 +1,6 @@
-## extends GaussianProcess with an (optional) GPU implementation
+"""
+extends GaussianProcess with an (optional) GPU implementation
+"""
 
 import os.path
 import ctypes
@@ -30,16 +32,16 @@ def _find_mogp_gpu(verbose = True):
                               "lib",
                               "libgpgpu.so")
     if verbose:
-        print("Looking for GPGPU library at: " + gpgpu_path)
+        print("GaussianProcessGPU._find_mogp_gpu: Looking for GPGPU library at: " + gpgpu_path)
 
     if not os.path.isfile(gpgpu_path):
         if verbose:
-            print("Could not find libgpgpu.so, which is needed for GPU "
+            print("GaussianProcessGPU._find_mogp_gpu: Could not find libgpgpu.so, which is needed for GPU "
                   "support.  Falling back to CPU-only.  Please consult "
                   "the build instructions.")
     else:
         if verbose:
-            print("Found gpgpu library at " + gpgpu_path)
+            print("GaussianProcessGPU._find_mogp_gpu: Found gpgpu library at " + gpgpu_path)
         try:
             mogp_gpu = ctypes.CDLL(gpgpu_path)
             hello = mogp_gpu.gplib_hello_world
@@ -53,15 +55,25 @@ def _find_mogp_gpu(verbose = True):
             return mogp_gpu
         except OSError as err:
             if verbose:
-                print("There was a problem loading the library.  The error "
+                print("GaussianProcessGPU._find_mogp_gpu: There was a problem loading the library.  The error "
                       "was: " + err)
         except AssertionError:
             if verbose:
-                print("The library was loaded, but the simple check failed.")
+                print("GaussianProcessGPU._find_mogp_gpu: The library was loaded, but the simple check failed.")
 
 
-class GPGPULibrary(object):    
-    def __init__(self):        
+class GPGPULibrary(object):
+    """Encapsulates the functionality provided by the library, bound as
+    ctypes calls.
+
+    .. py:method:: make_gp 
+    .. py:method:: _make_gp(source : string, filename, symbol='file') -> 
+
+
+    """
+    def __init__(self):
+        """Instantiating a member of this class attempts to find the library,
+        and provides instance methods that call into it."""
         self.lib = _find_mogp_gpu()
         if self.lib:
             self._make_gp = self.lib.gplib_make_gp
@@ -105,6 +117,10 @@ class GPGPULibrary(object):
 
 
 class GPGPU(object):
+    """A higher-level class than GPGPULibrary, which wraps the raw methods
+    provided by :class:`mogp_emulator.GaussianProcessGPU.GPGPULibrary` with
+    some checks.
+    """
     def __init__(self, lib_wrapper, theta, xs, ts, Q, invQ, invQt):
         self._lib_wrapper = lib_wrapper
 
@@ -154,8 +170,7 @@ class GPGPU(object):
         else:
             raise RuntimeError("GPU interface unavailable")
     
-            
-    def predict(self, xnew):
+    def predict(self, xnew):        
         if xnew.ndim == 1:
             assert(xnew.shape == (self.Ninput,))
         
@@ -187,9 +202,25 @@ class GPGPU(object):
         
 
 class GaussianProcessGPU(GaussianProcess):
+    """This class derives from
+    :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
+    particular methods overridden to use a GPU if it is available.
+
+    """
     mogp_gpu = GPGPULibrary()
     
     def __init__(self, *args):
+        """Create a new GP emulator, using a GPU if it is available.
+        
+        The arguments passed as `*args` must be either:
+
+        - A GaussianProcess object (to which this should behave
+          identically, save for performing its computations on the
+          GPU)
+        - Arguments that are acceptable to
+          :func:`mogp_emulator.GaussianProcess.GaussianProcess.__init__` (documented there).
+
+        """
         ## Flag to indicate whether the GPGPU object reported that it
         ## was ready.  This is cumbersome, but needed because we
         ## cannot pickle GPGPU objects
@@ -222,6 +253,12 @@ class GaussianProcessGPU(GaussianProcess):
             self._device_gp_create()
 
     def predict(self, testing, do_deriv = True, do_unc = True, use_gpu = True):
+        """
+        Make a prediction for a set of input vectors
+
+        See :func:`mogp_emulator.GaussianProcess.predict`, which is 
+        
+        """
         if use_gpu and not do_deriv and not do_unc:
             try:
                 return (self.gpgpu.predict(testing), None, None)

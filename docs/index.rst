@@ -11,6 +11,7 @@ Welcome to Multi-Output GP Emulator's documentation!
    :caption: Contents:
 
    GaussianProcess
+   GaussianProcessGPU
    DimensionReduction
    MultiOutputGP
    Kernel
