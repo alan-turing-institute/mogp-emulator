@@ -5,16 +5,31 @@ from .. import gKDR
 from ..DimensionReduction import median_dist, gram_matrix_sqexp, gram_matrix
 from .. import GaussianProcess
 
+##### Some simple functions useful for training
+def fn(x):
+    """A linear function for testing the dimension reduction"""
+    return 10*(x[0] + x[1]) + (x[1] - x[0])
+
+def fn2(x):
+    """A linear function for testing the dimension reduction"""
+    return 10*(x[0] + x[1]) + (x[1] - x[0]) + x[2] + 0.1*x[3]
+
+
+##### The tests
+
 def test_DimensionReduction_basic():
     """Basic check that we can create gKDR with the expected arguments"""
     Y = np.array([[1],[2.1],[3.2]])
     X = np.array([[1,2,3],[4,5.1,6],[7.1,8,9.1]])
     dr = gKDR(X,Y,K=2,SGX=2,SGY=2,EPS=1E-5)
+    
+def test_DimensionReduction_tune_dimension():
+    """Check that we can tune the dimension reduction to a defined tolerance in prediction error"""
+    ## X = np.mgrid[0:10,0:10].T.reshape(-1,2)/10.0
 
-
-def fn(x):
-    """A linear function for testing the dimension reduction"""
-    return 10*(x[0] + x[1]) + (x[1] - x[0])
+    X = np.random.random((10,3))
+    Y = np.apply_along_axis(fn2, 1, X)
+    dr = gKDR(X,Y)
 
 
 def test_DimensionReduction_GP():
