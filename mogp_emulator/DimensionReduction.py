@@ -70,6 +70,7 @@ regression on the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
+from .utils import k_fold_cross_validation, integer_bisect
 
 def gram_matrix(X, k):
     """Computes the Gram matrix of `X`
@@ -136,7 +137,7 @@ class gKDR(object):
     implementation, but this should not affect the interface.
     """
     
-    def __init__(self, X, Y, K, EPS=1E-8, SGX=None, SGY=None):
+    def __init__(self, X, Y, K=None, EPS=1E-8, SGX=None, SGY=None):
         """Create a gKDR object
         
         Given some `M`-dimensional inputs (explanatory variables) `X`,
@@ -175,7 +176,11 @@ class gKDR(object):
 
         N, M = np.shape(X)
 
-        assert(K >= 0 and K <= M)
+        ## default K: use the entire input space
+        if K is None:
+            K = M
+
+        assert(K >= 0 and K <= M)        
         assert(EPS >= 0)
         assert(SGX is None or SGX > 0.0)
         assert(SGY is None or SGY > 0.0)
@@ -212,7 +217,8 @@ class gKDR(object):
         L, V = np.linalg.eig(R)
         idx = np.argsort(L, 0)[::-1] # sort descending
 
-        self.K = K
+        # Keep X and Y for the purpose of tuning K later
+        self.K = K        
         self.B = V[:, idx]
 
         
@@ -227,3 +233,44 @@ class gKDR(object):
         :returns:  `N` coordinates (rows) in the reduced `K`-dimensional space
         """
         return X @ self.B[:,0:self.K]
+
+    
+    @classmethod
+    def tune_structural_dimension(cls, X, Y, train_model, tol):
+        """Find the minimum structural dimension (K) that keeps the absolute
+        L_inf error between Y and the trained model, below :param tol:"""
+
+        N, M = np.shape(X)
+        
+        ## combine input and output arrays, such that if X[i] =
+        ## [1,2,3] and Y[i] = 4, then XY[i] = [1,2,3,4]
+        ## XY[:, -1] == Y
+        ## XY[:, 0:-1] == X
+        ##
+        XY = np.hstack((X, Y[:,np.newaxis]))
+
+        def loss(K):
+            max_err = -np.inf
+            for train, validate in k_fold_cross_validation(XY, 2):
+                train = np.array(train)
+                validate = np.array(validate)
+                dr = gKDR(X=train[:,0:-1], Y=train[:,-1], K=K)
+
+                model = train_model(dr(train[:,0:-1]), train[:,-1])
+                
+                Linf = np.max(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
+                
+                max_err = np.maximum(max_err, Linf)
+
+            print("loss({}) = {}".format(K, max_err))
+            return max_err
+
+        ## perform a bisection search on loss(K) (for integer values
+        ## of K between 1 and M) to find the largest value of "loss"
+        ## less than tol
+        
+        if loss(1) < tol:
+            return gKDR(X, Y, 1)
+        else:
+            bound = integer_bisect((1, M), lambda K: loss(K) - tol)
+            return gKDR(X, Y, bound[0])

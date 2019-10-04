@@ -28,3 +28,17 @@ def k_fold_cross_validation(X, K, randomise=False):
         validation = [x for i, x in enumerate(X) if i % K == k]
         yield training, validation
 
+        
+def integer_bisect(bound, f):
+    """
+    Finds a pair of integers (a,b) such that f(a) <= 0 < f(b) and |a - b| == 1.
+    On entry, assumes that f(bound[0]) <= 0 < f(bound[1])
+    """
+    if bound[1] - bound[0] == 1:
+        return bound
+    else:
+        midpoint = round(bound[0] + bound[1] / 2.0)
+        if f(midpoint) <= 0:
+            return integer_bisect((midpoint, bound[1]), f)
+        else:
+            return integer_bisect((bound[0], midpoint), f)

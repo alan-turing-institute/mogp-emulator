@@ -27,9 +27,16 @@ def test_DimensionReduction_tune_dimension():
     """Check that we can tune the dimension reduction to a defined tolerance in prediction error"""
     ## X = np.mgrid[0:10,0:10].T.reshape(-1,2)/10.0
 
-    X = np.random.random((10,3))
+    X = np.random.random((10,4))
     Y = np.apply_along_axis(fn2, 1, X)
-    dr = gKDR(X,Y)
+
+    def gp_model(X,Y):
+        gp = GaussianProcess(X,Y)
+        gp.learn_hyperparameters()
+        return (lambda Xnew: gp.predict(Xnew)[0])
+
+    dr = gKDR.tune_structural_dimension(X, Y, gp_model, tol=1e-2)
+    print(dr.K)
 
 
 def test_DimensionReduction_GP():
