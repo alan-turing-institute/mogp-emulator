@@ -127,7 +127,7 @@ def test_GaussianProcess_save_emulators():
     with TemporaryFile() as tmp:
         gp.save_emulator(tmp)
         tmp.seek(0)
-        emulator_file = np.load(tmp)
+        emulator_file = np.load(tmp, allow_pickle=True)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert emulator_file['nugget'] == None
@@ -142,7 +142,7 @@ def test_GaussianProcess_save_emulators():
     with TemporaryFile() as tmp:
         gp.save_emulator(tmp)
         tmp.seek(0)
-        emulator_file = np.load(tmp)
+        emulator_file = np.load(tmp, allow_pickle=True)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert_allclose(emulator_file['theta'], theta)

@@ -113,7 +113,7 @@ def test_MultiOutputGP_save_emulators():
     with TemporaryFile() as tmp:
         gp.save_emulators(tmp)
         tmp.seek(0)
-        emulator_file = np.load(tmp)
+        emulator_file = np.load(tmp, allow_pickle=True)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert emulator_file['nugget'][0] == None
@@ -130,7 +130,7 @@ def test_MultiOutputGP_save_emulators():
     with TemporaryFile() as tmp:
         gp.save_emulators(tmp)
         tmp.seek(0)
-        emulator_file = np.load(tmp)
+        emulator_file = np.load(tmp, allow_pickle=True)
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert_allclose(np.array(emulator_file['nugget'], dtype=float), 1.e-6)

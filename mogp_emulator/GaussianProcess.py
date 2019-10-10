@@ -2,7 +2,6 @@ import numpy as np
 from .Kernel import SquaredExponential
 from .MCMC import sample_MCMC
 from scipy.optimize import minimize
-from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
@@ -38,7 +37,7 @@ class GaussianProcess(object):
         >>> gp.get_D()
         3
         >>> np.random.seed(47)
-        >>> mogp.learn_hyperparameters()
+        >>> gp.learn_hyperparameters()
         (5.140462159403397, array([-13.02460687,  -4.02939647, -39.2203646 ,   3.25809653]))
         >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
         >>> gp.predict(x_predict)
@@ -162,7 +161,7 @@ class GaussianProcess(object):
                 a float (if no theta values are found in the emulator file)
         """
         
-        emulator_file = np.load(filename)
+        emulator_file = np.load(filename, allow_pickle=True)
         
         try:
             inputs = np.array(emulator_file['inputs'])
@@ -359,7 +358,7 @@ class GaussianProcess(object):
         """
         
         assert not self.theta is None, "Must set a parameter value to fit a GP"
-        
+
         self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
         
         if self.nugget == None:
@@ -429,7 +428,7 @@ class GaussianProcess(object):
         During normal use, the ``partial_devs`` method is called after evaluating the
         ``loglikelihood`` method. The implementation takes advantage of this by storing
         the inverse of the covariance matrix, which is expensive to compute and is used
-        by both the ``loglikelihood`` and ``partial_devs`` methods. If the function
+        by the ``loglikelihood``, ``partial_devs``, and ``hessian`` methods. If the function
         is evaluated with a different set of parameters than was previously used to set
         the log-likelihood, the method calls ``_set_params`` to compute the needed
         information. However, caling ``partial_devs`` does not evaluate the log-likelihood,
@@ -457,8 +456,31 @@ class GaussianProcess(object):
         return partials
         
     def hessian(self, theta):
-        "compute hessian of negative log-likelihood function"
+        """
+        Calculate the Hessian of the negative log-likelihood
         
+        Calculate the Hessian of the negative log-likelihood with respect to
+        the hyperparameters. Note that this function is normally used only when fitting
+        the hyperparameters, and it is not needed to make predictions. It is also used
+        to estimate an appropriate step size when fitting hyperparameters using
+        the lognormal approximation or MCMC sampling.
+        
+        When used in an optimization routine, the ``hessian`` method is called after
+        evaluating the ``loglikelihood`` method. The implementation takes advantage of
+        this by storing the inverse of the covariance matrix, which is expensive to
+        compute and is used by the ``loglikelihood`` and ``partial_devs`` methods as well.
+        If the function is evaluated with a different set of parameters than was previously
+        used to set the log-likelihood, the method calls ``_set_params`` to compute the needed
+        information. However, caling ``hessian`` does not evaluate the log-likelihood,
+        so it does not change the cached values of the parameters or log-likelihood.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-likelihood (array with shape
+                  ``(D + 1, D + 1)``)
+        :rtype: ndarray
+        """
+
         assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
         
         if not np.allclose(np.array(theta), self.theta):
@@ -1011,4 +1033,4 @@ class GaussianProcess(object):
         """
         
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"
-        
+
