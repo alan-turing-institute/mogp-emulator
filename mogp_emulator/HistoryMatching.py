@@ -260,9 +260,13 @@ class HistoryMatching(object):
                     except:
                         raise Exception(
                           "bad input for get_implausability - expected variance quantities"+
-                          " as single numerical values, lists, or dnarrays, found variable"+
+                          " as single numerical values, lists, or ndarrays, found variable"+
                           " of type", type(a))
-            
+        
+        assert np.all(np.array(varvals) >= 0.), "all variances must be positive"
+        if varlists is not None:
+            assert np.all(np.array(varlists) >= 0.), "all variances must be positive"
+        
         # Compute implausibility for each expectation value
         self.I = np.zeros(self.ncoords)
         for i, E in enumerate(self.expectations[0]):
@@ -436,6 +440,8 @@ class HistoryMatching(object):
                       "bad input type for HistoryMatching - the specified " + 
                       "observation parameter must contain only numerical " +
                       "values")
+            if len(obs) == 2:
+                assert float(obs[1]) >= 0., "variance in observations cannot be negative"
             return True
         else:
             try:
@@ -488,6 +494,7 @@ class HistoryMatching(object):
             raise TypeError(
               "bad input type for HistoryMatching - expected expectation values in " +
               "the form of a Tuple of ndarrays.")
+        assert np.all(expectations[1] >= 0.), "all variances must be nonnegative"
         return True
     
     

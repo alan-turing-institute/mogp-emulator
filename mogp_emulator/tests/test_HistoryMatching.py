@@ -38,7 +38,9 @@ def get_y_simulated_1D(x):
         f[i] = np.sin(2.*np.pi*x[i] / 50.) 
     return f
 
-def sanity_checks():
+def test_sanity_checks():
+    "test basic functioning of HistoryMatching"
+    
     # Create a gaussian process
     x_training = np.array([
         [0.],
@@ -239,7 +241,69 @@ def test_HistoryMatching_init_failures():
         
     with pytest.raises(AssertionError):
         hm = HistoryMatching(threshold = -1.)
-        
+
+def test_HistoryMatching_get_implausability():
+    "test the get_implausability method of HistoryMatching"
+    
+    expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
+    hm = HistoryMatching(obs = [1., 1.], expectations = expectations)
+    I = hm.get_implausability()
+    
+    assert_allclose(I, [1., 9.])
+    assert_allclose(hm.I, [1., 9.])
+    
+    I = hm.get_implausability(1.)
+    
+    assert_allclose(I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
+    assert_allclose(hm.I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
+    
+    I = hm.get_implausability(1., 2.)
+    
+    assert_allclose(I, [0.5, 4.5])
+    assert_allclose(hm.I, [0.5, 4.5])
+    
+    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    np.random.seed(57483)
+    gp.learn_hyperparameters()
+    coords = np.array([[0.1], [1.]])
+    obs = [1., 0.01]
+    mean, unc, _ = gp.predict(coords)
+    I_exp = np.abs(mean - obs[0])/np.sqrt(unc + obs[1])
+    
+    hm = HistoryMatching(gp = gp, obs = obs, coords = coords)
+    I = hm.get_implausability()
+    
+    assert_allclose(I, I_exp)
+    assert_allclose(hm.I, I_exp)
+    
+    with pytest.raises(AssertionError):
+        hm.get_implausability(-1.)
+    
+    hm = HistoryMatching(gp = gp, obs = obs, coords = coords, expectations = expectations)
+    
+    with pytest.raises(Exception):
+        hm.get_implausability()
+    
+def test_HistoryMatching_get_NROY():
+    "test the get_NROY method of HistoryMatching"
+    
+    hm = HistoryMatching(obs = [1., 1.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
+    I = hm.get_implausability()
+    
+    NROY = hm.get_NROY()
+    
+    assert NROY == [0]
+    
+def test_HistoryMatching_get_RO():
+    "test the get_RO method of HistoryMatching"
+    
+    hm = HistoryMatching(obs = [1., 1.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
+    I = hm.get_implausability()
+    
+    RO = hm.get_RO()
+    
+    assert RO == [1]
+
 def test_HistoryMatching_set_gp():
     'test the set_gp method of HistoryMatching'
     
@@ -270,6 +334,9 @@ def test_HistoryMatching_set_obs():
     
     with pytest.raises(ValueError):
         hm.set_obs([1., 2., 3.])
+        
+    with pytest.raises(AssertionError):
+        hm.set_obs([1., -1.])
         
 def test_HistoryMatching_set_coords():
     "test the set_coords method of HistoryMatching"
@@ -304,6 +371,12 @@ def test_HistoryMatching_set_expectations():
         
     hm.set_expectations(None)
     assert hm.expectations == None
+    
+    expectations = (np.array([0.]), np.array([-0.1]), np.array([[2.]]))
+    
+    with pytest.raises(AssertionError):
+        hm.set_expectations(expectations)
+        
     
 def test_HistoryMatching_set_threshold():
     "test the set_threshold method of HistoryMatching"
