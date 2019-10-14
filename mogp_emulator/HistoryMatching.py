@@ -2,7 +2,7 @@ import numpy as np
 from mogp_emulator import GaussianProcess
 
 class HistoryMatching(object):
-    """
+    r"""
     Class containing tools to implement history matching between the outputs of a
     gaussian process and an observation. 
   
@@ -118,10 +118,8 @@ class HistoryMatching(object):
   
     """
   
-    def __init__(self, 
-      gp=None, obs=None, coords=None, expectations=None, threshold=3., 
-      *args, **kwargs):
-        """
+    def __init__(self, gp=None, obs=None, coords=None, expectations=None, threshold=3.):
+        r"""
         Create a new instance of history matching.  
     
         The primary function of this method is to initialise the self.gp, .obs, 
@@ -166,7 +164,7 @@ class HistoryMatching(object):
     
     
     def get_implausability(self, *args):
-        """
+        r"""
         Carries out the implausability calculation given by:
     
         LaTeX:
@@ -282,7 +280,7 @@ class HistoryMatching(object):
           
     
     def get_NROY(self, *args):
-        """
+        r"""
         Returns a list of indices for self.I that correspond to entries that are not
         yet ruled out.
         """
@@ -300,7 +298,7 @@ class HistoryMatching(object):
     
     
     def get_RO(self, *args):
-        """
+        r"""
         Returns a list of indices for self.I that correspond to entries that are 
         ruled out.
         """
@@ -310,7 +308,7 @@ class HistoryMatching(object):
     
     
     def set_gp(self, gp):
-        """
+        r"""
         Sets the self.gp variable to the provided gp argument if it passes the 
         check_gp requirements.
         """
@@ -320,7 +318,7 @@ class HistoryMatching(object):
               
     
     def set_obs(self, obs):
-        """
+        r"""
         Sets the self.obs variable to the provided obs argument if it passes the 
         check_obs requirements.
         """
@@ -336,11 +334,12 @@ class HistoryMatching(object):
       
       
     def set_coords(self, coords):
-        """
+        r"""
         Sets the self.coords variable to the provided coords argument if it passes 
         the check_coords requirements.
         """
-        if not self.check_coords(coords):
+        # need to allow coords == None, as otherwise can't reset values
+        if not self.check_coords(coords) and (not coords == None):
             raise TypeError(
               "bad input for set_coords - expected coords in the form of a list or " +
               "1D or 2D ndarray of numerical values")
@@ -355,6 +354,8 @@ class HistoryMatching(object):
                   "got through check_coords")
         elif isinstance(coords, list):
             self.coords = np.reshape(np.asarray(coords), [-1,1])
+        elif coords == None:
+            self.coords = None
         else:
             raise Exception(
               "error in exception handling - an argument of illegal type somehow " +
@@ -363,11 +364,12 @@ class HistoryMatching(object):
     
       
     def set_expectations(self, expectations):
-        """
+        r"""
         Sets the self.expectations variable to the provided expectations argument if
         it passes the check_expectations requirements.
         """
-        if not self.check_expectations(expectations):
+        # need to allow expectations == None, as otherwise can't reset values
+        if not self.check_expectations(expectations) and (not expectations == None):
             raise TypeError(
               "bad input for set_expectations - expected a Tuple of 3 ndarrays.")
         self.expectations = expectations
@@ -375,7 +377,7 @@ class HistoryMatching(object):
     
     
     def set_threshold(self, threshold):
-        """
+        r"""
         Sets the self.threshold variable to the provided threshold argument if it 
         passes the check_threshold requirements.
         """
@@ -385,7 +387,7 @@ class HistoryMatching(object):
     
     
     def status(self):
-        """
+        r"""
         Prints a summary of the current status of the class object.
         
         Prints a summary of the current status of the class object, including the 
@@ -394,6 +396,156 @@ class HistoryMatching(object):
         and .RO.
         """
     
+        print(str(self))
+    
+    
+    def check_gp(self, gp):
+        r"""
+        Checks if the provided argument is consistent with expectations for a GP.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the requirements for a gaussian process, i.e. is of type GaussianProcess.
+        """
+        if gp is None: return False
+        if isinstance(gp, GaussianProcess): return True
+        return False
+              
+    
+    def check_obs(self, obs):
+        r"""
+        Checks if the provided argument is consistent with expectations for 
+        observations.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the requirements for the observation quantity, i.e. is a numerical value 
+        that can be converted to a float, or a list of up to two such values.
+        """
+        # TODO: allow tuple arguments as well as lists.
+        if obs is None: return False
+        if isinstance(obs, list):
+            if len(obs) > 2: 
+                raise ValueError(
+                  "bad input type for HistoryMatching - the specified " + 
+                  "observation parameter cannot contain more than 2 entries "+
+                  "(value, [variance])")
+            if len(obs) <= 2:
+                try:
+                    test = [float(a) for a in obs]
+                except TypeError:
+                    raise TypeError(
+                      "bad input type for HistoryMatching - the specified " + 
+                      "observation parameter must contain only numerical " +
+                      "values")
+            return True
+        else:
+            try:
+                test = float(obs)
+            except (TypeError, ValueError):
+                raise TypeError(
+                  "bad input type for HistoryMatching - the specified " + 
+                  "observation parameter must contain only numerical values")
+            return True
+        return False
+    
+    
+    def check_coords(self, coords):
+        r"""
+        Checks if the provided argument is consistent with expectations for 
+        coordinates.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the requirements for the coordinates quantity, i.e. is a list or ndarray of 
+        fewer than 3 dimensions.
+        """
+        # TODO: implement check that arrays or lists contain only numerical values
+        if coords is None: return False
+    
+        if isinstance(coords, list): return True
+        if isinstance(coords, np.ndarray):
+            if len(coords.shape)<=2: return True
+        return False
+    
+          
+    def check_expectations(self, expectations):
+        r"""
+        Checks if the provided argument is consistent with expectations for 
+        Gaussian Process Expectations.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the output of the predict method of a GaussianProcess object, i.e. that it 
+        is a tuple of length 3 containing dnarrays.
+        """
+        if expectations is None: return False
+        if not isinstance(expectations, tuple):
+            return False
+        if len(expectations)!=3:
+            return False
+        if not all ((
+          isinstance(expectations[0], np.ndarray), 
+          isinstance(expectations[1], np.ndarray),
+          isinstance(expectations[2], np.ndarray)
+        )):
+            raise TypeError(
+              "bad input type for HistoryMatching - expected expectation values in " +
+              "the form of a Tuple of ndarrays.")
+        return True
+    
+    
+    def check_threshold(self, threshold):
+        r"""
+        Checks if the provided argument is consistent with expectations for a 
+        threshold value.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the requirements for a threshold value, i.e. that it is a single numerical 
+        value that can be converted to a float.
+        """
+        if threshold is None: return False
+        try:
+            test = float(threshold)
+            assert test >= 0., "threshold must be non-negative"
+            return True
+        except TypeError:
+            return False
+      
+      
+    def check_ncoords(self, ncoords):
+        r"""
+        Checks if the provided argument is consistent with expectations for the 
+        number of coordinates for which expectation values are to be / have been
+        computed.
+    
+        Returns a boolean that is True if the provided quantity is consistent with 
+        the requirements for a ncoords value, i.e. that it is a single numerical 
+        value that can be converted to a float.
+        """
+        if ncoords is None: return False
+        try:
+            test = float(ncoords)
+            return True
+        except TypeError:
+            return False
+      
+      
+    def update(self):
+        r"""
+        Checks that sufficient information exists to computen dim and/or ncoords 
+        and, if so, computes these values. This also serves to update these values 
+        if the information on which they are based is changed.
+        """
+    
+        if self.check_coords(self.coords):
+            self.ndim = self.coords.shape[1]
+            self.ncoords = self.coords.shape[0]
+        elif self.check_expectations(self.expectations):
+            self.ncoords = self.expectations[0].shape[0]
+        
+
+    def __str__(self):
+        r"""
+        Returns string representation of HistoryMatching object
+        """
+
         if self.coords is None: 
             coordstr = None
         else: 
@@ -419,158 +571,17 @@ class HistoryMatching(object):
           str(type(self.RO)) + " of length " + len(self.RO)
         )
     
-        print(
-          ">> History Matching tools successfully initiated with:\n" + 
-          ">>  Gaussian Process:", self.gp, "\n" +
-          ">>  Observations:", self.obs, "\n" +
-          ">>  Coords:", coordstr, "\n" +
-          ">>  Expectations:", expstr, "\n" +
-          ">>  no. of Input Dimensions:", self.ndim, "\n" +
-          ">>  no. of Descrete Expectation Values:", self.ncoords, "\n" +
-          ">>  I_threshold:", self.threshold, "\n" + 
-          ">>  I:", Istr, "\n" +
-          ">>  NROY:", NROYstr, "\n" + 
-          ">>  RO:", ROstr, "\n")
-    
-    
-    def check_gp(self, gp):
-        """
-        Checks if the provided argument is consistent with expectations for a GP.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for a gaussian process, i.e. is of type GaussianProcess.
-        """
-        if gp is None: return False
-        if isinstance(gp, GaussianProcess): return True
-        return False
-              
-    
-    def check_obs(self, obs):
-        """
-        Checks if the provided argument is consistent with expectations for 
-        observations.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for the observation quantity, i.e. is a numerical value 
-        that can be converted to a float, or a list of up to two such values.
-        """
-        # TODO: allow tuple arguments as well as lists.
-        if obs is None: return False
-        if isinstance(obs, list):
-            if len(obs) > 2: 
-                raise TypeError(
-                  "bad input type for HistoryMatching - the specified " + 
-                  "observation parameter cannot contain more than 2 entries "+
-                  "(value, [variance])")
-            if len(obs) <= 2:
-                try:
-                    test = [float(a) for a in obs]
-                except:
-                    raise TypeError(
-                      "bad input type for HistoryMatching - the specified " + 
-                      "observation parameter must contain only numerical " +
-                      "values")
-            return True
-        else:
-            try:
-                test = float(obs)
-            except:
-                raise TypeError(
-                  "bad input type for HistoryMatching - the specified " + 
-                  "observation parameter must contain only numerical values")
-            return True
-        return False
-    
-    
-    def check_coords(self, coords):
-        """
-        Checks if the provided argument is consistent with expectations for 
-        coordinates.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for the coordinates quantity, i.e. is a list or ndarray of 
-        fewer than 3 dimensions.
-        """
-        # TODO: implement check that arrays or lists contain only numerical values
-        if coords is None: return False
-    
-        if isinstance(coords, list): return True
-        if isinstance(coords, np.ndarray):
-            if len(coords.shape)<=2: return True
-        return False
-    
-          
-    def check_expectations(self, expectations):
-        """
-        Checks if the provided argument is consistent with expectations for 
-        Gaussian Process Expectations.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the output of the predict method of a GaussianProcess object, i.e. that it 
-        is a tuple of length 3 containing dnarrays.
-        """
-        if expectations is None: return False
-        if not isinstance(expectations, tuple):
-            return False
-        if len(expectations)!=3:
-            return False
-        if not all ((
-          isinstance(expectations[0], np.ndarray), 
-          isinstance(expectations[1], np.ndarray),
-          isinstance(expectations[2], np.ndarray)
-        )):
-            raise TypeError(
-              "bad input type for HistoryMatching - expected expectation values in " +
-              "the form of a Tuple of ndarrays.")
-        return True
-    
-    
-    def check_threshold(self, threshold):
-        """
-        Checks if the provided argument is consistent with expectations for a 
-        threshold value.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for a threshold value, i.e. that it is a single numerical 
-        value that can be converted to a float.
-        """
-        if threshold is None: return False
-        try:
-            test = float(threshold)
-            return True
-        except:
-            return False
-      
-      
-    def check_ncoords(self, ncoords):
-        """
-        Checks if the provided argument is consistent with expectations for the 
-        number of coordinates for which expectation values are to be / have been
-        computed.
-    
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for a ncoords value, i.e. that it is a single numerical 
-        value that can be converted to a float.
-        """
-        if ncoords is None: return False
-        try:
-            test = float(ncoords)
-            return True
-        except:
-            return False
-      
-      
-    def update(self):
-        """
-        Checks that sufficient information exists to computen dim and/or ncoords 
-        and, if so, computes these values. This also serves to update these values 
-        if the information on which they are based is changed.
-        """
-    
-        if self.check_coords(self.coords):
-            self.ndim = self.coords.shape[1]
-            self.ncoords = self.coords.shape[0]
-        elif self.check_expectations(self.expectations):
-            self.ncoords = self.expectations[0].shape[0]
-        
-      
+        return (
+          "History Matching tools created with:\n" + 
+          "Gaussian Process: {}\n" +
+          "Observations: {}\n" +
+          "Coords: {}\n" +
+          "Expectations: {}\n" +
+          "No. of Input Dimensions: {}\n" +
+          "No. of Descrete Expectation Values: {}\n" +
+          "I_threshold: {}\n" + 
+          "I: {}\n" +
+          "NROY: {}\n" + 
+          "RO: {}\n").format(self.gp, self.obs, coordstr, expstr,
+                             self.ndim, self.ncoords, self.threshold,
+                             Istr, NROYstr, ROstr)

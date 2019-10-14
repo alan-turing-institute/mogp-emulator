@@ -28,6 +28,8 @@ Provided methods:
 from mogp_emulator.HistoryMatching import HistoryMatching
 from mogp_emulator.GaussianProcess import GaussianProcess
 import numpy as np
+from numpy.testing import assert_allclose
+import pytest
 
 def get_y_simulated_1D(x):
     n_points = len(x)
@@ -176,3 +178,179 @@ def sanity_checks():
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
     var = np.reshape(np.asarray(var), (-1,1))
     I = hm.get_implausability(var)
+
+def test_HistoryMatching_init():
+    "test the init method of HistoryMatching"
+    
+    hm = HistoryMatching()
+    
+    assert hm.gp == None
+    assert hm.obs == None
+    assert hm.coords == None
+    assert hm.expectations == None
+    assert hm.ndim == None
+    assert hm.ncoords == None
+    assert_allclose(hm.threshold, 3.)
+    assert hm.I == None
+    assert hm.NROY == None
+    assert hm.RO == None
+    
+    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    coords = np.array([[0.2], [0.4]])
+    hm = HistoryMatching(gp=gp, obs=1., coords=coords, expectations=None, threshold=5.)
+    
+    assert hm.gp == gp
+    assert_allclose(hm.obs, [1., 0.])
+    assert_allclose(hm.coords, coords)
+    assert hm.expectations == None
+    assert hm.ndim == 1
+    assert hm.ncoords == len(coords)
+    assert_allclose(hm.threshold, 5.)
+    assert hm.I == None
+    assert hm.NROY == None
+    assert hm.RO == None
+    
+    expectations = (np.array([1.]), np.array([0.2]), np.array([[0.1]]))
+    hm = HistoryMatching(gp=None, obs=[1., 0.1], coords=None, expectations=expectations, threshold=5.)
+    
+    assert hm.gp == None
+    assert_allclose(hm.obs, [1., 0.1])
+    assert hm.coords == None
+    for a, b in zip(hm.expectations, expectations):
+        assert_allclose(a, b)
+    assert hm.ndim == None
+    assert hm.ncoords == len(expectations[0])
+    assert_allclose(hm.threshold, 5.)
+    assert hm.I == None
+    assert hm.NROY == None
+    assert hm.RO == None
+    
+def test_HistoryMatching_init_failures():
+    "check situations where the init method of HistoryMatching fails"
+    
+    with pytest.raises(ValueError):
+        hm = HistoryMatching(obs = [1., 2., 3.])
+        
+    with pytest.raises(TypeError):
+        hm = HistoryMatching(obs = "abc")
+        
+    with pytest.raises(TypeError):
+        hm = HistoryMatching(expectations = (np.array([0.1]), 1., 1.))
+        
+    with pytest.raises(AssertionError):
+        hm = HistoryMatching(threshold = -1.)
+        
+def test_HistoryMatching_set_gp():
+    'test the set_gp method of HistoryMatching'
+    
+    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    
+    hm = HistoryMatching()
+    hm.set_gp(gp)
+    
+    assert hm.gp == gp
+    
+    with pytest.raises(TypeError):
+        hm.set_gp(gp = 1.)
+    
+def test_HistoryMatching_set_obs():
+    'test the set_obs method of HistoryMatching'
+    
+    obs = [1., 0.1]
+    
+    hm = HistoryMatching()
+    hm.set_obs(obs)
+    
+    assert_allclose(hm.obs, obs)
+    
+    obs = 1.
+    hm.set_obs(obs)
+    
+    assert_allclose(hm.obs, [obs, 0.])
+    
+    with pytest.raises(ValueError):
+        hm.set_obs([1., 2., 3.])
+        
+def test_HistoryMatching_set_coords():
+    "test the set_coords method of HistoryMatching"
+    
+    coords = np.array([[1.]])
+    
+    hm = HistoryMatching()
+    hm.set_coords(coords)
+    
+    assert_allclose(hm.coords, coords)
+    
+    coords = np.array([1.])
+    
+    hm.set_coords(coords)
+    
+    assert_allclose(hm.coords, np.reshape(coords, (1, 1)))
+    
+    hm.set_coords(None)
+    
+    assert hm.coords == None
+    
+def test_HistoryMatching_set_expectations():
+    "test the set_expectations method of HistoryMatching"
+    
+    expectations = (np.array([0.]), np.array([0.1]), np.array([[2.]]))
+    
+    hm = HistoryMatching()
+    hm.set_expectations(expectations)
+    
+    for a, b in zip(hm.expectations, expectations):
+        assert_allclose(a, b)
+        
+    hm.set_expectations(None)
+    assert hm.expectations == None
+    
+def test_HistoryMatching_set_threshold():
+    "test the set_threshold method of HistoryMatching"
+    
+    hm = HistoryMatching()
+    
+    hm.set_threshold(1.)
+    
+    assert_allclose(hm.threshold, 1.)
+    
+    with pytest.raises(AssertionError):
+        hm.set_threshold(-1.)
+        
+def test_HistoryMatching_update():
+    "test the update method of HistoryMatching"
+    
+    hm = HistoryMatching()
+    
+    hm.coords = np.array([[1.]])
+    
+    hm.update()
+    
+    assert hm.ncoords == 1
+    assert hm.ndim == 1
+    
+    hm = HistoryMatching()
+    
+    hm.expectations = (np.array([0.]), np.array([0.1]), np.array([[2.]]))
+    hm.update()
+    
+    assert hm.ncoords == 1
+    
+def test_HistoryMatching_str():
+    "test the str method of HistoryMatching"
+    
+    hm = HistoryMatching()
+    
+    str_exp = ("History Matching tools created with:\n" + 
+          "Gaussian Process: None\n" +
+          "Observations: None\n" +
+          "Coords: None\n" +
+          "Expectations: None\n" +
+          "No. of Input Dimensions: None\n" +
+          "No. of Descrete Expectation Values: None\n" +
+          "I_threshold: {}\n" + 
+          "I: None\n" +
+          "NROY: None\n" + 
+          "RO: None\n").format(3.)
+          
+    assert str(hm) == str_exp
