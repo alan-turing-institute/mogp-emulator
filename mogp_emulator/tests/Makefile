@@ -60,5 +60,5 @@ tsunami_scaling.png: benchmark_tsunami.py
 mice_unc.png mice_error.png: benchmark_MICE.py
 	python3 benchmark_MICE.py
 	
-histmatch_1D.png histmatch_2D.png: history_matching_demo.py
-	python3 history_matching_demo.py
+histmatch_1D.png histmatch_2D.png: benchmark_historymatching.py
+	python3 benchmark_historymatching.py
