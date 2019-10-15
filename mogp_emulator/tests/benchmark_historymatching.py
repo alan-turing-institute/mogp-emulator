@@ -79,7 +79,7 @@ def demo_1D():
 
     # Compute Implausbility
     hm = HistoryMatching(obs=obs, expectations=expectations)
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     NROY = hm.get_NROY()
     RO = hm.get_RO()
 
@@ -156,11 +156,11 @@ def demo_1D():
             color='green'
         )
 
-        axs[1].plot(                # Implausability Threshold
+        axs[1].plot(                # implausibility Threshold
             x_hist_plot,
             [3,3],
             color = 'green',
-            label = 'Implausability threshold'
+            label = 'implausibility threshold'
         )
 
         axs[0].set(
@@ -223,7 +223,7 @@ def demo_2D():
 
     # Compute Implausbility
     hm = HistoryMatching(obs=obs, expectations=expectations)
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     NROY = hm.get_NROY()
     RO = hm.get_RO()
 

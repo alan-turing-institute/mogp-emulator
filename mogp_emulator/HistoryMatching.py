@@ -12,13 +12,13 @@ class HistoryMatching(object):
         default values. Can be called with any of the parameters that can be set 
         using the set_ methods as keyword arguments.
   
-      get_implausability : the primary use method for the class. Requires that an
+      get_implausibility : the primary use method for the class. Requires that an
         observation is provided, as well as either a set of expectations or both a
         GP and a set of coordinates for which expectations are to be computed. The
         variances of the expectations are included in the GP output, and the 
         variance of the observation can be included with it when it is set. Any 
         number of further variances can be given as arguments for 
-        get_implausability.
+        get_implausibility.
   
       get_NROY : returns a series of indices corresponding to entries in self.I 
         that are Not Ruled Out Yet by the specified observation and implausiblity
@@ -44,7 +44,7 @@ class HistoryMatching(object):
         to be consistent with the output of a 
         mogp_emulator.GaussianProcess.predict() method).
   
-      set_threshold : allows an implausability threshold to be specified by 
+      set_threshold : allows an implausibility threshold to be specified by 
         setting the self.threshold value. By default, this is set to 3.0. 
   
       status : prints a summary of the current status of the class object, 
@@ -81,7 +81,7 @@ class HistoryMatching(object):
         ncoords and, if so, computes these values. This also serves to update 
         these values if the information on which they are based is changed.
   
-    Example - Implausability computation for a 1D GP:
+    Example - implausibility computation for a 1D GP:
     >>> import math
     >>> import numpy as np
     >>> from HistoryMatching import HistoryMatching
@@ -112,9 +112,9 @@ class HistoryMatching(object):
     >>> # Generate Expectations
     >>> expectations = gp.predict(coords)
     >>> 
-    >>> # Calculate implausability
+    >>> # Calculate implausibility
     >>> hm = HistoryMatching(obs=obs, expectations=expectations)
-    >>> I = hm.get_implausability()
+    >>> I = hm.get_implausibility()
   
     """
   
@@ -163,14 +163,14 @@ class HistoryMatching(object):
         self.update()
     
     
-    def get_implausability(self, *args):
+    def get_implausibility(self, *args):
         r"""
-        Carries out the implausability calculation given by:
+        Carries out the implausibility calculation given by:
     
         LaTeX:
         I_i(\bar{x_0}) = \frac{|z_i - E(f_i(\bar{x_0}))|}{\sqrt{Var[z_i - E(f_i(\bar{x_0}))]}}
     
-        to return an implausability value for each of the provided coordinates.
+        to return an implausibility value for each of the provided coordinates.
     
         Requires that the observation parameter is set, and that at least one of the
         following conditions is met:
@@ -183,7 +183,7 @@ class HistoryMatching(object):
         are a constant across all expectation values.
           b) lists containing a variance parameter for each expectation value.
           
-        As the Implausability calculation linearly sums variances, the result is
+        As the implausibility calculation linearly sums variances, the result is
         agnostic to the precise provenance of any provided variances. Variances 
         may therefore be provided in any order.
     
@@ -192,7 +192,7 @@ class HistoryMatching(object):
         # Confirm that observation parameter is set
         if not self.check_obs(self.obs):
             raise Exception(
-              "Implausability calculation requires that the observation value is " + 
+              "implausibility calculation requires that the observation value is " + 
               "set. This can be done using the set_obs method.")
       
         # Check that we have exactly 1 valid combination of parameters
@@ -228,7 +228,7 @@ class HistoryMatching(object):
                 if isinstance(a, list):    # vars as list: convert to ndarray and adjoin
                     if len(a) != self.ncoords: 
                         raise Exception(
-                          "bad input for get_implausability - expected variance quantities"+
+                          "bad input for get_implausibility - expected variance quantities"+
                           " containing 1 or", self.ncoords, 
                           "values, found quantities containing", len(a))
                     if varlists is None:
@@ -242,12 +242,12 @@ class HistoryMatching(object):
                         a = np.reshape(a, (-1,1))
                     elif (len(a.shape) > 2 or a.shape[1] != 1):
                         raise Exception(
-                          "bad input for get_implausability - expected variance quantities"+
+                          "bad input for get_implausibility - expected variance quantities"+
                           " as single numerical values, lists, or dnarrays of shape (n,) " +
                           "or (n,1), found dnarray of shape", a.shape)
                     elif a.shape[0] != self.ncoords:
                         raise Exception(
-                          "bad input for get_implausability - expected variance quantities"+
+                          "bad input for get_implausibility - expected variance quantities"+
                           " containing 1 or", self.ncoords, 
                           "values, found quantities containing", a.shape[0])
                     if varlists is None:
@@ -259,7 +259,7 @@ class HistoryMatching(object):
                         varvals.append(float(a))
                     except:
                         raise Exception(
-                          "bad input for get_implausability - expected variance quantities"+
+                          "bad input for get_implausibility - expected variance quantities"+
                           " as single numerical values, lists, or ndarrays, found variable"+
                           " of type", type(a))
         
@@ -288,7 +288,7 @@ class HistoryMatching(object):
         Returns a list of indices for self.I that correspond to entries that are not
         yet ruled out.
         """
-        if self.I is None: self.get_implausability(args)
+        if self.I is None: self.get_implausibility(args)
     
         self.NROY = []
         self.RO = []

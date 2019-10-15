@@ -150,36 +150,36 @@ def test_sanity_checks():
 
 
     print("---TEST IMPLAUSABILIY---")
-    print("Implausability test a - no vars")
+    print("implausibility test a - no vars")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
 
-    print("Implausability test b - single value")
+    print("implausibility test b - single value")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausability(7.)
+    I = hm.get_implausibility(7.)
 
-    print("Implausability test c - multiple values")
+    print("implausibility test c - multiple values")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausability(7., 8, 109.5)
+    I = hm.get_implausibility(7., 8, 109.5)
 
-    print("Implausability test d - single list")
+    print("implausibility test d - single list")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
     var = [a for a in range(2000)]
-    I = hm.get_implausability([a for a in range(2000)])
+    I = hm.get_implausibility([a for a in range(2000)])
 
-    print("Implausability test d - multiple lists")
+    print("implausibility test d - multiple lists")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausability(var, [v+2 for v in var], [v*7 for v in var])
+    I = hm.get_implausibility(var, [v+2 for v in var], [v*7 for v in var])
 
-    print("Implausability test e - single 1D ndarray ")
+    print("implausibility test e - single 1D ndarray ")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
     var = np.asarray(var)
-    I = hm.get_implausability(var)
+    I = hm.get_implausibility(var)
 
-    print("Implausability test f - single 2D ndarray ")
+    print("implausibility test f - single 2D ndarray ")
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
     var = np.reshape(np.asarray(var), (-1,1))
-    I = hm.get_implausability(var)
+    I = hm.get_implausibility(var)
 
 def test_HistoryMatching_init():
     "test the init method of HistoryMatching"
@@ -242,22 +242,22 @@ def test_HistoryMatching_init_failures():
     with pytest.raises(AssertionError):
         hm = HistoryMatching(threshold = -1.)
 
-def test_HistoryMatching_get_implausability():
-    "test the get_implausability method of HistoryMatching"
+def test_HistoryMatching_get_implausibility():
+    "test the get_implausibility method of HistoryMatching"
     
     expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
     hm = HistoryMatching(obs = [1., 1.], expectations = expectations)
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     
     assert_allclose(I, [1., 9.])
     assert_allclose(hm.I, [1., 9.])
     
-    I = hm.get_implausability(1.)
+    I = hm.get_implausibility(1.)
     
     assert_allclose(I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
     assert_allclose(hm.I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
     
-    I = hm.get_implausability(1., 2.)
+    I = hm.get_implausibility(1., 2.)
     
     assert_allclose(I, [0.5, 4.5])
     assert_allclose(hm.I, [0.5, 4.5])
@@ -271,24 +271,24 @@ def test_HistoryMatching_get_implausability():
     I_exp = np.abs(mean - obs[0])/np.sqrt(unc + obs[1])
     
     hm = HistoryMatching(gp = gp, obs = obs, coords = coords)
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     
     assert_allclose(I, I_exp)
     assert_allclose(hm.I, I_exp)
     
     with pytest.raises(AssertionError):
-        hm.get_implausability(-1.)
+        hm.get_implausibility(-1.)
     
     hm = HistoryMatching(gp = gp, obs = obs, coords = coords, expectations = expectations)
     
     with pytest.raises(Exception):
-        hm.get_implausability()
+        hm.get_implausibility()
     
 def test_HistoryMatching_get_NROY():
     "test the get_NROY method of HistoryMatching"
     
     hm = HistoryMatching(obs = [1., 1.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     
     NROY = hm.get_NROY()
     
@@ -298,7 +298,7 @@ def test_HistoryMatching_get_RO():
     "test the get_RO method of HistoryMatching"
     
     hm = HistoryMatching(obs = [1., 1.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
-    I = hm.get_implausability()
+    I = hm.get_implausibility()
     
     RO = hm.get_RO()
     
