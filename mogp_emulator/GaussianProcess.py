@@ -682,7 +682,17 @@ class GaussianProcess(object):
                 c = Ktest * aa.T
                 deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
         return mu, var, deriv
-        
+
+
+    def __call__(self, testing):
+        """A Gaussian process object is callable: calling it is the same as
+        calling `predict` without uncertainty and derivative
+        predictions, and extracting the zeroth component for the
+        'value' prediction.
+        """
+        return (self.predict(testing, do_deriv=False, do_unc=False)[0])
+
+
     def __str__(self):
         """
         Returns a string representation of the model
