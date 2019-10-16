@@ -51,7 +51,7 @@ regression on the reduced input space:
   >>> Y = np.apply_along_axis(f, 1, X)
 
   ### reduced input space
-  >>> dr = gKDR(X,Y,1)
+  >>> dr = gKDR(X, Y, K=1)
 
   ### train a Gaussian Process with reduced inputs
   >>> gp = GaussianProcess(dr(X), Y)
