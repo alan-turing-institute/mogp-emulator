@@ -137,7 +137,7 @@ class gKDR(object):
     implementation, but this should not affect the interface.
     """
     
-    def __init__(self, X, Y, K=None, EPS=1E-8, SGX=None, SGY=None):
+    def __init__(self, X, Y, K=None, EPS=1E-8, X_scale = 1.0, Y_scale = 1.0, SGX=None, SGY=None):
         """Create a gKDR object
         
         Given some `M`-dimensional inputs (explanatory variables) `X`,
@@ -156,6 +156,14 @@ class gKDR(object):
 
         :type EPS: float
         :param EPS: The regularization parameter, default `1e-08`; `EPS >= 0`
+
+        :type X_scale: float
+        :param X_scale: Optional, default `1.0`.  If SGX is None (the default), scale the
+                        automatically determined value for SGX by X_scale.  Otherwise ignored.
+
+        :type Y_scale: float
+        :param Y_scale: Optional, default `1.0`.  If SGY is None (the default), scale the
+                        automatically determined value for SGY by Y_scale.  Otherwise ignored.
 
         :type SGX: float | NoneType
         :param SGX: Optional, default `None`. The kernel parameter representing the 
@@ -188,9 +196,9 @@ class gKDR(object):
         Y = np.reshape(Y, (N,1))
         
         if SGX is None:
-            SGX = median_dist(X)
+            SGX = X_scale * median_dist(X)
         if SGY is None:
-            SGY = median_dist(Y)
+            SGY = Y_scale * median_dist(Y)
 
         I = np.eye(N)
 
@@ -217,8 +225,10 @@ class gKDR(object):
         L, V = np.linalg.eig(R)
         idx = np.argsort(L, 0)[::-1] # sort descending
 
-        # Keep X and Y for the purpose of tuning K later
-        self.K = K        
+        # record B, along with some bookkeeping parameters
+        self.X_scale = X_scale
+        self.Y_scale = Y_scale
+        self.K = K
         self.B = V[:, idx]
 
         
