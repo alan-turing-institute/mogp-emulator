@@ -65,7 +65,7 @@ def test_DimensionReduction_GP():
     gp_red.learn_hyperparameters()
     
     ## some points offset w.r.t the initial grid
-    Xnew = (np.mgrid[0:10,0:10].T.reshape(-1,2) + 0.5)/10.0
+    Xnew = (np.mgrid[0:9,0:9].T.reshape(-1,2) + 0.5)/10.0
 
     Yexpect = np.apply_along_axis(fn, 1, Xnew)
     Ynew = gp.predict(Xnew)[0] # value prediction 
