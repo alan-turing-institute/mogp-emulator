@@ -188,7 +188,7 @@ class gKDR(object):
         if K is None:
             K = M
 
-        assert(K >= 0 and K <= M)        
+        assert(K >= 0 and K <= M)
         assert(EPS >= 0)
         assert(SGX is None or SGX > 0.0)
         assert(SGY is None or SGY > 0.0)
