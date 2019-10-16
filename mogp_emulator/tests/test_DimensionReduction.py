@@ -1,5 +1,5 @@
 import numpy as np
-from .. import gKDR
+from .. import gKDR, KDR
 from ..DimensionReduction import median_dist, gram_matrix_sqexp, gram_matrix
 from .. import GaussianProcess
 
@@ -95,3 +95,38 @@ def test_DimensionReduction_gram_matrix():
 
     assert(np.allclose(G_sqexp1, G_sqexp_expected))
     assert(np.allclose(G_sqexp2, G_sqexp_expected))
+
+
+def test_KDR_constructor():
+    """Basic check that we can create gKDR with the expected arguments"""
+    Y = np.array([[1], [2.1], [3.2]])
+    X = np.array([[1, 2, 3], [4, 5.1, 6], [7.1, 8, 9.1]])
+    KDR(X, Y, K=2, SGX=2, SGY=2, EPS=1E-5)
+
+
+def test_KDR_initial_guess():
+    """Ensure that KDR returns the expected result given a sensible initial
+    guess"""
+    X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    Y = np.array([0.1, 1.0, 3.0, 3.6])
+    B_initial = np.array([[-0.2653073259794961], [-0.9641638982982144]])
+
+    B_expected = np.array([[-0.27085133], [-0.9565372]])
+
+    dr = KDR(X, Y, 1, SGX=1.0, SGY=2.0, B=B_initial)
+    assert(np.allclose(dr.B, B_expected))
+
+
+def test_KDR_from_gKDR():
+    """Ensure that KDR returns the expected result when starting from a gKDR
+    object"""
+    X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    Y = np.array([0.1, 1.0, 3.0, 3.6])
+    dr = gKDR(X, Y, 2, SGX=1.0, SGY=2.0)
+
+    K = 1
+    from_gkdr = KDR.from_gKDR(X, Y, dr, K=K, SGX=1.0, SGY=2.0)
+
+    B_expected = np.array([[-0.27057503], [-0.95555962]])
+
+    assert(np.allclose(from_gkdr.B, B_expected))
