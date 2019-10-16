@@ -221,8 +221,11 @@ class gKDR(object):
         HHm = np.reshape(np.transpose(HH, (0,2,1,3)), (N*N,M,M), order='F')
         Fm = np.tile(np.reshape(F, (N*N,1,1), order='F'), (1,M,M))
         R = np.reshape(np.sum(HHm * Fm, 0), (M,M), order='F')
+
+        L, V = np.linalg.eigh(R)
+
+        assert(np.allclose(V.imag, 0.0))
         
-        L, V = np.linalg.eig(R)
         idx = np.argsort(L, 0)[::-1] # sort descending
 
         # record B, along with some bookkeeping parameters
