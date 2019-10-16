@@ -247,43 +247,153 @@ class gKDR(object):
         """
         return X @ self.B[:,0:self.K]
 
-    
+
     @classmethod
-    def tune_structural_dimension(cls, X, Y, train_model, tol):
-        """Find the minimum structural dimension (K) that keeps the absolute
-        L_inf error between Y and the trained model, below :param tol:"""
+    def tune_parameters(cls, X, Y, train_model, cXs=None, cYs=None,
+                        maxK=None, cross_validation_folds=5,
+                        verbose=False):
+        """Constructs a gKDR model with the structural dimension (K) and
+        kernel scale parameters (cX, cY) that approximately minimize
+        the L1 error between Y and the trained model (resulting from
+        calling `train_model` on X and Y).
+
+        Currently, this works as follows.  For each choice of cX and
+        cY in `cXs` and `cYs`, find K by starting from a K of 1 and
+        doubling K until the loss increases (using the value of K just
+        before), or until K equals the input dimension (or maxK if
+        specified).  The resulting choice of `(cX, cY, K)` is then
+        taken as the minimum such choice over the cX, cY.
+
+        :type X: ndarray, of shape (N, M)
+        :param X: `N` input points with dimension `M`
+
+        :type Y: ndarray, of shape (N,)
+        :param Y: the `N` model observations, corresponding to each
+
+        :type train_model: function with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
+        :param train_model: a function that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another function, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
+
+        :type cXs: Iterable of `float`, or `NoneType`
+        :param cXs: (optional, default None). The scale parameter for `X` in the dimension reduction kernel.  Passed as the parameter `X_scale` to the gKDR constructor (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1, 5.0]` is used.
+
+        :type cYs: Iterable of `float`, or `NoneType`
+        :param cYs: (optional, default None). The scale parameter for `Y` in the dimension reduction kernel.  Passed as the parameter `Y_scale` to the gKDR constructor (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1, 5.0]` is used.
+
+        :type maxK: integer, or NoneType
+        :param maxK: (optional default `None`). The largest structural dimension to consider in the optimization.  This is useful when there is a known bound on the dimension, to stop e.g. poor values of cX or cY needlessly extending the search.  It is a good idea to choose this parameter generously.
+
+        :type cross_validation_folds: integer
+        :param cross_validation_folds: (optional, default is 5): Use this many folds for cross-validation when tuning the parameters.
+
+        :type verbose: bool
+        :param verbose: produce a log to stdout of the optimization?
+
+        :returns: A pair of: the gKDR object with parameters tuned according to the above method, and a number representing the L1 loss of the model trained on inputs as reduced by this dimension reduction object.
+        :rtype: pair of a gKDR and a non-negative float
+
+        *Example*
+
+        Tune the structural dimension and lengthscale parameters
+        within the kernel, minimizing the the loss from a
+        Gaussian process regression:
+
+          >>> from mogp_emulator import gKDR
+          >>> from mogp_emulator import GaussianProcess
+          >>> X = ...
+          >>> Y = ...
+          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model)
+          >>> gp = GaussianProcess(dr(X), Y)
+
+        Or, specifying some optional parameters for the lengthscales,
+        the maximum value of `K` to use, the number of folds for
+        cross-validation, and producing verbose output:
+
+          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
+          ...                                 cXs = [0.5, 1.0, 2.0], cYs = [2.0],
+          ...                                 maxK = 25, cross_validation_folds=4, verbose = True)
+
+        """
 
         N, M = np.shape(X)
-        
-        ## combine input and output arrays, such that if X[i] =
-        ## [1,2,3] and Y[i] = 4, then XY[i] = [1,2,3,4]
+
+        if cXs is None:
+            cXs = [0.5, 1.0, 5.0]
+
+        if cYs is None:
+            cYs = [0.5, 1.0, 5.0]
+
+        if maxK is None:
+            maxK = M
+
+        assert(maxK >= 1 and maxK <= M)
+
+        ## combine input and output arrays, such that if
+        ## X[i] = [1,2,3] and Y[i] = 4, then XY[i] = [1,2,3,4].
+        ## That is,
         ## XY[:, -1] == Y
         ## XY[:, 0:-1] == X
         ##
         XY = np.hstack((X, Y[:,np.newaxis]))
 
-        def loss(K):
-            max_err = -np.inf
-            for train, validate in k_fold_cross_validation(XY, 2):
+        def compute_loss(K, X_scale, Y_scale):
+            """Internal definition of the loss, as a function of the structural
+            dimension and scale parameters"""
+
+            K = int(round(K))
+            err = []
+            for train, validate in k_fold_cross_validation(XY, 5):
                 train = np.array(train)
                 validate = np.array(validate)
-                dr = gKDR(X=train[:,0:-1], Y=train[:,-1], K=K)
+                dr = gKDR(X=train[:,0:-1], Y=train[:,-1], K=K, X_scale=X_scale,
+                          Y_scale=Y_scale)
 
                 model = train_model(dr(train[:,0:-1]), train[:,-1])
-                
-                Linf = np.max(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
-                
-                max_err = np.maximum(max_err, Linf)
 
-            print("loss({}) = {}".format(K, max_err))
-            return max_err
+                Linf = np.mean(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
 
-        ## perform a bisection search on loss(K) (for integer values
-        ## of K between 1 and M) to find the largest value of "loss"
-        ## less than tol
-        
-        if loss(1) < tol:
-            return gKDR(X, Y, 1)
-        else:
-            bound = integer_bisect((1, M), lambda K: loss(K) - tol)
-            return gKDR(X, Y, bound[0])
+                err.append(Linf)
+
+            if verbose:
+                print("loss(K={}, X_scale={}, Y_scale={}) = {}"\
+                      .format(K, X_scale, Y_scale, np.mean(err)))
+
+            return np.mean(err)
+
+        # Search for K and scale parameters that together
+        # (approximately) minimize the loss, which could be quite
+        # noisy.  For each choice of the scale parameters (cX, cY), K
+        # starts at 1 and doubles until the loss increases, or until K
+        # equals the input dimension.  Keep the minimum over all of
+        # the trial parameter sets.
+        #
+        min_loss = np.inf
+        argmin_loss = None
+        for cX in cXs:
+            for cY in cYs:
+                loss = np.inf
+                params = None
+                k = 1
+                while (k <= maxK):
+                    old_params, params = params, (k, cX, cY)
+                    old_loss, loss = loss, compute_loss(*params)
+                    if old_loss < loss:
+                        if old_loss < min_loss:
+                            min_loss = old_loss
+                            argmin_loss = old_params
+                        break
+                    elif k == maxK:
+                        if loss < min_loss:
+                            min_loss = loss
+                            argmin_loss = params
+                        break
+                    elif 2*k > maxK:
+                        k = maxK
+                    else:
+                        k *= 2
+
+        # construct the object with the full set of data, and
+        # parameters found above
+        #
+        dr = gKDR(X, Y, *argmin_loss)
+
+        return (dr, min_loss)
