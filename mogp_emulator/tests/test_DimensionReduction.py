@@ -14,6 +14,9 @@ def fn2(x):
     """A linear function for testing the dimension reduction"""
     return 10*(x[0] + x[1]) + (x[1] - x[0]) + x[2] + 0.1*x[3]
 
+def fn3(x):
+    return x[0]
+
 
 ##### The tests
 
@@ -21,23 +24,28 @@ def test_DimensionReduction_basic():
     """Basic check that we can create gKDR with the expected arguments"""
     Y = np.array([[1],[2.1],[3.2]])
     X = np.array([[1,2,3],[4,5.1,6],[7.1,8,9.1]])
-    dr = gKDR(X,Y,K=2,SGX=2,SGY=2,EPS=1E-5)
+    K_in = 2
+    dr = gKDR(X, Y, K=K_in, SGX=2, SGY=2, EPS=1E-5)
+    assert(dr.K == K_in)
+
+
+def test_DimensionReduction_tune_parameters():
+    """Check that we can tune the dimension reduction to discover the
+    correct structural dimension in a simple case"""
+
+    np.random.seed(100)
+    X = np.random.random((100,100))
+    Y = np.apply_along_axis(fn3, 1, X)
+
+    dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
+                                    cXs=[5.0], cYs=[5.0], maxK = 3)
+
+    # These are somewhat conservative bounds: the random seed makes
+    # the resulting K and loss deterministic.  For other seeds, these
+    # bounds are unlikely to be exceeded.
+    assert(dr.K <= 2)
+    assert(loss > 0.0 and loss < 0.2)
     
-def test_DimensionReduction_tune_dimension():
-    """Check that we can tune the dimension reduction to a defined tolerance in prediction error"""
-    ## X = np.mgrid[0:10,0:10].T.reshape(-1,2)/10.0
-
-    X = np.random.random((10,4))
-    Y = np.apply_along_axis(fn2, 1, X)
-
-    def gp_model(X,Y):
-        gp = GaussianProcess(X,Y)
-        gp.learn_hyperparameters()
-        return (lambda Xnew: gp.predict(Xnew)[0])
-
-    dr = gKDR.tune_structural_dimension(X, Y, gp_model, tol=1e-2)
-    print(dr.K)
-
 
 def test_DimensionReduction_GP():
     """Test that a GP based on reduced inputs behaves well."""
