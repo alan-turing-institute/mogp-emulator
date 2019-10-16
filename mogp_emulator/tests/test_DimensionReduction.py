@@ -45,14 +45,14 @@ def test_DimensionReduction_tune_parameters():
     # bounds are unlikely to be exceeded.
     assert(dr.K <= 2)
     assert(loss > 0.0 and loss < 0.2)
-    
+
 
 def test_DimensionReduction_GP():
     """Test that a GP based on reduced inputs behaves well."""
-    
+
     # Make some test points on a grid.  Any deterministic set of
     # points would work well for this test.
-    
+
     X = np.mgrid[0:10,0:10].T.reshape(-1,2)/10.0
     Y = np.apply_along_axis(fn, 1, X)
     dr = gKDR(X,Y,1)
@@ -63,12 +63,12 @@ def test_DimensionReduction_GP():
 
     gp_red = GaussianProcess(dr(X), Y)
     gp_red.learn_hyperparameters()
-    
+
     ## some points offset w.r.t the initial grid
     Xnew = (np.mgrid[0:9,0:9].T.reshape(-1,2) + 0.5)/10.0
 
     Yexpect = np.apply_along_axis(fn, 1, Xnew)
-    Ynew = gp.predict(Xnew)[0] # value prediction 
+    Ynew = gp.predict(Xnew)[0] # value prediction
     Ynew_red = gp_red.predict(dr(Xnew))[0] # value prediction
 
     # check that the fit was reasonable in both cases
@@ -87,7 +87,7 @@ def test_DimensionReduction_B():
 
     B_expected = np.array([[-0.2653073259794961, -0.9641638982982144],
                            [-0.9641638982982144,  0.2653073259794961]])
-    
+
     for i in range(B_expected.shape[1]):
         r = dr.B[:,i]/B_expected[:,i]
         assert(np.allclose(r, 1.0) or np.allclose(r, -1.0))
@@ -107,7 +107,7 @@ def test_DimensionReduction_gram_matrix():
     def k_sqexp(x0, x1):
         d = x0 - x1
         return np.exp(-0.5 * np.dot(d, d))
-    
+
     G_dot = gram_matrix(X, k_dot)
     assert(np.allclose(G_dot, np.array([[0.0, 0.0, 0.0, 0.0],
                                         [0.0, 1.0, 0.0, 1.0],

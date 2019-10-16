@@ -136,18 +136,18 @@ class gKDR(object):
     Python/NumPy.  It is due to be replaced with a Fortran
     implementation, but this should not affect the interface.
     """
-    
+
     def __init__(self, X, Y, K=None, EPS=1E-8, X_scale = 1.0, Y_scale = 1.0, SGX=None, SGY=None):
         """Create a gKDR object
-        
+
         Given some `M`-dimensional inputs (explanatory variables) `X`,
         and corresponding one-dimensional outputs (responses) `Y`, use
         the gKDR method to produce a reduced version of the input
         space with `K` dimensions.
-        
+
         :type X: ndarray, of shape (N, M)
         :param X: `N` rows of `M` dimensional input vectors
-        
+
         :type Y: ndarray, of shape (N,)
         :param Y: `N` response values
 
@@ -166,14 +166,14 @@ class gKDR(object):
                         automatically determined value for SGY by Y_scale.  Otherwise ignored.
 
         :type SGX: float | NoneType
-        :param SGX: Optional, default `None`. The kernel parameter representing the 
+        :param SGX: Optional, default `None`. The kernel parameter representing the
                     scale of variation on the input space.  If `None`, then the median distance
                     between pairs of input points (`X`) is used (as computed by
                     :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
                     passed, then this must be positive.
- 
+
         :type SGY: float | NoneType
-        :param SGY: Optional, default `None`. The kernel parameter representing the 
+        :param SGY: Optional, default `None`. The kernel parameter representing the
                     scale of variation on the output space.  If `None`, then the median distance
                     between pairs of output values (`Y`) is used (as computed by
                     :func:`mogp_emulator.DimensionReduction.median_dist`).  If a float is
@@ -194,7 +194,7 @@ class gKDR(object):
         assert(SGY is None or SGY > 0.0)
 
         Y = np.reshape(Y, (N,1))
-        
+
         if SGX is None:
             SGX = X_scale * median_dist(X)
         if SGY is None:
@@ -207,17 +207,17 @@ class gKDR(object):
 
         Kx = gram_matrix_sqexp(X, SGX2)
         Ky = gram_matrix_sqexp(Y, SGY2)
-        
+
         Dx = np.reshape(np.tile(X,(N,1)), (N,N,M), order='F').copy()
         Xij = Dx - np.transpose(Dx, (1,0,2))
         Xij = Xij / SGX2
         H = Xij * np.tile(Kx[:,:,np.newaxis], (1,1,M))
-        
+
         tmp = np.linalg.solve(Kx + N*EPS*I, Ky)
         F = np.linalg.solve((Kx + N*EPS*I).T, tmp.T).T
 
-        Hm = np.reshape(H,(N,N*M), order='F')       
-        HH = np.reshape(Hm.T @ Hm, (N,M,N,M), order='F')      
+        Hm = np.reshape(H,(N,N*M), order='F')
+        HH = np.reshape(Hm.T @ Hm, (N,M,N,M), order='F')
         HHm = np.reshape(np.transpose(HH, (0,2,1,3)), (N*N,M,M), order='F')
         Fm = np.tile(np.reshape(F, (N*N,1,1), order='F'), (1,M,M))
         R = np.reshape(np.sum(HHm * Fm, 0), (M,M), order='F')
@@ -225,7 +225,7 @@ class gKDR(object):
         L, V = np.linalg.eigh(R)
 
         assert(np.allclose(V.imag, 0.0))
-        
+
         idx = np.argsort(L, 0)[::-1] # sort descending
 
         # record B, along with some bookkeeping parameters
@@ -234,7 +234,7 @@ class gKDR(object):
         self.K = K
         self.B = V[:, idx]
 
-        
+
     def __call__(self, X):
         """Calling a gKDR object with a vector of N inputs returns the inputs
         mapped to the reduced space.
