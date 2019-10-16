@@ -136,6 +136,14 @@ class GaussianProcess(object):
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
 
+
+    @classmethod
+    def train_model(Cls, *init_args):
+        gp = Cls(*init_args)
+        gp.learn_hyperparameters()
+        return gp
+
+
     def _load_emulator(self, filename):
         """
         Load saved emulator and parameter values from file
