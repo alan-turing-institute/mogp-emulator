@@ -349,9 +349,9 @@ class gKDR(object):
 
                 model = train_model(dr(train[:,0:-1]), train[:,-1])
 
-                Linf = np.mean(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
+                error_L1 = np.mean(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
 
-                err.append(Linf)
+                err.append(error_L1)
 
             if verbose:
                 print("loss(K={}, X_scale={}, Y_scale={}) = {}"\
