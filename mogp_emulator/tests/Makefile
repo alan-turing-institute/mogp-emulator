@@ -45,12 +45,15 @@ mice: mice_error.png mice_unc.png
 
 branin_2d_unc.png branin_2d_error.png: benchmark_branin.py
 	python3 benchmark_branin.py
-	
+
 rosenbrock_unc.png rosenbrock_error.png: benchmark_rosenbrock.py
-		python3 benchmark_rosenbrock.py
-	
+	python3 benchmark_rosenbrock.py
+
 tsunami_scaling.png: benchmark_tsunami.py
 	python3 benchmark_tsunami.py
 
 mice_unc.png mice_error.png: benchmark_MICE.py
 	python3 benchmark_MICE.py
+
+benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
+	python3 benchmark_kdr_GP.py
