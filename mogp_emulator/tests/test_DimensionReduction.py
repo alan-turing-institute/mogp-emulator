@@ -34,7 +34,7 @@ def test_DimensionReduction_tune_parameters():
     correct structural dimension in a simple case"""
 
     np.random.seed(100)
-    X = np.random.random((100,100))
+    X = np.random.random((20,20))
     Y = np.apply_along_axis(fn3, 1, X)
 
     dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
