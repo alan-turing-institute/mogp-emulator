@@ -137,7 +137,7 @@ class gKDR(object):
     implementation, but this should not affect the interface.
     """
 
-    def __init__(self, X, Y, K=None, EPS=1E-8, X_scale = 1.0, Y_scale = 1.0, SGX=None, SGY=None):
+    def __init__(self, X, Y, K=None, X_scale = 1.0, Y_scale = 1.0, EPS=1E-8, SGX=None, SGY=None):
         """Create a gKDR object
 
         Given some `M`-dimensional inputs (explanatory variables) `X`,
@@ -249,6 +249,52 @@ class gKDR(object):
 
 
     @classmethod
+    def _compute_loss(cls, X, Y, train_model, cross_validation_folds, *params):
+        """Compute the L1 loss of a model (produced by calling train_model), via
+        cross validation.  The model is trained on input parameters `x` that
+        are first reduced via the dimension reduction procedure produced by
+        calling ``gKDR(x, y, *params)``.
+
+        :type X: ndarray, of shape (N, M)
+        :param X: `N` input points with dimension `M`
+
+        :type Y: ndarray, of shape (N,)
+        :param Y: the `N` model observations, corresponding to each
+
+        :type train_model: callable with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
+        :param train_model: a callable, that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another callable, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
+
+        :type cross_validation_folds: integer
+        :param cross_validation_folds: Use this many folds for cross-validation when tuning the parameters.
+
+        :type params: tuple
+        :param params: parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
+        """
+
+        ## combine input and output arrays, such that if
+        ## X[i] = [1,2,3] and Y[i] = 4, then XY[i] = [1,2,3,4].
+        ## That is,
+        ## XY[:, -1] == Y
+        ## XY[:, 0:-1] == X
+        ##
+        XY = np.hstack((X, Y[:,np.newaxis]))
+
+        err = []
+        for train, validate in k_fold_cross_validation(XY, 5):
+            train = np.array(train)
+            validate = np.array(validate)
+
+            dr = gKDR(train[:,0:-1], train[:,-1], *params)
+
+            model = train_model(dr(train[:,0:-1]), train[:,-1])
+
+            error_L1 = np.mean(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
+            err.append(error_L1)
+
+        return np.mean(err)
+
+
+    @classmethod
     def tune_parameters(cls, X, Y, train_model, cXs=None, cYs=None,
                         maxK=None, cross_validation_folds=5,
                         verbose=False):
@@ -270,8 +316,8 @@ class gKDR(object):
         :type Y: ndarray, of shape (N,)
         :param Y: the `N` model observations, corresponding to each
 
-        :type train_model: function with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
-        :param train_model: a function that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another function, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
+        :type train_model: callable with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
+        :param train_model: a callable, that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another callable, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
 
         :type cXs: Iterable of `float`, or `NoneType`
         :param cXs: (optional, default None). The scale parameter for `X` in the dimension reduction kernel.  Passed as the parameter `X_scale` to the gKDR constructor (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1, 5.0]` is used.
@@ -327,37 +373,9 @@ class gKDR(object):
 
         assert(maxK >= 1 and maxK <= M)
 
-        ## combine input and output arrays, such that if
-        ## X[i] = [1,2,3] and Y[i] = 4, then XY[i] = [1,2,3,4].
-        ## That is,
-        ## XY[:, -1] == Y
-        ## XY[:, 0:-1] == X
-        ##
-        XY = np.hstack((X, Y[:,np.newaxis]))
-
-        def compute_loss(K, X_scale, Y_scale):
-            """Internal definition of the loss, as a function of the structural
-            dimension and scale parameters"""
-
-            K = int(round(K))
-            err = []
-            for train, validate in k_fold_cross_validation(XY, 5):
-                train = np.array(train)
-                validate = np.array(validate)
-                dr = gKDR(X=train[:,0:-1], Y=train[:,-1], K=K, X_scale=X_scale,
-                          Y_scale=Y_scale)
-
-                model = train_model(dr(train[:,0:-1]), train[:,-1])
-
-                error_L1 = np.mean(np.abs(validate[:,-1] - model(dr(validate[:,0:-1]))))
-
-                err.append(error_L1)
-
-            if verbose:
-                print("loss(K={}, X_scale={}, Y_scale={}) = {}"\
-                      .format(K, X_scale, Y_scale, np.mean(err)))
-
-            return np.mean(err)
+        def compute_loss(*params):
+            return gKDR._compute_loss(
+                X, Y, train_model, cross_validation_folds, *params)
 
         # Search for K and scale parameters that together
         # (approximately) minimize the loss, which could be quite
@@ -376,6 +394,11 @@ class gKDR(object):
                 while (k <= maxK):
                     old_params, params = params, (k, cX, cY)
                     old_loss, loss = loss, compute_loss(*params)
+
+                    if verbose:
+                        print("loss(K={}, X_scale={}, Y_scale={}) = {}"\
+                              .format(*params, loss))
+
                     if old_loss < loss:
                         if old_loss < min_loss:
                             min_loss = old_loss
