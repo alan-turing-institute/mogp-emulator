@@ -18,7 +18,7 @@ tests:
 
 ## benchmarks : Run the Branin, Rosenbrock (convergence), and tsunami (performance) benchmarks
 .PHONY: benchmarks
-benchmarks: branin tsunami rosenbrock mice
+benchmarks: branin tsunami rosenbrock mice gKDR
 
 ## branin     : Run the 2D Branin tests of convergence. Produces the plots
 ##            : branin_2d_error.png and branin_2d_unc.png
@@ -40,6 +40,9 @@ rosenbrock: rosenbrock_error.png rosenbrock_unc.png
 ##            : Produces the plots mice_error.png and mice_unc.png
 .PHONY: mice
 mice: mice_error.png mice_unc.png
+
+.PHONY: gKDR
+gKDR: benchmark_kdr_GP_loss.pdf
 
 # commands above are shortcuts to the targets below
 
