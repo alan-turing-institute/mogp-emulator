@@ -249,7 +249,7 @@ class gKDR(object):
 
 
     @classmethod
-    def _compute_loss(cls, X, Y, train_model, cross_validation_folds, *params):
+    def _compute_loss(cls, X, Y, train_model, cross_validation_folds, *params, **kwparams):
         """Compute the L1 loss of a model (produced by calling train_model), via
         cross validation.  The model is trained on input parameters `x` that
         are first reduced via the dimension reduction procedure produced by
@@ -269,6 +269,9 @@ class gKDR(object):
 
         :type params: tuple
         :param params: parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
+
+        :type params: dict
+        :param params: keyword parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
         """
 
         ## combine input and output arrays, such that if
@@ -280,11 +283,11 @@ class gKDR(object):
         XY = np.hstack((X, Y[:,np.newaxis]))
 
         err = []
-        for train, validate in k_fold_cross_validation(XY, 5):
+        for train, validate in k_fold_cross_validation(XY, cross_validation_folds):
             train = np.array(train)
             validate = np.array(validate)
 
-            dr = gKDR(train[:,0:-1], train[:,-1], *params)
+            dr = gKDR(train[:,0:-1], train[:,-1], *params, **kwparams)
 
             model = train_model(dr(train[:,0:-1]), train[:,-1])
 
