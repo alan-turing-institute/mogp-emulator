@@ -10,10 +10,10 @@ import pickle
 def test_GaussianProcess_init():
     "Test function for correct functioning of the init method of GaussianProcess and GaussianProcessGPU"
 
-    for GP in [GaussianProcess, GaussianProcessGPU]:
+    for GP in [GaussianProcess, GaussianProcessGPU]:    
         x = np.reshape(np.array([1., 2., 3.]), (1, 3))
         y = np.array([2.])
-        gp = GP(x, y)
+        gp = GaussianProcess(x, y)
         assert_allclose(x, gp.inputs)
         assert_allclose(y, gp.targets)
         assert gp.D == 3
@@ -22,7 +22,7 @@ def test_GaussianProcess_init():
 
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
         y = np.array([2., 3., 4.])
-        gp = GP(x, y)
+        gp = GaussianProcess(x, y)
         assert_allclose(x, gp.inputs)
         assert_allclose(y, gp.targets)
         assert gp.D == 2
@@ -31,7 +31,7 @@ def test_GaussianProcess_init():
 
         x = np.array([1., 2., 3., 4., 5., 6.])
         y = np.array([2.])
-        gp = GP(x, y)
+        gp = GaussianProcess(x, y)
         assert_allclose(np.array([x]), gp.inputs)
         assert_allclose(y, gp.targets)
         assert gp.D == 6
@@ -40,7 +40,7 @@ def test_GaussianProcess_init():
 
         x = np.reshape(np.array([1., 2., 3.]), (1, 3))
         y = np.array([2.])
-        gp = GP(x, y, 1.)
+        gp = GaussianProcess(x, y, 1.)
         assert_allclose(x, gp.inputs)
         assert_allclose(y, gp.targets)
         assert gp.D == 3
@@ -49,7 +49,7 @@ def test_GaussianProcess_init():
 
         x = np.reshape(np.array([1., 2., 3.]), (1, 3))
         y = np.array([2.])
-        gp = GP(x, y, None)
+        gp = GaussianProcess(x, y, None)
         assert_allclose(x, gp.inputs)
         assert_allclose(y, gp.targets)
         assert gp.D == 3
@@ -61,7 +61,7 @@ def test_GaussianProcess_init():
                                           targets = np.array([2., 4.]),
                                           nugget = None)
             tmp.seek(0)
-            gp = GP(tmp)
+            gp = GaussianProcess(tmp)
 
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
         y = np.array([2., 4.])
@@ -70,8 +70,7 @@ def test_GaussianProcess_init():
         assert gp.n == 2
         assert gp.D == 3
         assert gp.nugget == None
-        with pytest.raises(AttributeError):
-            gp.theta
+        assert gp.theta is None
 
         with TemporaryFile() as tmp:
             np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
@@ -79,7 +78,7 @@ def test_GaussianProcess_init():
                                           theta = np.array([1., 2., 3., 4.]),
                                           nugget = 1.e-6)
             tmp.seek(0)
-            gp = GP(tmp)
+            gp = GaussianProcess(tmp)
 
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
         y = np.array([2., 4.])
@@ -90,7 +89,6 @@ def test_GaussianProcess_init():
         assert_allclose(gp.nugget, 1.e-6)
         assert gp.n == 2
         assert gp.D == 3
-
 
 def test_GaussianProcess_init_failures():
     "Tests that GaussianProcess fails correctly with bad inputs"
@@ -873,6 +871,29 @@ def test_GaussianProcess_predict():
         assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
         assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
         assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
+        gp = GaussianProcess(x, y)
+        gp.theta = np.ones(4)
+        gp.samples = np.array([np.zeros(4), np.ones(4)])
+        x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+        predict_expected = np.array([0.7891095269432049, 0.9992423087556475])
+        unc_expected = np.array([2.128741560279022 , 2.3180731417232177])
+        deriv_expected = np.array([[ 0.4364915756366609, -0.1531782086880979,  0.1398493943868446],
+                                   [ 0.9254540360545744,  0.2500010516838409,  1.1217531153714817]])
+        predict_actual, unc_actual, deriv_actual = gp.predict(x_star, predict_from_samples = True)
+
+        assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
+
+        predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_unc = False, do_deriv = False,
+                                                                       predict_from_samples = True)
+
+        assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+        assert unc_actual is None
+        assert deriv_actual is None
 
 
 def test_GaussianProcessGPU_predict():
