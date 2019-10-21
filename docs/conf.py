@@ -20,13 +20,16 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Multi-Output GP Emulator'
-copyright = '2019, Eric Daub'
-author = 'Eric Daub'
+copyright = '2019'
+author = 'Alan Turing Institute Research Engineering Group'
 
-# The short X.Y version
-version = ''
-# The full version, including alpha/beta/rc tags
-release = ''
+# get version from package
+import mogp_emulator
+import re
+# The full version X.Y.Z
+release = mogp_emulator.__version__
+# The short verion X.Y
+version = re.sub(r"(\d+\.\d+)", r"\1", mogp_emulator.__version__)
 
 
 # -- General configuration ---------------------------------------------------
