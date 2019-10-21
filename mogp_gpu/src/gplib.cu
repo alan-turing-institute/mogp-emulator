@@ -72,12 +72,12 @@ extern "C" {
         }
     }
 
-    void gplib_update_theta(void *handle, const double *theta,
-                            const double *invQt)
+    void gplib_update_theta(void *handle, const double *invQ,
+                            const double *theta, const double *invQt)
     {
         gplib_handle *h = static_cast<gplib_handle *>(handle);
         try {
-            h->gp->update_theta(theta, invQt);
+            h->gp->update_theta(invQ, theta, invQt);
             h->status = 0;
         } catch (const std::exception& e) {
             h->status = 1;

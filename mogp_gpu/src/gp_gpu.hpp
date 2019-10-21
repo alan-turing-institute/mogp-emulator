@@ -38,6 +38,9 @@ class DenseGP_GPU {
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
 
+    // inverse covariance matrix on device
+    thrust::device_vector<REAL> invC_d;
+
     // hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
 
@@ -103,7 +106,10 @@ public:
 
  
     // Update the hyperparameters and invQt which depends on them.
-    void update_theta(const double *theta, const double *invQt) {
+    void update_theta(const double *invQ, const double *theta,
+                      const double *invQt)
+    {
+        thrust::copy(invQ, invQ + N * N, invC_d.begin());
         thrust::copy(theta, theta + N + 1, theta_d.begin());
         thrust::copy(invQt, invQt + N, invCts_d.begin());
     }
@@ -114,6 +120,7 @@ public:
                 const double *invQ_, const double *invQt_)
         : N(N_)
         , Ninput(Ninput_)
+        , invC_d(invQ_, invQ_ + N_ * N_)
         , theta_d(theta_, theta_ + Ninput_ + 1)
         , xs_d(xs_, xs_ + Ninput_ * N_)
         , invCts_d(invQt_, invQt_ + N_)

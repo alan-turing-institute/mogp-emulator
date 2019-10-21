@@ -98,6 +98,7 @@ class GPGPULibrary(object):
             self._update_theta = self.lib.gplib_update_theta
             self._update_theta.restype  = None
             self._update_theta.argtypes = [ctypes.c_void_p,
+                                           _ndarray_2d,
                                            _ndarray_1d,
                                            _ndarray_1d]
             
@@ -190,16 +191,16 @@ class GPGPU(object):
             return result
 
 
-    def update_theta(self, theta, invQt):
+    def update_theta(self, invQ, theta, invQt):
+        assert(invQ.shape == (self.N, self.N))
         assert(theta.shape == (self.Ninput + 1,))
         assert(invQt.shape == (self.N,))
 
         return self._call_gpu(
-            lambda theta, invQt: self._lib_wrapper._update_theta(self.handle,
-                                                                 theta, invQt),
-            __name__, theta, invQt)
+            lambda invQ, theta, invQt: self._lib_wrapper._update_theta(
+                self.handle, invQ, theta, invQt),
+            __name__, invQ, theta, invQt)
 
-        
 
 class GaussianProcessGPU(GaussianProcess):
     """This class derives from
@@ -248,7 +249,7 @@ class GaussianProcessGPU(GaussianProcess):
     def _set_params(self, theta):
         super()._set_params(theta)
         if self.device_ready:
-            self.gpgpu.update_theta(self.theta, self.invQt)
+            self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
         else:
             self._device_gp_create()
 
