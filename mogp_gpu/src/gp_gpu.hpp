@@ -54,7 +54,7 @@ class DenseGP_GPU {
     thrust::device_vector<REAL> work_d;
 
     // more work arrays
-    thrust::device_vector<REAL> xnew_d, work_mat_d, result_d;
+    thrust::device_vector<REAL> xnew_d, work_mat_d, result_d, kappa_d, invCk_d;
 
 public:
     int data_length(void) const
@@ -66,45 +66,132 @@ public:
     double predict(REAL *xnew)
     {
         thrust::device_vector<REAL> xnew_d(xnew, xnew + Ninput);
-         cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
-                     dev_ptr(theta_d));
-        
-        REAL result = -1.0;
+        cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
+                    dev_ptr(theta_d));
+
+        REAL result = std::numeric_limits<double>::quiet_NaN();
         CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
                   &result);
 
         return double(result);
     }
 
-    // void predict_batch(Col<REAL> &result, Mat<REAL> xnew) const
-    // {
-    //     REAL alpha = 1.0, beta = 0.0;
+    // xnew (in): input point, to predict
+    // var (output): variance
+    // returns: prediction of value
+    double predict_variance(REAL *xnew, REAL *var)
+    {
+        // value prediction
+        thrust::device_vector<REAL> xnew_d(xnew, xnew + Ninput);
+        cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
+                    dev_ptr(theta_d));
 
-    //     cudaMemcpy(xnew_d, xnew.memptr(), Ninput*xnew.n_cols*sizeof(REAL),
-    //                cudaMemcpyHostToDevice);
+        REAL result = std::numeric_limits<double>::quiet_NaN();
+        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
+                  &result);
 
-    //     cov_batch_gpu(work_mat_d, xnew.n_cols, N, Ninput, xnew_d, xs_d,
-    //                   theta_d);
+        // variance prediction
+        double kappa;
+        cov_val_gpu(&kappa, Ninput, dev_ptr(xnew_d), dev_ptr(xnew_d),
+                    dev_ptr(theta_d));
 
-    //     cublasStatus_t status =
-    //         CUBLASGEMV(cublasHandle, CUBLAS_OP_N, xnew.n_cols, N, &alpha,
-    //                    work_mat_d, xnew.n_cols, invCts_d, 1, &beta, result_d,
-    //                    1);
+        double zero(0.0);
+        double one(1.0);
+        thrust::device_vector<REAL> invCk_d(N);
 
-    //     cudaDeviceSynchronize();
+        cublasDgemv(cublasHandle, CUBLAS_OP_N, N, N, &one, dev_ptr(invC_d), N,
+                    dev_ptr(work_d), 1, &zero, dev_ptr(invCk_d), 1);
 
-    //     cudaError_t err =
-    //         cudaMemcpy(result.memptr(), result_d, result.n_rows*sizeof(REAL),
-    //                    cudaMemcpyDeviceToHost);
+        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d),
+                  1, &result);
+        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCk_d),
+                  1, var);
 
-    //     if (err != cudaSuccess)
-    //     {
-    //         printf("predict_batch: A CUDA Error occured: %s\n",
-    //                cudaGetErrorString(err));
-    //     }
-    // }
+        cudaDeviceSynchronize();
 
- 
+        *var = kappa - *var;
+
+        return REAL(result);
+    }
+
+    // assumes on input that xnew is Nbatch * Ninput, and that result
+    // contains space for Nbatch result values
+    void predict_batch(int Nbatch, REAL *xnew, REAL *result)
+    {
+        REAL zero(0.0);
+        REAL one(1.0);
+        thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
+        thrust::device_vector<REAL> result_d(Nbatch);
+
+        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput,
+                      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
+
+        cublasStatus_t status =
+            cublasDgemv(cublasHandle, CUBLAS_OP_T, N, Nbatch, &one,
+                        dev_ptr(work_mat_d), N, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(result_d), 1);
+
+        cudaDeviceSynchronize();
+
+        thrust::copy(result_d.begin(), result_d.end(), result);
+    }
+
+    void predict_variance_batch(int Nbatch, REAL *xnew, REAL *result, REAL *var)
+    {
+        REAL zero(0.0);
+        REAL one(1.0);
+        REAL minus_one(-1.0);
+
+        thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
+        thrust::device_vector<REAL> result_d(Nbatch);
+
+        // compute predictive means for the batch
+        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput, dev_ptr(xnew_d),
+                      dev_ptr(xs_d), dev_ptr(theta_d));
+
+        cublasStatus_t status =
+            cublasDgemv(cublasHandle, CUBLAS_OP_T, N, Nbatch, &one,
+                        dev_ptr(work_mat_d), N, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(result_d), 1);
+
+        // compute predictive variances for the batch
+        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, Ninput, dev_ptr(xnew_d),
+                     dev_ptr(xnew_d), dev_ptr(theta_d));
+
+        cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N,
+                    N,
+                    Nbatch,
+                    N,
+                    &one,
+                    dev_ptr(invC_d), N,
+                    dev_ptr(work_mat_d), N,
+                    &zero,
+                    dev_ptr(invCk_d), N);
+
+        // result accumulated into 'kappa'
+        status = cublasDgemmStridedBatched(
+            cublasHandle, CUBLAS_OP_T, CUBLAS_OP_N,
+            1, // m
+            1, // n
+            N, // k
+            // A (m x k), B (k x n), C (m x n)
+            &minus_one, // alpha
+            dev_ptr(work_mat_d), N, N, // A, lda, strideA
+            dev_ptr(invCk_d), N, N, // B, ldb, strideB (= covariances "k")
+            &one,
+            dev_ptr(kappa_d), 1, 1, // C, ldc, strideC
+            Nbatch);
+
+        cudaDeviceSynchronize();
+
+        // copy back means
+        thrust::copy(result_d.begin(), result_d.end(), result);
+                
+        // copy back variances
+        thrust::copy(kappa_d.begin(), kappa_d.end(), var);
+    }
+
+
     // Update the hyperparameters and invQt which depends on them.
     void update_theta(const double *invQ, const double *theta,
                       const double *invQt)
@@ -128,10 +215,9 @@ public:
         , work_d(N_, 0.0)
         , work_mat_d(N_ * xnew_size, 0.0)
         , result_d(xnew_size, 0.0)
+        , kappa_d(xnew_size, 0.0)
+        , invCk_d(xnew_size * N_, 0.0)
     {
-        std::cout << "N = " << N << std::endl;
-        std::cout << "xnew_size = " << xnew_size << std::endl;
-        
         cublasStatus_t status;
         status = cublasCreate(&cublasHandle);
         if (status != CUBLAS_STATUS_SUCCESS)
