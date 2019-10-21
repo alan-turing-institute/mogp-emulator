@@ -130,11 +130,33 @@ class HistoryMatching(object):
         dimensions and/or number of coordinates to be computed also causes these to
         be set at this stage.
     
-        Optional keyword arguments:
-          GaussianProcess
-          obs
-          coords
-          expectations
+        :param gp: (Optional) ``GaussianProcess`` object used to make predictions in
+                   history matching. Optional, can instead provide predictions directly
+                   via the ``expectations`` argument. Default is ``None``
+        :type gp: GaussianProcess or None
+        :param obs: (Optional) Observations against which the predictions will be
+                    compared. If provided, must either be a float (assumes no
+                    uncertainty in the observations) or a list of two floats
+                    holding the observation and its variance. Required for history
+                    matching, but can be provided when calling ``get_implausibility``.
+                    Default is ``None``.
+        :type obs: float, list, or None
+        :param coords: (Optional) Inputs at which the emulator values will be computed
+                       to compare the GP output to the observations. If provided, must
+                       be a numpy array matching the input for the GP (must be a 2D
+                       array with dimensions ``(n, D)`` where ``n`` is the number of
+                       points to be considered and ``D`` is the number of parameters
+                       for the GP). Only required if ``expectations`` is not provided.
+                       Default is ``None``.
+        :type coords: ndarray
+        :param expectations: (Optional) Tuple of 3 numpy arrays of the form expected 
+                             from GP predictions. The first array must hold the predicted
+                             mean at all query points, and the second array must hold
+                             the variances from the GP predictions at all query points.
+                             The third is not used, so can simply be a dummy array.
+                             Can instead provide a GP object and the points to query
+                             to have the predictions made internally. Default is None.
+        :type expectations: tuple holding 3 ndarrays
         """
     
         # Place-holder values for user-defined quantities that can be passed in
@@ -165,6 +187,8 @@ class HistoryMatching(object):
     
     def get_implausibility(self, *args):
         r"""
+        Compute Implausibility measure for all query points
+        
         Carries out the implausibility calculation given by:
     
         LaTeX:
@@ -182,11 +206,21 @@ class HistoryMatching(object):
           a) single values that correspond to variances on the observation or that
         are a constant across all expectation values.
           b) lists containing a variance parameter for each expectation value.
+        
+        These additional variances can be used to include measurement uncertainty in
+        ``obs`` (though the ``obs`` object can also accept a measurement variance)
+        or a more general model discrepancy that describes the prior beliefs regarding
+        how well the model matches reality. In practice, the model discrepancy is
+        essential to have predictions that are not overly confident, however it can
+        be hard to estimate (see further discussion in Brynjarsdottir and OʼHagan,
+        2014).
           
         As the implausibility calculation linearly sums variances, the result is
         agnostic to the precise provenance of any provided variances. Variances 
         may therefore be provided in any order.
-    
+
+        :param *args: List of additional variances to include in the calculation.
+                      These must all be positive floats.
         """
     
         # Confirm that observation parameter is set
@@ -285,10 +319,19 @@ class HistoryMatching(object):
     
     def get_NROY(self, *args):
         r"""
-        Returns a list of indices for self.I that correspond to entries that are not
-        yet ruled out.
+        Return set of indices that are not yet ruled out
+        
+        Returns a list of indices for ``self.I`` that correspond to entries that are not
+        yet ruled out. Points that are ruled out have an implausibility metric that
+        exceeds the threshold (can be set when initializing history matching or using
+        the ``set_threshold`` method). If the implausibility metric has not yet been
+        computed for the desired points, it is calculated.
+        
+        :param *args: Inputs for ``get_implausibility`` if it has not yet been computed.
+        :returns: List of integer indices that have not yet been ruled out.
+        :rtype: list
         """
-        if self.I is None: self.get_implausibility(args)
+        if self.I is None: self.get_implausibility(*args)
     
         self.NROY = []
         self.RO = []
@@ -303,18 +346,32 @@ class HistoryMatching(object):
     
     def get_RO(self, *args):
         r"""
-        Returns a list of indices for self.I that correspond to entries that are 
-        ruled out.
+        Return set of indices that have been ruled out
+        
+        Returns a list of indices for ``self.I`` that correspond to entries that have
+        been ruled out. Points that are ruled out have an implausibility metric that
+        exceeds the threshold (can be set when initializing history matching or using
+        the ``set_threshold`` method). If the implausibility metric has not yet been
+        computed for the desired points, it is calculated.
+        
+        :param *args: Inputs for ``get_implausibility`` if it has not yet been computed.
+        :returns: List of integer indices that have been ruled out.
+        :rtype: list
         """
-        if self.RO is None: self.get_NROY(args)
+        if self.RO is None: self.get_NROY(*args)
     
         return self.RO
     
     
     def set_gp(self, gp):
         r"""
-        Sets the self.gp variable to the provided gp argument if it passes the 
-        check_gp requirements.
+        Set the Gaussian Process to use with history matching
+        
+        Sets the ``self.gp`` variable to the provided ``GaussianProcess`` argument.
+        
+        :param gp: ``GaussianProcess`` object to use for history matching.
+        :type gp: GaussianProcess
+        :returns: None
         """
         if not self.check_gp(gp): 
             raise TypeError("bad input for set_gp - expects a GaussianProcess object.")
@@ -323,8 +380,18 @@ class HistoryMatching(object):
     
     def set_obs(self, obs):
         r"""
-        Sets the self.obs variable to the provided obs argument if it passes the 
-        check_obs requirements.
+        Set the observations to be used for history matching
+        
+        Sets the ``self.obs`` variable to the provided ``obs`` argument. The object
+        must pass the ``check_obs`` requirements, meaning that it must be a
+        float (assumes that the observation has no error associated with it) or a
+        list containing two floats (representing an observation and its variance).
+        Note that the variance must be non-negative.
+        
+        :param obs: Observations to be used for history matching. Must be a float
+                    or a list of two floats.
+        :type obs: float or list
+        :returns: None
         """
         if not self.check_obs(obs):
             raise TypeError("bad input for set_obs")
@@ -339,8 +406,18 @@ class HistoryMatching(object):
       
     def set_coords(self, coords):
         r"""
-        Sets the self.coords variable to the provided coords argument if it passes 
-        the check_coords requirements.
+        Set the query points to be used in history matching
+        
+        Sets the ``self.coords`` variable to the provided query points ``coords`` if
+        it passes the ``check_coords`` requirements, or be ``None`` to remove a set
+        of existing query points. ``coords`` must be a numpy array matching the
+        inputs to the provided ``GaussianProcess`` object.
+        
+        :param coords: Numpy array holding query points (array with shape ``(n, D)``,
+                       where ``n`` is the number of query points and ``D`` is the
+                       number of inputs to the emulator), or ``None``
+        :type coords: ndarray or None
+        :returns: None
         """
         # need to allow coords == None, as otherwise can't reset values
         if not self.check_coords(coords) and (not coords == None):
@@ -369,8 +446,21 @@ class HistoryMatching(object):
       
     def set_expectations(self, expectations):
         r"""
-        Sets the self.expectations variable to the provided expectations argument if
-        it passes the check_expectations requirements.
+        Set the expected output of the simulator to be used in history matching
+        
+        Sets the ``self.expectations`` variable to the provided ``expectations``
+        argument if it passes the ``check_expectations`` requirements, or ``None``
+        can be used to remove an existing set of expectations. Expectations
+        must be a tuple of 3 numpy arrays, where the first holds the predicted
+        means for all query points and the second holds the predicted variances
+        for all query points. The third arrray is not used in the computation,
+        but is included as it is an expected output of the GP ``predict`` method.
+        
+        :param expectations: GP predictions at all query points. Must be a tuple
+                             of 3 numpy arrays, or None to remove existing
+                             expectations.
+        :type expectations: tuple of 3 ndarrays or None
+        :returns: None
         """
         # need to allow expectations == None, as otherwise can't reset values
         if not self.check_expectations(expectations) and (not expectations == None):
@@ -382,8 +472,15 @@ class HistoryMatching(object):
     
     def set_threshold(self, threshold):
         r"""
-        Sets the self.threshold variable to the provided threshold argument if it 
-        passes the check_threshold requirements.
+        Set the threshold value for history matching
+        
+        Sets the ``self.threshold variable`` to the provided threshold argument
+        if it  passes the ``check_threshold`` requirements. The threshold must
+        be a non-negative float.
+        
+        :param threshold: New value for threshold, must be a non-negative float.
+        :type threshold: float
+        :returns: None
         """
         if not self.check_threshold(threshold):
             raise TypeError("bad input for set_expectations - expected a float")
@@ -397,7 +494,9 @@ class HistoryMatching(object):
         Prints a summary of the current status of the class object, including the 
         values stored in self.gp, .obs, .ndim, .ncoords, and .threshold, and the 
         shapes/sizes ofvalues stored in self.obs, .coords, .expectations, .I, .NROY,
-        and .RO.
+        and .RO. No inputs, no return value.
+        
+        :returns: None
         """
     
         print(str(self))
@@ -409,6 +508,11 @@ class HistoryMatching(object):
     
         Returns a boolean that is True if the provided quantity is consistent with 
         the requirements for a gaussian process, i.e. is of type GaussianProcess.
+        
+        :param gp: Input GP object to be checked.
+        :type gp: GaussianProcess
+        :returns: Boolean indicating if provided object is a ``GaussianProcess``
+        :rtype: bool
         """
         if gp is None: return False
         if isinstance(gp, GaussianProcess): return True
@@ -420,9 +524,15 @@ class HistoryMatching(object):
         Checks if the provided argument is consistent with expectations for 
         observations.
     
-        Returns a boolean that is True if the provided quantity is consistent with 
+        Returns a boolean that is ``True`` if the provided quantity is consistent with 
         the requirements for the observation quantity, i.e. is a numerical value 
-        that can be converted to a float, or a list of up to two such values.
+        that can be converted to a float, or a list of up to two such values. Also
+        checks if the provided variance is non-negative.
+        
+        :param obs: Input for observations to be checked
+        :type obs: float or list
+        :returns: Boolean indicating if provided observations are acceptable
+        :rtype: bool
         """
         # TODO: allow tuple arguments as well as lists.
         if obs is None: return False
@@ -459,9 +569,14 @@ class HistoryMatching(object):
         Checks if the provided argument is consistent with expectations for 
         coordinates.
     
-        Returns a boolean that is True if the provided quantity is consistent with 
+        Returns a boolean that is ``True`` if the provided quantity is consistent with 
         the requirements for the coordinates quantity, i.e. is a list or ndarray of 
         fewer than 3 dimensions.
+        
+        :param coords: Input to check for consistency with coordinates.
+        :type coords: ndarray
+        :returns: Boolean indicating if coords is consistent
+        :rtype: bool
         """
         # TODO: implement check that arrays or lists contain only numerical values
         if coords is None: return False
@@ -477,9 +592,14 @@ class HistoryMatching(object):
         Checks if the provided argument is consistent with expectations for 
         Gaussian Process Expectations.
     
-        Returns a boolean that is True if the provided quantity is consistent with 
+        Returns a boolean that is ``True`` if the provided quantity is consistent with 
         the output of the predict method of a GaussianProcess object, i.e. that it 
-        is a tuple of length 3 containing dnarrays.
+        is a tuple of length 3 containing ndarrays.
+        
+        :param expectations: Input to check for consistency with expectations
+        :type expectations: tuple of 3 numpy arrays
+        :returns: Boolean indicating if expectations is consistent
+        :rtype: bool
         """
         if expectations is None: return False
         if not isinstance(expectations, tuple):
@@ -494,18 +614,26 @@ class HistoryMatching(object):
             raise TypeError(
               "bad input type for HistoryMatching - expected expectation values in " +
               "the form of a Tuple of ndarrays.")
-        assert np.all(expectations[1] >= 0.), "all variances must be nonnegative"
+        assert np.all(expectations[1] >= 0.), "all variances must be non-negative"
         return True
     
     
     def check_threshold(self, threshold):
         r"""
+        Check value of threshold
+        
         Checks if the provided argument is consistent with expectations for a 
         threshold value.
     
-        Returns a boolean that is True if the provided quantity is consistent with 
-        the requirements for a threshold value, i.e. that it is a single numerical 
+        Returns a boolean that is ``True`` if the provided quantity is consistent with 
+        the requirements for a threshold value, i.e. that it is a non-negative numerical 
         value that can be converted to a float.
+        
+        :param threshold: threshold to be tested
+        :type threshold: float
+        :returns:  Boolean indicating if the provided argument is consistent with
+                   a threshold
+        :rtype: bool
         """
         if threshold is None: return False
         try:
@@ -518,6 +646,8 @@ class HistoryMatching(object):
       
     def check_ncoords(self, ncoords):
         r"""
+        Check value of ncoords
+        
         Checks if the provided argument is consistent with expectations for the 
         number of coordinates for which expectation values are to be / have been
         computed.
@@ -525,6 +655,11 @@ class HistoryMatching(object):
         Returns a boolean that is True if the provided quantity is consistent with 
         the requirements for a ncoords value, i.e. that it is a single numerical 
         value that can be converted to a float.
+        
+        :param ncoords: number of query points for ``HistoryMatching``
+        :type ncoords: int
+        :returns: Boolean indicating if ``ncoords`` is consistent with requirements
+        :rtype: bool
         """
         if ncoords is None: return False
         try:
@@ -536,9 +671,14 @@ class HistoryMatching(object):
       
     def update(self):
         r"""
+        Update History Matching object
+        
         Checks that sufficient information exists to computen dim and/or ncoords 
         and, if so, computes these values. This also serves to update these values 
-        if the information on which they are based is changed.
+        if the information on which they are based is changed. No inputs, no return
+        value.
+        
+        :returns: None
         """
     
         if self.check_coords(self.coords):
@@ -550,7 +690,14 @@ class HistoryMatching(object):
 
     def __str__(self):
         r"""
-        Returns string representation of HistoryMatching object
+        Returns string representation of ``HistoryMatching`` object
+        
+        Returns a string representation of a ``HistoryMatching`` object,
+        used when printing information to the interpreter or when the
+        ``status`` method is called.
+        
+        :returns: string representation of the HistoryMatching object.
+        :rtype: str
         """
 
         if self.coords is None: 

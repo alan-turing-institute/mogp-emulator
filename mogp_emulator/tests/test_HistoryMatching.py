@@ -294,6 +294,12 @@ def test_HistoryMatching_get_NROY():
     
     assert NROY == [0]
     
+    hm = HistoryMatching(obs = [1., 0.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
+    
+    NROY = hm.get_NROY(1.)
+    
+    assert NROY == [0]
+    
 def test_HistoryMatching_get_RO():
     "test the get_RO method of HistoryMatching"
     
@@ -301,6 +307,10 @@ def test_HistoryMatching_get_RO():
     I = hm.get_implausibility()
     
     RO = hm.get_RO()
+    
+    hm = HistoryMatching(obs = [1., 0.], expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]])))
+    
+    RO = hm.get_RO(1.)
     
     assert RO == [1]
 
