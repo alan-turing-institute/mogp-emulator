@@ -16,6 +16,10 @@ void cov_val_gpu(REAL *result_d, int Ninput, REAL *x_d, REAL *y_d,
 void cov_all_gpu(REAL *result_d, int N, int Ninput, REAL *xnew_d, REAL *xs_d,
                  REAL *theta_d);
 
+// Computes the vector k_i = Cov(xnew(i,:), xs(i,:); theta).
+void cov_diag_gpu(REAL *result_d, int N, int Ninput, REAL *xnew_d, REAL *xs_d,
+                  REAL *theta_d);
+
 // Computes the submatrix K_ij = Cov(xsnew(i,:), xs(j,:); theta)
 void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
                    REAL *xs_d, REAL *theta_d);

@@ -26,6 +26,25 @@ void cov_val_gpu(REAL *result_d, int Ninput, REAL *x_d, REAL *y_d,
 }
 
 ////////////////////
+__global__ void cov_diag_kernel(REAL *result_d, int N, int Ninput, REAL *xnew_d,
+                                REAL *xs, REAL *theta_d)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N) {
+        result_d[i] = cov_val_d(Ninput, xnew_d + Ninput * i, xs + Ninput * i,
+                                theta_d);
+    }
+}
+
+void cov_diag_gpu(REAL *result_d, int N, int Ninput, REAL *xnew_d, REAL *xs_d,
+                  REAL *theta_d)
+{
+    const int threads_per_block = 256;
+    cov_diag_kernel<<<10, threads_per_block>>>(
+        result_d, N, Ninput, xnew_d, xs_d, theta_d);
+}
+
+////////////////////
 __global__ void cov_all_kernel(REAL *result_d, int N, int Ninput, REAL *xnew_d,
                                REAL *xs_d, REAL *theta_d)
 {
