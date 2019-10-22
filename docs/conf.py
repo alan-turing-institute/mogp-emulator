@@ -26,7 +26,7 @@ author = 'Alan Turing Institute Research Engineering Group'
 # get version from package
 import mogp_emulator
 import re
-# The full version X.Y.Z
+# The full version X.Y.Z with development version if needed
 release = mogp_emulator.__version__
 # The short verion X.Y
 version = re.sub(r"(\d+\.\d+)", r"\1", mogp_emulator.__version__)
