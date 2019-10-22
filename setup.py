@@ -2,9 +2,14 @@ import setuptools
 
 # version information
 MAJOR = 0
-MINOR = 1
+MINOR = 2
 MICRO = 0
+PRERELEASE = 0
+ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
+
+if not ISRELEASED:
+    version += ".dev{}".format(PRERELEASE)
 
 # write version information to file
 
@@ -15,7 +20,7 @@ Version file automatically created by setup.py file
 '''
 version = '{}'
     """.format(version)
-    
+
     with open("mogp_emulator/version.py", "w") as fh:
         fh.write(version_file)
 
@@ -35,7 +40,7 @@ setuptools.setup(name='mogp_emulator',
                   "Documentation": "https://mogp-emulator.readthedocs.io/",
                   "Source Code": "https://github.com/alan-turing-institute/mogp_emulator/",
               },
-      author='Eric Daub',
+      author='Alan Turing Institute Research Engineering Group',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
       license=['MIT'],
