@@ -18,7 +18,8 @@ tests:
 
 ## benchmarks : Run the Branin, Rosenbrock (convergence), and tsunami (performance) benchmarks
 .PHONY: benchmarks
-benchmarks: branin tsunami rosenbrock mice gKDR
+
+benchmarks: branin tsunami rosenbrock mice mcmc gKDR
 
 ## branin     : Run the 2D Branin tests of convergence. Produces the plots
 ##            : branin_2d_error.png and branin_2d_unc.png
@@ -41,6 +42,11 @@ rosenbrock: rosenbrock_error.png rosenbrock_unc.png
 .PHONY: mice
 mice: mice_error.png mice_unc.png
 
+## mcmc       : Run the MCMC sampling benchmark
+##            : Produces the plot MCMC_histogram.png
+.PHONY: mcmc
+mcmc: MCMC_histogram.png
+
 .PHONY: gKDR
 gKDR: benchmark_kdr_GP_loss.pdf
 
@@ -60,3 +66,6 @@ mice_unc.png mice_error.png: benchmark_MICE.py
 
 benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
 	python3 benchmark_kdr_GP.py
+
+MCMC_histogram.png: benchmark_MCMC.py
+	python3 benchmark_MCMC.py

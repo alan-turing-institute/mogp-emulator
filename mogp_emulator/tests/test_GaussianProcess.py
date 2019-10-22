@@ -67,8 +67,7 @@ def test_GaussianProcess_init():
     assert gp.n == 2
     assert gp.D == 3
     assert gp.nugget == None
-    with pytest.raises(AttributeError):
-        gp.theta
+    assert gp.theta is None
     
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
@@ -132,8 +131,7 @@ def test_GaussianProcess_save_emulators():
         assert_allclose(emulator_file['inputs'], x)
         assert_allclose(emulator_file['targets'], y)
         assert emulator_file['nugget'] == None
-        with pytest.raises(KeyError):
-            emulator_file['theta']
+        assert emulator_file['theta'] == None
         
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (3,))
@@ -380,8 +378,6 @@ def test_GaussianProcess_loglikelihood():
     actual_loglikelihood = gp.loglikelihood(theta)
     assert_allclose(actual_loglikelihood, expected_loglikelihood, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.theta, theta, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(gp.current_loglikelihood, expected_loglikelihood, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(gp.current_theta, theta, atol = 1.e-8, rtol = 1.e-5)
     
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
@@ -550,6 +546,34 @@ def test_GaussianProcess_hessian():
     hessian_actual = gp.hessian(new_theta)
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
 
+def test_GaussianProcess_compute_local_covariance():
+    "Test method to compute local covariance"
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3)) 
+    y = np.array([2., 3., 4.]) 
+    gp = GaussianProcess(x, y) 
+    theta = np.array([ -2.770112571305776, -25.559083252151222, -23.37268466647295, 2.035946172810567])
+    gp._set_params(theta)
+    gp.mle_theta = theta
+    
+    cov_expected = np.array([[ 5.2334002861595219e-01, -5.5692324961402118e-01, -1.2647444334415132e+00, -4.7420841785839668e-01],
+                             [-5.5692324961402129e-01,  1.0367253634403032e+09,  6.1520087942740198e-01, -2.4147524896766978e-01],
+                             [-1.2647444334415130e+00,  6.1520087942740187e-01,  2.2051845246175849e+08, -1.1825129773545225e-01],
+                             [-4.7420841785839674e-01, -2.4147524896766978e-01, -1.1825129773545225e-01,  1.0963600855110882e+00]])
+    
+    cov_actual = gp.compute_local_covariance()
+    
+    assert_allclose(cov_actual, cov_expected)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3)) 
+    y = np.array([2., 3., 4.]) 
+    gp = GaussianProcess(x, y)
+    gp._set_params(np.zeros(4))
+    gp.mle_theta = np.zeros(4)
+    
+    with pytest.raises(linalg.LinAlgError):
+        gp.compute_local_covariance()
+
 def test_GaussianProcess_learn():
     "Test the _learn method of GaussianProcess"
     
@@ -611,6 +635,181 @@ def test_GaussianProcess_train_model():
     assert(np.all(gp1.get_params() == gp2.get_params()))
 
 
+def test_GaussianProcess_learn_hyperparameters_normalapprox():
+    "test the method to learn hyperparameters via normal approximation around the MLE solution"
+
+    np.random.seed(4532)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1)) 
+    y = np.linspace(0., 10.) 
+    gp = GaussianProcess(x, y)
+    gp.learn_hyperparameters_normalapprox(n_samples = 4)
+    
+    samples_expected = np.array([[-2.1798139941810755,  1.3951266574358445],
+                                 [-2.8569227619470587,  1.4961351227085802],
+                                 [-4.178717685602986 ,  2.095024451881066 ],
+                                 [-3.7173995375318185,  2.445171732490624 ]])
+                              
+    assert_allclose(gp.samples, samples_expected)
+    
+    with pytest.raises(AssertionError):
+        gp.learn_hyperparameters_normalapprox(n_samples = -1)
+
+
+def test_GaussianProcess_learn_hyperparameters_MCMC():
+    "test method to fit hyperparameters via MCMC"
+
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 1)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818],
+                                 [-3.506084393287192,  1.500944133661814]])
+
+    assert_allclose(gp.samples, samples_expected)
+
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 2)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818]])
+
+    assert_allclose(gp.samples, samples_expected)
+    
+    np.random.seed(5823)
+
+    x = np.reshape(np.linspace(0., 10.), (50, 1))
+    y = np.linspace(0., 10.)
+    gp = GaussianProcess(x, y)
+    mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
+    gp.mle_theta = mle_theta[:]
+    gp._set_params(mle_theta)
+    with pytest.warns(Warning):
+        gp.learn_hyperparameters_MCMC(n_samples = 4, thin = 0)
+
+    samples_expected = np.array([[-2.8681732101415904,  1.7203770153824067],
+                                 [-2.8681732101415904,  1.7203770153824067],
+                                 [-4.020075767243161 ,  1.9384110290055818],
+                                 [-3.506084393287192,  1.500944133661814]])
+
+    assert_allclose(gp.samples, samples_expected)
+
+    with pytest.raises(AssertionError):
+        gp.learn_hyperparameters_MCMC(n_samples = -1)
+
+def test_GaussianProcess_predict_single():
+    "Test the _single_predict method of GaussianProcess"
+
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+    predict_expected = np.array([1.395386477054048, 1.7311400058360489])
+    unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+    predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star)
+    
+    delta = 1.e-8
+    predict_1, _, _ = gp._predict_single(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
+    predict_2, _, _ = gp._predict_single(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
+    predict_3, _, _ = gp._predict_single(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
+    
+    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
+                         (predict_actual - predict_3)/delta]))
+    
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    
+    predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star, do_deriv = False, do_unc = False)
+    assert_allclose(predict_actual, predict_expected)
+    assert unc_actual is None
+    assert deriv_actual is None
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.ones(4)
+    gp._set_params(theta)
+    x_star = np.array([4., 0., 2.])
+    predict_expected = 0.0174176198731851
+    unc_expected = 2.7182302871685224
+    predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star)
+    
+    delta = 1.e-8
+    predict_1, _, _ = gp._predict_single(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
+    predict_2, _, _ = gp._predict_single(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
+    predict_3, _, _ = gp._predict_single(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
+    
+    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
+                                      (predict_actual - predict_3)/delta]))
+    
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+
+def test_GaussianProcess_predict_samples():
+    "test the method to make GP predictions from multiple samples"
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    gp.samples = np.array([np.zeros(4), np.ones(4)])
+    x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+    predict_expected = np.array([0.7891095269432049, 0.9992423087556475])
+    unc_expected = np.array([2.128741560279022 , 2.3180731417232177])
+    deriv_expected = np.array([[ 0.4364915756366609, -0.1531782086880979,  0.1398493943868446],
+                               [ 0.9254540360545744,  0.2500010516838409,  1.1217531153714817]])
+    predict_actual, unc_actual, deriv_actual = gp._predict_samples(x_star)
+    
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    predict_actual, unc_actual, deriv_actual = gp._predict_samples(x_star, do_unc = False, do_deriv = False)
+
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert unc_actual is None
+    assert deriv_actual is None
+
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    gp.mle_theta = theta
+    x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+    predict_expected = np.array([1.395386477054048, 1.7311400058360489])
+    unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+    deriv_expected = np.array([[ 0.734710109991092 , -0.0858304024315173,  0.0591863782049085],
+                               [ 1.1427426634186673,  0.4817587569148039,  1.5258068225461723]])
+
+    with pytest.warns(Warning):
+        predict_actual, unc_actual, deriv_actual = gp._predict_samples(x_star)
+        
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
+
+
 def test_GaussianProcess_predict():
     """
     Tests the predict method of GaussianProcess -- note the test only checks the derivatives
@@ -623,6 +822,7 @@ def test_GaussianProcess_predict():
     gp = GaussianProcess(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
+    gp.mle_theta = theta
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
@@ -650,6 +850,7 @@ def test_GaussianProcess_predict():
     gp = GaussianProcess(x, y)
     theta = np.ones(4)
     gp._set_params(theta)
+    gp.mle_theta = theta
     x_star = np.array([4., 0., 2.])
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
@@ -666,17 +867,74 @@ def test_GaussianProcess_predict():
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    gp.theta = np.ones(4)
+    gp.samples = np.array([np.zeros(4), np.ones(4)])
+    x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+    predict_expected = np.array([0.7891095269432049, 0.9992423087556475])
+    unc_expected = np.array([2.128741560279022 , 2.3180731417232177])
+    deriv_expected = np.array([[ 0.4364915756366609, -0.1531782086880979,  0.1398493943868446],
+                               [ 0.9254540360545744,  0.2500010516838409,  1.1217531153714817]])
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, predict_from_samples = True)
+    
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
+    
+    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_unc = False, do_deriv = False,
+                                                                   predict_from_samples = True)
+
+    assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
+    assert unc_actual is None
+    assert deriv_actual is None
 
 def test_GaussianProcess_predict_failures():
-    "Test predict method of GaussianProcess with bad inputs"
+    "Test predict method of GaussianProcess with bad inputs or warnings"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
+    gp.mle_theta = theta
     x_star = np.array([1., 3., 2., 4.])
     with pytest.raises(AssertionError):
+        gp.predict(x_star)
+        gp._predict_single(x_star)
+        gp._predict_samples(x_star)
+        
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    gp.mle_theta = theta
+    x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
+    with pytest.raises(AssertionError):
+        gp.predict(x_star)
+        gp._predict_single(x_star)
+        gp._predict_samples(x_star)
+        
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
+    with pytest.raises(AssertionError):
+        gp.predict(x_star)
+        gp._predict_single(x_star)
+        gp._predict_samples(x_star)
+        
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+    gp = GaussianProcess(x, y)
+    theta = np.zeros(4)
+    gp._set_params(theta)
+    x_star = np.array([4., 0., 2.])
+    with pytest.warns(Warning):
         gp.predict(x_star)
         
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
@@ -684,8 +942,9 @@ def test_GaussianProcess_predict_failures():
     gp = GaussianProcess(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
-    x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
-    with pytest.raises(AssertionError):
+    gp.mle_theta = np.ones(4)
+    x_star = np.array([4., 0., 2.])
+    with pytest.warns(Warning):
         gp.predict(x_star)
 
 def test_GaussianProcess_str():

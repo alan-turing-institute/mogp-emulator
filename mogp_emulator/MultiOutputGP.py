@@ -205,11 +205,7 @@ class MultiOutputGP(object):
         emulators_dict['targets'] = np.array([emulator.targets for emulator in self.emulators])
         emulators_dict['inputs'] = self.emulators[0].inputs
         emulators_dict['nugget'] = np.array([emulator.get_nugget() for emulator in self.emulators], dtype = object)
-        
-        try:
-            emulators_dict['theta'] = np.array([emulator.current_theta for emulator in self.emulators])
-        except AttributeError:
-            pass
+        emulators_dict['theta'] = np.array([emulator.theta for emulator in self.emulators])
         
         np.savez(filename, **emulators_dict)
         
@@ -299,7 +295,7 @@ class MultiOutputGP(object):
         assert theta.shape == (self.n_emulators, self.D + 1), "theta must have shape n_emulators x (D + 1)"
         
         for emulator, theta_val in zip(self.emulators, theta):
-            _ = emulator.loglikelihood(theta_val)
+            emulator._set_params(theta_val)
         
     def learn_hyperparameters(self, n_tries = 15, theta0 = None, processes = None, method = 'L-BFGS-B', **kwargs):
         """
