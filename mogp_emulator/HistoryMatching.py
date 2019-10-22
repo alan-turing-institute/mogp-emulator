@@ -1,23 +1,3 @@
-"""
-History Matching Class
-
-This class provides tools to perform history matching using the ``GaussianProcess``
-class. Given a set of observations, predictions from the GP on desired query points,
-and the other associated uncertainties such as measurement error and model discrepancy,
-History Matching computes an implausbility metric. The implausibility metric determines
-the number of standard deviations separating the emulator predictions and the
-observations once all uncertainties have been accounted for. The advantage of this
-is that an imperfect emulator can still give useful information about the plausible
-parts of parameter space that are not inconsistent with observations.
-
-The ``HistoryMatching`` package provides the class for performing the computations
-for history matching. Each class instance can handle a single observation, so if
-multiple observations are to be compared, individual instances for each
-observation must be used. Future implementation improvements may allow multiple
-observations to be compared in a single computation by leveraging the
-``MultiOutputGP`` class to fit multiple emulators to a set of simulations.
-"""
-
 import numpy as np
 from mogp_emulator import GaussianProcess
 
@@ -30,7 +10,7 @@ class HistoryMatching(object):
       __init__ : constructor for the class. Sets up the various parameters that
         will be used for further calculations, either as placeholders or with
         default values. Can be called with any of the parameters that can be set
-        using the set_ methods as keyword arguments.
+        using the ``set_`` methods as keyword arguments.
 
       get_implausibility : the primary use method for the class. Requires that an
         observation is provided, as well as either a set of expectations or both a
@@ -60,16 +40,16 @@ class HistoryMatching(object):
       set_coords : allows a set of coordinates for which expectation values are to
         be calculated to be specified by setting the self.coords value.
 
-      set_expectations : allows a set of expectation values (explicitely assumed
+      set_expectations : allows a set of expectation values (explicitly assumed
         to be consistent with the output of a
-        mogp_emulator.GaussianProcess.predict() method).
+        ``mogp_emulator.GaussianProcess.predict()`` method).
 
       set_threshold : allows an implausibility threshold to be specified by
         setting the self.threshold value. By default, this is set to 3.0.
 
       status : prints a summary of the current status of the class object,
         including the values stored in self.gp, .obs, .ndim, .ncoords, and
-        .threshold, and the shapes/sizes ofvalues stored in self.obs, .coords,
+        .threshold, and the shapes/sizes of values stored in self.obs, .coords,
         .expectations, .I, .NROY, and .RO.
 
       check_gp : returns a boolean that is True if the provided quantity is
@@ -101,40 +81,42 @@ class HistoryMatching(object):
         ncoords and, if so, computes these values. This also serves to update
         these values if the information on which they are based is changed.
 
-    Example - implausibility computation for a 1D GP:
-    >>> import math
-    >>> import numpy as np
-    >>> from HistoryMatching import HistoryMatching
-    >>> from mogp_emulator import GaussianProcess
-    >>>
-    >>> # Set up a gaussian process
-    >>> x_training = np.array([[0.],[10.],[20.],[30.],[43.],[50.]])
-    >>> def get_y_training(x):
-    >>>     n_points = len(x)
-    >>>     f = np.zeros(n_points)
-    >>>     for i in range(n_points):
-    >>>         f[i] = np.sin(2*math.pi*x[i] / 50)
-    >>>     return f
-    >>> y_training = get_y_training(x_training)
-    >>>
-    >>> gp = GaussianProcess(x_training, y_training)
-    >>> np.random.seed(47)
-    >>> gp.learn_hyperparameters()
-    >>>
-    >>> # Define the observation to which to compare
-    >>> obs = [-0.8, 0.0004]
-    >>>
-    >>> # Coordinates to predict
-    >>> n_rand = 2000
-    >>> coords = np.sort(np.random.rand(n_rand),axis=0)*(56)-3
-    >>> coords = coords[:,None]
-    >>>
-    >>> # Generate Expectations
-    >>> expectations = gp.predict(coords)
-    >>>
-    >>> # Calculate implausibility
-    >>> hm = HistoryMatching(obs=obs, expectations=expectations)
-    >>> I = hm.get_implausibility()
+    Example - implausibility computation for a 1D GP::
+
+        import math
+        import numpy as np
+        from HistoryMatching import HistoryMatching
+        from mogp_emulator import GaussianProcess
+
+        # Set up a gaussian process
+        x_training = np.array([[0.],[10.],[20.],[30.],[43.],[50.]])
+        def get_y_training(x):
+            n_points = len(x)
+            f = np.zeros(n_points)
+            for i in range(n_points):
+                f[i] = np.sin(2*math.pi*x[i] / 50)
+            return f
+        y_training = get_y_training(x_training)
+
+        gp = GaussianProcess(x_training, y_training)
+        np.random.seed(47)
+        gp.learn_hyperparameters()
+
+        # Define the observation to which to compare
+        obs = [-0.8, 0.0004]
+
+        # Coordinates to predict
+        n_rand = 2000
+        coords = np.sort(np.random.rand(n_rand),axis=0)*(56)-3
+        coords = coords[:,None]
+
+        # Generate Expectations
+        expectations = gp.predict(coords)
+
+        # Calculate implausibility
+        hm = HistoryMatching(obs=obs, expectations=expectations)
+        I = hm.get_implausibility()
+
 
     """
 
@@ -216,21 +198,23 @@ class HistoryMatching(object):
 
         Carries out the implausibility calculation given by:
 
-        ..math ::
-            I_i(\bar{x_0}) = \frac{|z_i - E(f_i(\bar{x_0}))|}
-            {\sqrt{Var[z_i - E(f_i(\bar{x_0}))]}}
+        .. math::
+            {I_i(\bar{x_0}) = \frac{|z_i - E(f_i(\bar{x_0}))|}
+            {\sqrt{Var\left[z_i - E(f_i(\bar{x_0}))\right]}}}
 
         to return an implausibility value for each of the provided coordinates.
 
         Requires that the observation parameter is set, and that at least one of the
-        following conditions is met:
+        following conditions are met:
+
           a) The coords and gp parameters are set
           b) The expectations parameter is set
 
         All parameters to be passed into the function are assumed to be variances.
         These can be in either of 2 forms:
+
           a) single values that correspond to variances on the observation or that
-        are a constant across all expectation values.
+             are a constant across all expectation values.
           b) lists containing a variance parameter for each expectation value.
 
         These additional variances can be used to include measurement uncertainty in
@@ -238,7 +222,7 @@ class HistoryMatching(object):
         or a more general model discrepancy that describes the prior beliefs regarding
         how well the model matches reality. In practice, the model discrepancy is
         essential to have predictions that are not overly confident, however it can
-        be hard to estimate (see further discussion in Brynjarsdottir and OHagan,
+        be hard to estimate (see further discussion in Brynjarsdottir and O\'Hagan,
         2014).
 
         As the implausibility calculation linearly sums variances, the result is
