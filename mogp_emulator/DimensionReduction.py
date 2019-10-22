@@ -261,17 +261,26 @@ class gKDR(object):
         :type Y: ndarray, of shape (N,)
         :param Y: the `N` model observations, corresponding to each
 
-        :type train_model: callable with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
-        :param train_model: a callable, that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another callable, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
+        :type train_model: callable with the signature
+                           `(ndarray, ndarray) -> ndarray -> ndarray`
+        :param train_model: a callable, that when called with model inputs X
+                            (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`),
+                            returns a "model", which is another callable, taking
+                            an array (shape `(Npredict, M)`) of the points where
+                            a prediction is desired, and returning an array
+                            (shape `(Npredict,)`) of the corresponding
+                            predictions.
 
         :type cross_validation_folds: integer
-        :param cross_validation_folds: Use this many folds for cross-validation when tuning the parameters.
+        :param cross_validation_folds: Use this many folds for cross-validation
+                                       when tuning the parameters.
 
         :type params: tuple
         :param params: parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
 
         :type params: dict
-        :param params: keyword parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
+        :param params: keyword parameters to pass to
+                       :meth:`mogp_emulator.gKDR.__init__`
         """
 
         ## combine input and output arrays, such that if
@@ -319,26 +328,49 @@ class gKDR(object):
         :type Y: ndarray, of shape (N,)
         :param Y: the `N` model observations, corresponding to each
 
-        :type train_model: callable with the signature `(ndarray, ndarray) -> ndarray -> ndarray`
-        :param train_model: a callable, that when called with model inputs X (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`), returns a "model", which is another callable, taking an array (shape `(Npredict, M)`) of the points where a prediction is desired, and returning an array (shape `(Npredict,)`) of the corresponding predictions.
+        :type train_model: callable with the signature
+                           `(ndarray, ndarray) -> ndarray -> ndarray`
+        :param train_model: a callable, that when called with model inputs X
+                            (shape `(Ntrain, M)`) and Y (shape `(Ntrain, M)`),
+                            returns a "model", which is another callable, taking
+                            an array (shape `(Npredict, M)`) of the points where
+                            a prediction is desired, and returning an array
+                            (shape `(Npredict,)`) of the corresponding
+                            predictions.
 
         :type cXs: Iterable of `float`, or `NoneType`
-        :param cXs: (optional, default None). The scale parameter for `X` in the dimension reduction kernel.  Passed as the parameter `X_scale` to the gKDR constructor (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1, 5.0]` is used.
+        :param cXs: (optional, default None). The scale parameter for `X` in the
+                    dimension reduction kernel.  Passed as the parameter
+                    `X_scale` to the gKDR constructor
+                    (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1,
+                    5.0]` is used.
 
         :type cYs: Iterable of `float`, or `NoneType`
-        :param cYs: (optional, default None). The scale parameter for `Y` in the dimension reduction kernel.  Passed as the parameter `Y_scale` to the gKDR constructor (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1, 5.0]` is used.
+        :param cYs: (optional, default None). The scale parameter for `Y` in the
+                    dimension reduction kernel.  Passed as the parameter
+                    `Y_scale` to the gKDR constructor
+                    (:meth:`mogp_emulator.gKDR.__init__`). If None, `[0.5, 1,
+                    5.0]` is used.
 
         :type maxK: integer, or NoneType
-        :param maxK: (optional default `None`). The largest structural dimension to consider in the optimization.  This is useful when there is a known bound on the dimension, to stop e.g. poor values of cX or cY needlessly extending the search.  It is a good idea to choose this parameter generously.
+        :param maxK: (optional default `None`). The largest structural dimension
+                     to consider in the optimization.  This is useful when there
+                     is a known bound on the dimension, to stop e.g. poor values
+                     of cX or cY needlessly extending the search.  It is a good
+                     idea to choose this parameter generously.
 
         :type cross_validation_folds: integer
-        :param cross_validation_folds: (optional, default is 5): Use this many folds for cross-validation when tuning the parameters.
+        :param cross_validation_folds: (optional, default is 5): Use this many
+                                       folds for cross-validation when tuning
+                                       the parameters.
 
         :type verbose: bool
         :param verbose: produce a log to stdout of the optimization?
 
-        :returns: A pair of: the gKDR object with parameters tuned according to the above method, and a number representing the L1 loss of the model trained on inputs as reduced by this dimension reduction object.
-        :rtype: pair of a gKDR and a non-negative float
+        :returns: A pair of: the gKDR object with parameters tuned according to
+                  the above method, and a number representing the L1 loss of the
+                  model trained on inputs as reduced by this dimension reduction
+                  object.  :rtype: pair of a gKDR and a non-negative float
 
         *Example*
 
