@@ -143,6 +143,14 @@ class GaussianProcess(object):
         self.mle_theta = None
         self.samples = None
 
+
+    @classmethod
+    def train_model(Cls, *init_args):
+        gp = Cls(*init_args)
+        gp.learn_hyperparameters()
+        return gp
+
+
     def _load_emulator(self, filename):
         """
         Load saved emulator and parameter values from file
@@ -876,6 +884,16 @@ class GaussianProcess(object):
                 deriv[:, d] = exp_theta[d] * np.dot(c.T, self.invQt)
                 
         return mu, var, deriv
+
+
+    def __call__(self, testing):
+        """A Gaussian process object is callable: calling it is the same as
+        calling `predict` without uncertainty and derivative
+        predictions, and extracting the zeroth component for the
+        'value' prediction.
+        """
+        return (self.predict(testing, do_deriv=False, do_unc=False)[0])
+
     
     def _predict_samples(self, testing, do_deriv = True, do_unc = True):
         """
@@ -1028,7 +1046,7 @@ class GaussianProcess(object):
                 warnings.warn("Warning: Current parameters are not MLE values")
             return self._predict_single(testing, do_deriv, do_unc)
         
-        
+
     def __str__(self):
         """
         Returns a string representation of the model
@@ -1039,4 +1057,3 @@ class GaussianProcess(object):
         """
         
         return "Gaussian Process with "+str(self.n)+" training examples and "+str(self.D)+" input variables"
-

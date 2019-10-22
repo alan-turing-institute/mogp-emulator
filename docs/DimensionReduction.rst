@@ -15,6 +15,7 @@ Dimension Reduction Classes
 
     .. automethod:: __init__
     .. automethod:: __call__
+    .. automethod:: tune_parameters
 
 ---------
 Utilities

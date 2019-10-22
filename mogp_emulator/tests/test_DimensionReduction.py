@@ -5,24 +5,54 @@ from .. import gKDR
 from ..DimensionReduction import median_dist, gram_matrix_sqexp, gram_matrix
 from .. import GaussianProcess
 
-def test_DimensionReduction_basic():
-    """Basic check that we can create gKDR with the expected arguments"""
-    Y = np.array([[1],[2.1],[3.2]])
-    X = np.array([[1,2,3],[4,5.1,6],[7.1,8,9.1]])
-    dr = gKDR(X,Y,K=2,SGX=2,SGY=2,EPS=1E-5)
-
-
+##### Some simple functions useful for training
 def fn(x):
     """A linear function for testing the dimension reduction"""
     return 10*(x[0] + x[1]) + (x[1] - x[0])
 
+def fn2(x):
+    """A linear function for testing the dimension reduction"""
+    return 10*(x[0] + x[1]) + (x[1] - x[0]) + x[2] + 0.1*x[3]
+
+def fn3(x):
+    return x[0]
+
+
+##### The tests
+
+def test_DimensionReduction_basic():
+    """Basic check that we can create gKDR with the expected arguments"""
+    Y = np.array([[1],[2.1],[3.2]])
+    X = np.array([[1,2,3],[4,5.1,6],[7.1,8,9.1]])
+    K_in = 2
+    dr = gKDR(X, Y, K=K_in, SGX=2, SGY=2, EPS=1E-5)
+    assert(dr.K == K_in)
+
+
+def test_DimensionReduction_tune_parameters():
+    """Check that we can tune the dimension reduction to discover the
+    correct structural dimension in a simple case"""
+
+    np.random.seed(100)
+    X = np.random.random((20,20))
+    Y = np.apply_along_axis(fn3, 1, X)
+
+    dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
+                                    cXs=[5.0], cYs=[5.0], maxK = 3)
+
+    # These are somewhat conservative bounds: the random seed makes
+    # the resulting K and loss deterministic.  For other seeds, these
+    # bounds are unlikely to be exceeded.
+    assert(dr.K <= 2)
+    assert(loss > 0.0 and loss < 0.2)
+
 
 def test_DimensionReduction_GP():
     """Test that a GP based on reduced inputs behaves well."""
-    
+
     # Make some test points on a grid.  Any deterministic set of
     # points would work well for this test.
-    
+
     X = np.mgrid[0:10,0:10].T.reshape(-1,2)/10.0
     Y = np.apply_along_axis(fn, 1, X)
     dr = gKDR(X,Y,1)
@@ -33,12 +63,12 @@ def test_DimensionReduction_GP():
 
     gp_red = GaussianProcess(dr(X), Y)
     gp_red.learn_hyperparameters()
-    
+
     ## some points offset w.r.t the initial grid
-    Xnew = (np.mgrid[0:10,0:10].T.reshape(-1,2) + 0.5)/10.0
+    Xnew = (np.mgrid[0:9,0:9].T.reshape(-1,2) + 0.5)/10.0
 
     Yexpect = np.apply_along_axis(fn, 1, Xnew)
-    Ynew = gp.predict(Xnew)[0] # value prediction 
+    Ynew = gp.predict(Xnew)[0] # value prediction
     Ynew_red = gp_red.predict(dr(Xnew))[0] # value prediction
 
     # check that the fit was reasonable in both cases
@@ -57,7 +87,7 @@ def test_DimensionReduction_B():
 
     B_expected = np.array([[-0.2653073259794961, -0.9641638982982144],
                            [-0.9641638982982144,  0.2653073259794961]])
-    
+
     for i in range(B_expected.shape[1]):
         r = dr.B[:,i]/B_expected[:,i]
         assert(np.allclose(r, 1.0) or np.allclose(r, -1.0))
@@ -77,7 +107,7 @@ def test_DimensionReduction_gram_matrix():
     def k_sqexp(x0, x1):
         d = x0 - x1
         return np.exp(-0.5 * np.dot(d, d))
-    
+
     G_dot = gram_matrix(X, k_dot)
     assert(np.allclose(G_dot, np.array([[0.0, 0.0, 0.0, 0.0],
                                         [0.0, 1.0, 0.0, 1.0],

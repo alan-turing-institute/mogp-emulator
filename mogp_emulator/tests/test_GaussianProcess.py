@@ -587,7 +587,7 @@ def test_GaussianProcess_learn():
     assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
 
-        
+
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
     
@@ -615,6 +615,26 @@ def test_GaussianProcess_learn_hyperparameters():
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(n_tries = -1)
 
+
+def test_GaussianProcess_train_model():
+    "Test the 'train_model' interface to GaussianProcess"
+    X = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    Y = np.array([2., 3., 4.])
+
+    np.random.seed(10)
+    gp1 = GaussianProcess(X, Y)
+    gp1.learn_hyperparameters()
+
+    np.random.seed(10)
+    gp2 = GaussianProcess.train_model(X, Y)
+
+    ## Check that the models produce identical predictions.  Depends
+    ## on each having the same random seed.
+    Xnew = np.array([3.0, 3.0, 2.0])
+    assert(gp1(Xnew) == gp2(Xnew))
+    assert(np.all(gp1.get_params() == gp2.get_params()))
+
+
 def test_GaussianProcess_learn_hyperparameters_normalapprox():
     "test the method to learn hyperparameters via normal approximation around the MLE solution"
 
@@ -634,6 +654,7 @@ def test_GaussianProcess_learn_hyperparameters_normalapprox():
     
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters_normalapprox(n_samples = -1)
+
 
 def test_GaussianProcess_learn_hyperparameters_MCMC():
     "test method to fit hyperparameters via MCMC"
@@ -787,6 +808,7 @@ def test_GaussianProcess_predict_samples():
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
+
 
 def test_GaussianProcess_predict():
     """
