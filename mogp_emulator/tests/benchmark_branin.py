@@ -18,7 +18,7 @@ a problem due to the inherent smoothness of the squared exponential covariance f
 
 import numpy as np
 from mogp_emulator import MultiOutputGP
-from mogp_emulator.utils import lhd
+from mogp_emulator import MonteCarloDesign, LatinHypercubeDesign
 from scipy.stats import uniform
 try:
     import matplotlib.pyplot as plt
@@ -70,11 +70,10 @@ def generate_input_data(n_simulations, method = "random"):
     assert method == "random" or method == "lhd"
     
     if method == "random":
-        inputs = np.zeros((n_simulations, 2))
-        inputs[:,0] = np.random.uniform(low = -5., high = 10., size = n_simulations)
-        inputs[:,1] = np.random.uniform(low = 0., high = 15., size = n_simulations)
+        ed = MonteCarloDesign([uniform(loc = -5., scale = 15.).ppf, uniform(loc = 0., scale = 15.).ppf])
     elif method == "lhd":
-        inputs = lhd([uniform(loc = -5., scale = 15.), uniform(loc = 0., scale = 15.)], n_simulations, form="spacefilling")
+        ed = LatinHypercubeDesign([uniform(loc = -5., scale = 15.).ppf, uniform(loc = 0., scale = 15.).ppf])
+    inputs = ed.sample(n_simulations)
     return inputs
     
 def generate_target_data(inputs, emulator_params):

@@ -1,6 +1,6 @@
 import numpy as np
+from .Kernel import SquaredExponential
 from scipy.optimize import minimize
-from scipy.spatial.distance import cdist
 from scipy import linalg
 from scipy.linalg import lapack
 import logging
@@ -35,7 +35,7 @@ class GaussianProcess(object):
         >>> gp.get_D()
         3
         >>> np.random.seed(47)
-        >>> mogp.learn_hyperparameters()
+        >>> gp.learn_hyperparameters()
         (5.140462159403397, array([-13.02460687,  -4.02939647, -39.2203646 ,   3.25809653]))
         >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
         >>> gp.predict(x_predict)
@@ -53,8 +53,10 @@ class GaussianProcess(object):
         file holding the input/targets and (optionally) learned parameter values.
         
         Arguments passed to the ``__init__`` method must be either two arguments which
-        are numpy arrays ``inputs`` and ``targets``, described below, or a single argument
-        which is the filename (string or file handle) of a previously saved emulator.
+        are numpy arrays ``inputs`` and ``targets``, described below, three arguments
+        which are the same ``inputs`` and ``targets`` arrays plus a float representing
+        the ``nugget`` parameter, or a single argument which is the filename (string or file
+        handle) of a previously saved emulator.
         
         ``inputs`` is a 2D array-like object holding the input data, whose shape is
         ``n`` by ``D``, where ``n`` is the number of training examples to be fit and ``D``
@@ -63,7 +65,14 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
         
-        If two input arguments ``inputs`` and ``targets`` are given:
+        ``nugget`` is the additional noise added to the emulator targets when fitting. This
+        can take on values ``None`` (in which case, noise will be added adaptively to
+        stabilize fitting), or a non-negative float (in which case, a fixed noise level
+        will be used). If no value is specified for the ``nugget`` parameter, ``None``
+        is the default.
+        
+        If two or three input arguments ``inputs``, ``targets``, and optionally ``nugget`` are
+        given:
         
         :param inputs: Numpy array holding emulator input parameters. Must be 2D with shape
                        ``n`` by ``D``, where ``n`` is the number of training examples and
@@ -71,6 +80,10 @@ class GaussianProcess(object):
         :type inputs: ndarray
         :param targets: Numpy array holding emulator targets. Must be 1D with length ``n``
         :type targets: ndarray
+        :param nugget: Noise to be added to the diagonal or ``None``. A float specifies the
+                       noise level explicitly, while if ``None`` is given, the noise will set
+                       to be as small as possible to ensure stable inversion of the covariance
+                       matrix. Optional, default is ``None``.
         
         If one input argument ``emulator_file`` is given:
         
@@ -85,11 +98,12 @@ class GaussianProcess(object):
         
         emulator_file = None
         theta = None
+        nugget = None
         
         if len(args) == 1:
             emulator_file = args[0]
-            inputs, targets, theta = self._load_emulator(emulator_file)
-        elif len(args) == 2:
+            inputs, targets, theta, nugget = self._load_emulator(emulator_file)
+        elif len(args) == 2 or len(args) == 3:
             inputs = np.array(args[0])
             targets = np.array(args[1])
             if targets.shape == (1,) and len(inputs.shape) == 1:
@@ -100,6 +114,12 @@ class GaussianProcess(object):
                 raise ValueError("Targets must be a 1D array")
             if not len(targets) == inputs.shape[0]:
                 raise ValueError("First dimensions of inputs and targets must be the same length")
+            if len(args) == 3:
+                nugget = args[2]
+                if not nugget == None:
+                    nugget = float(nugget)
+                    if nugget < 0.:
+                        raise ValueError("nugget parameter must be nonnegative or None")
         else:
             raise ValueError("Init method of GaussianProcess requires 1 (file) or 2 (input array, target array) arguments")
 
@@ -108,6 +128,10 @@ class GaussianProcess(object):
         
         self.n = self.inputs.shape[0]
         self.D = self.inputs.shape[1]
+        
+        self.nugget = nugget
+        
+        self.kernel =  SquaredExponential()
         
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -126,11 +150,11 @@ class GaussianProcess(object):
         :type filename: str or file
         :returns: inputs, targets, and (optionally) fitted parameter values from the
                   saved emulator file
-        :rtype: tuple containing 3 ndarrays or 2 ndarrays and None (if no theta values
-                are found in the emulator file)
+        :rtype: tuple containing 3 ndarrays and a float or 2 ndarrays, a None type, and
+                a float (if no theta values are found in the emulator file)
         """
         
-        emulator_file = np.load(filename)
+        emulator_file = np.load(filename, allow_pickle=True)
         
         try:
             inputs = np.array(emulator_file['inputs'])
@@ -143,7 +167,15 @@ class GaussianProcess(object):
         except KeyError:
             theta = None
             
-        return inputs, targets, theta
+        try:
+            if emulator_file['nugget'] == None:
+                nugget = None
+            else:
+                nugget = float(emulator_file['nugget'])
+        except KeyError:
+            nugget = None
+            
+        return inputs, targets, theta, nugget
 
     def save_emulator(self, filename):
         """
@@ -163,12 +195,13 @@ class GaussianProcess(object):
         emulator_dict = {}
         emulator_dict['targets'] = self.targets
         emulator_dict['inputs'] = self.inputs
+        emulator_dict['nugget'] = self.nugget
         
         try:
             emulator_dict['theta'] = self.theta
         except AttributeError:
             pass
-        
+                    
         np.savez(filename, **emulator_dict)
 
     def get_n(self):
@@ -190,6 +223,65 @@ class GaussianProcess(object):
         """
         
         return self.D
+        
+    def get_params(self):
+        """
+        Returns emulator parameters
+        
+        Returns current parameters for the emulator as a numpy array if they have been fit. If no
+        parameters have been fit, returns None.
+        
+        :returns: Current parameter values (numpy array of length ``D + 1``), or ``None`` if the
+                  parameters have not been fit.
+        :rtype: ndarray or None
+        """
+        
+        try:
+            return self.theta
+        except AttributeError:
+            return None
+            
+    def get_nugget(self):
+        """
+        Returns emulator nugget parameter
+        
+        Returns current value of the nugget parameter. If the nugget is selected adaptively, returns None.
+        
+        :returns: Current nugget value, either a float or ``None``
+        :rtype: float or None
+        """
+        
+        return self.nugget
+    
+    def set_nugget(self, nugget):
+        """
+        Set the nugget parameter for the emulator
+        
+        Method for changing the ``nugget`` parameter for the emulator. When a new emulator is
+        initilized, this is set to None.
+        
+        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
+        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
+        float, then that particular value is used for the nugget. Note that setting this parameter
+        to be zero enforces that the emulator strictly interpolates between points. Alternatively,
+        if ``nugget`` is set to be ``None``, the fitting routine will adaptively make the noise
+        parameter as large as is needed to ensure that the emulator can be fit.
+        
+        :param nugget: Controls how noise is added to the emulator. If ``nugget`` is a nonnegative
+                       float, then this manually sets the noise parameter (if negative, this will
+                       lead to an error), with ``nugget = 0`` resulting in interpolation with no
+                       smoothing noise added. ``nugget = None`` will adaptively select the
+                       smallest value of the noise term that still leads to a stable inversion of
+                       the matrix. Default behavior is ``nugget = None``.
+        :type nugget: None or float
+        :returns: None
+        :rtype: None
+        """
+        
+        if not nugget == None:
+            nugget = float(nugget)
+            assert nugget >= 0., "noise parameter must be nonnegative"
+        self.nugget = nugget
     
     def _jit_cholesky(self, Q, maxtries = 5):
         """
@@ -204,7 +296,7 @@ class GaussianProcess(object):
         be done, and if it cannot it successively adds noise to the diagonal (starting with 1.e-6 times
         the mean of the diagonal and incrementing by a factor of 10 each time) until the matrix can be
         decomposed or the algorithm reaches ``maxtries`` attempts. The routine returns the lower
-        triangular matrix and the amount of jitter necessary to stabilize the decomposition.
+        triangular matrix and the amount of noise necessary to stabilize the decomposition.
         
         :param Q: The matrix to be inverted as an array of shape ``(n,n)``. Must be a symmetric positive
                   definite matrix.
@@ -262,15 +354,14 @@ class GaussianProcess(object):
         :returns: None
         """
         
-        exp_theta = np.exp(self.theta)
+        self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
         
-        self.Q = cdist(np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       np.sqrt(exp_theta[: (self.D)])*self.inputs,
-                       "sqeuclidean")
-        self.Q = exp_theta[self.D] * np.exp(-0.5 * self.Q)
-        
-        L, jitter = self._jit_cholesky(self.Q)
-        self.Z = self.Q + jitter*np.eye(self.n)
+        if self.nugget == None:
+            L, nugget = self._jit_cholesky(self.Q)
+            self.Z = self.Q + nugget*np.eye(self.n)
+        else:
+            self.Z = self.Q + self.nugget*np.eye(self.n)
+            L = linalg.cholesky(self.Z, lower=True)
         
         self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
         self.invQt = np.dot(self.invQ, self.targets)
@@ -333,7 +424,7 @@ class GaussianProcess(object):
         During normal use, the ``partial_devs`` method is called after evaluating the
         ``loglikelihood`` method. The implementation takes advantage of this by storing
         the inverse of the covariance matrix, which is expensive to compute and is used
-        by both the ``loglikelihood`` and ``partial_devs`` methods. If the function
+        by the ``loglikelihood``, ``partial_devs``, and ``hessian`` methods. If the function
         is evaluated with a different set of parameters than was previously used to set
         the log-likelihood, the method calls ``_set_params`` to compute the needed
         information. However, caling ``partial_devs`` does not evaluate the log-likelihood,
@@ -348,18 +439,59 @@ class GaussianProcess(object):
         
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
-        
+            
         partials = np.zeros(self.D + 1)
         
-        for d in range(self.D):
-            dKdtheta = 0.5 * cdist(np.reshape(self.inputs[:,d], (self.n, 1)),
-                                   np.reshape(self.inputs[:,d], (self.n, 1)), "sqeuclidean") * self.Q
-            partials[d] = (0.5 * np.exp(self.theta[d]) * (np.dot(self.invQt, np.dot(dKdtheta, self.invQt))
-                           - np.sum(self.invQ * dKdtheta)))
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
         
-        partials[self.D] = -0.5 * (np.dot(self.invQt, np.dot(self.Q, self.invQt)) - np.sum(self.invQ * self.Q))
+        for d in range(self.D + 1):
+            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
         
         return partials
+        
+    def hessian(self, theta):
+        """
+        Calculate the Hessian of the negative log-likelihood
+        
+        Calculate the Hessian of the negative log-likelihood with respect to
+        the hyperparameters. Note that this function is normally used only when fitting
+        the hyperparameters, and it is not needed to make predictions. It is also used
+        to estimate an appropriate step size when fitting hyperparameters using
+        the lognormal approximation or MCMC sampling.
+        
+        When used in an optimization routine, the ``hessian`` method is called after
+        evaluating the ``loglikelihood`` method. The implementation takes advantage of
+        this by storing the inverse of the covariance matrix, which is expensive to
+        compute and is used by the ``loglikelihood`` and ``partial_devs`` methods as well.
+        If the function is evaluated with a different set of parameters than was previously
+        used to set the log-likelihood, the method calls ``_set_params`` to compute the needed
+        information. However, caling ``hessian`` does not evaluate the log-likelihood,
+        so it does not change the cached values of the parameters or log-likelihood.
+        
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(D + 1,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-likelihood (array with shape
+                  ``(D + 1, D + 1)``)
+        :rtype: ndarray
+        """
+        
+        if not np.allclose(np.array(theta), self.theta):
+            self._set_params(theta)
+            
+        hessian = np.zeros((self.D + 1, self.D + 1))
+        
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
+        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
+        
+        for d1 in range(self.D + 1):
+            for d2 in range(self.D + 1):
+                hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt, 
+                                        2.*np.linalg.multi_dot([dKdtheta[d1], self.invQ, dKdtheta[d2]])-d2Kdtheta2[d1, d2],
+                                        self.invQt])-
+                                        np.trace(np.linalg.multi_dot([self.invQ, dKdtheta[d1], self.invQ, dKdtheta[d2]])
+                                                 -np.dot(self.invQ, d2Kdtheta2[d1, d2])))
+                
+        return hessian
     
     def _learn(self, theta0, method = 'L-BFGS-B', **kwargs):
         """
@@ -412,8 +544,9 @@ class GaussianProcess(object):
         If the method encounters an overflow (this can result because the parameter values stored are
         the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
         (occurs when the covariance matrix cannot be inverted, even with the addition of additional
-        "jitter" or noise added along the diagonal), the iteration is skipped. If all attempts to
-        find optimal hyperparameters result in an error, then the method raises an exception.
+        noise added along the diagonal if adaptive noise was selected by setting the nugget parameter
+        to be None), the iteration is skipped. If all attempts to find optimal hyperparameters result
+        in an error, then the method raises an exception.
         
         The ``theta0`` parameter is the point at which the first iteration will start. If more than
         one attempt is made, subsequent attempts will use random starting points.
@@ -449,7 +582,7 @@ class GaussianProcess(object):
         n_tries = int(n_tries)
         assert n_tries > 0, "number of attempts must be positive"
         
-        np.seterr(over = 'raise')
+        np.seterr(divide = 'raise', over = 'raise', invalid = 'raise')
         
         loglikelihood_values = []
         theta_values = []
@@ -468,7 +601,7 @@ class GaussianProcess(object):
             except linalg.LinAlgError:
                 print("Matrix not positive definite, skipping this iteration")
             except FloatingPointError:
-                print("Overflow in optimization routine, skipping this iteration")
+                print("Floating point error in optimization routine, skipping this iteration")
                 
         if len(loglikelihood_values) == 0:
             raise RuntimeError("Minimization routine failed to return a value")
@@ -533,16 +666,13 @@ class GaussianProcess(object):
         
         exp_theta = np.exp(self.theta)
 
-        Ktest = cdist(np.sqrt(exp_theta[: (self.D)]) * self.inputs,
-                      np.sqrt(exp_theta[: (self.D)]) * testing, "sqeuclidean")
-
-        Ktest = exp_theta[self.D] * np.exp(-0.5 * Ktest)
+        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
 
         mu = np.dot(Ktest.T, self.invQt)
         
         var = None
         if do_unc:
-            var = exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0)
+            var = np.maximum(exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0), 0.)
         
         deriv = None
         if do_deriv:

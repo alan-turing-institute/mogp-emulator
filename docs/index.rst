@@ -12,6 +12,9 @@ Welcome to Multi-Output GP Emulator's documentation!
 
    GaussianProcess
    MultiOutputGP
+   Kernel
+   ExperimentalDesign
+   SequentialDesign
    benchmarks/benchmarks
 
 
