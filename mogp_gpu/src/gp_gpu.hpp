@@ -117,7 +117,7 @@ public:
     // assumes on input that xnew is Nbatch * Ninput, and that result
     // contains space for Nbatch result values
     void predict_batch(int Nbatch, REAL *xnew, REAL *result)
-    {
+    {	    
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
@@ -127,8 +127,8 @@ public:
                       dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_T, N, Nbatch, &one,
-                        dev_ptr(work_mat_d), N, dev_ptr(invCts_d), 1, &zero,
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
                         dev_ptr(result_d), 1);
 
         cudaDeviceSynchronize();
