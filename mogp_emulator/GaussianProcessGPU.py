@@ -279,8 +279,52 @@ class GaussianProcessGPU(GaussianProcess):
     def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
 
-        See :func:`mogp_emulator.GaussianProcess.predict`, which is 
-        
+        See :func:`mogp_emulator.GaussianProcess.predict`, which provides the
+        same interface and functionality.
+
+        Currently, the GPU implementation does not provide variance or
+        derivative computations.  Therefore, if `do_deriv` or `do_unc` are
+        ``True``, the prediction will fall back to the CPU implementation.
+
+        :type require_gpu: Bool
+
+        :param require_gpu: (optional, default True).  If this parameter is
+                            `True`, the GPU library must be used, and if this is
+                            not possible, an exception derived from RuntimeError
+                            is (re)thrown.  If this parameter is `False`, the
+                            CPU implementation will (quietly) be used as a
+                            fallback.
+
+        :type testing: ndarray
+
+        :param testing: As for `meth`:mogp_emulator.GaussianProcess.predict:.
+                        Array-like object holding the points where predictions
+                        will be made.  Must have shape ``(n_predict, D)`` or
+                        ``(D,)`` (for a single prediction)
+
+        :type do_deriv: Bool
+
+        :param do_deriv: (optional, default `True`) As for
+                         `meth`:mogp_emulator.GaussianProcess.predict:.  Flag
+                         indicating if the uncertainties are to be computed.  If
+                         ``False`` the method returns ``None`` in place of the
+                         uncertainty array. Default value is ``True``.
+
+        :type do_unc:
+
+        :param do_unc: (optional, default `True`) As for
+                      `meth`:mogp_emulator.GaussianProcess.predict:.  Flag
+                      indicating if the uncertainties are to be computed.  If
+                      ``False`` the method returns ``None`` in place of the
+                      uncertainty array. Default value is ``True``.
+
+        :throws: RuntimeError: When the GPU library (or a suitable GPU) is not
+                               available for the requested task, a runtime
+                               exception is (re)thrown when `require_gpu` is
+                               True.  This could be the derived
+                               "UnavailableError" exception, a
+                               "NotImplementedError", or a plain "RuntimeError"
+                               indicating some other runtime failure.
         """
         if not do_deriv and not args and not kwargs:
             try:
