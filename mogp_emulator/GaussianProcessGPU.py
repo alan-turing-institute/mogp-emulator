@@ -18,6 +18,10 @@ _ndarray_2d = npctypes.ndpointer(dtype=np.float64,
                                  ndim=2,
                                  flags='C_CONTIGUOUS')
 
+class UnavailableError(RuntimeError):
+    """Exception type to use when a GPU, or the GPU library, is unavailable"""
+    pass
+
 def _find_mogp_gpu(verbose = True):
     """
     Look for the library that provides GPU support.  It expects to
@@ -169,8 +173,8 @@ class GPGPU(object):
                 print(msg)
                 raise RuntimeError(msg)
         else:
-            raise RuntimeError("GPU interface unavailable")
-    
+            raise UnavailableError("GPU interface unavailable")
+
     def predict(self, xnew):        
         if xnew.ndim == 1:
             assert(xnew.shape == (self.Ninput,))
@@ -253,19 +257,26 @@ class GaussianProcessGPU(GaussianProcess):
         else:
             self._device_gp_create()
 
-    def predict(self, testing, do_deriv = True, do_unc = True, use_gpu = True):
-        """
-        Make a prediction for a set of input vectors
+    def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
+        """Make a prediction for a set of input vectors
 
         See :func:`mogp_emulator.GaussianProcess.predict`, which is 
         
         """
-        if use_gpu and not do_deriv and not do_unc:
+        if not do_deriv and not args and not kwargs:
             try:
                 return (self.gpgpu.predict(testing), None, None)
-            except RuntimeError:
-                pass
-        return super().predict(testing, do_deriv, do_unc)
+            except RuntimeError as ex:
+                if require_gpu:
+                    raise ex
+        elif require_gpu:
+            raise NotImplementedError(
+                "GaussianProcessGPU.predict does not support the options "
+                "requested for prediction (`require_gpu` was set - or "
+                "defaulted - to True: to fall back to the non-GPU "
+                "implementation in this case, set this parameter to False)")
+
+        return super().predict(testing, do_deriv, do_unc, *args, **kwargs)            
     
     ## __setstate__ and __getstate__ for pickling: don't pickle "gpgpu",
     ## since the ctypes members won't pickle, reinitialize after.
