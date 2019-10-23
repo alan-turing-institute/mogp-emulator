@@ -6,80 +6,28 @@ class HistoryMatching(object):
     Class containing tools to implement history matching between the outputs of a
     gaussian process and an observation.
 
-    Provided methods:
-      __init__ : constructor for the class. Sets up the various parameters that
-        will be used for further calculations, either as placeholders or with
-        default values. Can be called with any of the parameters that can be set
-        using the ``set_`` methods as keyword arguments.
+    Primary usage is the ``get_implausibility`` method, which calculates the
+    implausibility metric (a number of standard deviations between the emulator mean
+    and the observation) for a number of query points:
 
-      get_implausibility : the primary use method for the class. Requires that an
-        observation is provided, as well as either a set of expectations or both a
-        GP and a set of coordinates for which expectations are to be computed. The
-        variances of the expectations are included in the GP output, and the
-        variance of the observation can be included with it when it is set. Any
-        number of further variances can be given as arguments for
-        get_implausibility.
+    .. math::
+        {I_i(\bar{x_0}) = \frac{|z_i - E(f_i(\bar{x_0}))|}
+        {\sqrt{Var\left[z_i - E(f_i(\bar{x_0}))\right]}}}
 
-      get_NROY : returns a series of indices corresponding to entries in self.I
-        that are Not Ruled Out Yet by the specified observation and implausiblity
-        threshold. If self.I has not been computed, calls get_implausiblity to do
-        this. get_NROY also sets self.RO - the corresponding list of indices that
-        HAVE been ruled out
+    The code allows a number of ways to specify variances, and all are summed to
+    compute the final variance that determines the implausibility measure.
+    Variances on the observation itself can be provided with the observations,
+    while variances arising from the GP prediction are included in the emulator
+    expectations. Additional variances can be included to account for model
+    discrepancy when computing the implausibility metric, and these can be uniform
+    for all query points, or vary across different query points if desired. Any
+    number of additional variances can be included in the calculation by passing
+    them when computing the implausibility.
 
-      get_RO : returns a series of indices corresponding to entries in self.I
-        that are Not Ruled Out Yet by the specified observation and implausiblity
-        threshold. If self.NROY and self.RO have not been computed, calls get_NROY
-        to do this.
-
-      set_gp : allows a gaussian process to be specified by setting the self.gp
-        variable.
-
-      set_obs : allows an observation value, and, optionally, its associated
-        variance, to be specified by setting the self.obs variable.
-
-      set_coords : allows a set of coordinates for which expectation values are to
-        be calculated to be specified by setting the self.coords value.
-
-      set_expectations : allows a set of expectation values (explicitly assumed
-        to be consistent with the output of a
-        ``mogp_emulator.GaussianProcess.predict()`` method).
-
-      set_threshold : allows an implausibility threshold to be specified by
-        setting the self.threshold value. By default, this is set to 3.0.
-
-      status : prints a summary of the current status of the class object,
-        including the values stored in self.gp, .obs, .ndim, .ncoords, and
-        .threshold, and the shapes/sizes of values stored in self.obs, .coords,
-        .expectations, .I, .NROY, and .RO.
-
-      check_gp : returns a boolean that is True if the provided quantity is
-        consistent with the requirements for a gaussian process, i.e. is of type
-        GaussianProcess.
-
-      check_obs : returns a boolean that is True if the provided quantity is
-        consistent with the requirements for the observation quantity, i.e. is a
-        numerical value that can be converted to a float, or a list of up to two
-        such values.
-
-      check_coords : returns a boolean that is True if the provided quantity is
-        consistent with the requirements for the coordinates quantity, i.e. is a
-        list or ndarray of fewer than 3 dimensions.
-
-      check_expectations : returns a boolean that is True if the provided quantity
-        is consistent with the output of the predict method of a GaussianProcess
-        object, i.e. that it is a tuple of length 3 containing dnarrays.
-
-      check_threshold : returns a boolean that is True if the provided quantity is
-        consistent with the requirements for a threshold value, i.e. that it is a
-        single numerical value that can be converted to a float.
-
-      check_ncoords : returns a boolean that is True if the provided quantity is
-        consistent with the requirements for a ncoords value, i.e. that it is a
-        single numerical value that can be converted to a float.
-
-      update : checks that sufficient information exists to computen dim and/or
-        ncoords and, if so, computes these values. This also serves to update
-        these values if the information on which they are based is changed.
+    Once implausibility is computed, the class can determine query points that
+    can be ruled out, as well as points that are not ruled out yet, based on the
+    threshold class attribute. See the methods ``get_RO``, ``get_NROY``, and
+    ``set_threshold`` for more details.
 
     Example - implausibility computation for a 1D GP::
 
@@ -124,13 +72,13 @@ class HistoryMatching(object):
         r"""
         Create a new instance of history matching.
 
-        The primary function of this method is to initialise the self.gp, .obs,
-        .coords, .expectations, .ndim, .ncoords, .threshold, .I, .NROY, and .RO
-        variables as placeholders. The optional keyword arguments can also be used
-        to set user-defined values for varius quantities in a single call to
-        HistoryMtching(). Setting sufficient of these to allow the number of
-        dimensions and/or number of coordinates to be computed also causes these to
-        be set at this stage.
+        The primary function of this method is to initialise the ``self.gp``,
+        ``.obs``, ``.coords``, ``.expectations``, ``.ndim``, ``.ncoords``,
+        ``.threshold``, ``.I``, ``.NROY``, and ``.RO`` variables as placeholders.
+        The optional keyword arguments can also be used to set user-defined values for
+        various quantities in a single call to ``HistoryMatching()``. Setting sufficient
+        numbers of these to allow the number of dimensions and/or number of coordinates to
+        be computed also causes these to be set at this stage.
 
         :param gp: (Optional) ``GaussianProcess`` object used to make predictions in
                    history matching. Optional, can instead provide predictions directly
@@ -151,13 +99,14 @@ class HistoryMatching(object):
                        for the GP). Only required if ``expectations`` is not provided.
                        Default is ``None``.
         :type coords: ndarray
-        :param expectations: (Optional) Tuple of 3 numpy arrays of the form expected
-                             from GP predictions. The first array must hold the predicted
-                             mean at all query points, and the second array must hold
-                             the variances from the GP predictions at all query points.
-                             The third is not used, so can simply be a dummy array.
-                             Can instead provide a GP object and the points to query
-                             to have the predictions made internally. Default is None.
+        :param expectations: (Optional) Tuple of 3 numpy arrays or 2 numpy arrays and
+                             ``None`` of the form expected from GP predictions. The first
+                             array must hold the predicted mean at all query points, and
+                             the second array must hold the variances from the GP predictions
+                             at all query points. The third is not used, so can simply be a
+                             dummy array or ``None``. Can instead provide a GP object and the
+                             points to query to have the predictions made internally. Default
+                             is ``None``.
         :type expectations: tuple holding 3 ndarrays
         """
 
@@ -192,6 +141,119 @@ class HistoryMatching(object):
         self.update()
 
 
+    def _select_expectations(self):
+        r"""
+        Determine the emulator predictions to use in HistoryMatching
+
+        This method queries the internal state of the HistoryMatching object to get
+        the expectations to use in the history matching calculation. It either
+        uses the expectations that were directly provided, or makes predictions
+        at the query points using the provided GP. If both methods are set
+        simultaneously, the method raises an exception.
+
+        :returns: Expectations to use in history matching. These are either provided
+                  explicitly, or made internally using the GP and query points.
+        :rtype: tuple of 3 ndarrays or 2 ndarrays and None
+        """
+        # Check that we have exactly 1 valid combination of parameters
+        UseCoordGP = False
+        UseExpectations = False
+        if (self.check_coords(self.coords) and self.check_gp(self.gp)):
+            UseCoordGP = True
+        if self.check_expectations(self.expectations):
+            UseExpectations = True
+        if UseCoordGP and UseExpectations:
+            raise ValueError("Multiple valid parameter combinations are set. Previously set " +
+                             "parameters can be removed by setting them to None")
+
+        # Confirm that the ncoords parameter is set
+        if self.ncoords is None:
+            raise ValueError("ncoords is not set despite a valid parameter combination "+
+                             "being found.")
+
+        # From this point on, the calculation works off the self.expectations value.
+        # If this is not set, calculate it from the other parameters
+        if UseCoordGP:
+            expectations = self.gp.predict(self.coords)
+        else:
+            expectations = self.expectations
+
+        return expectations
+
+    def _parse_variances(self, *args):
+        r"""
+        Parse variances from arguments for use in ``get_implausibility``
+
+        This is a helper function to parse the arguments to ``get_implausibility``
+        to create two lists of variance for use in history matching. The arguments
+        to ``get_implausibility`` can consist of either lists holding variances for
+        each query point, or a single value that applies uniformly to all points.
+        This function checks that the length of all provided lists are correct
+        and appends them to the ``varlists`` numpy array output, which has shape
+        ``(ncoord, m)`` where ``m`` is the number of lists of variances provided.
+        If no variance lists are provided, ``varlists`` will be ``None``.
+        The method also checks all single values and appends them to the
+        ``varvals`` list. If the code encounters bad inputs for either, either
+        in shape or if it encounters any negative values, it raises an exception.
+
+        :param args: List of additional variances to include in the calculation.
+                     These must all be non-negative floats or lists of length
+                     ``ncoord`` of non-negative floats.
+        :returns: Tuple of one list and one ndarray holding the variances for
+                  history matching, or one list and ``None`` if no lists are
+                  provided with the input. The first entry is a list of all
+                  single values provided, and the second is a numpy array with
+                  shape ``(ncoords, m)`` where ``m`` is the number of provided
+                  lists.
+        :rtype: tuple containing a list and a ndarray or a list and None
+        """
+        # Read in args, check for validity and construct iterable lists.
+        varvals = []
+        varlists = None
+
+        for a in args:
+            # For each argument, check whether it's a single value or a list/array
+            # of multiple values
+            if isinstance(a, list):    # vars as list: convert to ndarray and adjoin
+                if len(a) != self.ncoords:
+                    raise ValueError("bad input for get_implausibility - expected variance" +
+                                     "quantities containing 1 or " + str(self.ncoords) +
+                                     " values, found quantities containing " + str(len(a)))
+                if varlists is None:
+                    varlists = np.reshape(np.asarray(a), (-1, 1))
+                else:
+                    varlists = np.concatenate((varlists, np.reshape(np.asarray(a), (-1, 1))),
+                                              axis=1)
+            elif isinstance(a, np.ndarray):    # vars as ndarray: reshape and adjoin
+                if len(a.shape) == 1:
+                    a = np.reshape(a, (-1, 1))
+                elif (len(a.shape) > 2 or a.shape[1] != 1):
+                    raise ValueError("bad input for get_implausibility - expected variance " +
+                                     "quantities as single numerical values, lists, or " +
+                                     "ndarrays of shape (n,) or (n, 1), found ndarray of " +
+                                     "shape " + str(a.shape))
+                elif a.shape[0] != self.ncoords:
+                    raise ValueError("bad input for get_implausibility - expected variance " +
+                                     "quantities containing 1 or " + str(self.ncoords)+
+                                     " values, found quantities containing"+ str(a.shape[0]))
+                if varlists is None:
+                    varlists = a
+                else:
+                    varlists = np.concatenate((varlists, a), axis=1)
+            else:
+                try:                    # vars as individual values: append to varvals
+                    varvals.append(float(a))
+                except:
+                    raise Exception("bad input for get_implausibility - expected variance " +
+                                    "quantities as single numerical values, lists, or " +
+                                    "ndarrays, found variable of type " + str(type(a)))
+
+        assert np.all(np.array(varvals) >= 0.), "all variances must be positive"
+        if varlists is not None:
+            assert np.all(np.array(varlists) >= 0.), "all variances must be positive"
+
+        return varvals, varlists
+
     def get_implausibility(self, *args):
         r"""
         Compute Implausibility measure for all query points
@@ -202,13 +264,19 @@ class HistoryMatching(object):
             {I_i(\bar{x_0}) = \frac{|z_i - E(f_i(\bar{x_0}))|}
             {\sqrt{Var\left[z_i - E(f_i(\bar{x_0}))\right]}}}
 
-        to return an implausibility value for each of the provided coordinates.
+        to return an implausibility value (a number of standard deviations between the
+        emulator mean and the observation)for each of the provided coordinates.
 
         Requires that the observation parameter is set, and that at least one of the
         following conditions are met:
 
           a) The coords and gp parameters are set
           b) The expectations parameter is set
+
+        Note that using the GP internally assumes that the standard prediction settings
+        will be used when making predictions. If the user wishes to have more control
+        over the prediction method (i.e. make the predictions from MCMC samples),
+        the user should explicitly pass ``expectations`` to the object.
 
         All parameters to be passed into the function are assumed to be variances.
         These can be in either of 2 forms:
@@ -231,91 +299,34 @@ class HistoryMatching(object):
 
         :param args: List of additional variances to include in the calculation.
                       These must all be positive floats.
+        :returns: Array holding implausibility metric for all query points accounting
+                  for all variances, ndarray of length ``(ncoords,)``
+        :rtype: ndarray
         """
 
         # Confirm that observation parameter is set
         if not self.check_obs(self.obs):
-            raise Exception("implausibility calculation requires that the observation value is " +
-                            "set. This can be done using the set_obs method.")
+            raise ValueError("implausibility calculation requires that the observation value is " +
+                             "set. This can be done using the set_obs method.")
 
-        # Check that we have exactly 1 valid combination of parameters
-        UseCoordGP = False
-        UseExpectations = False
-        if (self.check_coords(self.coords) and self.check_gp(self.gp)):
-            UseCoordGP = True
-        if self.check_expectations(self.expectations):
-            UseExpectations = True
-        if UseCoordGP and UseExpectations:
-            raise Exception("Multiple valid parameter combinations are set. Previously set " +
-                            "parameters can be removed by setting them to None")
+        expectations = self._select_expectations()
 
-        # Confirm that the ncoords parameter is set
-        if not self.check_ncoords(self.ncoords):
-            raise Exception("ncoords is not set despite a valid parameter combination "+
-                            "being found.")
+        varvals, varlists = self._parse_variances(*args)
 
-        # From this point on, the calculation works off the self.expectations value.
-        # If this is not set, calculate it from the other parameters
-        if UseCoordGP:
-            self.expectations = self.gp.predict(self.coords)
-
-        # Read in args, check for validity and construct iterable lists.
-        varvals = []
-        varlists = None
-
-        for a in args:
-            # For each argument, check whether it's a single value or a list/array
-            # of multiple values
-            if isinstance(a, list):    # vars as list: convert to ndarray and adjoin
-                if len(a) != self.ncoords:
-                    raise Exception("bad input for get_implausibility - expected variance" +
-                                    "quantities containing 1 or" + str(self.ncoords) +
-                                    "values, found quantities containing" + str(len(a)))
-                if varlists is None:
-                    varlists = np.reshape(np.asarray(a), (-1, 1))
-                else:
-                    varlists = np.concatenate((varlists, np.reshape(np.asarray(a), (-1, 1))),
-                                              axis=1)
-            elif isinstance(a, np.ndarray):    # vars as ndarray: reshape and adjoin
-                if len(a.shape) == 1:
-                    a = np.reshape(a, (-1, 1))
-                elif (len(a.shape) > 2 or a.shape[1] != 1):
-                    raise Exception("bad input for get_implausibility - expected variance " +
-                                    "quantities as single numerical values, lists, or " +
-                                    "ndarrays of shape (n,) or (n, 1), found ndarray of " +
-                                    "shape" + str(a.shape))
-                elif a.shape[0] != self.ncoords:
-                    raise Exception("bad input for get_implausibility - expected variance " +
-                                    "quantities containing 1 or" + str(self.ncoords)+
-                                    "values, found quantities containing"+ str(a.shape[0]))
-                if varlists is None:
-                    varlists = a
-                else:
-                    varlists = np.concatenate((varlists, a), axis=1)
-            else:
-                try:                    # vars as individual values: append to varvals
-                    varvals.append(float(a))
-                except:
-                    raise Exception("bad input for get_implausibility - expected variance " +
-                                    "quantities as single numerical values, lists, or " +
-                                    "ndarrays, found variable of type" + str(type(a)))
-
-        assert np.all(np.array(varvals) >= 0.), "all variances must be positive"
-        if varlists is not None:
-            assert np.all(np.array(varlists) >= 0.), "all variances must be positive"
+        if not varlists is None:
+            assert varlists.shape[0] == len(expectations[0]), \
+                    "mismatch between variances and GP predictions"
+            assert varlists.shape[0] == len(expectations[1]), \
+                    "mismatch between variances and GP predictions"
 
         # Compute implausibility for each expectation value
-        self.I = np.zeros(self.ncoords)
-        for i, E in enumerate(self.expectations[0]):
-            Vs = self.expectations[1][i]                  # variance on expectation
-            Vs += sum(varvals)                            # fixed variance values
-            Vs += self.obs[1]                             # variance on observation
-            if varlists is not None:                      # individual variance values
-                Vs += sum(varlists[i, :])
-            self.I[i] = (abs(self.obs[0]-E) / np.sqrt(Vs))
-
-        if UseCoordGP:
-            self.expectations = None
+        Vs = np.zeros(self.ncoords)
+        Vs += expectations[1]                         # variance on expectation
+        Vs += sum(varvals)                            # fixed variance values
+        Vs += self.obs[1]                             # variance on observation
+        if varlists is not None:                      # individual variance values
+            Vs += np.sum(varlists, axis=1)
+        self.I = (np.abs(self.obs[0] - expectations[0]) / np.sqrt(Vs))
 
         return self.I
 
@@ -336,13 +347,7 @@ class HistoryMatching(object):
         """
         if self.I is None: self.get_implausibility(*args)
 
-        self.NROY = []
-        self.RO = []
-        for i, I in enumerate(self.I):
-            if I <= self.threshold:
-                self.NROY.append(i)
-            else:
-                self.RO.append(i)
+        self.NROY = list(np.where(self.I <= self.threshold)[0])
 
         return self.NROY
 
@@ -361,8 +366,9 @@ class HistoryMatching(object):
         :returns: List of integer indices that have been ruled out.
         :rtype: list
         """
-        if self.RO is None:
-            self.get_NROY(*args)
+        if self.I is None: self.get_implausibility(*args)
+
+        self.RO = list(np.where(self.I > self.threshold)[0])
 
         return self.RO
 
@@ -437,10 +443,10 @@ class HistoryMatching(object):
                                 "dimensions somehow got through check_coords")
         elif isinstance(coords, list):
             self.coords = np.reshape(np.asarray(coords), [-1, 1])
-        elif coords == None:
+        elif coords is None:
             self.coords = None
         else:
-            raise Exception("error in exception handling - an argument of illegal " +
+            raise TypeError("error in exception handling - an argument of illegal " +
                             "type somehow got through check_coords")
         self.update()
 
@@ -464,7 +470,7 @@ class HistoryMatching(object):
         :returns: None
         """
         # need to allow expectations == None, as otherwise can't reset values
-        if not self.check_expectations(expectations) and (not expectations == None):
+        if not self.check_expectations(expectations) and (not expectations is None):
             raise TypeError("bad input for set_expectations - expected a Tuple " +
                             "of 3 ndarrays.")
         self.expectations = expectations
@@ -493,9 +499,10 @@ class HistoryMatching(object):
         Prints a summary of the current status of the class object.
 
         Prints a summary of the current status of the class object, including the
-        values stored in self.gp, .obs, .ndim, .ncoords, and .threshold, and the
-        shapes/sizes ofvalues stored in self.obs, .coords, .expectations, .I, .NROY,
-        and .RO. No inputs, no return value.
+        values stored in ``self.gp``, ``.obs``, ``.ndim``, ``.ncoords``, and
+        ``.threshold``, and the shapes/sizes ofvalues stored in ``self.obs``,
+        ``.coords``, ``.expectations``, ``.I``, ``.NROY``, and ``.RO.``
+        No inputs, no return value.
 
         :returns: None
         """
@@ -508,7 +515,7 @@ class HistoryMatching(object):
         Checks if the provided argument is consistent with expectations for a GP.
 
         Returns a boolean that is True if the provided quantity is consistent with
-        the requirements for a gaussian process, i.e. is of type GaussianProcess.
+        the requirements for a gaussian process, i.e. is of type ``GaussianProcess``.
 
         :param gp: Input GP object to be checked.
         :type gp: GaussianProcess
@@ -597,10 +604,11 @@ class HistoryMatching(object):
 
         Returns a boolean that is ``True`` if the provided quantity is consistent with
         the output of the predict method of a GaussianProcess object, i.e. that it
-        is a tuple of length 3 containing ndarrays.
+        is a tuple of length 3 containing ndarrays or 2 arrays and ``None`` for the
+        third entry.
 
         :param expectations: Input to check for consistency with expectations
-        :type expectations: tuple of 3 numpy arrays
+        :type expectations: tuple of 3 numpy arrays or 2 numpy arrays and None
         :returns: Boolean indicating if expectations is consistent
         :rtype: bool
         """
@@ -615,7 +623,10 @@ class HistoryMatching(object):
                     (isinstance(expectations[2], np.ndarray) or
                      expectations[2] is None))):
             raise TypeError("bad input type for HistoryMatching - expected expectation " +
-                            "values in the form of a Tuple of ndarrays.")
+                            "values in the form of a tuple of ndarrays.")
+        if not expectations[0].shape == expectations[1].shape:
+            raise ValueError("bad input for HistoryMatching - mean and variance " +
+                             "expectations do not match")
         assert np.all(expectations[1] >= 0.), "all variances must be non-negative"
         return True
 
@@ -629,7 +640,7 @@ class HistoryMatching(object):
 
         Returns a boolean that is ``True`` if the provided quantity is consistent with
         the requirements for a threshold value, i.e. that it is a non-negative numerical
-        value that can be converted to a float.
+        value.
 
         :param threshold: threshold to be tested
         :type threshold: float
@@ -646,38 +657,11 @@ class HistoryMatching(object):
         except TypeError:
             return False
 
-
-    def check_ncoords(self, ncoords):
-        r"""
-        Check value of ncoords
-
-        Checks if the provided argument is consistent with expectations for the
-        number of coordinates for which expectation values are to be / have been
-        computed.
-
-        Returns a boolean that is True if the provided quantity is consistent with
-        the requirements for a ncoords value, i.e. that it is a single numerical
-        value that can be converted to a float.
-
-        :param ncoords: number of query points for ``HistoryMatching``
-        :type ncoords: int
-        :returns: Boolean indicating if ``ncoords`` is consistent with requirements
-        :rtype: bool
-        """
-        if ncoords is None:
-            return False
-        try:
-            test = float(ncoords)
-            return True
-        except TypeError:
-            return False
-
-
     def update(self):
         r"""
         Update History Matching object
 
-        Checks that sufficient information exists to computen dim and/or ncoords
+        Checks that sufficient information exists to compute ``ndim`` and/or ``ncoords``
         and, if so, computes these values. This also serves to update these values
         if the information on which they are based is changed. No inputs, no return
         value.

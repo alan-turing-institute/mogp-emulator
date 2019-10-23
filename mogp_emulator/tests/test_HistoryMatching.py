@@ -157,6 +157,8 @@ def test_sanity_checks():
 def test_HistoryMatching_init():
     "test the init method of HistoryMatching"
 
+    # basic functionality
+
     hm = HistoryMatching()
 
     assert hm.gp == None
@@ -169,6 +171,8 @@ def test_HistoryMatching_init():
     assert hm.I == None
     assert hm.NROY == None
     assert hm.RO == None
+
+    # with gp/coords, obs, and threshold
 
     gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     coords = np.array([[0.2], [0.4]])
@@ -184,6 +188,8 @@ def test_HistoryMatching_init():
     assert hm.I == None
     assert hm.NROY == None
     assert hm.RO == None
+
+    # with obs, expectations, coords, and threshold
 
     expectations = (np.array([1.]), np.array([0.2]), np.array([[0.1]]))
     hm = HistoryMatching(gp=None, obs=[1., 0.1], coords=None, expectations=expectations,
@@ -201,23 +207,91 @@ def test_HistoryMatching_init():
     assert hm.NROY == None
     assert hm.RO == None
 
-def test_HistoryMatching_init_failures():
-    "check situations where the init method of HistoryMatching fails"
+
+def test_HistoryMatching_select_expectations():
+    "test the select_expectations method of HistoryMatching"
+
+    # correct functionality
+
+    expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
+    hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
+
+    expectations_new = hm._select_expectations()
+
+    for a, b in zip(expectations, expectations_new):
+        assert_allclose(a, b)
+
+    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    np.random.seed(57483)
+    gp.learn_hyperparameters()
+    coords = np.array([[0.1], [1.]])
+    obs = [1., 0.01]
+    expectations = gp.predict(coords)
+
+    hm = HistoryMatching(gp=gp, obs=obs, coords=coords)
+
+    expectations_new = hm._select_expectations()
+
+    for a, b in zip(expectations, expectations_new):
+        assert_allclose(a, b)
+
+    # ncoords somehow not set
+
+    hm.ncoords = None
+    with pytest.raises(ValueError):
+        hm._select_expectations()
+
+    # both coords and expectations set
+
+    hm = HistoryMatching(gp=gp, obs=obs, coords=coords, expectations=expectations)
 
     with pytest.raises(ValueError):
-        hm = HistoryMatching(obs=[1., 2., 3.])
+        hm._select_expectations()
 
-    with pytest.raises(TypeError):
-        hm = HistoryMatching(obs="abc")
+def test_HistoryMatching_parse_variances():
+    "test the parse_variances method of HistoryMatching"
 
-    with pytest.raises(TypeError):
-        hm = HistoryMatching(expectations=(np.array([0.1]), 1., 1.))
+    # correct functionality for varvals
+
+    hm = HistoryMatching()
+
+    varvals, varlists = hm._parse_variances(1., 2.)
+
+    assert varvals == [1., 2.]
+    assert varlists is None
+
+    # correct functionality for varlists
+
+    hm = HistoryMatching(coords=np.array([[1.], [2.]]))
+    varvals, varlists = hm._parse_variances([1., 2.], [3., 4.])
+
+    assert varvals == []
+    assert_allclose(varlists, np.reshape([1., 3., 2., 4.], (2, 2)))
+
+    # both at once
+
+    varvals, varlists = hm._parse_variances(1., [1., 2.], [3., 4.])
+
+    assert varvals == [1.]
+    assert_allclose(varlists, np.reshape([1., 3., 2., 4.], (2, 2)))
+
+    # bad value for varlists
+
+    with pytest.raises(ValueError):
+        hm._parse_variances([1., 2., 3.])
+
+    # bad value for variances
 
     with pytest.raises(AssertionError):
-        hm = HistoryMatching(threshold=-1.)
+        hm._parse_variances(-1.)
+
+    with pytest.raises(AssertionError):
+        hm._parse_variances([-1., -2.])
 
 def test_HistoryMatching_get_implausibility():
     "test the get_implausibility method of HistoryMatching"
+
+    # correct functionality
 
     expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
     hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
@@ -236,6 +310,11 @@ def test_HistoryMatching_get_implausibility():
     assert_allclose(I, [0.5, 4.5])
     assert_allclose(hm.I, [0.5, 4.5])
 
+    I = hm.get_implausibility(1., [0., 2.])
+
+    assert_allclose(I, [1./np.sqrt(2.), 4.5])
+    assert_allclose(hm.I, [1./np.sqrt(2.), 4.5])
+
     gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     np.random.seed(57483)
     gp.learn_hyperparameters()
@@ -250,16 +329,18 @@ def test_HistoryMatching_get_implausibility():
     assert_allclose(I, I_exp)
     assert_allclose(hm.I, I_exp)
 
-    with pytest.raises(AssertionError):
-        hm.get_implausibility(-1.)
+    # no observations
 
-    hm = HistoryMatching(gp=gp, obs=obs, coords=coords, expectations=expectations)
+    hm = HistoryMatching(expectations=expectations)
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         hm.get_implausibility()
+
 
 def test_HistoryMatching_get_NROY():
     "test the get_NROY method of HistoryMatching"
+
+    # correct functionality
 
     hm = HistoryMatching(obs=[1., 1.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
                                                      np.array([[1., 2.]])))
@@ -279,6 +360,8 @@ def test_HistoryMatching_get_NROY():
 def test_HistoryMatching_get_RO():
     "test the get_RO method of HistoryMatching"
 
+    # correct functionality
+
     hm = HistoryMatching(obs=[1., 1.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
                                                      np.array([[1., 2.]])))
     hm.get_implausibility()
@@ -295,6 +378,8 @@ def test_HistoryMatching_get_RO():
 def test_HistoryMatching_set_gp():
     'test the set_gp method of HistoryMatching'
 
+    # correct functionality
+
     gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
 
     hm = HistoryMatching()
@@ -302,11 +387,15 @@ def test_HistoryMatching_set_gp():
 
     assert hm.gp == gp
 
+    # bad type for GP
+
     with pytest.raises(TypeError):
         hm.set_gp(gp=1.)
 
 def test_HistoryMatching_set_obs():
     'test the set_obs method of HistoryMatching'
+
+    # correct functionality
 
     obs = [1., 0.1]
 
@@ -320,14 +409,25 @@ def test_HistoryMatching_set_obs():
 
     assert_allclose(hm.obs, [obs, 0.])
 
+    # wrong number of values for obs
+
     with pytest.raises(ValueError):
         hm.set_obs([1., 2., 3.])
+
+    # negative variance
 
     with pytest.raises(AssertionError):
         hm.set_obs([1., -1.])
 
+    # bad values for obs
+
+    with pytest.raises(TypeError):
+        hm.set_obs("abc")
+
 def test_HistoryMatching_set_coords():
     "test the set_coords method of HistoryMatching"
+
+    # correct functionality
 
     coords = np.array([[1.]])
 
@@ -342,12 +442,16 @@ def test_HistoryMatching_set_coords():
 
     assert_allclose(hm.coords, np.reshape(coords, (1, 1)))
 
+    # confirm can reset coords
+
     hm.set_coords(None)
 
     assert hm.coords == None
 
 def test_HistoryMatching_set_expectations():
     "test the set_expectations method of HistoryMatching"
+
+    # correct functionality
 
     expectations = (np.array([0.]), np.array([0.1]), np.array([[2.]]))
 
@@ -357,8 +461,12 @@ def test_HistoryMatching_set_expectations():
     for a, b in zip(hm.expectations, expectations):
         assert_allclose(a, b)
 
+    # confirm ability to reset expectations
+
     hm.set_expectations(None)
     assert hm.expectations == None
+
+    # verify derivatives can be None
 
     expectations = (np.array([0.]), np.array([0.1]), None)
 
@@ -367,15 +475,38 @@ def test_HistoryMatching_set_expectations():
 
     for a, b in zip(hm.expectations[:-1], expectations[:-1]):
         assert_allclose(a, b)
+    assert hm.expectations[2] is None
+
+    # negative variance
 
     expectations = (np.array([0.]), np.array([-0.1]), np.array([[2.]]))
 
     with pytest.raises(AssertionError):
         hm.set_expectations(expectations)
 
+    # bad values for expectations
+
+    expectations = (np.array([0.1]), 1., 1.)
+    hm = HistoryMatching()
+
+    with pytest.raises(TypeError):
+        hm.set_expectations(expectations)
+
+    expectations = (np.array([0.1]), np.array([1., 2.]), 1.)
+
+    with pytest.raises(TypeError):
+        hm.set_expectations(expectations)
+
+    expectations = (np.array([1.]), np.array([1., 2.]), None)
+
+    with pytest.raises(ValueError):
+        hm.set_expectations(expectations)
+
 
 def test_HistoryMatching_set_threshold():
     "test the set_threshold method of HistoryMatching"
+
+    # correct functionality
 
     hm = HistoryMatching()
 
@@ -383,11 +514,15 @@ def test_HistoryMatching_set_threshold():
 
     assert_allclose(hm.threshold, 1.)
 
+    # threshold cannot be negative
+
     with pytest.raises(AssertionError):
         hm.set_threshold(-1.)
 
 def test_HistoryMatching_update():
     "test the update method of HistoryMatching"
+
+    # correct functionality
 
     hm = HistoryMatching()
 
@@ -407,6 +542,8 @@ def test_HistoryMatching_update():
 
 def test_HistoryMatching_str():
     "test the str method of HistoryMatching"
+
+    # correct functionality
 
     hm = HistoryMatching()
 
