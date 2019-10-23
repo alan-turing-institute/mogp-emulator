@@ -963,109 +963,125 @@ def test_GaussianProcess_predict_3():
 
 def test_GaussianProcessGPU_predict():
     """GPU-specific prediction test"""
-    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-    y = np.array([2., 3., 4.])
-    gp = GaussianProcessGPU(x, y)
-    theta = np.ones(4)
-    gp._set_params(theta)
-    x_star = np.array([4., 0., 2.])
-    predict_expected = 0.0174176198731851
-    
-    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
-    assert_allclose(predict_actual, predict_expected)
-    
+    try:
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
+        gp = GaussianProcessGPU(x, y)
+        theta = np.ones(4)
+        gp._set_params(theta)
+        x_star = np.array([4., 0., 2.])
+        predict_expected = 0.0174176198731851
+
+        predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
+        assert_allclose(predict_actual, predict_expected)
+
+    except UnavailableError as ex:
+        warnings.warn(str(ex))
+
 
 def test_GaussianProcessGPU_predict_batch():
     """GPU-specific prediction test -- batch prediction"""
-    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-    y = np.array([2., 3., 4.])
-    gp = GaussianProcessGPU(x, y)
-    theta = np.ones(4)
-    gp._set_params(theta)
-    x_star = np.array([[4., 0., 2.], [4., 0., 2.]])
-    predict_expected = np.array([0.0174176198731851, 0.0174176198731851])
-    
-    predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
-    assert_allclose(predict_actual, predict_expected)
+    try:
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
+        gp = GaussianProcessGPU(x, y)
+        theta = np.ones(4)
+        gp._set_params(theta)
+        x_star = np.array([[4., 0., 2.], [4., 0., 2.]])
+        predict_expected = np.array([0.0174176198731851, 0.0174176198731851])
+
+        predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
+        assert_allclose(predict_actual, predict_expected)
+
+    except UnavailableError as ex:
+        warnings.warn(str(ex))
 
 
 def test_GaussianProcessGPU_predict_batch_2():
     """GPU-specific prediction test -- batch prediction"""
-    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-    y = np.array([2., 3., 4.])
+    try:
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
 
-    gp_gpu = GaussianProcessGPU(x, y)
-    gp = GaussianProcess(x, y)
+        gp_gpu = GaussianProcessGPU(x, y)
+        gp = GaussianProcess(x, y)
 
-    theta = np.ones(4)
+        theta = np.ones(4)
 
-    gp_gpu._set_params(theta)
-    gp._set_params(theta)
+        gp_gpu._set_params(theta)
+        gp._set_params(theta)
 
-    x_star = np.array([[4., 0., 2.], [3., 3., 2.]])
-    
-    predict_exp, _, _ = gp.predict(x_star, do_deriv = False, do_unc = False)
-    predict_act, _, _ = gp_gpu.predict(x_star, do_deriv = False, do_unc = False)
-    
-    assert_allclose(predict_act, predict_exp)
+        x_star = np.array([[4., 0., 2.], [3., 3., 2.]])
 
+        predict_exp, _, _ = gp.predict(x_star, do_deriv = False, do_unc = False)
+        predict_act, _, _ = gp_gpu.predict(x_star, do_deriv = False, do_unc = False)
+
+        assert_allclose(predict_act, predict_exp)
+
+    except UnavailableError as ex:
+        warnings.warn(str(ex))
     
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs or warnings"
 
     for GP in [GaussianProcess, GaussianProcessGPU]:
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-        gp = GaussianProcess(x, y)
-        theta = np.zeros(4)
-        gp._set_params(theta)
-        gp.mle_theta = theta
-        x_star = np.array([1., 3., 2., 4.])
-        with pytest.raises(AssertionError):
-            gp.predict(x_star)
-            gp._predict_single(x_star)
-            gp._predict_samples(x_star)
+        try:
+            x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+            y = np.array([2., 3., 4.])
+            gp = GaussianProcess(x, y)
+            theta = np.zeros(4)
+            gp._set_params(theta)
+            gp.mle_theta = theta
+            x_star = np.array([1., 3., 2., 4.])
+            with pytest.raises(AssertionError):
+                gp.predict(x_star)
+                gp._predict_single(x_star)
+                gp._predict_samples(x_star)
 
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-        gp = GaussianProcess(x, y)
-        theta = np.zeros(4)
-        gp._set_params(theta)
-        gp.mle_theta = theta
-        x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
-        with pytest.raises(AssertionError):
-            gp.predict(x_star)
-            gp._predict_single(x_star)
-            gp._predict_samples(x_star)
+            x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+            y = np.array([2., 3., 4.])
+            gp = GaussianProcess(x, y)
+            theta = np.zeros(4)
+            gp._set_params(theta)
+            gp.mle_theta = theta
+            x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
+            with pytest.raises(AssertionError):
+                gp.predict(x_star)
+                gp._predict_single(x_star)
+                gp._predict_samples(x_star)
 
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-        gp = GaussianProcess(x, y)
-        theta = np.zeros(4)
-        x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
-        with pytest.raises(AssertionError):
-            gp.predict(x_star)
-            gp._predict_single(x_star)
-            gp._predict_samples(x_star)
+            x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+            y = np.array([2., 3., 4.])
+            gp = GaussianProcess(x, y)
+            theta = np.zeros(4)
+            x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
+            with pytest.raises(AssertionError):
+                gp.predict(x_star)
+                gp._predict_single(x_star)
+                gp._predict_samples(x_star)
 
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-        gp = GaussianProcess(x, y)
-        theta = np.zeros(4)
-        gp._set_params(theta)
-        x_star = np.array([4., 0., 2.])
-        with pytest.warns(Warning):
-            gp.predict(x_star)
+            x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+            y = np.array([2., 3., 4.])
+            gp = GaussianProcess(x, y)
+            theta = np.zeros(4)
+            gp._set_params(theta)
+            x_star = np.array([4., 0., 2.])
+            with pytest.warns(Warning):
+                gp.predict(x_star)          
 
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-        gp = GaussianProcess(x, y)
-        theta = np.zeros(4)
-        gp._set_params(theta)
-        gp.mle_theta = np.ones(4)
-        x_star = np.array([4., 0., 2.])
-        with pytest.warns(Warning):
-            gp.predict(x_star)
+            x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+            y = np.array([2., 3., 4.])
+            gp = GaussianProcess(x, y)
+            theta = np.zeros(4)
+            gp._set_params(theta)
+            gp.mle_theta = np.ones(4)
+            x_star = np.array([4., 0., 2.])
+            with pytest.warns(Warning):
+                gp.predict(x_star)
+
+        except UnavailableError as ex:
+            assert(GP is GaussianProcessGPU)
+            warnings.warn(str(ex))
 
 
 def test_GaussianProcess_str():
