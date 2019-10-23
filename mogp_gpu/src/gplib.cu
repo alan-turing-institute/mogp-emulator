@@ -57,7 +57,20 @@ extern "C" {
             delete h;
         }
     }
-    
+
+    void gplib_update_theta(void *handle, const double *invQ,
+                            const double *theta, const double *invQt)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            h->gp->update_theta(invQ, theta, invQt);
+            h->status = 0;
+        } catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+        }
+    }
+
     double gplib_predict(void *handle, double *xs)
     {
         gplib_handle *h = static_cast<gplib_handle *>(handle);
@@ -72,22 +85,44 @@ extern "C" {
         }
     }
 
-    void gplib_update_theta(void *handle, const double *invQ,
-                            const double *theta, const double *invQt)
+    double gplib_predict_variance(void *handle, double *xs, double *var)
     {
         gplib_handle *h = static_cast<gplib_handle *>(handle);
         try {
-            h->gp->update_theta(invQ, theta, invQt);
+            double result = h->gp->predict_variance(xs, var);
             h->status = 0;
+            return result;
         } catch (const std::exception& e) {
             h->status = 1;
-            h->message = e.what();           
+            h->message = e.what();
+            return nan("");
         }
     }
-    
-// double gplib_predict_batch(void *handle, int Nnew, double *xs, double *result)
-// {
-//     return gp->predict
-// }
+
+    void gplib_predict_batch(void *handle, int Nbatch, double *xs,
+			     double *result)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+	    h->gp->predict_batch(Nbatch, xs, result);
+	    h->status = 0;
+	} catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+        }
+    }
+
+    void gplib_predict_variance_batch(void *handle, int Nbatch, double *xs,
+				      double *result, double *var)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+	    h->gp->predict_variance_batch(Nbatch, xs, result, var);
+	    h->status = 0;
+	} catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+        }
+    }
 
 } // extern "C"

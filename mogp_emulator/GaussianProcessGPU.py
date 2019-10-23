@@ -99,6 +99,27 @@ class GPGPULibrary(object):
             self._predict.restype  = ctypes.c_double
             self._predict.argtypes = [ctypes.c_void_p, _ndarray_1d]
 
+            self._predict_variance = self.lib.gplib_predict_variance
+            self._predict_variance.restype  = ctypes.c_double
+            self._predict_variance.argtypes = [ctypes.c_void_p,
+                                               _ndarray_1d,
+                                               _ndarray_1d]
+
+            self._predict_batch = self.lib.gplib_predict_batch
+            self._predict_batch.restype  = None
+            self._predict_batch.argtypes = [ctypes.c_void_p,
+                                            ctypes.c_int,
+                                            _ndarray_2d,
+                                            _ndarray_1d]
+
+            self._predict_variance_batch = self.lib.gplib_predict_variance_batch
+            self._predict_variance_batch.restype  = None
+            self._predict_variance_batch.argtypes = [ctypes.c_void_p,
+                                                     ctypes.c_int,
+                                                     _ndarray_2d,
+                                                     _ndarray_1d,
+                                                     _ndarray_1d]
+
             self._update_theta = self.lib.gplib_update_theta
             self._update_theta.restype  = None
             self._update_theta.argtypes = [ctypes.c_void_p,
@@ -183,17 +204,15 @@ class GPGPU(object):
                 lambda xnew: self._lib_wrapper._predict(self.handle, xnew),
                 __name__, xnew)
 
-        ## until _predict_batch is implemented, use a simple loop
         elif xnew.ndim == 2:
             assert(xnew.shape[1] == self.Ninput)
             Npredict = xnew.shape[0]
             result = np.zeros(Npredict)
-            for i in range(Npredict):
-                result[i] = self._call_gpu(
-                    lambda xnew: self._lib_wrapper._predict(self.handle, xnew[i,:]),
-                    __name__, xnew)
+            self._call_gpu(
+                lambda Npredict, xnew, result: self._lib_wrapper._predict_batch(
+                    self.handle, Npredict, xnew, result),
+                __name__, Npredict, xnew, result)
             return result
-
 
     def update_theta(self, invQ, theta, invQt):
         assert(invQ.shape == (self.N, self.N))
