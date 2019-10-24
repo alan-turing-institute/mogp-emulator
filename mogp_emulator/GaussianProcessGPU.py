@@ -214,6 +214,27 @@ class GPGPU(object):
                 __name__, Npredict, xnew, result)
             return result
 
+    def predict_variance(self, xnew):
+        if xnew.ndim == 1:
+            assert(xnew.shape == (self.Ninput,))
+            var = np.zeros((1,))
+            result = self._call_gpu(
+                lambda xnew, var: self._lib_wrapper._predict_variance(
+                    self.handle, xnew, var),
+                __name__, xnew, var)
+            return (result, var[0])
+
+        elif xnew.ndim == 2:
+            raise NotImplementedError("No batch variance yet")
+            # assert(xnew.shape[1] == self.Ninput)
+            # Npredict = xnew.shape[0]
+            # result = np.zeros(Npredict)
+            # self._call_gpu(
+            #     lambda Npredict, xnew, result: self._lib_wrapper._predict_batch(
+            #         self.handle, Npredict, xnew, result),
+            #     __name__, Npredict, xnew, result)
+            # return result, variance
+
     def update_theta(self, invQ, theta, invQt):
         assert(invQ.shape == (self.N, self.N))
         assert(theta.shape == (self.Ninput + 1,))
@@ -328,7 +349,11 @@ class GaussianProcessGPU(GaussianProcess):
         """
         if not do_deriv and not args and not kwargs:
             try:
-                return (self.gpgpu.predict(testing), None, None)
+                if do_unc:
+                    result, var = self.gpgpu.predict_variance(testing)
+                    return (result, var, None)
+                else:
+                    return (self.gpgpu.predict(testing), None, None)
             except RuntimeError as ex:
                 if require_gpu:
                     raise ex

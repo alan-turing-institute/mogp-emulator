@@ -1041,6 +1041,8 @@ def test_GaussianProcessGPU_predict_variance():
         predict_exp, unc_exp, _ = gp.predict(x_star, do_deriv = False, do_unc = True)
         predict_act, unc_act, _ = gp_gpu.predict(x_star, do_deriv = False, do_unc = True)
 
+        assert(unc_act is not None)
+        
         assert_allclose(predict_act, predict_exp)
         assert_allclose(unc_act, unc_exp)
 

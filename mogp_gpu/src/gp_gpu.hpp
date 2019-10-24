@@ -91,8 +91,8 @@ public:
                   &result);
 
         // variance prediction
-        double kappa;
-        cov_val_gpu(&kappa, Ninput, dev_ptr(xnew_d), dev_ptr(xnew_d),
+        thrust::device_vector<REAL> kappa_d(1);
+        cov_val_gpu(dev_ptr(kappa_d), Ninput, dev_ptr(xnew_d), dev_ptr(xnew_d),
                     dev_ptr(theta_d));
 
         double zero(0.0);
@@ -106,6 +106,9 @@ public:
                   1, &result);
         CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCk_d),
                   1, var);
+
+        double kappa;
+        thrust::copy(kappa_d.begin(), kappa_d.end(), &kappa);
 
         cudaDeviceSynchronize();
 
