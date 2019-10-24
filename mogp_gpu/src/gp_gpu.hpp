@@ -191,7 +191,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result);
                 
         // copy back variances
-        thrust::copy(kappa_d.begin(), kappa_d.end(), var);
+        thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var);
     }
 
 

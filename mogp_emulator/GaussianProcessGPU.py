@@ -225,15 +225,16 @@ class GPGPU(object):
             return (result, var[0])
 
         elif xnew.ndim == 2:
-            raise NotImplementedError("No batch variance yet")
-            # assert(xnew.shape[1] == self.Ninput)
-            # Npredict = xnew.shape[0]
-            # result = np.zeros(Npredict)
-            # self._call_gpu(
-            #     lambda Npredict, xnew, result: self._lib_wrapper._predict_batch(
-            #         self.handle, Npredict, xnew, result),
-            #     __name__, Npredict, xnew, result)
-            # return result, variance
+            assert(xnew.shape[1] == self.Ninput)
+            Npredict = xnew.shape[0]
+            result = np.zeros(Npredict)
+            variance = np.zeros(Npredict)
+            self._call_gpu(
+                lambda Npredict, xnew, result, variance: \
+                self._lib_wrapper._predict_variance_batch(
+                    self.handle, Npredict, xnew, result, variance),
+                __name__, Npredict, xnew, result, variance)
+            return (result, variance)
 
     def update_theta(self, invQ, theta, invQt):
         assert(invQ.shape == (self.N, self.N))
