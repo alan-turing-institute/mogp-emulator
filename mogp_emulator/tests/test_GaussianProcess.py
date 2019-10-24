@@ -1020,7 +1020,34 @@ def test_GaussianProcessGPU_predict_batch_2():
 
     except UnavailableError as ex:
         warnings.warn(str(ex))
-    
+
+
+def test_GaussianProcessGPU_predict_variance():
+    """GPU-specific prediction test -- variance prediction"""
+    try:
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
+
+        gp_gpu = GaussianProcessGPU(x, y)
+        gp = GaussianProcess(x, y)
+
+        theta = np.ones(4)
+
+        gp_gpu._set_params(theta)
+        gp._set_params(theta)
+
+        x_star = np.array([4., 0., 2.])
+
+        predict_exp, unc_exp, _ = gp.predict(x_star, do_deriv = False, do_unc = True)
+        predict_act, unc_act, _ = gp_gpu.predict(x_star, do_deriv = False, do_unc = True)
+
+        assert_allclose(predict_act, predict_exp)
+        assert_allclose(unc_act, unc_exp)
+
+    except UnavailableError as ex:
+        warnings.warn(str(ex))
+
+        
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs or warnings"
 
