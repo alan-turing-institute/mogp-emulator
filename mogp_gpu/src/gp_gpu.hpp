@@ -139,47 +139,47 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result);
     }
 
-    void predict_variance_batch(int Nbatch, REAL *xnew, REAL *result, REAL *var)
+    void predict_variance_batch(int Nbatch, REAL *xnew, REAL *mean, REAL *var)
     {
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
 
         thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
-        thrust::device_vector<REAL> result_d(Nbatch);
+        thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
         cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput, dev_ptr(xnew_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_T, N, Nbatch, &one,
-                        dev_ptr(work_mat_d), N, dev_ptr(invCts_d), 1, &zero,
-                        dev_ptr(result_d), 1);
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
         cov_diag_gpu(dev_ptr(kappa_d), Nbatch, Ninput, dev_ptr(xnew_d),
                      dev_ptr(xnew_d), dev_ptr(theta_d));
 
-        cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N,
+        cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T,
                     N,
                     Nbatch,
                     N,
                     &one,
                     dev_ptr(invC_d), N,
-                    dev_ptr(work_mat_d), N,
+                    dev_ptr(work_mat_d), Nbatch,
                     &zero,
                     dev_ptr(invCk_d), N);
-
+	
         // result accumulated into 'kappa'
         status = cublasDgemmStridedBatched(
-            cublasHandle, CUBLAS_OP_T, CUBLAS_OP_N,
+            cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N,
             1, // m
             1, // n
             N, // k
             // A (m x k), B (k x n), C (m x n)
             &minus_one, // alpha
-            dev_ptr(work_mat_d), N, N, // A, lda, strideA
+            dev_ptr(work_mat_d), Nbatch, 1, // A, lda, strideA
             dev_ptr(invCk_d), N, N, // B, ldb, strideB (= covariances "k")
             &one,
             dev_ptr(kappa_d), 1, 1, // C, ldc, strideC
@@ -188,8 +188,8 @@ public:
         cudaDeviceSynchronize();
 
         // copy back means
-        thrust::copy(result_d.begin(), result_d.end(), result);
-                
+        thrust::copy(mean_d.begin(), mean_d.end(), mean);
+
         // copy back variances
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var);
     }

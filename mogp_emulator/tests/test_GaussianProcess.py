@@ -1064,7 +1064,7 @@ def test_GaussianProcessGPU_predict_variance_2():
         gp_gpu._set_params(theta)
         gp._set_params(theta)
 
-        x_star = np.array([[4., 0., 2.], [3., 3., 1.]])
+        x_star = np.array([[4., 0., 2.], [3., 3., 1.], [1.1, 2.1, 3.1], [0, 0, 0]])
 
         predict_exp, unc_exp, _ = gp.predict(x_star, do_deriv = False, do_unc = True)
         predict_act, unc_act, _ = gp_gpu.predict(x_star, do_deriv = False, do_unc = True)
@@ -1072,7 +1072,7 @@ def test_GaussianProcessGPU_predict_variance_2():
         assert(unc_act is not None)
         
         assert_allclose(predict_act, predict_exp)
-        assert_allclose(unc_act, unc_exp)
+        assert_allclose(unc_act, unc_exp, rtol=1e-4)
 
     except UnavailableError as ex:
         warnings.warn(str(ex))
