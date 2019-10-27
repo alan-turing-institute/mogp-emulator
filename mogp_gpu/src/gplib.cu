@@ -45,6 +45,10 @@ extern "C" {
             handle->status = 1;
             handle->gp = nullptr;
             handle->message = e.what();
+        } catch(...) {
+            handle->status = 1;
+            handle->gp = nullptr;
+            handle->message = "Unknown exception";
         }
         return handle;
     }

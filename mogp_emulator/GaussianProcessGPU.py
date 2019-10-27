@@ -51,16 +51,13 @@ def _find_mogp_gpu(verbose = True):
             hello = mogp_gpu.gplib_hello_world
             hello.restype = ctypes.c_double
             assert(hello() == 0.1134)
-
-            # selfcheck = mogp_gpu.gplib_check_cublas
-            # selfcheck.restype = ctypes.c_int
-            # assert(selfcheck() == 0)
-
             return mogp_gpu
+
         except OSError as err:
             if verbose:
                 print("GaussianProcessGPU._find_mogp_gpu: There was a problem loading the library.  The error "
                       "was: " + err)
+
         except AssertionError:
             if verbose:
                 print("GaussianProcessGPU._find_mogp_gpu: The library was loaded, but the simple check failed.")
@@ -165,7 +162,6 @@ class GPGPU(object):
         if self._lib_wrapper.have_gpu():
             self.handle = self._lib_wrapper._make_gp(self.N, self.Ninput, theta,
                                                      xs, ts, Q, invQ, invQt)
-
             if self._lib_wrapper._status(self.handle) == 0:
                 self._ready = True
             else:
@@ -196,44 +192,46 @@ class GPGPU(object):
         else:
             raise UnavailableError("GPU interface unavailable")
 
-    def predict(self, xnew):        
-        if xnew.ndim == 1:
-            assert(xnew.shape == (self.Ninput,))
-        
-            return self._call_gpu(
-                lambda xnew: self._lib_wrapper._predict(self.handle, xnew),
-                __name__, xnew)
+    def predict(self, xnew):
+        single_prediction = (xnew.ndim == 1)
 
-        elif xnew.ndim == 2:
-            assert(xnew.shape[1] == self.Ninput)
-            Npredict = xnew.shape[0]
-            result = np.zeros(Npredict)
-            self._call_gpu(
-                lambda Npredict, xnew, result: self._lib_wrapper._predict_batch(
-                    self.handle, Npredict, xnew, result),
-                __name__, Npredict, xnew, result)
+        if single_prediction:
+            assert(xnew.shape == (self.Ninput,))
+            xnew = xnew[np.newaxis,:]
+
+        assert(xnew.shape[1] == self.Ninput)
+        Npredict = xnew.shape[0]
+        result = np.zeros(Npredict)
+        self._call_gpu(
+            lambda Npredict, xnew, result: self._lib_wrapper._predict_batch(
+                self.handle, Npredict, xnew, result),
+            __name__, Npredict, xnew, result)
+
+        if single_prediction:
+            return result[0]
+        else:
             return result
 
     def predict_variance(self, xnew):
-        if xnew.ndim == 1:
-            assert(xnew.shape == (self.Ninput,))
-            var = np.zeros((1,))
-            result = self._call_gpu(
-                lambda xnew, var: self._lib_wrapper._predict_variance(
-                    self.handle, xnew, var),
-                __name__, xnew, var)
-            return (result, var[0])
+        single_prediction = (xnew.ndim == 1)
 
-        elif xnew.ndim == 2:
-            assert(xnew.shape[1] == self.Ninput)
-            Npredict = xnew.shape[0]
-            result = np.zeros(Npredict)
-            variance = np.zeros(Npredict)
-            self._call_gpu(
-                lambda Npredict, xnew, result, variance: \
-                self._lib_wrapper._predict_variance_batch(
-                    self.handle, Npredict, xnew, result, variance),
-                __name__, Npredict, xnew, result, variance)
+        if single_prediction:
+            assert(xnew.shape == (self.Ninput,))
+            xnew = xnew[np.newaxis,:]
+            
+        assert(xnew.shape[1] == self.Ninput)
+        Npredict = xnew.shape[0]
+        result = np.zeros(Npredict)
+        variance = np.zeros(Npredict)
+        self._call_gpu(
+            lambda Npredict, xnew, result, variance: \
+            self._lib_wrapper._predict_variance_batch(
+                self.handle, Npredict, xnew, result, variance),
+            __name__, Npredict, xnew, result, variance)
+
+        if single_prediction:
+            return (result[0], variance[0])
+        else:
             return (result, variance)
 
     def update_theta(self, invQ, theta, invQt):
@@ -297,7 +295,7 @@ class GaussianProcessGPU(GaussianProcess):
             self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
         else:
             self._device_gp_create()
-
+            
     def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
 

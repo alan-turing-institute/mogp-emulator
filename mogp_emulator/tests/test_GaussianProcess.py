@@ -128,7 +128,7 @@ def test_GaussianProcess_save_emulators():
     for GP in [GaussianProcess, GaussianProcessGPU]:
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
         y = np.array([2., 4.])
-        gp = GaussianProcess(x, y)
+        gp = GP(x, y)
 
         with TemporaryFile() as tmp:
             gp.save_emulator(tmp)
@@ -141,7 +141,7 @@ def test_GaussianProcess_save_emulators():
 
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
         y = np.reshape(np.array([2., 4., 6.]), (3,))
-        gp = GaussianProcessGPU(x, y, 1.e-6)
+        gp = GP(x, y, 1.e-6)
         theta = np.zeros(4)
         gp._set_params(theta)
 
