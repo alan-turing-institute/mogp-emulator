@@ -29,16 +29,14 @@ extern "C" {
     }
 
     void *gplib_make_gp(unsigned int N, unsigned int Ninput,
-                        const double *theta, const double *xs, const double *ts,
-                        const double *Q, const double *invQ,
-                        const double *invQt)
+                        const double *theta, const double *xs, const double *ts)
     {
         // size_t free, total;
         // cudaMemGetInfo(&free, &total);
 
         auto handle = new gplib_handle;
         try {
-            auto gp = new DenseGP_GPU(N, Ninput, theta, xs, ts, Q, invQ, invQt);
+            auto gp = new DenseGP_GPU(N, Ninput, theta, xs, ts);
             handle->gp = gp;
             handle->status = 0;
         } catch(const std::exception& e) {
@@ -62,12 +60,11 @@ extern "C" {
         }
     }
 
-    void gplib_update_theta(void *handle, const double *invQ,
-                            const double *theta, const double *invQt)
+    void gplib_update_theta(void *handle, const double *theta)
     {
         gplib_handle *h = static_cast<gplib_handle *>(handle);
         try {
-            h->gp->update_theta(invQ, theta, invQt);
+            h->gp->update_theta(theta);
             h->status = 0;
         } catch (const std::exception& e) {
             h->status = 1;

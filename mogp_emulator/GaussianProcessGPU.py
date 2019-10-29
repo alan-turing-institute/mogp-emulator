@@ -83,10 +83,7 @@ class GPGPULibrary(object):
                                       ctypes.c_uint, # Ninput
                                       _ndarray_1d,   # theta
                                       _ndarray_2d,   # xs
-                                      _ndarray_1d,   # ts
-                                      _ndarray_2d,   # Q,
-                                      _ndarray_2d,   # invQ,
-                                      _ndarray_1d]   # invQt
+                                      _ndarray_1d]   # ts
 
             self._destroy_gp = self.lib.gplib_destroy_gp
             self._destroy_gp.restype  = None
@@ -120,10 +117,8 @@ class GPGPULibrary(object):
             self._update_theta = self.lib.gplib_update_theta
             self._update_theta.restype  = None
             self._update_theta.argtypes = [ctypes.c_void_p,
-                                           _ndarray_2d,
-                                           _ndarray_1d,
                                            _ndarray_1d]
-            
+
             self._status = self.lib.gplib_status
             self._status.restype  = ctypes.c_int
             self._status.argtypes = [ctypes.c_void_p]
@@ -144,7 +139,7 @@ class GPGPU(object):
     provided by :class:`mogp_emulator.GaussianProcessGPU.GPGPULibrary` with
     some checks.
     """
-    def __init__(self, lib_wrapper, theta, xs, ts, Q, invQ, invQt):
+    def __init__(self, lib_wrapper, theta, xs, ts):
         self._lib_wrapper = lib_wrapper
 
         self.N = xs.shape[0]
@@ -153,15 +148,11 @@ class GPGPU(object):
         assert(xs.ndim     == 2)
         assert(ts.shape    == (self.N,))
         assert(theta.shape == (self.Ninput + 1,))
-        assert(Q.shape     == (self.N, self.N))
-        assert(invQ.shape  == (self.N, self.N))
-        assert(invQt.shape == (self.N,))
         
         self._ready = False        
         
         if self._lib_wrapper.have_gpu():
-            self.handle = self._lib_wrapper._make_gp(self.N, self.Ninput, theta,
-                                                     xs, ts, Q, invQ, invQt)
+            self.handle = self._lib_wrapper._make_gp(self.N, self.Ninput, theta, xs, ts)
             if self._lib_wrapper._status(self.handle) == 0:
                 self._ready = True
             else:
@@ -177,7 +168,6 @@ class GPGPU(object):
         if (hasattr(self, "lib_wrapper") and hasattr(self, "handle")
             and self.gp_okay()):
             self.lib_wrapper._destroy_gp(self.handle)
-
 
     def _call_gpu(self, call, name, *args):
         if self.ready():
@@ -234,15 +224,12 @@ class GPGPU(object):
         else:
             return (result, variance)
 
-    def update_theta(self, invQ, theta, invQt):
-        assert(invQ.shape == (self.N, self.N))
+    def update_theta(self, theta):
         assert(theta.shape == (self.Ninput + 1,))
-        assert(invQt.shape == (self.N,))
 
         return self._call_gpu(
-            lambda invQ, theta, invQt: self._lib_wrapper._update_theta(
-                self.handle, invQ, theta, invQt),
-            __name__, invQ, theta, invQt)
+            lambda theta: self._lib_wrapper._update_theta(self.handle, theta),
+            __name__, theta)
 
 
 class GaussianProcessGPU(GaussianProcess):
@@ -283,9 +270,8 @@ class GaussianProcessGPU(GaussianProcess):
         if inputs.ndim == 1:
             inputs = expand_dims(inputs, axis=1)
 
-        self.gpgpu = self.mogp_gpu.make_gp(
-            self.get_params(), inputs, self.targets, self.Q, self.invQ,
-            self.invQt)
+        self.gpgpu = self.mogp_gpu.make_gp(self.get_params(), inputs, self.targets)
+
         if (self.gpgpu.ready()):
             self.device_ready = True
             
@@ -293,7 +279,7 @@ class GaussianProcessGPU(GaussianProcess):
         super()._set_params(theta)
         if not self.device_ready:
             self._device_gp_create()
-        self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
+        self.gpgpu.update_theta(self.theta)
 
     def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
         """Make a prediction for a set of input vectors

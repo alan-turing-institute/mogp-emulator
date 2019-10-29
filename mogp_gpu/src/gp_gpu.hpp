@@ -215,10 +215,8 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var);
     }
 
-
-    // Update the hyperparameters and invQt which depends on them.
-    void update_theta(const double *invQ, const double *theta,
-                      const double *invQt)
+    // Update the hyperparameters, and invQ and invQt which depend on them
+    void update_theta(const double *theta)
     {
         thrust::device_vector<int> info_d(1);
         int info_h;
@@ -301,10 +299,8 @@ public:
         check_cusolver_status(status, info_h);
     }
 
-
     DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,
-                const double *xs_, const double *ts_, const double *Q_,
-                const double *invQ_, const double *invQt_)
+                const double *xs_, const double *ts_)
         : N(N_)
         , Ninput(Ninput_)
         , invC_d(N_ * N_, 0.0)
