@@ -61,7 +61,10 @@ class DenseGP_GPU {
 
     // xs, on the device, row major order
     thrust::device_vector<REAL> xs_d;
-    
+
+    // targets, on the device
+    thrust::device_vector<REAL> ts_d;
+
     // precomputed product, used in the prediction
     thrust::device_vector<REAL> invCts_d;
     
@@ -254,7 +257,7 @@ public:
         
 
         // invQt
-        thrust::copy(xs_d.begin(), xs_d.end(), invCts_d.begin());
+        thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
                                   dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
                                   dev_ptr(info_d));
@@ -272,6 +275,7 @@ public:
         , invC_d(invQ_, invQ_ + N_ * N_)
         , theta_d(theta_, theta_ + Ninput_ + 1)
         , xs_d(xs_, xs_ + Ninput_ * N_)
+        , ts_d(ts_, ts_ + N_)
         , invCts_d(invQt_, invQt_ + N_)
         , xnew_d(Ninput_ * xnew_size, 0.0)
         , work_d(N_, 0.0)
