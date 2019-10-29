@@ -19,6 +19,11 @@ Welcome to Multi-Output GP Emulator's documentation!
    MCMC
    benchmarks/benchmarks
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Background:
+
+   methods/methods
 
 
 Indices and tables
