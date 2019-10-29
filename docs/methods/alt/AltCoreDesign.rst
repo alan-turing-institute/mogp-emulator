@@ -41,10 +41,11 @@ Choosing the Alternatives
   emulator that correctly and accurately predicts the actual simulator
   output over a desired region of the input space. By convention, we
   suppose that the input region of interest, :math:`\cal{X}`, is the unit
-  cube in :math:`\strut{p}` dimensions, :math:`[0,1]^p`. We assume that this
-  has been achieved by transforming each of the :math:`\strut{p}` simulator
+  cube in :math:`p` dimensions, :math:`[0,1]^p`. We assume that this
+  has been achieved by transforming each of the :math:`p` simulator
   inputs individually by a simple linear transformation, and that the
-  i-th input corresponds to the i-th dimension of :math:`\cal{X}`. (More
+  :math:`i`-th input corresponds to the :math:`i`-th dimension of
+  :math:`\cal{X}`. (More
   extended discussion on technical issues in training sample design for
   the core problem can be found in page
   :ref:`DiscCoreDesign<DiscCoreDesign>`.)
@@ -63,14 +64,14 @@ Factorial design
 ~~~~~~~~~~~~~~~~
 
 Factorial design over :math:`\cal X` defines a set of points :math:`L_j` in
-:math:`[0,1]` called levels for dimension :math:`\strut j`
-(\(j=1,2,\ldots,p`). Then if the number of points in :math:`L_j` is
+:math:`[0,1]` called levels for dimension :math:`j=1,2,\ldots,p`. Then if
+the number of points in :math:`L_j` is
 :math:`n_j` the full factorial design takes all :math:`n=\prod_{j=1}^p n_j`
-combinations of the levels to produce a :math:`\strut p`-dimensional grid
-of points in :math:`\cal X`. If the levels are spread out over :math:`[0,1]`
+combinations of the levels to produce a :math:`p`-dimensional grid
+of points in :math:`\cal {X}`. If the levels are spread out over :math:`[0,1]`
 in each dimension (so as to have a space-filling property in each
 dimension), then the full factorial is a space-filling design. However,
-if :math:`\strut p` is reasonably large then even when the number of levels
+if :math:`p` is reasonably large then even when the number of levels
 takes the minimal value of two in each dimension the size :math:`n=2^p` of
 the design becomes prohibitively large for practical simulators.
 
@@ -84,15 +85,15 @@ Optimised Latin hypercube designs
 
 A Latin hypercube (LHC) is a set of points chosen randomly subject to a
 constraint that ensures that the values of each input separately are
-spread evenly across [0,1]. The procedure for constructing a LHC is
+spread evenly across :math:`[0,1]`. The procedure for constructing a LHC is
 given in :ref:`ProcLHC<ProcLHC>`. LHCs are not guaranteed to be
-space-filling in :math:`\cal{ X }`, just in each dimension separately. It
+space-filling in :math:`\cal{X}`, just in each dimension separately. It
 is therefore usual to generate a large number of random LHCs and to
 select from these the one that best satisfies a specified criterion.
 
 One popular criterion is the minimum distance between any two points in
 the design. Choosing the LHC with the maximal value of this criterion
-helps to ensure that the design is well spread out over :math:`\cal{ X }`,
+helps to ensure that the design is well spread out over :math:`\cal{X}`,
 and a LHC optimised according to this criterion is known as a maximin
 LHC design. This and other criteria are discussed in
 :ref:`DiscCoreDesign<DiscCoreDesign>`.
@@ -109,13 +110,13 @@ A number of different sequences of numbers have been proposed that have
 space-filling properties. The can be thought of as pseudo-random
 sequences. The sequences use different algorithms to generate them, but
 all have the property that they are potentially infinite in length, and
-a design of :math:`\strut{n}` points is obtained simply by taking the first
-:math:`\strut{n}` points in the sequence.
+a design of :math:`n` points is obtained simply by taking the first
+:math:`n` points in the sequence.
 
--  Lattice designs. A lattice is a special grid of :math:`\strut{n}` points
-   in :math:`[0,1]^d`. It is defined by :math:`\strut{d}` generators, and each
+-  Lattice designs. A lattice is a special grid of :math:`n` points
+   in :math:`[0,1]^d`. It is defined by :math:`d` generators, and each
    successive point is obtained by adding a constant (depending on the
-   generator) to each coordinate and then reducing back to [0,1]. If the
+   generator) to each coordinate and then reducing back to :math:`[0,1]`. If the
    generators are well-chosen the result can be a good space-filling
    design. The procedure for generating a lattice design, with
    suggestions on choice of generators, is given in the procedure for
@@ -133,37 +134,36 @@ a design of :math:`\strut{n}` points is obtained simply by taking the first
    :math:`{\scriptstyle\frac{1}{2}}, {\scriptstyle\frac{1}{4}},
    {\scriptstyle\frac{3}{4}}, {\scriptstyle\frac{1}{8}},
    {\scriptstyle\frac{5}{8}}, {\scriptstyle\frac{3}{8}},
-   {\scriptstyle\frac{7}{8}}, {\scriptstyle\frac{1}{16}}, \\ldots \`.
-   So if the i-th dimension has generator 2 then these will be the i-th
+   {\scriptstyle\frac{7}{8}}, {\scriptstyle\frac{1}{16}}, \ldots`.
+   So if the :math:`i`-th dimension has generator 2 then these will be the :math:`i`-th
    coordinates of successive points in the Halton sequence. See the
    procedure for generating a Halton design
    (:ref:`ProcHaltonDesign<ProcHaltonDesign>`).
 
--  Sobol' sequence. The Sobol' sequence uses the same set of coordinates
+-  Sobol's sequence. The Sobol's sequence uses the same set of coordinates
    as a Halton sequence with generator 2 for each dimension, but then
    reorders them according to a complicated rule. If we used the Halton
-   sequence in :math:`p=2 \` dimensions with generator 2 for both
-   dimensions, we would get the sequence :math:`
-   ({\scriptstyle\frac{1}{2},\frac{1}{2}}),
+   sequence in :math:`p=2` dimensions with generator 2 for both
+   dimensions, we would get the sequence :math:`({\scriptstyle\frac{1}{2},\frac{1}{2}}),
    ({\scriptstyle\frac{1}{4},\frac{1}{4}}),
-   ({\scriptstyle\frac{3}{4},\frac{3}{4}}), \\ldots`, and so on, so
+   ({\scriptstyle\frac{3}{4},\frac{3}{4}}), \ldots`, and so on, so
    that all the points would lie on the diagonal of :math:`[0,1]^2`. The
-   Sobol' sequence reorders the coordinates of each successive block of
-   :math:`2^i` points (\(i=0,1,2,\ldots`) in a LHC way. For instance, the
-   Sobol' sequence for :math:`p=2` begins
+   Sobol's sequence reorders the coordinates of each successive block of
+   :math:`2^i` points :math:`(i=0,1,2,\ldots)` in a LHC way. For instance, the
+   Sobol's sequence for :math:`p=2` begins
    :math:`({\scriptstyle\frac{1}{2},\frac{1}{2}}),
-   ({\scriptstyle\frac{1}{4}, \\frac{3}{4}}),
-   ({\scriptstyle\frac{3}{4},\frac{1}{4}}), \\ldots`. The complexity of
+   ({\scriptstyle\frac{1}{4}, \frac{3}{4}}),
+   ({\scriptstyle\frac{3}{4},\frac{1}{4}}), \ldots`. The complexity of
    the algorithm is such that we do not provide an explicit procedure in
    the :ref:`MUCM<DefMUCM>` toolkit, but we are aware of two freely
    available algorithms (:ref:`disclaimer<MetaSoftwareDisclaimer>`).
    For users of the R programming language, we suggest the function
-   runif.sobol(n,d) from the package fOptions in the `R
-   repository <http://cran.r-project.org/>`__. The Sobol' sequence is
+   ``runif.sobol(n,d)`` from the package ``fOptions``` in the `R
+   repository <http://cran.r-project.org/>`__. The Sobol's sequence is
    sometimes known also as the LP-tau sequence, and the
    `GEM-SA <http://tonyohagan.co.uk/academic/GEM/>`__ software package
-   also generates Sobol' designs under this name. For more explanation
-   and insight into the Sobol' sequence, see the Sobol' sequence
+   also generates Sobol's designs under this name. For more explanation
+   and insight into the Sobol's sequence, see the Sobol's sequence
    procedure page (:ref:`ProcSobolSequence<ProcSobolSequence>`).
 
 Model based optimal design
@@ -193,22 +193,22 @@ also have the disadvantage that the procedure is random and so repeating
 it to generate a new design with the same number of points and
 dimensions will produce a different result.
 
-Another advantage of the Weyl, Halton and Sobol' sequences is that we
+Another advantage of the Weyl, Halton and Sobol's sequences is that we
 can readily add further points to the design. This facilitates the idea
 of sequential design, where the training set is steadily increased until
 a sufficiently good and validated emulator is obtained.
 
 On the other hand, the non-random designs can be difficult to tune to
-get good space-filling properties; only the Sobol' sequence does not
+get good space-filling properties; only the Sobol's sequence does not
 require careful choice of a set of generators. These designs can also
 produce clumps or ridges of points.
 
-The Halton and Sobol' sequences are examples of low-discrepancy
+The Halton and Sobol's sequences are examples of low-discrepancy
 sequences. Discrepancy is a measure of departure of a set of points from
 a uniform spread over :math:`[0,1]^p` and these are some of a small number
 of sequence generators that have been shown to have asymptotically
 minimal discrepancy. For more details, and in particular for a full
-description of the Sobol' sequence, see
+description of the Sobol's sequence, see
 
 -  Kuipers, L. and Niederreiter, H. (2005). Uniform distribution of
    sequences. Dover Publications, ISBN 0-486-45019-8

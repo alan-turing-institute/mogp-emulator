@@ -94,7 +94,7 @@ subsequent version of the Toolkit.
 
 Often, the majority of the global variation of the output from a
 computer simulator :math:`f(x)` can be attributed to a relatively small
-subset, :math::ref:`x_A`, of the input quantities called the `active
+subset, :math:`x_A`, of the input quantities called the :ref:`active
 inputs<DefActiveInput>`. In such cases, the emulator mean is
 considered to be a function of only the active inputs combined with a
 modified form of the covariance. Using this active input approach can
@@ -105,11 +105,11 @@ the simulator has a high-dimensional input space then the elicitation of
 information about potential active inputs possibly after a suitable
 transformation of the input space, then and the form of at least some of
 the model effects can be very helpful in emulator construction (see
-Craig et al 1998).
+Craig *et al.* 1998).
 
 References
 ----------
 
 Craig, P. S., Goldstein, M., Seheult, A. H., and Smith, J. A. (1998)
-\``Constructing partial prior specifications for models of complex
-physical systems,'' *Applied Statistics*, **47**:1, 37--53
+"Constructing partial prior specifications for models of complex
+physical systems," *Applied Statistics*, **47**:1, 37--53

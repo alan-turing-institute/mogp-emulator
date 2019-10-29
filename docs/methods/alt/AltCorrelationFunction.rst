@@ -54,25 +54,26 @@ The Gaussian form
 It is common, and convenient in terms of subsequent building and use of
 the emulator, to specify a covariance function of the form
 
-:math:` c(x,x') = \\exp\{-(x-x')^TC(x-x')\}\,,\quad (1) \`
+.. math::
+   c(x,x') = \exp\left[-0.5(x-x')^TC(x-x')\right]
 
 where :math:`C` is a diagonal matrix whose diagonal elements are the
 inverse squares of the elements of the :math:`\delta` vector. Hence, if
-there are :math:`p` inputs and the i-th elements of the input vectors
-:math::ref:`x` and :math:`x'` and the `correlation
+there are :math:`p` inputs and the :math:`i`-th elements of the input vectors
+:math:`x` and :math:`x'` and the :ref:`correlation
 length<DefCorrelationLength>` vector :math:`\delta` are
 respectively :math:`x_i`, :math:`x'_i` and :math:`\delta_i`, we can write
 
-:math:` c(x,x')=\exp\left[-\sum_{i=1}^p \\{(x_i - x'_i)/\delta_i\}^2\right]
-=\prod_{i=1}^p\exp\left[-\{(x_i - x'_i)/\delta_i\}^2\right]\,. \\quad
-(2) \`
+.. math::
+   c(x,x')&=&\exp\left\{-\sum_{i=1}^p 0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\} \\
+          &=&\prod_{i=1}^p\exp\left\{-0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\}.
 
 This formula shows the role of the correlation length hyperparameter
 :math:`\delta_i`. The smaller its value, the closer together :math:`x_i` and
 :math:`x'_i` must be in order for the outputs at :math:`x` and :math:`x'` to be
 highly correlated. Large/small values of :math:`\delta_i` therefore mean
 that the output values are correlated over a wide/narrow range of the
-i-th input :math:`x_i`. See the discussion of "smoothness" at the end of
+:math:`i`-th input :math:`x_i`. See the discussion of "smoothness" at the end of
 this page.
 
 Because of its similarity to the density function of a normal
@@ -88,7 +89,8 @@ correlation functions referring to each input separately. A correlation
 function of this form is said to be :ref:`separable<DefSeparable>`. A
 generalisation of the Gaussian form that does not entail separability is
 
-:math:` c(x,x') = \\exp\{-(x-x')^TM(x-x')\}\,,\quad (3) \`
+.. math::
+   c(x,x') = \exp\left[-0.5(x-x')^TM(x-x')\right]
 
 where now :math:`M` is a symmetric matrix with elements in the vector
 :math:`\delta`. So if there are :math:`p` inputs the :math:`\delta` vector has
@@ -106,8 +108,8 @@ The exponential power form
 
 An alternative generalisation replaces (2) by
 
-:math:` c(x,x')=\prod_{i=1}^p\exp\left[-\{|x_i -
-x'_i|/\delta_{1i}\}^{\delta_{2i}}\right]\,, \`
+.. math::
+   c(x,x')=\prod_{i=1}^p\exp\left[-\{|x_i -x'_i|/\delta_{1i}\}^{\delta_{2i}}\right]
 
 where now in addition to correlation length parameters :math:`\delta_{1i}`
 we have power parameters :math:`\delta_{2i}`. Hence :math:`\delta` has :math:`2p`
@@ -121,7 +123,7 @@ simulator output will be differentiable with respect to :math:`x_i`. In
 fact it implies that the output will be differentiable with respect to
 input i infinitely many times.
 
-If :math:`1 < \\delta_{2i} <2` then the output will be differentiable once
+If :math:`1 < \delta_{2i} <2` then the output will be differentiable once
 with respect to :math:`x_i` but not twice, while if the value is less than
 or equal to 1 the output will not be differentiable at all (but will
 still be continuous).
@@ -140,9 +142,10 @@ Matérn forms
 Another correlation function that is widely used in some applications is
 the Matérn form, which for a one-dimensional :math:`x` is
 
-:math:` c(x,x') = \\frac{2^{1-\delta_2}}{\Gamma(\delta_2)}
-\\left(\frac{x-x'}{\delta_1}\right)^{\delta_2} {\cal
-K}_{\delta_2}\left(\frac{x-x'}{\delta_1}\right)\,, \`
+.. math::
+   c(x,x') = \frac{2^{1-\delta_2}}{\Gamma(\delta_2)}
+             \left(\frac{x-x'}{\delta_1}\right)^{\delta_2} {\cal
+             K}_{\delta_2}\left(\frac{x-x'}{\delta_1}\right)
 
 where :math:`{\cal K}_{\delta_2}(\cdot)` is a modified Bessel function of
 the third kind, :math:`\delta_1` is a correlation length parameter and
@@ -159,17 +162,17 @@ Adding a nugget
 
 The Gaussian form with nugget modifies the simple Gaussian form (1) to
 
-:math:` c(x,x') = \\nu I_{x=x'} + (1-\nu)\exp\{-(x-x')^TC(x-x')\}\,,\quad
-(1) \`
+.. math::
+   c(x,x') = \nu I_{x=x'} + \exp\left[-0.5(x-x')^TC(x-x')\right]
 
-where the expression :math::ref:`I_{x=x'}` is 1 if :math:`x=x'` and is otherwise
-zero, and where :math:`\nu` is a `nugget<DefNugget>` term. A nugget
+where the expression :math:`I_{x=x'}` is 1 if :math:`x=x'` and is otherwise
+zero, and where :math:`\nu` is a :ref:`nugget<DefNugget>` term. A nugget
 can similarly be added to any other form of correlation function.
 
 There are three main reasons for adding a nugget term in the correlation
 function.
 
- Nugget for computation
+Nugget for computation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 The simple Gaussian form (1) and the generalised Gaussian form (3) allow
@@ -191,7 +194,7 @@ even continuous anywhere, but as already emphasised this is simply a
 computational device. If the nugget is small enough it should have
 negligible effect on the resulting emulator.
 
- Nugget for inactive inputs
+Nugget for inactive inputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When some of the available inputs of the simulator are treated as
@@ -209,7 +212,7 @@ inputs. By the nature of inactive inputs, this should be relatively
 small but its value will generally need to be estimated as a
 hyperparameter.
 
- Nugget for stochastic simulators
+Nugget for stochastic simulators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The use of a nugget term to represent the randomness in outputs from a

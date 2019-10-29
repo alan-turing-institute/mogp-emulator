@@ -55,7 +55,7 @@ uncertain, and so we require the following:
 -  :math:`\text{E}[\beta_i]`, :math:`\text{Var}[\beta_i]`,
    :math:`\text{Cov}[\beta_i,\beta_j]` - expectations, variances and
    covariances for each coefficient :math:`\beta_i`, and covariances
-   between every pair of coefficients :math:`(\beta_i,\beta_j),\\ i\neq j`
+   between every pair of coefficients :math:`(\beta_i,\beta_j), i\neq j`
 -  :math:`\sigma^2=\text{Var}[w(x)]` - the variance of the residual
    stochastic process
 -  :math:`\delta` - a value for the hyperparameters of the correlation
@@ -65,7 +65,7 @@ The Nature of the Alternatives
 ------------------------------
 
 Priors for :math:`\beta`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Given a specified form for the basis functions :math:`h(x)` of :math:`m(x)` as
 described in the alternatives page on basis functions for the emulator
@@ -100,7 +100,7 @@ obtaining a belief specification for :math:`\beta`.
    error" associated with :math:`\hat{\beta}`.
 
 Priors for :math:`\sigma^2`
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The current version of the Toolkit requires a point value for the
 variance about the emulator mean, :math:`\sigma^2`. This corresponds
@@ -121,7 +121,7 @@ developed for :ref:`learning<DefBLVarianceLearning>` about
 specifications about the squared emulator residuals.
 
 Priors for :math:`\delta`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Specification of correlation function hyperparameters is a more
 challenging task. Direct elicitation can be difficult as the
@@ -130,8 +130,8 @@ page on prior distributions for GP hyperparameters
 (:ref:`AltGPPriors<AltGPPriors>`) provides some discussion on this
 topic, with particular application to the Gaussian correlation function.
 Alternatively, when given a large collection of simulator runs then
-:math::ref:`\delta` can be crudely estimated using methods such as
-`variogram<ProcVariogram>` fitting on the empirical residuals.
+:math:`\delta` can be crudely estimated using methods such as
+:ref:`variogram<ProcVariogram>` fitting on the empirical residuals.
 
 Assessing and updating uncertainties about :math:`\delta` raises both
 conceptual and technical problems as methods which would be optimal for

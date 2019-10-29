@@ -68,24 +68,26 @@ The linear form
 ~~~~~~~~~~~~~~~
 
 It is usual, and convenient in terms of subsequent building and use of
-the emulator, to specify a mean function of the form
+the emulator, to specify a mean function of the form:
 
-:math:` m(x) = \\beta^T h(x) \`
+.. math::
 
-where :math::ref:`h(\cdot)` is a vector of (known) functions of :math:`\strut x`,
-known as `basis functions<DefBasisFunctions>`. This is called
+   m(x) = \beta^T h(x)
+
+where :math:`h(\cdot)` is a vector of (known) functions of :math:`x`,
+known as :ref:`basis functions<DefBasisFunctions>`. This is called
 the linear form of mean function because it corresponds to the general
 linear regression model in statistical analysis. When the mean function
 is specified to have the linear form, it becomes possible to carry out
 subsequent analyses more simply. The number of elements of the vector
-:math::ref:`h(\cdot)` will be denoted by :math:`q`. These elementary functions are
-called `basis functions<DefBasisFunctions>`.
+:math:`h(\cdot)` will be denoted by :math:`q`. These elementary functions are
+called :ref:`basis functions<DefBasisFunctions>`.
 
 There remains the choice of :math:`h(\cdot)`. We illustrate the flexibility
 of the linear form first through some simple cases.
 
--  The simplest case is when :math:`\strut q=1` and :math:`h(x)=1` for all
-   :math:`\strut x`. Then the mean function is :math:`m(x) = \\beta`, where
+-  The simplest case is when :math:`q=1` and :math:`h(x)=1` for all
+   :math:`x`. Then the mean function is :math:`m(x) = \beta`, where
    now :math:`\beta` is a scalar hyperparameter representing an unknown
    overall mean for the simulator output. This choice expresses no prior
    knowledge about how the output will respond to variation in the
@@ -93,7 +95,7 @@ of the linear form first through some simple cases.
 
 -  Another simple instance is when :math:`h(x)^T=(1,x)`, so that
    :math:`q=1+p`, where :math:`p` is the number of inputs. Then
-   :math:`m(x)=\beta_1 + \\beta_2 x_1 + \\ldots + \\beta_{1+p}x_p`, which
+   :math:`m(x)=\beta_1 + \beta_2 x_1 + \ldots + \beta_{1+p}x_p`, which
    expresses a prior expectation that the simulator output will show a
    trend in response to each of the inputs, but there is no prior
    information to suggest any specific nonlinearity in those trends.
@@ -119,7 +121,9 @@ form, then it is possible to specify any other mean function.
 
 For example,
 
-:math:` m(x) = \\beta_1 / (1+\beta_2 x_1) + \\exp(\beta_3 x_2) \`
+.. math::
+
+   m(x) = \beta_1 / (1+\beta_2 x_1) + \exp\left(\beta_3 x_2\left)
 
 expresses a belief that as the first input, :math:`x_1` increases the
 simulator output will flatten out in the way specified in the first
