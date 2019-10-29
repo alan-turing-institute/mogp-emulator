@@ -224,9 +224,6 @@ public:
         int info_h;
 
         thrust::copy(theta, theta + N + 1, theta_d.begin());
-
-        // thrust::copy(invQ, invQ + N * N, invC_d.begin());
-        // thrust::copy(invQt, invQt + N, invCts_d.begin());
         
         cov_batch_gpu(dev_ptr(work_mat_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
@@ -272,11 +269,11 @@ public:
                 const double *invQ_, const double *invQt_)
         : N(N_)
         , Ninput(Ninput_)
-        , invC_d(invQ_, invQ_ + N_ * N_)
+        , invC_d(N_ * N_, 0.0)
         , theta_d(theta_, theta_ + Ninput_ + 1)
         , xs_d(xs_, xs_ + Ninput_ * N_)
         , ts_d(ts_, ts_ + N_)
-        , invCts_d(invQt_, invQt_ + N_)
+        , invCts_d(N_, 0.0)
         , xnew_d(Ninput_ * xnew_size, 0.0)
         , work_d(N_, 0.0)
         , work_mat_d(N_ * xnew_size, 0.0)

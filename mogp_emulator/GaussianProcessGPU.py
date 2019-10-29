@@ -291,10 +291,9 @@ class GaussianProcessGPU(GaussianProcess):
             
     def _set_params(self, theta):
         super()._set_params(theta)
-        if self.device_ready:
-            self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
-        else:
+        if not self.device_ready:
             self._device_gp_create()
+        self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
             
     def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
