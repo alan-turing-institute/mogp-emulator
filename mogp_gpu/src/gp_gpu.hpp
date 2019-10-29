@@ -5,10 +5,12 @@
 
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <assert.h>
 #include <stdexcept>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include <cusolverDn.h>
 #include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
 #include <thrust/device_free.h>
@@ -16,11 +18,21 @@
 #include <thrust/copy.h>
 
 #include "cov_gpu.hpp"
+#include "identity.hpp"
 
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
 {
     return dv.data().get();
+}
+
+inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
+    if (status || info_h) {
+	std::string msg;
+	std::stringstream smsg(msg);
+	smsg << "Error in potrf: return code " << status << ", info " << info_h;
+	throw std::runtime_error(smsg.str());
+    }
 }
 
 typedef int obs_kind;
@@ -38,6 +50,9 @@ class DenseGP_GPU {
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
 
+    // handle for cuSOLVER calls
+    cusolverDnHandle_t cusolverHandle;
+	
     // inverse covariance matrix on device
     thrust::device_vector<REAL> invC_d;
 
@@ -49,9 +64,12 @@ class DenseGP_GPU {
     
     // precomputed product, used in the prediction
     thrust::device_vector<REAL> invCts_d;
-
+    
     // preallocated work array (length N) on the CUDA device
     thrust::device_vector<REAL> work_d;
+
+    // buffer for Cholesky factorization
+    thrust::device_vector<REAL> potrf_buffer_d;
 
     // more work arrays
     thrust::device_vector<REAL> xnew_d, work_mat_d, result_d, kappa_d, invCk_d;
@@ -199,12 +217,53 @@ public:
     void update_theta(const double *invQ, const double *theta,
                       const double *invQt)
     {
-        thrust::copy(invQ, invQ + N * N, invC_d.begin());
+        thrust::device_vector<int> info_d(1);
+        int info_h;
+
         thrust::copy(theta, theta + N + 1, theta_d.begin());
-        thrust::copy(invQt, invQt + N, invCts_d.begin());
+
+        // thrust::copy(invQ, invQ + N * N, invC_d.begin());
+        // thrust::copy(invQt, invQt + N, invCts_d.begin());
+        
+        cov_batch_gpu(dev_ptr(work_mat_d), N, N, Ninput, dev_ptr(xs_d),
+                      dev_ptr(xs_d), dev_ptr(theta_d));
+
+        // work_mat_d now holds the covariance matrix
+
+        // add a small stabilizing term to the diagonal
+        add_diagonal(N, 1e-10, dev_ptr(work_mat_d));
+
+        // compute Cholesky factors
+        cusolverStatus_t status =
+            cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
+                             dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
+                             potrf_buffer_d.size(), dev_ptr(info_d));
+
+        thrust::copy(info_d.begin(), info_d.end(), &info_h);
+        check_cusolver_status(status, info_h);
+
+        identity_device(N, dev_ptr(invC_d));
+
+        // invQ
+        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, N,
+                                  dev_ptr(work_mat_d), N, dev_ptr(invC_d), N,
+                                  dev_ptr(info_d));
+
+        thrust::copy(info_d.begin(), info_d.end(), &info_h);
+        check_cusolver_status(status, info_h);
+        
+
+        // invQt
+        thrust::copy(xs_d.begin(), xs_d.end(), invCts_d.begin());
+        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
+                                  dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
+                                  dev_ptr(info_d));
+
+        thrust::copy(info_d.begin(), info_d.end(), &info_h);
+        check_cusolver_status(status, info_h);
     }
 
-    
+
     DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,
                 const double *xs_, const double *ts_, const double *Q_,
                 const double *invQ_, const double *invQt_)
@@ -221,12 +280,23 @@ public:
         , kappa_d(xnew_size, 0.0)
         , invCk_d(xnew_size * N_, 0.0)
     {
-        cublasStatus_t status;
-        status = cublasCreate(&cublasHandle);
-        if (status != CUBLAS_STATUS_SUCCESS)
+        cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
+        if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
             throw std::runtime_error("CUBLAS initialization error\n");
+        }	
+        cusolverStatus_t cusolver_status = cusolverDnCreate(&cusolverHandle);
+        if (cusolver_status != CUSOLVER_STATUS_SUCCESS)
+        {
+            throw std::runtime_error("cuSolver initialization error\n");
         }
+
+        int potrfBufferSize;
+        cusolverDnDpotrf_bufferSize(cusolverHandle, CUBLAS_FILL_MODE_LOWER,
+                                    N, dev_ptr(potrf_buffer_d), N,
+                                    &potrfBufferSize);
+
+        potrf_buffer_d.resize(potrfBufferSize);
     }
 };
 

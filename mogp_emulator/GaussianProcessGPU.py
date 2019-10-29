@@ -56,7 +56,7 @@ def _find_mogp_gpu(verbose = True):
         except OSError as err:
             if verbose:
                 print("GaussianProcessGPU._find_mogp_gpu: There was a problem loading the library.  The error "
-                      "was: " + err)
+                      "was: " + str(err))
 
         except AssertionError:
             if verbose:
