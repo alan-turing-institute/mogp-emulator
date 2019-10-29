@@ -355,6 +355,9 @@ def test_GaussianProcess_set_params():
         assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
         assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
 
+        ## This example has two identical input points, and so would
+        ## lead to a singular covariance matrix.  The result obtained
+        ## is by the adaptive choice of nugget.
         x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
         y = np.array([2., 3., 4.])
         gp = GP(x, y)

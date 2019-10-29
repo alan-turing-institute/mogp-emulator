@@ -294,7 +294,7 @@ class GaussianProcessGPU(GaussianProcess):
         if not self.device_ready:
             self._device_gp_create()
         self.gpgpu.update_theta(self.invQ, self.theta, self.invQt)
-            
+
     def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
 
@@ -372,6 +372,8 @@ class GaussianProcessGPU(GaussianProcess):
         # possibly set back to True by subsequent call to _device_update()
         self.device_ready = False
         self._device_gp_create()
+        if self.theta is not None:
+            self._set_params(self.theta)
 
     def __getstate__(self):
         copy_dict = self.__dict__
