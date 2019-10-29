@@ -98,7 +98,7 @@ Uncertainty Quantification Methods
    exam/ExamMultipleOutputsPCA
    exam/ExamScreeningAutomaticRelevanceDetermination
    exam/ExamScreeningMorris
-   ExamVariantWithDerivatives1Dim
+   exam/ExamVariantWithDerivatives1Dim
 
 .. toctree::
    :maxdepth: 1

@@ -1,6 +1,6 @@
 .. _ProcApproximateUpdateDynamicMeanandVariance:
 
-Procedure: use simulation to recursively update the dynamic emulator mean and variance in the approximation method
+Procedure: Use simulation to recursively update the dynamic emulator mean and variance in the approximation method
 ==================================================================================================================
 
 Description and Background

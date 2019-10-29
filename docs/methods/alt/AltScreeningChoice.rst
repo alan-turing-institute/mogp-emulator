@@ -1,7 +1,7 @@
 .. _AltScreeningChoice:
 
-Discussion: Deciding which screening method to use
-==================================================
+Alternatives: Deciding which screening method to use
+====================================================
 
 We first provide a classification of :ref:`screening<DefScreening>`
 methods, followed by a discussion under what settings each screening

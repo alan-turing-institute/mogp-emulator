@@ -1,6 +1,6 @@
 .. _DefAdjoint:
 
-Definition of term: Adjoint
+Definition of Term: Adjoint
 ===========================
 
 An adjoint is an extension to a :ref:`simulator<DefSimulator>` which

@@ -1,7 +1,7 @@
 .. _MetaComments:
 
-Comments
-========
+Meta-pages: Comments
+======================
 
 The MUCM team is interested to receive your comments on the toolkit. You
 can send comments about particular pages (to tell us of errors or

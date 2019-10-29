@@ -1,7 +1,7 @@
 .. _ProcDataPreProcessing:
 
-Data Pre-Processing and Standardisation
-=======================================
+Procedure: Data Pre-Processing and Standardisation
+====================================================
 
 In this page we describe the process of pre-processing data, which might
 often be undertaken prior to for example

@@ -1,7 +1,7 @@
 .. _ThreadTopicExperimentalDesign:
 
----+ Thread: Experimental design
-================================
+Thread: Experimental design
+********************************
 
 This thread presents different ways of an selecting experimental
 :ref:`design<DefDesign>`, namely a set of input combinations at which

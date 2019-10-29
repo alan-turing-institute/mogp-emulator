@@ -48,7 +48,7 @@ Output
    \\Lambda D \\theta(t)`.
 
 Procedure
-=========
+----------
 
 #. Replace :math:`\phi_i(s)` in the Fredholm equation
    :math:`\int_0^1R(s,t)\phi_i(s)ds=\lambda_i\phi_i(t)` with

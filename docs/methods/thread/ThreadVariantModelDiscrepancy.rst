@@ -1,6 +1,6 @@
 .. _ThreadVariantModelDiscrepancy:
 
-Thread Variant - Linking Models to Reality using Model Discrepancy
+Thread Variant: Linking Models to Reality using Model Discrepancy
 ==================================================================
 
 Overview
