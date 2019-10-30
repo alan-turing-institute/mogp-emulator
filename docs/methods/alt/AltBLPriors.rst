@@ -79,10 +79,10 @@ obtaining a belief specification for :math:`\beta`.
 #. **Expert-led specification** - the specification can be made directly
    by an expert using methods such as
 
-   #. Intuitive understanding of the magnitude and impact of the
+   a. Intuitive understanding of the magnitude and impact of the
       physical effects represented by :math:`h(x)` leading to a direct
       quantification of expectations, variances and covariances.
-   #. Assessing the difference between the model under study and another
+   b. Assessing the difference between the model under study and another
       well-understood model such as a fast approximate version or an
       earlier version of the same simulator. In this approach, we can
       combine the known information about the mean behaviour of the

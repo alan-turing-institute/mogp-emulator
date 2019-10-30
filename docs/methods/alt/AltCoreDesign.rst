@@ -37,7 +37,7 @@ in the toolkit structure page
 Choosing the Alternatives
 -------------------------
 
-| The training sample design needs to facilitate the development of an
+- The training sample design needs to facilitate the development of an
   emulator that correctly and accurately predicts the actual simulator
   output over a desired region of the input space. By convention, we
   suppose that the input region of interest, :math:`\cal{X}`, is the unit
@@ -49,7 +49,7 @@ Choosing the Alternatives
   extended discussion on technical issues in training sample design for
   the core problem can be found in page
   :ref:`DiscCoreDesign<DiscCoreDesign>`.)
-| There are several criteria for a good design, which are also discussed
+- There are several criteria for a good design, which are also discussed
   in :ref:`DiscCoreDesign<DiscCoreDesign>`, but the most widely
   adopted approach in practice is to employ a design in which the points
   are spread more or less evenly and as far apart as possible within

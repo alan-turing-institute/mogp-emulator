@@ -69,7 +69,7 @@ The Nature of the Alternatives
 ------------------------------
 
 Priors for :math:`\sigma^2`
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In most applications, there will be plenty of information about
 :math:`\sigma^2` in the training data. We typically have at least 100
@@ -78,15 +78,16 @@ to estimate a variance. Unless there is strong prior information
 available regarding this hyperparameter, it would be acceptable to use
 the conventional :ref:`weak prior<DefWeakPrior>` specification
 
-:math:`\pi_{\sigma^2}(\sigma^2) \\propto \\sigma^{-2} \`
+.. math::
+   \pi_{\sigma^2}(\sigma^2) \propto \sigma^{-2}
 
 independently of the other hyperparameters.
 
 In situations where the training data are more sparse, which may arise
 for instance when the simulator is computationally demanding, prior
 information about :math:`\sigma^2` may make an important contribution to
-the analysis. Genuine prior information about :math::ref:`\sigma^2` in the form
-of a `proper<DefProper>` prior distribution should be specified
+the analysis. Genuine prior information about :math:`\sigma^2` in the form
+of a :ref:`proper<DefProper>` prior distribution should be specified
 by a process of :ref:`elicitation<DefElicitation>` - see references
 at the end of this page. See also the discussion of conjugate prior
 distributions below.
@@ -100,7 +101,8 @@ when the mean function is specified in the linear form, so that the
 elements of :math:`\beta` are regression parameters. Then it is acceptable
 to use the conventional weak prior specification
 
-:math:`\pi_{\beta}(\beta) \\propto 1`
+.. math::
+   \pi_{\beta}(\beta) \propto 1
 
 independently of the other hyperparameters.
 
@@ -111,11 +113,11 @@ this page. See also the discussion of conjugate prior distributions
 below.
 
 Conjugate priors for :math:`\beta` and :math:`\sigma^2`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When substantive prior information exists and is to be specified for
-either :math::ref:`\beta` or :math:`\sigma^2`, then it is convenient to use
-`conjugate<DefConjugate>` prior distributions if feasible.
+either :math:`\beta` or :math:`\sigma^2`, then it is convenient to use
+:ref:`conjugate<DefConjugate>` prior distributions if feasible.
 
 If prior information is to be specified for :math:`\sigma^2` alone (with
 the weak prior specification adopted for :math:`\beta`), the conjugate
@@ -146,7 +148,7 @@ unrealistic when weak prior information is to be specified for
 :math:`\sigma^2`, and so we do not discuss this conjugate option further.
 
 Priors for :math:`\delta`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The situation with :math:`\delta` is quite different, in that the
 information in the training data will often fail to identify these
@@ -165,8 +167,8 @@ even essential, in obtaining a valid emulator. Fortunately, genuine
 prior information about :math:`\delta` often exists.
 
 Consider the case of a Gaussian correlation function, where the elements
-of :math::ref:`\delta` are correlation lengths which define the
-`smoothness<DefSmoothness>` of the simulator output as each
+of :math:`\delta` are correlation lengths which define the
+:ref:`smoothness<DefSmoothness>` of the simulator output as each
 input is varied. The experience of the users and developers of the
 simulator may suggest how stable the output should be in response to
 varying individual inputs. In particular, it may be possible to specify
@@ -198,17 +200,16 @@ Judgements: Eliciting Expert Probabilities. John Wiley and Sons,
 Chichester. 328pp. ISBN 0-470-02999-4.
 
 SHELF - the Sheffield Elicitation Framework - can be downloaded from
-http://tonyohagan.co.uk/shelf
+`http://tonyohagan.co.uk/shelf <http://tonyohagan.co.uk/shelf>`__
 (:ref:`Disclaimer<MetaSoftwareDisclaimer>`)
 
 Oakley, J. (2002). Eliciting Gaussian process priors for complex
-computer codes. The Statistician 51, 81-97
+computer codes. *The Statistician* 51, 81-97.
 
 The following paper discusses issues of propriety in GP posterior
 distributions related to the choice of prior when it is desired to
 express weak prior information (about :math:`\delta` as well as other
 hyperparameters).
 
-Paulo, R. (2005). `Default priors for Gaussian
-processes <http://www.maths.bristol.ac.uk/~marmbp/AOS305.pdf>`__. Annals
-of Statistics , 33, 556-582.
+Paulo, R. (2005). Default priors for Gaussian
+processes. *Annals of Statistics*, 33, 556-582.

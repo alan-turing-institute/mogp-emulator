@@ -9,8 +9,8 @@ Overview
 As discussed in the procedure for building a Gaussian process emulator
 for the core problem (:ref:`ProcBuildCoreGP<ProcBuildCoreGP>`), one
 approach to dealing with uncertainty in the
-:ref:`hyperparameters<DefHyperparameter>` :math::ref:`\delta` of the
-correlation function in a `Gaussian process<DefGP>`
+:ref:`hyperparameters<DefHyperparameter>` :math:`\delta` of the
+correlation function in a :ref:`Gaussian process<DefGP>`
 :ref:`emulator<DefEmulator>` is to ignore it, using a single estimate
 of :math:`\delta` instead of a sample from its posterior distribution. We
 discuss here a number of alternative ways of obtaining a suitable
@@ -20,7 +20,7 @@ Choosing the Alternatives
 -------------------------
 
 The chosen value should be a representative central value in the
-posterior distribution :math:`\pi^*(.)`. Where the parameters have the
+posterior distribution :math:`\pi^*(\cdot)`. Where the parameters have the
 interpretation of correlation lengths, as is the case in most of the
 correlation functions discussed in the alternatives page for the
 emulator prior correlation function
@@ -38,7 +38,7 @@ The most widely used estimator, as mentioned in
 is the value of :math:`\delta` at which :math:`\pi^*(\delta)` is maximised.
 Although any convenient algorithm or utility might be used for this
 purpose, care should be taken because it is not uncommon to find
-multiple local maxima in :math:`\pi^*(.)`. If several modes are found, the
+multiple local maxima in :math:`\pi^*(\cdot)`. If several modes are found, the
 choice between them might, for instance, be made using the
 cross-validation approach mentioned below, or by seeing which choice
 leads to an emulator with better :ref:`validation<DefValidation>`
