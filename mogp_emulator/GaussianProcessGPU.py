@@ -297,8 +297,8 @@ class GaussianProcessGPU(object):
                                       "from GaussianProcess")
 
         elif len(args) == 1:
-            raise NotImplementedError("Haven't yet implemented construction "
-                                      "from a stored emulator")
+            emulator_file = args[0]
+            inputs, targets, theta, nugget = self._load_emulator(emulator_file)
 
         elif len(args) == 2 or len(args) == 3:
             self.inputs = np.array(args[0])
@@ -329,9 +329,37 @@ class GaussianProcessGPU(object):
         ## attempt to create the GP on the device
         self.gpgpu = None        
         self._device_gp_create()
+        
+    def _load_emulator(self, filename):
+        emulator_file = np.load(filename, allow_pickle=True)
+        
+        inputs = np.array(emulator_file['inputs'])
+        targets = np.array(emulator_file['targets'])
+            
+        if emulator_file['theta'] is None:
+            theta = None
+        else:
+            theta = np.array(emulator_file['theta'])
+            
+        if emulator_file['nugget'] == None:
+            nugget = None
+        else:
+            nugget = float(emulator_file['nugget'])
 
+        return inputs, targets, theta, nugget
+
+        
     def save_emulator(self, filename):
-        raise NotImplementedError("Saving GaussianProcessGPU not implemented yet")
+        emulator_dict = {}
+        emulator_dict['targets'] = self.targets
+        emulator_dict['inputs'] = self.inputs
+        emulator_dict['nugget'] = self.nugget
+        emulator_dict['theta'] = self.theta
+                    
+        np.savez(filename, **emulator_dict)
+
+
+    
         
     def device_ready(self):
         return self.gpgpu and self.gpgpu.ready()

@@ -1117,11 +1117,10 @@ def test_GaussianProcess_predict_failures():
 def test_GaussianProcess_str():
     "Test function for string method"
 
-    for GP in [GaussianProcess, GaussianProcessGPU]:
-        x = np.reshape(np.array([1., 2., 3.]), (1, 3))
-        y = np.array([2.])
-        gp = GP(x, y)
-        assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
+    x = np.reshape(np.array([1., 2., 3.]), (1, 3))
+    y = np.array([2.])
+    gp = GP(x, y)
+    assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
 
 
 def test_GaussianProcess_pickle():
