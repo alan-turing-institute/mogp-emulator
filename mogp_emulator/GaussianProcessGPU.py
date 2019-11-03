@@ -116,8 +116,19 @@ class GPGPULibrary(object):
 
             self._update_theta = self.lib.gplib_update_theta
             self._update_theta.restype  = None
-            self._update_theta.argtypes = [ctypes.c_void_p,
-                                           _ndarray_1d]
+            self._update_theta.argtypes = [ctypes.c_void_p, _ndarray_1d]
+
+            self._get_invQ = self.lib.gplib_get_invQ
+            self._get_invQ.restype = None
+            self._get_invQ.argtypes = [ctypes.c_void_p, _ndarray_2d]
+
+            self._get_invQt = self.lib.gplib_get_invQt
+            self._get_invQt.restype = None
+            self._get_invQt.argtypes = [ctypes.c_void_p, _ndarray_1d]
+
+            self._get_logdetQ = self.lib.gplib_get_logdetQ
+            self._get_logdetQ.restype = ctypes.c_double
+            self._get_logdetQ.argtypes = [ctypes.c_void_p]
 
             self._status = self.lib.gplib_status
             self._status.restype  = ctypes.c_int
@@ -135,9 +146,11 @@ class GPGPULibrary(object):
 
 
 class GPGPU(object):
-    """A higher-level class than GPGPULibrary, which wraps the raw methods
-    provided by :class:`mogp_emulator.GaussianProcessGPU.GPGPULibrary` with
-    some checks.
+    """Represents a single GaussianProcess object on the GPU.
+
+    A higher-level class than GPGPULibrary, this class wraps the raw methods
+    provided by :class:`mogp_emulator.GaussianProcessGPU.GPGPULibrary` with some
+    checks.
     """
     def __init__(self, lib_wrapper, theta, xs, ts):
         self._lib_wrapper = lib_wrapper
@@ -231,14 +244,34 @@ class GPGPU(object):
             lambda theta: self._lib_wrapper._update_theta(self.handle, theta),
             __name__, theta)
 
+    def get_invQ(self):
+        invQ = np.zeros((self.N, self.N))
+        self._call_gpu(
+            lambda invQ: self._lib_wrapper._get_invQ(self.handle, invQ),
+            __name__, invQ)
+        return invQ
 
-class GaussianProcessGPU(GaussianProcess):
-    """This class derives from
+    def get_invQt(self):
+        invQt = np.zeros((self.N,))
+        self._call_gpu(
+            lambda invQt: self._lib_wrapper._get_invQt(self.handle, invQt),
+            __name__, invQt)
+        return invQt
+
+    def get_logdetQ(self):
+        return self._call_gpu(
+            lambda: self._lib_wrapper._get_logdetQ(self.handle),
+            __name__)
+
+
+class GaussianProcessGPU(object):
+    """This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
     particular methods overridden to use a GPU if it is available.
-
     """
-    mogp_gpu = GPGPULibrary()
+
+    ## the (class-level) interface to the library
+    _gpu_library = GPGPULibrary()
     
     def __init__(self, *args):
         """Create a new GP emulator, using a GPU if it is available.
@@ -252,42 +285,107 @@ class GaussianProcessGPU(GaussianProcess):
           :func:`mogp_emulator.GaussianProcess.GaussianProcess.__init__` (documented there).
 
         """
-        ## Flag to indicate whether the GPGPU object reported that it
-        ## was ready.  This is cumbersome, but needed because we
-        ## cannot pickle GPGPU objects
-        self.device_ready = False
+        self.nugget = None
+        self.theta = None
         
         if len(args) == 1 and type(args[0]) == GaussianProcess:
-            self.gp = args[0]
+            ## gp = args[0]
+            ## self.inputs = gp.inputs
+            ## ...
+            
             raise NotImplementedError("Haven't yet implemented construction "
                                       "from GaussianProcess")
-        else:
-            self.gp = super().__init__(*args)
+
+        elif len(args) == 1:
+            raise NotImplementedError("Haven't yet implemented construction "
+                                      "from a stored emulator")
+
+        elif len(args) == 2 or len(args) == 3:
+            self.inputs = np.array(args[0])
+            if self.inputs.ndim == 1:
+                self.inputs = np.expand_dims(self.inputs, axis=0)
+            if not self.inputs.ndim == 2:
+                raise ValueError("Inputs must by a 2D array")
+            self.targets = np.array(args[1])
+            if not self.targets.ndim == 1:
+                raise ValueError("Targets must be a 1D array")
+            if not self.targets.shape[0] == self.inputs.shape[0]:
+                raise ValueError("First dimensions of inputs and targets must be the same length")
+
+            if len(args) == 3:
+                self.nugget = args[2]
+                if not self.nugget == None:
+                    self.nugget = float(self.nugget)
+                    if self.nugget < 0.:
+                        raise ValueError("nugget parameter must be onnegative or None")
+
+        else:       
+            raise ValueError("Init method of GaussianProcessGPU requires two arguments: "
+                             "(input array and target array)")
+
+        self.n = self.inputs.shape[0]
+        self.D = self.inputs.shape[1]
+
+        ## attempt to create the GP on the device
+        self.gpgpu = None        
+        self._device_gp_create()
+
+    def save_emulator(self, filename):
+        raise NotImplementedError("Saving GaussianProcessGPU not implemented yet")
+        
+    def device_ready(self):
+        return self.gpgpu and self.gpgpu.ready()
+
+    def get_n(self):
+        return self.n
+
+    def get_D(self):
+        return self.D
+
+    @property
+    def invQ(self):
+        return self.gpgpu.get_invQ()
+    
+    @property
+    def invQt(self):
+        return self.gpgpu.get_invQt()
+
+    @property
+    def logdetQ(self):
+        return self.gpgpu.get_logdetQ()
+
+    def get_params(self):
+        return self.theta
+
+    def get_nugget(self):
+        return self.nugget
+
+    def set_nugget(self, nugget):
+        if not nugget == None:
+            nugget = float(nugget)
+            assert nugget >= 0., "noise parameter must be nonnegative"
+        self.nugget = nugget
 
     def _device_gp_create(self):
         """Attempt to update the various GP data on the device"""
-        inputs = self.inputs
-        if inputs.ndim == 1:
-            inputs = expand_dims(inputs, axis=1)
-
-        self.gpgpu = self.mogp_gpu.make_gp(self.get_params(), inputs, self.targets)
-
-        if (self.gpgpu.ready()):
-            self.device_ready = True
-            
-    def _set_params(self, theta):
-        self.theta = theta
-
-        if not self.device_ready:
-            self._device_gp_create()
-
-        ## the above call may have updated `device_ready`
-        if self.device_ready:
-            self.gpgpu.update_theta(self.theta)
+        if self.theta != None:
+            theta = self.theta
         else:
-            super()._set_params(theta)
-    
-    def predict(self, testing, do_deriv = True, do_unc = True, require_gpu = True, *args, **kwargs):
+            theta = np.zeros(self.get_D() + 1)
+
+        assert theta.shape == (self.get_D() + 1,)
+
+        self.gpgpu = self._gpu_library.make_gp(theta, self.inputs, self.targets)
+
+    def _set_params(self, theta):
+        self.theta = np.array(theta)
+        if self.device_ready():
+            self.gpgpu.update_theta(self.theta)
+
+    def loglikelihood(self, theta):
+        self._set_params(theta)
+            
+    def predict(self, testing, do_deriv = True, do_unc = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
 
         See :func:`mogp_emulator.GaussianProcess.predict`, which provides the
@@ -296,15 +394,6 @@ class GaussianProcessGPU(GaussianProcess):
         Currently, the GPU implementation does not provide variance or
         derivative computations.  Therefore, if `do_deriv` or `do_unc` are
         ``True``, the prediction will fall back to the CPU implementation.
-
-        :type require_gpu: Bool
-
-        :param require_gpu: (optional, default True).  If this parameter is
-                            `True`, the GPU library must be used, and if this is
-                            not possible, an exception derived from RuntimeError
-                            is (re)thrown.  If this parameter is `False`, the
-                            CPU implementation will (quietly) be used as a
-                            fallback.
 
         :type testing: ndarray
 
@@ -331,38 +420,29 @@ class GaussianProcessGPU(GaussianProcess):
 
         :throws: RuntimeError: When the GPU library (or a suitable GPU) is not
                                available for the requested task, a runtime
-                               exception is (re)thrown when `require_gpu` is
-                               True.  This could be the derived
-                               "UnavailableError" exception, a
+                               exception is (re)thrown.  This could be the
+                               derived "UnavailableError" exception, a
                                "NotImplementedError", or a plain "RuntimeError"
                                indicating some other runtime failure.
         """
         if not do_deriv and not args and not kwargs:
-            try:
-                if do_unc:
-                    result, var = self.gpgpu.predict_variance(testing)
-                    return (result, var, None)
-                else:
-                    return (self.gpgpu.predict(testing), None, None)
-            except RuntimeError as ex:
-                if require_gpu:
-                    raise ex
-        elif require_gpu:
+            if do_unc:
+                mean, var = self.gpgpu.predict_variance(testing)
+                return (mean, var, None)
+            else:
+                mean = self.gpgpu.predict(testing)
+                return (mean, None, None)
+        else:
             raise NotImplementedError(
                 "GaussianProcessGPU.predict does not support the options "
-                "requested for prediction (`require_gpu` was set - or "
-                "defaulted - to True: to fall back to the non-GPU "
-                "implementation in this case, set this parameter to False)")
+                "requested for prediction (consider using GaussianProcess "
+                "instead)")
 
-        return super().predict(testing, do_deriv, do_unc, *args, **kwargs)            
-    
     ## __setstate__ and __getstate__ for pickling: don't pickle "gpgpu",
     ## since the ctypes members won't pickle, reinitialize after.
     ## (Pickling is required to use multiprocessing.)
     def __setstate__(self, state):
         self.__dict__ = state
-        # possibly set back to True by subsequent call to _device_update()
-        self.device_ready = False
         self._device_gp_create()
         if self.theta is not None:
             self._set_params(self.theta)
@@ -370,5 +450,6 @@ class GaussianProcessGPU(GaussianProcess):
     def __getstate__(self):
         copy_dict = self.__dict__
         del copy_dict["gpgpu"]
+        copy_dict["gpgpu"] = None
         return copy_dict
         

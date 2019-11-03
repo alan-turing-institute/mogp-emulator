@@ -126,4 +126,42 @@ extern "C" {
         }
     }
 
+    void gplib_get_invQ(void *handle, double *invQ)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            h->gp->get_invQ(invQ);
+            h->status = 0;
+        } catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+        }
+    }
+
+    void gplib_get_invQt(void *handle, double *invQt)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            h->gp->get_invQt(invQt);
+            h->status = 0;
+        } catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+        }
+    }
+
+    double gplib_get_logdetQ(void *handle)
+    {
+        gplib_handle *h = static_cast<gplib_handle *>(handle);
+        try {
+            double logdetQ = h->gp->get_logdetQ();
+            h->status = 0;
+            return logdetQ;
+        } catch (const std::exception& e) {
+            h->status = 1;
+            h->message = e.what();
+            return nan("");
+        }
+    }
+
 } // extern "C"

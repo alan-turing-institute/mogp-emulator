@@ -15,10 +15,16 @@
 #include <thrust/device_malloc.h>
 #include <thrust/device_free.h>
 #include <thrust/device_vector.h>
+#include <thrust/functional.h>
+#include <thrust/transform_reduce.h>
 #include <thrust/copy.h>
 
+#include "strided_range.hpp"
 #include "cov_gpu.hpp"
 #include "identity.hpp"
+
+#define WARP_SIZE 32
+#define FULL_MASK 0xffffffff
 
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
@@ -33,6 +39,46 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
 	smsg << "Error in potrf: return code " << status << ", info " << info_h;
 	throw std::runtime_error(smsg.str());
     }
+}
+
+// see https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
+__inline__ __device__
+double warpReduceSum(double val) {
+    for (int offset = WARP_SIZE/2; offset > 0; offset /= 2) 
+        val += __shfl_down_sync(FULL_MASK, val, offset);
+    return val;
+}
+
+// Invoke as
+// sumLogDiag<<<1, N>>>(N, A, result);
+//
+__global__
+void sumLogDiag(int N, double *A, double *result)
+{
+    // assumes a single block
+    int i = threadIdx.x;
+    
+    static __shared__ double work[WARP_SIZE];
+    double log_diag = 0.0;
+    
+    work[i] = 0.0;
+    if (i < N) {
+        log_diag = log(A[i * (N+1)]);
+    }
+   
+    int laneIdx = i % WARP_SIZE;
+    int warpIdx = i / WARP_SIZE;
+
+    log_diag = warpReduceSum(log_diag);
+    
+    if (laneIdx == 0) work[warpIdx] = log_diag;
+
+    __syncthreads();
+
+    log_diag = work[laneIdx];
+
+    if (warpIdx == 0) log_diag = warpReduceSum(log_diag);
+    if (i == 0) *result = 2.0 * log_diag;
 }
 
 typedef int obs_kind;
@@ -55,6 +101,9 @@ class DenseGP_GPU {
 	
     // inverse covariance matrix on device
     thrust::device_vector<REAL> invC_d;
+
+    // log determinant of covariance matrix (on host)
+    double logdetC;
 
     // hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
@@ -297,6 +346,37 @@ public:
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
+
+        // logdetQ
+        // strided_range<thrust::device_vector<double>::iterator> diag(
+        //         work_mat_d.begin(), work_mat_d.begin() + N * N, N + 1);
+
+        // std::cout << "begin\n";
+        // logdetC = 2.0 * thrust::transform_reduce(diag.begin(), diag.end(),
+        //                                          Log<double>(),
+        //                                          0,
+        //                                          Add<double>());
+        // std::cout << "end, result: " << logdetC << "\n";
+
+        thrust::device_vector<double> logdetC_d(1);
+
+        sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
+        thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
+    }
+
+    void get_invQ(double *invQ_h)
+    {
+        thrust::copy(invC_d.begin(), invC_d.end(), invQ_h);
+    }
+
+    void get_invQt(double *invQt_h)
+    {
+        thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h);
+    }
+
+    double get_logdetQ(void)
+    {
+        return logdetC;
     }
 
     DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,

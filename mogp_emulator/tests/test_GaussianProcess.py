@@ -232,7 +232,7 @@ def test_GaussianProcess_set_nugget():
 def test_GaussianProcess_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine in GaussianProcess/GaussianProcessGPU"
 
-    for GP in [GaussianProcess, GaussianProcessGPU]:
+    for GP in [GaussianProcess]:
         x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
         y = np.array([2., 3., 4.])
         gp = GP(x, y)
@@ -265,7 +265,7 @@ def test_GaussianProcess_jit_cholesky():
 def test_GaussianProcess_prepare_likelihood():
     "Tests the _prepare_likelihood method of Gaussian Process"
 
-    for GP in [GaussianProcess, GaussianProcessGPU]:
+    for GP in [GaussianProcess]:
         x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
         y = np.array([2., 3., 4.])
         gp = GP(x, y)
@@ -827,9 +827,7 @@ def test_GaussianProcess_predict_1():
     to find the appropriate expressions
     """
 
-    for GP, predict_kwargs in [(GaussianProcess, {})
-                               , (GaussianProcessGPU, {})
-                               , (GaussianProcessGPU, {'require_gpu': False})]:
+    for GP in [GaussianProcess, GaussianProcessGPU]:
         try:
             x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
             y = np.array([2., 3., 4.])
@@ -839,12 +837,12 @@ def test_GaussianProcess_predict_1():
             x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
             predict_expected = np.array([1.395386477054048, 1.7311400058360489])
             unc_expected = np.array([0.816675395381421, 0.8583559202639046])
-            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, **predict_kwargs)
+            predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
 
             delta = 1.e-8
-            predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False, **predict_kwargs)
-            predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False, **predict_kwargs)
-            predict_3, _, _ = gp.predict(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False, **predict_kwargs)
+            predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
+            predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
+            predict_3, _, _ = gp.predict(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
 
             deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                                  (predict_actual - predict_3)/delta]))
@@ -853,7 +851,7 @@ def test_GaussianProcess_predict_1():
             assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
             assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
 
-            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False, **predict_kwargs)
+            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
             assert_allclose(predict_actual, predict_expected)
             assert unc_actual is None
             assert deriv_actual is None
@@ -864,20 +862,11 @@ def test_GaussianProcess_predict_1():
 
         except NotImplementedError as ex:
             assert(type(gp) is GaussianProcessGPU)
-            
-            # To see this exception, it is necessary that either: the
-            # `require_gpu` parameter to predict was not passed (so
-            # defaulting to True), or the parameter was explicitly set
-            # to True
-            assert('require_gpu' not in predict_kwargs
-                   or predict_kwargs['require_gpu'] == True)
             warnings.warn(str(ex))
 
 
 def test_GaussianProcess_predict_2():
-    for GP, predict_kwargs in [(GaussianProcess, {})
-                               , (GaussianProcessGPU, {})
-                               , (GaussianProcessGPU, {'require_gpu': False})]:
+    for GP in [GaussianProcess, GaussianProcessGPU]:
         try:
             x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
             y = np.array([2., 3., 4.])
@@ -887,12 +876,12 @@ def test_GaussianProcess_predict_2():
             x_star = np.array([4., 0., 2.])
             predict_expected = 0.0174176198731851
             unc_expected = 2.7182302871685224
-            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, **predict_kwargs)
+            predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
 
             delta = 1.e-8
-            predict_1, _, _ = gp.predict(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False, **predict_kwargs)
-            predict_2, _, _ = gp.predict(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False, **predict_kwargs)
-            predict_3, _, _ = gp.predict(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False, **predict_kwargs)
+            predict_1, _, _ = gp.predict(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
+            predict_2, _, _ = gp.predict(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
+            predict_3, _, _ = gp.predict(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
 
             deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                                               (predict_actual - predict_3)/delta]))
@@ -907,20 +896,11 @@ def test_GaussianProcess_predict_2():
 
         except NotImplementedError as ex:
             assert(type(gp) is GaussianProcessGPU)
-
-            # To see this exception, it is necessary that either: the
-            # `require_gpu` parameter to predict was not passed (so
-            # defaulting to True), or the parameter was explicitly set
-            # to True
-            assert('require_gpu' not in predict_kwargs
-                   or predict_kwargs['require_gpu'] == True)
             warnings.warn(str(ex))
 
 
 def test_GaussianProcess_predict_3():
-    for GP, predict_kwargs in [(GaussianProcess, {})
-                               , (GaussianProcessGPU, {})
-                               , (GaussianProcessGPU, {'require_gpu': False})]:
+    for GP in [GaussianProcess, GaussianProcessGPU]:
         try:
             x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
             y = np.array([2., 3., 4.])
@@ -932,15 +912,14 @@ def test_GaussianProcess_predict_3():
             unc_expected = np.array([2.128741560279022 , 2.3180731417232177])
             deriv_expected = np.array([[ 0.4364915756366609, -0.1531782086880979,  0.1398493943868446],
                                        [ 0.9254540360545744,  0.2500010516838409,  1.1217531153714817]])
-            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, predict_from_samples = True,
-                                                                  **predict_kwargs)
+            predict_actual, unc_actual, deriv_actual = gp.predict(x_star, predict_from_samples = True)
 
             assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
             assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
             assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
             predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_unc = False, do_deriv = False,
-                                                                  predict_from_samples = True, **predict_kwargs)
+                                                                  predict_from_samples = True)
 
             assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
             assert unc_actual is None
@@ -952,13 +931,6 @@ def test_GaussianProcess_predict_3():
 
         except NotImplementedError as ex:
             assert(type(gp) is GaussianProcessGPU)
-
-            # To see this exception, it is necessary that either: the
-            # `require_gpu` parameter to predict was not passed (so
-            # defaulting to True), or the parameter was explicitly set
-            # to True
-            assert('require_gpu' not in predict_kwargs
-                   or predict_kwargs['require_gpu'] == True)
             warnings.warn(str(ex))
 
 
