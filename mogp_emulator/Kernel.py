@@ -195,8 +195,9 @@ class Kernel(object):
         r_matrix[(r_matrix == 0.)] = 1.
 
         for d in range(D - 1):
-            drdtheta[d] = 0.5 * np.exp(params[d]) / r_matrix * cdist(np.reshape(x1[:,d], (n1, 1)),
-                                                                     np.reshape(x2[:,d], (n2, 1)), "sqeuclidean")
+            drdtheta[d] = (0.5 * np.exp(params[d]) / r_matrix *
+                           cdist(np.reshape(x1[:,d], (n1, 1)),
+                           np.reshape(x2[:,d], (n2, 1)), "sqeuclidean"))
 
         return drdtheta
 
@@ -252,9 +253,12 @@ class Kernel(object):
                     d2rdtheta2[d1, d2] = (0.5*np.exp(params[d1]) / r_matrix *
                                           cdist(np.reshape(x1[:,d1], (n1, 1)),
                                                 np.reshape(x2[:,d1], (n2, 1)), "sqeuclidean"))
-                d2rdtheta2[d1, d2] -= (0.25 * np.exp(params[d1]) * np.exp(params[d2]) / r_matrix**3 *
-                                       cdist(np.reshape(x1[:,d1], (n1, 1)), np.reshape(x2[:,d1], (n2, 1)), "sqeuclidean")*
-                                       cdist(np.reshape(x1[:,d2], (n1, 1)), np.reshape(x2[:,d2], (n2, 1)), "sqeuclidean"))
+                d2rdtheta2[d1, d2] -= (0.25 * np.exp(params[d1]) *
+                                       np.exp(params[d2]) / r_matrix**3 *
+                                       cdist(np.reshape(x1[:,d1], (n1, 1)),
+                                             np.reshape(x2[:,d1], (n2, 1)), "sqeuclidean")*
+                                       cdist(np.reshape(x1[:,d2], (n1, 1)),
+                                             np.reshape(x2[:,d2], (n2, 1)), "sqeuclidean"))
 
         return d2rdtheta2
 
@@ -304,7 +308,8 @@ class Kernel(object):
         r_matrix[(r_matrix == 0.)] = 1.
 
         for d in range(D - 1):
-            drdx[d] = exp_theta[d]*(x1[:, d].flatten()[:, None] - x2[:, d].flatten()[None, :])/r_matrix
+            drdx[d] = exp_theta[d]*(x1[:, d].flatten()[ :,    None ] -
+                                    x2[:, d].flatten()[ None, :    ])/r_matrix
 
         return drdx
 
@@ -440,7 +445,9 @@ class Kernel(object):
 
         for d1 in range(D - 1):
             for d2 in range(D - 1):
-                d2Kdtheta2[d1, d2] = np.exp(params[-1]) * (d2Kdr2 * drdtheta[d1] * drdtheta[d2] + dKdr * d2rdtheta2[d1, d2])
+                d2Kdtheta2[d1, d2] = np.exp(params[-1]) * (d2Kdr2 *
+                                                           drdtheta[d1] * drdtheta[d2] +
+                                                           dKdr * d2rdtheta2[d1, d2])
 
         return d2Kdtheta2
 
