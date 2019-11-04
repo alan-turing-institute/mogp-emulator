@@ -798,10 +798,120 @@ def test_squared_exponential_hessian_failures():
         k.kernel_hessian(x, y, params)
 
 def test_squared_exponential_inputderiv():
-    pass
+    "test the input derivative method of squared exponential"
+
+    k = SquaredExponential()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    deriv = np.zeros((1, 2, 2))
+
+    r = np.array([[1., 2.], [0., 1.]])
+
+    deriv[0] = -r*np.exp(-0.5*r**2)*np.array([[-1., -1.], [0., -1.]])
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x + dx, y, params)-k.kernel_f(x - dx, y, params))/dx/2.
+
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv)
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0., 0., 0.])
+
+    deriv = np.zeros((2, 2, 2))
+
+    r = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+
+    deriv[0] = -np.exp(-0.5*r**2)*np.array([[-1., -2.], [0., -1.]])
+    deriv[1] = -np.exp(-0.5*r**2)*np.array([[-2., 1.], [-1., 2.]])
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x + np.array([[dx, 0.], [dx, 0.]]), y, params)-k.kernel_f(x - np.array([[dx, 0.], [dx, 0.]]), y, params))/dx/2.
+    deriv_fd[1] = (k.kernel_f(x + np.array([[0., dx], [0., dx]]), y, params)-k.kernel_f(x - np.array([[0., dx], [0., dx]]), y, params))/dx/2.
+
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv)
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.), np.log(4.), np.log(2.)])
+
+    deriv = np.zeros((2, 2, 2))
+
+    r = np.array([[np.sqrt(1.*2.+4.*4.), np.sqrt(4.*2.+1.*4.)], [np.sqrt(1.*4.), np.sqrt(1.*2.+4.*4.)]])
+
+    deriv[0] = -np.exp(2.)*np.exp(2.)*np.exp(-0.5*r**2)*np.array([[-1., -2.], [0., -1.]])
+    deriv[1] = -np.exp(2.)*np.exp(4.)*np.exp(-0.5*r**2)*np.array([[-2., 1.], [-1., 2.]])
+    deriv_fd = np.zeros((2, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x + np.array([[dx, 0.], [dx, 0.]]), y, params)-k.kernel_f(x - np.array([[dx, 0.], [dx, 0.]]), y, params))/dx/2.
+    deriv_fd[1] = (k.kernel_f(x + np.array([[0., dx], [0., dx]]), y, params)-k.kernel_f(x - np.array([[0., dx], [0., dx]]), y, params))/dx/2.
+
+    #assert_allclose(k.kernel_inputderiv(x, y, params), deriv)
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0., 0.])
+
+    deriv = np.zeros((1, 2, 2))
+
+    r = np.array([[1., 2.], [0., 1.]])
+
+    deriv[0] = -r*np.exp(-0.5*r**2)*np.array([[-1., -1.], [0., -1.]])
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x + dx, y, params)-k.kernel_f(x - dx, y, params))/dx/2.
+
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv)
+    assert_allclose(k.kernel_inputderiv(x, y, params), deriv_fd, rtol = 1.e-5)
 
 def test_squared_exponential_inputderiv_failures():
-    pass
+    "test situations where input derivative method should fail"
+
+    k = SquaredExponential()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+       k.kernel_inputderiv(x, y, params)
 
 def test_matern_5_2_K():
     "test matern 5/2 K(r) function"

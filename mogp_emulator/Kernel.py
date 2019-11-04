@@ -1,4 +1,4 @@
-"""
+r"""
 Kernel module, implements a few standard stationary kernels for use with the
 ``GaussianProcess`` class. At present, kernels can only be selected manually by setting
 the ``kernel`` attribute of the GP. The default is to use the ``SquaredExponential``
@@ -9,7 +9,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 class Kernel(object):
-    """
+    r"""
     Generic class representing a stationary kernel
 
     This base class implements the necessary scaffolding for defining a stationary kernel.
@@ -33,7 +33,7 @@ class Kernel(object):
     creating a new ``Kernal`` instance.
     """
     def __str__(self):
-        """
+        r"""
         Defines a string representation of the kernel
 
         Returns a string representation of the kernel. Note that since the kernel just
@@ -46,7 +46,7 @@ class Kernel(object):
         return "Stationary Kernel"
 
     def _check_inputs(self, x1, x2, params):
-        """
+        r"""
         Common function for checking dimensions of inputs
 
         This function checks the inputs to any kernel evaluation for consistency and ensures
@@ -112,7 +112,7 @@ class Kernel(object):
 
 
     def calc_r(self, x1, x2, params):
-        """
+        r"""
         Calculate distance between all pairs of points
 
         This method computes the scaled Euclidean distance between all pairs of points
@@ -150,7 +150,7 @@ class Kernel(object):
         return r_matrix
 
     def calc_drdtheta(self, x1, x2, params):
-        """
+        r"""
         Calculate the first derivative of the distance between all pairs of points with
         respect to the hyperparameters
 
@@ -201,7 +201,7 @@ class Kernel(object):
         return drdtheta
 
     def calc_d2rdtheta2(self, x1, x2, params):
-        """
+        r"""
         Calculate all second derivatives of the distance between all pairs of points with
         respect to the hyperparameters
 
@@ -259,7 +259,7 @@ class Kernel(object):
         return d2rdtheta2
 
     def calc_drdx(self, x1, x2, params):
-        "Compute derivative of r with respect to inputs"
+        r"Compute derivative of r with respect to inputs"
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
@@ -276,7 +276,7 @@ class Kernel(object):
         return drdx
 
     def kernel_f(self, x1, x2, params):
-        """
+        r"""
         Compute kernel values for a set of inputs
 
         Returns the value of the kernel for two sets of input points and a choice of
@@ -310,7 +310,7 @@ class Kernel(object):
         return np.exp(params[D - 1]) * self.calc_K(self.calc_r(x1, x2, params))
 
     def kernel_deriv(self, x1, x2, params):
-        """
+        r"""
         Compute kernel gradient for a set of inputs
 
         Returns the value of the kernel gradient for two sets of input points and a choice of
@@ -357,7 +357,7 @@ class Kernel(object):
         return dKdtheta
 
     def kernel_hessian(self, x1, x2, params):
-        """
+        r"""
         Calculate the Hessian of the kernel evaluated for all pairs of points with
         respect to the hyperparameters
 
@@ -412,11 +412,11 @@ class Kernel(object):
         return d2Kdtheta2
 
     def kernel_inputderiv(self, x1, x2, params):
-        "Compute derivative of Kernel wrt inputs x1"
+        r"Compute derivative of Kernel wrt inputs x1"
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
-        dKdx = np.zeros((D, n1, n2))
+        dKdx = np.zeros((D - 1, n1, n2))
 
         r_matrix = self.calc_r(x1, x2, params)
         dKdr = self.calc_dKdr(r_matrix)
@@ -429,7 +429,7 @@ class Kernel(object):
         return dKdx
 
     def calc_K(self, r):
-        """
+        r"""
         Calculate kernel as a function of distance
 
         This method implements the kernel function as a function of distance. Given an array
@@ -447,7 +447,7 @@ class Kernel(object):
         raise NotImplementedError("base Kernel class does not implement a kernel function")
 
     def calc_dKdr(self, r):
-        """
+        r"""
         Calculate first derivative of kernel as a function of distance
 
         This method implements the first derivative of the kernel function as a function of
@@ -465,7 +465,7 @@ class Kernel(object):
         raise NotImplementedError("base Kernel class does not implement a kernel derivative function")
 
     def calc_d2Kdr2(self, r):
-        """
+        r"""
         Calculate second derivative of kernel as a function of distance
 
         This method implements the second derivative of the kernel function as a function of
@@ -483,7 +483,7 @@ class Kernel(object):
         raise NotImplementedError("base Kernel class does not implement kernel derivatives")
 
 class SquaredExponential(Kernel):
-    """
+    r"""
     Implementation of the squared exponential kernel
 
     Class representing a squared exponential kernel. It derives from the base class for a
@@ -492,7 +492,7 @@ class SquaredExponential(Kernel):
     """
 
     def calc_K(self, r):
-        """
+        r"""
         Compute K(r) for the squared exponential kernel
 
         This method implements the squared exponential kernel function as a function of distance.
@@ -513,7 +513,7 @@ class SquaredExponential(Kernel):
         return np.exp(-0.5*r**2)
 
     def calc_dKdr(self, r):
-        """
+        r"""
         Calculate first derivative of the squared exponential kernel as a function of distance
 
         This method implements the first derivative of the squared exponential kernel function
@@ -534,7 +534,7 @@ class SquaredExponential(Kernel):
         return -r*np.exp(-0.5*r**2)
 
     def calc_d2Kdr2(self, r):
-        """
+        r"""
         Calculate second derivative of the squared exponential kernel as a function of distance
 
         This method implements the second derivative of the squared exponential kernel function
@@ -555,7 +555,7 @@ class SquaredExponential(Kernel):
         return (r**2 - 1.)*np.exp(-0.5*r**2)
 
     def __str__(self):
-        """
+        r"""
         Defines a string representation of the squared exponential kernel
 
         Returns a string representation of the squared exponential kernel. Note that since
@@ -568,7 +568,7 @@ class SquaredExponential(Kernel):
         return "Squared Exponential Kernel"
 
 class Matern52(Kernel):
-    """
+    r"""
     Implementation of the Matern 5/2 kernel
 
     Class representing the Matern 5/2 kernel. It derives from the base class for a
@@ -576,7 +576,7 @@ class Matern52(Kernel):
     defines the kernel function and its derivatives.
     """
     def calc_K(self, r):
-        """
+        r"""
         Compute K(r) for the Matern 5/2 kernel
 
         This method implements the Matern 5/2 kernel function as a function of distance.
@@ -597,7 +597,7 @@ class Matern52(Kernel):
         return (1.+np.sqrt(5.)*r+5./3.*r**2)*np.exp(-np.sqrt(5.)*r)
 
     def calc_dKdr(self, r):
-        """
+        r"""
         Calculate first derivative of the Matern 5/2 kernel as a function of distance
 
         This method implements the first derivative of the Matern 5/2 kernel function
@@ -618,7 +618,7 @@ class Matern52(Kernel):
         return -5./3.*r*(1.+np.sqrt(5.)*r)*np.exp(-np.sqrt(5.)*r)
 
     def calc_d2Kdr2(self, r):
-        """
+        r"""
         Calculate second derivative of the squared exponential kernel as a function of distance
 
         This method implements the second derivative of the squared exponential kernel function
@@ -639,7 +639,7 @@ class Matern52(Kernel):
         return 5./3.*(5.*r**2-np.sqrt(5.)*r-1.)*np.exp(-np.sqrt(5.)*r)
 
     def __str__(self):
-        """
+        r"""
         Defines a string representation of the Matern 5/2 kernel
 
         Returns a string representation of the Matern 5/2 kernel. Note that since
