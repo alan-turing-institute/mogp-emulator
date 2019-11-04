@@ -259,7 +259,40 @@ class Kernel(object):
         return d2rdtheta2
 
     def calc_drdx(self, x1, x2, params):
-        r"Compute derivative of r with respect to inputs"
+        r"""
+        Calculate the first derivative of the distance between all pairs of points with
+        respect to the first set of inputs
+
+        This method computes the derivative of the scaled Euclidean distance between
+        all pairs of points in ``x1`` and ``x2`` with respect to the first input ``x1.
+        The gradient is held in an array with shape ``(D, n1, n2)``, where ``D`` is the
+        length of the second axis of ``x1``, ``n1`` is the length of the first axis of
+        ``x1``, and ``n2`` is the length of the first axis of ``x2``. This is used in the
+        computation of the derivative of the kernel with respect to the inputs. The first
+        index represents the different derivatives with respect to each input dimension.
+
+        :param x1: First input array. Must be a 1-D or 2-D array, with the length of
+                   the last dimension matching the last dimension of ``x2`` and
+                   one less than the length of ``params``. ``x1`` may be 1-D if either
+                   each point consists of a single parameter (and ``params`` has length
+                   2) or the array only contains a single point (in which case, the array
+                   will be reshaped to ``(1, D - 1)``).
+        :type x1: array-like
+        :param x2: Second input array. The same restrictions that apply to ``x1`` also
+                   apply here.
+        :type x2: array-like
+        :param params: Hyperparameter array. Must be 1-D with length one greater than
+                       the last dimension of ``x1`` and ``x2``.
+        :type params: array-like
+        :returns: Array holding the derivative of the pair-wise distances between
+                  points in arrays ``x1`` and ``x2`` with respect to ``x1``.
+                  Will be an array with shape ``(D, n1, n2)``, where ``D`` is the length
+                  of the second dimension of ``x1``, ``n1`` is the length of the first axis
+                  of ``x1`` and ``n2`` is the length of the first axis of ``x2``. The first
+                  axis indicates the different derivative components (i.e. the derivative
+                  with respect to the first input parameter is [0,:,:], etc.)
+        :rtype: ndarray
+        """
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
@@ -412,7 +445,37 @@ class Kernel(object):
         return d2Kdtheta2
 
     def kernel_inputderiv(self, x1, x2, params):
-        r"Compute derivative of Kernel wrt inputs x1"
+        r"""
+        Compute derivative of Kernel with respect to inputs x1
+
+        Returns the value of the kernel derivative with respect to the first set of input
+        points given inputs and a choice of hyperparameters. This function should not need
+        to be modified for different choices of the kernel function or distance metric, as
+        after checking the inputs it simply calls the routine to compute the distance metric,
+        kernel function, and the appropriate derivative functions of the distance and kernel
+        functions.
+
+        :param x1: First input array. Must be a 1-D or 2-D array, with the length of
+                   the last dimension matching the last dimension of ``x2`` and
+                   one less than the length of ``params``. ``x1`` may be 1-D if either
+                   each point consists of a single parameter (and ``params`` has length
+                   2) or the array only contains a single point (in which case, the array
+                   will be reshaped to ``(1, D - 1)``).
+        :type x1: array-like
+        :param x2: Second input array. The same restrictions that apply to ``x1`` also
+                   apply here.
+        :type x2: array-like
+        :param params: Hyperparameter array. Must be 1-D with length one greater than
+                       the last dimension of ``x1`` and ``x2``.
+        :type params: array-like
+        :returns: Array holding the derivative of the kernel function between points in arrays
+                  ``x1`` and ``x2`` with respect to the first inputs ``x1``. Will be an array with
+                  shape ``(D, n1, n2)``, where ``D`` is the length of the second axis of ``x1``,
+                  ``n1`` is the length of the first axis of ``x1`` and ``n2`` is the length of the
+                  first axis of ``x2``. The first axis indicates the different derivative components
+                  (i.e. the derivative with respect to the first input dimension is [0,:,:], etc.)
+        :rtype: ndarray
+        """
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
