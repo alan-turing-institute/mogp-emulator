@@ -268,7 +268,7 @@ class Kernel(object):
         respect to the first set of inputs
 
         This method computes the derivative of the scaled Euclidean distance between
-        all pairs of points in ``x1`` and ``x2`` with respect to the first input ``x1.
+        all pairs of points in ``x1`` and ``x2`` with respect to the first input ``x1``.
         The gradient is held in an array with shape ``(D, n1, n2)``, where ``D`` is the
         length of the second axis of ``x1``, ``n1`` is the length of the first axis of
         ``x1``, and ``n2`` is the length of the first axis of ``x2``. This is used in the
@@ -280,7 +280,7 @@ class Kernel(object):
                    one less than the length of ``params``. ``x1`` may be 1-D if either
                    each point consists of a single parameter (and ``params`` has length
                    2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D - 1)``).
+                   will be reshaped to ``(1, D)``).
         :type x1: array-like
         :param x2: Second input array. The same restrictions that apply to ``x1`` also
                    apply here.
@@ -467,7 +467,7 @@ class Kernel(object):
                    one less than the length of ``params``. ``x1`` may be 1-D if either
                    each point consists of a single parameter (and ``params`` has length
                    2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D - 1)``).
+                   will be reshaped to ``(1, D)``).
         :type x1: array-like
         :param x2: Second input array. The same restrictions that apply to ``x1`` also
                    apply here.
