@@ -269,8 +269,8 @@ class Kernel(object):
 
         This method computes the derivative of the scaled Euclidean distance between
         all pairs of points in ``x1`` and ``x2`` with respect to the first input ``x1``.
-        The gradient is held in an array with shape ``(D, n1, n2)``, where ``D`` is the
-        length of the second axis of ``x1``, ``n1`` is the length of the first axis of
+        The gradient is held in an array with shape ``(D - 1, n1, n2)``, where ``D`` is the
+        length of ``params``, ``n1`` is the length of the first axis of
         ``x1``, and ``n2`` is the length of the first axis of ``x2``. This is used in the
         computation of the derivative of the kernel with respect to the inputs. The first
         index represents the different derivatives with respect to each input dimension.
@@ -280,7 +280,7 @@ class Kernel(object):
                    one less than the length of ``params``. ``x1`` may be 1-D if either
                    each point consists of a single parameter (and ``params`` has length
                    2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D)``).
+                   will be reshaped to ``(1, D - 1)``).
         :type x1: array-like
         :param x2: Second input array. The same restrictions that apply to ``x1`` also
                    apply here.
@@ -291,7 +291,7 @@ class Kernel(object):
         :returns: Array holding the derivative of the pair-wise distances between
                   points in arrays ``x1`` and ``x2`` with respect to ``x1``.
                   Will be an array with shape ``(D, n1, n2)``, where ``D`` is the length
-                  of the second dimension of ``x1``, ``n1`` is the length of the first axis
+                  of ``params``, ``n1`` is the length of the first axis
                   of ``x1`` and ``n2`` is the length of the first axis of ``x2``. The first
                   axis indicates the different derivative components (i.e. the derivative
                   with respect to the first input parameter is [0,:,:], etc.)
@@ -467,7 +467,7 @@ class Kernel(object):
                    one less than the length of ``params``. ``x1`` may be 1-D if either
                    each point consists of a single parameter (and ``params`` has length
                    2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D)``).
+                   will be reshaped to ``(1, D - 1)``).
         :type x1: array-like
         :param x2: Second input array. The same restrictions that apply to ``x1`` also
                    apply here.
@@ -477,7 +477,7 @@ class Kernel(object):
         :type params: array-like
         :returns: Array holding the derivative of the kernel function between points in arrays
                   ``x1`` and ``x2`` with respect to the first inputs ``x1``. Will be an array with
-                  shape ``(D, n1, n2)``, where ``D`` is the length of the second axis of ``x1``,
+                  shape ``(D, n1, n2)``, where ``D`` is the length of ``params``,
                   ``n1`` is the length of the first axis of ``x1`` and ``n2`` is the length of the
                   first axis of ``x2``. The first axis indicates the different derivative components
                   (i.e. the derivative with respect to the first input dimension is [0,:,:], etc.)
