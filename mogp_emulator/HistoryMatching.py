@@ -180,81 +180,7 @@ class HistoryMatching(object):
 
         return expectations
 
-    def _parse_variances(self, *args):
-        r"""
-        Parse variances from arguments for use in ``get_implausibility``
-
-        This is a helper function to parse the arguments to ``get_implausibility``
-        to create two lists of variance for use in history matching. The arguments
-        to ``get_implausibility`` can consist of either lists holding variances for
-        each query point, or a single value that applies uniformly to all points.
-        This function checks that the length of all provided lists are correct
-        and appends them to the ``varlists`` numpy array output, which has shape
-        ``(ncoord, m)`` where ``m`` is the number of lists of variances provided.
-        If no variance lists are provided, ``varlists`` will be ``None``.
-        The method also checks all single values and appends them to the
-        ``varvals`` list. If the code encounters bad inputs for either, either
-        in shape or if it encounters any negative values, it raises an exception.
-
-        :param args: List of additional variances to include in the calculation.
-                     These must all be non-negative floats or lists of length
-                     ``ncoord`` of non-negative floats.
-        :returns: Tuple of one list and one ndarray holding the variances for
-                  history matching, or one list and ``None`` if no lists are
-                  provided with the input. The first entry is a list of all
-                  single values provided, and the second is a numpy array with
-                  shape ``(ncoords, m)`` where ``m`` is the number of provided
-                  lists.
-        :rtype: tuple containing a list and a ndarray or a list and None
-        """
-        # Read in args, check for validity and construct iterable lists.
-        varvals = []
-        varlists = None
-
-        for a in args:
-            # For each argument, check whether it's a single value or a list/array
-            # of multiple values
-            if isinstance(a, list):    # vars as list: convert to ndarray and adjoin
-                if len(a) != self.ncoords:
-                    raise ValueError("bad input for get_implausibility - expected variance" +
-                                     "quantities containing 1 or " + str(self.ncoords) +
-                                     " values, found quantities containing " + str(len(a)))
-                if varlists is None:
-                    varlists = np.reshape(np.asarray(a), (-1, 1))
-                else:
-                    varlists = np.concatenate((varlists, np.reshape(np.asarray(a), (-1, 1))),
-                                              axis=1)
-            elif isinstance(a, np.ndarray):    # vars as ndarray: reshape and adjoin
-                if len(a.shape) == 1:
-                    a = np.reshape(a, (-1, 1))
-                elif (len(a.shape) > 2 or a.shape[1] != 1):
-                    raise ValueError("bad input for get_implausibility - expected variance " +
-                                     "quantities as single numerical values, lists, or " +
-                                     "ndarrays of shape (n,) or (n, 1), found ndarray of " +
-                                     "shape " + str(a.shape))
-                elif a.shape[0] != self.ncoords:
-                    raise ValueError("bad input for get_implausibility - expected variance " +
-                                     "quantities containing 1 or " + str(self.ncoords)+
-                                     " values, found quantities containing"+ str(a.shape[0]))
-                if varlists is None:
-                    varlists = a
-                else:
-                    varlists = np.concatenate((varlists, a), axis=1)
-            else:
-                try:                    # vars as individual values: append to varvals
-                    varvals.append(float(a))
-                except:
-                    raise Exception("bad input for get_implausibility - expected variance " +
-                                    "quantities as single numerical values, lists, or " +
-                                    "ndarrays, found variable of type " + str(type(a)))
-
-        assert np.all(np.array(varvals) >= 0.), "all variances must be positive"
-        if varlists is not None:
-            assert np.all(np.array(varlists) >= 0.), "all variances must be positive"
-
-        return varvals, varlists
-
-    def get_implausibility(self, *args):
+    def get_implausibility(self, discrepancy = 0.):
         r"""
         Compute Implausibility measure for all query points
 
@@ -278,27 +204,19 @@ class HistoryMatching(object):
         over the prediction method (i.e. make the predictions from MCMC samples),
         the user should explicitly pass ``expectations`` to the object.
 
-        All parameters to be passed into the function are assumed to be variances.
-        These can be in either of 2 forms:
-
-          a) single values that correspond to variances on the observation or that
-             are a constant across all expectation values.
-          b) lists containing a variance parameter for each expectation value.
-
-        These additional variances can be used to include measurement uncertainty in
-        ``obs`` (though the ``obs`` object can also accept a measurement variance)
-        or a more general model discrepancy that describes the prior beliefs regarding
-        how well the model matches reality. In practice, the model discrepancy is
-        essential to have predictions that are not overly confident, however it can
-        be hard to estimate (see further discussion in Brynjarsdottir and O\'Hagan,
-        2014).
+        An additional variance can be included that represents a general model
+        discrepancy that describes the prior beliefs regarding how well the model
+        matches reality. In practice, the model discrepancy is essential to have
+        predictions that are not overly confident, however it can be hard to estimate
+        (see further discussion in Brynjarsdottir and O\'Hagan, 2014).
 
         As the implausibility calculation linearly sums variances, the result is
-        agnostic to the precise provenance of any provided variances. Variances
-        may therefore be provided in any order.
+        agnostic to the precise provenance of any of the included variances
 
-        :param args: List of additional variances to include in the calculation.
-                      These must all be positive floats.
+        :param discrepancy: Additional variance to be included in the implausibility
+                            calculation. Must be a non-negative float. Optional, default
+                            is ``0.``
+        :type discrepancy: float
         :returns: Array holding implausibility metric for all query points accounting
                   for all variances, ndarray of length ``(ncoords,)``
         :rtype: ndarray
@@ -309,29 +227,21 @@ class HistoryMatching(object):
             raise ValueError("implausibility calculation requires that the observation value is " +
                              "set. This can be done using the set_obs method.")
 
+        assert discrepancy >= 0., "Model discrepancy variance cannot be negative"
+
         expectations = self._select_expectations()
-
-        varvals, varlists = self._parse_variances(*args)
-
-        if not varlists is None:
-            assert varlists.shape[0] == len(expectations[0]), \
-                    "mismatch between variances and GP predictions"
-            assert varlists.shape[0] == len(expectations[1]), \
-                    "mismatch between variances and GP predictions"
 
         # Compute implausibility for each expectation value
         Vs = np.zeros(self.ncoords)
         Vs += expectations[1]                         # variance on expectation
-        Vs += sum(varvals)                            # fixed variance values
+        Vs += discrepancy                             # model discrepancy
         Vs += self.obs[1]                             # variance on observation
-        if varlists is not None:                      # individual variance values
-            Vs += np.sum(varlists, axis=1)
         self.I = (np.abs(self.obs[0] - expectations[0]) / np.sqrt(Vs))
 
         return self.I
 
 
-    def get_NROY(self, *args):
+    def get_NROY(self, discrepancy = 0.):
         r"""
         Return set of indices that are not yet ruled out
 
@@ -339,20 +249,25 @@ class HistoryMatching(object):
         yet ruled out. Points that are ruled out have an implausibility metric that
         exceeds the threshold (can be set when initializing history matching or using
         the ``set_threshold`` method). If the implausibility metric has not yet been
-        computed for the desired points, it is calculated.
+        computed for the desired points, it is calculated. If a model discrepancy
+        is to be included, it can be passed here.
 
-        :param args: Inputs for ``get_implausibility`` if it has not yet been computed.
+        :param discrepancy: Additional variance to be included in the implausibility
+                            calculation. Must be a non-negative float. Optional, default
+                            is ``0.``
+        :type discrepancy: float
         :returns: List of integer indices that have not yet been ruled out.
         :rtype: list
         """
-        if self.I is None: self.get_implausibility(*args)
+        if self.I is None:
+            self.get_implausibility(discrepancy)
 
         self.NROY = list(np.where(self.I <= self.threshold)[0])
 
         return self.NROY
 
 
-    def get_RO(self, *args):
+    def get_RO(self, discrepancy = 0.):
         r"""
         Return set of indices that have been ruled out
 
@@ -360,13 +275,18 @@ class HistoryMatching(object):
         been ruled out. Points that are ruled out have an implausibility metric that
         exceeds the threshold (can be set when initializing history matching or using
         the ``set_threshold`` method). If the implausibility metric has not yet been
-        computed for the desired points, it is calculated.
+        computed for the desired points, it is calculated. If a model discrepancy
+        is to be included, it can be passed here.
 
-        :param args: Inputs for ``get_implausibility`` if it has not yet been computed.
+        :param discrepancy: Additional variance to be included in the implausibility
+                            calculation. Must be a non-negative float. Optional, default
+                            is ``0.``
+        :type discrepancy: float
         :returns: List of integer indices that have been ruled out.
         :rtype: list
         """
-        if self.I is None: self.get_implausibility(*args)
+        if self.I is None:
+            self.get_implausibility(discrepancy)
 
         self.RO = list(np.where(self.I > self.threshold)[0])
 

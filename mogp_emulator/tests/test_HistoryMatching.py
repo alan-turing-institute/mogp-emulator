@@ -131,29 +131,6 @@ def test_sanity_checks():
     hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
     I = hm.get_implausibility(7.)
 
-    print("implausibility test c - multiple values")
-    hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausibility(7., 8, 109.5)
-
-    print("implausibility test d - single list")
-    hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    var = [a for a in range(2000)]
-    I = hm.get_implausibility([a for a in range(2000)])
-
-    print("implausibility test d - multiple lists")
-    hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    I = hm.get_implausibility(var, [v+2 for v in var], [v*7 for v in var])
-
-    print("implausibility test e - single 1D ndarray ")
-    hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    var = np.asarray(var)
-    I = hm.get_implausibility(var)
-
-    print("implausibility test f - single 2D ndarray ")
-    hm = HistoryMatching(obs=obs, gp=gp, coords=coords)
-    var = np.reshape(np.asarray(var), (-1, 1))
-    I = hm.get_implausibility(var)
-
 def test_HistoryMatching_init():
     "test the init method of HistoryMatching"
 
@@ -248,46 +225,6 @@ def test_HistoryMatching_select_expectations():
     with pytest.raises(ValueError):
         hm._select_expectations()
 
-def test_HistoryMatching_parse_variances():
-    "test the parse_variances method of HistoryMatching"
-
-    # correct functionality for varvals
-
-    hm = HistoryMatching()
-
-    varvals, varlists = hm._parse_variances(1., 2.)
-
-    assert varvals == [1., 2.]
-    assert varlists is None
-
-    # correct functionality for varlists
-
-    hm = HistoryMatching(coords=np.array([[1.], [2.]]))
-    varvals, varlists = hm._parse_variances([1., 2.], [3., 4.])
-
-    assert varvals == []
-    assert_allclose(varlists, np.reshape([1., 3., 2., 4.], (2, 2)))
-
-    # both at once
-
-    varvals, varlists = hm._parse_variances(1., [1., 2.], [3., 4.])
-
-    assert varvals == [1.]
-    assert_allclose(varlists, np.reshape([1., 3., 2., 4.], (2, 2)))
-
-    # bad value for varlists
-
-    with pytest.raises(ValueError):
-        hm._parse_variances([1., 2., 3.])
-
-    # bad value for variances
-
-    with pytest.raises(AssertionError):
-        hm._parse_variances(-1.)
-
-    with pytest.raises(AssertionError):
-        hm._parse_variances([-1., -2.])
-
 def test_HistoryMatching_get_implausibility():
     "test the get_implausibility method of HistoryMatching"
 
@@ -304,16 +241,6 @@ def test_HistoryMatching_get_implausibility():
 
     assert_allclose(I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
     assert_allclose(hm.I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
-
-    I = hm.get_implausibility(1., 2.)
-
-    assert_allclose(I, [0.5, 4.5])
-    assert_allclose(hm.I, [0.5, 4.5])
-
-    I = hm.get_implausibility(1., [0., 2.])
-
-    assert_allclose(I, [1./np.sqrt(2.), 4.5])
-    assert_allclose(hm.I, [1./np.sqrt(2.), 4.5])
 
     gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     np.random.seed(57483)
@@ -336,6 +263,12 @@ def test_HistoryMatching_get_implausibility():
     with pytest.raises(ValueError):
         hm.get_implausibility()
 
+    # negative variance for model discrepancy
+
+    hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
+
+    with pytest.raises(AssertionError):
+        hm.get_implausibility(-1.)
 
 def test_HistoryMatching_get_NROY():
     "test the get_NROY method of HistoryMatching"
