@@ -225,6 +225,13 @@ def test_HistoryMatching_select_expectations():
     with pytest.raises(ValueError):
         hm._select_expectations()
 
+    # if no expectations provided, fails
+
+    hm = HistoryMatching(obs=obs)
+
+    with pytest.raises(ValueError):
+        hm._select_expectations()
+
 def test_HistoryMatching_get_implausibility():
     "test the get_implausibility method of HistoryMatching"
 

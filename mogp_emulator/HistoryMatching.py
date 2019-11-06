@@ -165,6 +165,9 @@ class HistoryMatching(object):
         if UseCoordGP and UseExpectations:
             raise ValueError("Multiple valid parameter combinations are set. Previously set " +
                              "parameters can be removed by setting them to None")
+        if not UseCoordGP and not UseExpectations:
+            raise ValueError("Expectations are not provided, nor is a GP and coordinates." +
+                             "must set one in order to perform History Matching")
 
         # Confirm that the ncoords parameter is set
         if self.ncoords is None:
@@ -459,14 +462,14 @@ class HistoryMatching(object):
         checks if the provided variance is non-negative.
 
         :param obs: Input for observations to be checked
-        :type obs: float or list
+        :type obs: float or list-like
         :returns: Boolean indicating if provided observations are acceptable
         :rtype: bool
         """
-        # TODO: allow tuple arguments as well as lists.
+
         if obs is None:
             return False
-        if isinstance(obs, list):
+        if isinstance(obs, list) or isinstance(obs, tuple) or isinstance(obs, np.ndarray):
             if len(obs) > 2:
                 raise ValueError("bad input type for HistoryMatching - the specified " +
                                  "observation parameter cannot contain more than 2 entries "+
@@ -497,7 +500,7 @@ class HistoryMatching(object):
         coordinates.
 
         Returns a boolean that is ``True`` if the provided quantity is consistent with
-        the requirements for the coordinates quantity, i.e. is a list or ndarray of
+        the requirements for the coordinates quantity, i.e. a ndarray of
         fewer than 3 dimensions.
 
         :param coords: Input to check for consistency with coordinates.
@@ -505,12 +508,10 @@ class HistoryMatching(object):
         :returns: Boolean indicating if coords is consistent
         :rtype: bool
         """
-        # TODO: implement check that arrays or lists contain only numerical values
+
         if coords is None:
             return False
 
-        if isinstance(coords, list):
-            return True
         if isinstance(coords, np.ndarray):
             if len(coords.shape) <= 2:
                 return True
