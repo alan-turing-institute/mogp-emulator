@@ -90,7 +90,7 @@ small set of fixed basis functions (often simply linear or low order
 polynomials) then a regression (wrapper) analysis can be used to
 identify the active inputs. One such procedure is described in the
 procedure page for the empirical construction of a BL emulator
-(`ProcBuildCoreBLEmpirical <ProcBuildCoreBLEmpirical.html#AnchorActiveInputs>`__)
+(:ref:`ProcBuildCoreBLEmpirical <ProcBuildCoreBLEmpirical>`)
 and is an example of a wrapper method. Many other methods for variable
 selection are possible and can be found in textbooks on statistics and
 in papers on stepwise variable selection for regression models.
@@ -110,7 +110,7 @@ increased computational complexity.
 References
 ----------
 
-Guyon, I. and A. Elisseeff (2003). `An introduction to variable and
-feature
-selection <http://jmlr.csail.mit.edu/papers/volume3/guyon03a/guyon03a.pdf>`__.
-Journal of Machine Learning Research 3, 1157\x{2013}1182.
+Guyon, I. and A. Elisseeff (2003). *An introduction to variable and
+feature selection*,
+`http://jmlr.csail.mit.edu/papers/volume3/guyon03a/guyon03a.pdf <http://jmlr.csail.mit.edu/papers/volume3/guyon03a/guyon03a.pdf>`_.
+Journal of Machine Learning Research 3, 1157 - 1182.

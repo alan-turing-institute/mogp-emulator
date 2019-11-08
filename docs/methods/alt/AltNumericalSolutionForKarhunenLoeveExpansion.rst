@@ -25,9 +25,9 @@ Integral method
 ~~~~~~~~~~~~~~~
 
 This is a direct approximation for the integral, i.e.
-:math:`\int_{0}^{1}f(t)dt \\approx \\sum_{i=0}^{n+1}\omega_if(t_i).`
+:math:`\int_{0}^{1}f(t)dt \approx \sum_{i=0}^{n+1}\omega_if(t_i).`
 
-The bigger the :math:`\strut{n}`, the better the approximation.
+The bigger the :math:`n`, the better the approximation.
 
 Expansion method
 ~~~~~~~~~~~~~~~~

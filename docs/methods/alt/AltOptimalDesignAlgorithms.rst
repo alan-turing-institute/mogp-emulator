@@ -62,7 +62,7 @@ Exchange algorithms
 
 This is described in more detail in
 :ref:`ProcExchangeAlgorithm<ProcExchangeAlgorithm>`. The method is to
-find an optimal design with fixed sample size :math:`\strut{n}`. Given a
+find an optimal design with fixed sample size :math:`n`. Given a
 large candidate set and an initial design, which is a subset of the
 candidate set, points are exchanged between the design and the points in
 the candidate set, but outside the design. This is done in a way to keep
