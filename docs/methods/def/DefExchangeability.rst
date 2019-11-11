@@ -13,10 +13,10 @@ are exchangeable, our beliefs about the fairness of the coin will be
 unaffected by the order in which we observe the heads and tails.
 
 In formal terms, when our beliefs about a sequence of random variables
-:math:`X_1, X_2, \\dots` are characterised by a joint probability
-distribution, if the :math:`X_i`s are exchangeable then the joint
+:math:`X_1, X_2, \ldots` are characterised by a joint probability
+distribution, if the :math:`X_i`\s are exchangeable then the joint
 probability distribution of the sequence is the same as the joint
-distribution over any re-ordering of the :math:`X_i`s. In fact, the
+distribution over any re-ordering of the :math:`X_i`\s. In fact, the
 assertion of exchangeability implies the existence of this underlying
 joint distribution.
 

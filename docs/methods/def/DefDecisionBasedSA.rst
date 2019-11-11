@@ -5,7 +5,7 @@ Definition of Term: Decision-based sensitivity analysis
 
 In decision-based :ref:`sensitivity analysis<DefSensitivityAnalysis>`
 we consider the effect on a decision which will be based on the output
-:math::ref:`f(X)` of a `simulator<DefSimulator>` as we vary the inputs
+:math:`f(X)` of a :ref:`simulator<DefSimulator>` as we vary the inputs
 :math:`X`, when the variation of those inputs is described by a (joint)
 probability distribution. This probability distribution can be
 interpreted as describing uncertainty about the best or true values for
@@ -31,7 +31,7 @@ be the resulting maximised expected utility. This of course depends on
 the true value :math:`x_i` of :math:`X_i`, which we do not know. The
 decision-based sensitivity measure for the i-th input is then the value
 of learning the true value of :math:`X_i` in terms of improved expected
-utility, i.e. :math:`V_i = \\text{E}[U^*_i(X_i)] - U^\* \`, where the
+utility, i.e. :math:`V_i = \text{E}[U^*_i(X_i)] - U^*`, where the
 expectation in the first term is with respect to the marginal
 distribution of :math:`X_i`.
 

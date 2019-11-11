@@ -20,8 +20,8 @@ nutrients and so on. Fixed inputs parameterise the biological processes
 within the plant, while forcing inputs may include the temperature,
 humidity and intensity of sunlight at a given time point.
 
-At time :math:`\strut t`, the simulator uses the time :math:`\strut t` value
-of its state vector, the fixed inputs and the time :math:`\strut t` values
+At time :math:`t`, the simulator uses the time :math:`t` value
+of its state vector, the fixed inputs and the time :math:`t` values
 of the forcing inputs to compute the value of its state vector at time
 :math:`t+\Delta t` (where :math:`\Delta t` is the length of the simulator's
 time step). It then repeats this process using the new state vector, the
