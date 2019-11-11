@@ -28,7 +28,7 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
 
         // Send one row of K(r) to the host
         for (unsigned col=0; col<n; col++){
-            k[offset+col] = r[offset+col];
+            k[offset+col] = k_cache[offset+col];
         }
     }
 }
