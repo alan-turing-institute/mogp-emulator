@@ -23,8 +23,8 @@ analysis<DefUncertaintyAnalysis>`.
 
 If we were to remove the uncertainty in :math:`X_i`, then we would expect
 the uncertainty in :math:`f(X)` to reduce. The amount of this expected
-reduction is :math:` V_i = \\textrm{Var}[f(X)] -
-\\textrm{E}[\textrm{Var}[f(X)\,|\,X_i]] \`. Notice that the second term
+reduction is :math:`V_i = \textrm{Var}[f(X)] -
+\textrm{E}[\textrm{Var}[f(X)\,|\,X_i]]`. Notice that the second term
 in this expression involves first finding the conditional variance of
 :math:`f(X)` given that :math:`X_i` takes some value :math:`x_i`, which is the
 uncertainty we would have about the simulator output if we were certain
@@ -35,7 +35,7 @@ uncertainty in :math:`X_i`.
 
 Thus, :math:`V_i` is defined as the variance-based sensitivity variance for
 the i-th input. Referring to the definition of the main effect
-:math::ref:`I_i(x_i)` in the `sensitivity analysis
+:math:`I_i(x_i)` in the :ref:`sensitivity analysis
 definition<DefSensitivityAnalysis>`, it can be shown that
 :math:`V_i` is the variance of this main effect. Again for the multi output
 case this will be a variance matrix, with the main effect being a
@@ -50,13 +50,13 @@ higher order interactions that involve three or more inputs) sum to the
 total variance :math:`\textrm{Var}[f(X)]`.
 
 The sensitivity variance is often expressed as a proportion of the
-overall variance :math:`V= \\textrm{Var}[f(X)]`. The ratio :math:`S_i=V_i/V`
+overall variance :math:`V= \textrm{Var}[f(X)]`. The ratio :math:`S_i=V_i/V`
 is referred to as the sensitivity index for the i-th input, and
 sensitivity indices for interactions are similarly defined.
 
 Another index of sensitivity for the i-th input that is sometimes used
-is the total sensitivity index :math:` T_i =
-\\textrm{E}[\textrm{Var}[f(X)\,|\,X_{-i}]]/V \`, where :math:`X_{-i}`
+is the total sensitivity index :math:`T_i =
+\textrm{E}[\textrm{Var}[f(X)\,|\,X_{-i}]]/V`, where :math:`X_{-i}`
 means all the inputs *except* :math:`X_i`. This is the expected proportion
 of uncertainty in the model output that would be left if we removed the
 uncertainty in all the inputs except the i-th. In the case of

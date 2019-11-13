@@ -50,16 +50,16 @@ interactions as follows. Let the model output for input vector :math:`X` be
 :math:`\textrm{E}[\cdot]` denotes expectation with respect to the
 probability distribution defined for :math:`X`.
 
--  The main effect of an input :math:`X_i` is the function :math:`
-   I_i(x_i)=\textrm{E}[f(X)\,|\,X_i=x_i] - \\textrm{E}[f(X)] \`. So we
+-  The main effect of an input :math:`X_i` is the function
+   :math:`I_i(x_i)=\textrm{E}[f(X)\,|\,X_i=x_i] - \textrm{E}[f(X)]`. So we
    first take the expected value of the output, averaged over the
    distribution of all the other inputs conditional on the value of
    :math:`X_i` being :math:`x_i`, then we subtract the overall expected value
    of the output, averaged over the distribution of all the inputs.
 
 -  The interaction between inputs :math:`X_i` and :math:`X_j` is the function
-   :math:` I_{\{i,j\}}(x_i,x_j)=\textrm{E}[f(X)\,|\,X_i=x_i, X_j=x_j] -
-   I_i(x_i) - I_j(x_j) - \\textrm{E}[f(X)] \`. This represents
+   :math:`I_{\{i,j\}}(x_i,x_j)=\textrm{E}[f(X)\,|\,X_i=x_i, X_j=x_j] -
+   I_i(x_i) - I_j(x_j) - \textrm{E}[f(X)]`. This represents
    deviation in the joint effect of varying the two inputs after
    subtracting their main effects.
 

@@ -15,7 +15,8 @@ specifies the correlation between simulator outputs at input vectors
 correlation function has the form of a product of one-dimensional
 correlation functions:
 
-:math:`c(x,x^\prime) = \\prod_{i=1}^p c_i(x_i,x_i^\prime)`.
+.. math::
+   c(x,x^\prime) = \prod_{i=1}^p c_i(x_i,x_i^\prime).
 
 Specifying the correlation between points that differ in more than one
 input dimension is potentially a very complex task, particularly because
@@ -29,7 +30,8 @@ outputs have the same correlation function :math:`c(x,x')` (which is often
 itself separable as defined above). The general covariance then takes
 the form:
 
-:math:` \\text{Cov}[f_u(x), f_{u'}(x')] = \\sigma_{uu'}c(x,x')`
+.. math::
+   \text{Cov}[f_u(x), f_{u'}(x')] = \sigma_{uu'}c(x,x')
 
 where :math:`u` and :math:`u'` denote two different outputs and
 :math:`\sigma_{uu'}` is a covariance between these two outputs.

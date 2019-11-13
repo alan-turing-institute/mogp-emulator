@@ -19,7 +19,8 @@ prior distribution for such a random variable is the uniform
 distribution that assigns equal density to all positive values. Such a
 density function would be given by
 
-:math:`\pi(x) = k`
+.. math::
+   \pi(x) = k
 
 for some positive constant :math:`k` and for all positive values :math:`x` of
 the random variable. However, there is no value of :math:`k` for which this
@@ -44,7 +45,8 @@ would not is when the improper prior leads to an improper posterior.
 
 Formally, we write the uniform prior as
 
-:math:`\pi(x) \\propto 1\,,`
+.. math::
+   \pi(x) \propto 1\,,
 
 using the proportionality symbol to indicate the presence of an
 unspecified scaling constant :math:`k` (despite the fact that no such
@@ -53,6 +55,7 @@ fashion as being proportional to some function, implying a scaling
 constant which nevertheless cannot exist. An example is another commonly
 used weak prior distribution for a positive random variable,
 
-:math:`\pi(x) \\propto x^{-1}\,,`
+.. math::
+   \pi(x) \propto x^{-1}\,,
 
 known as the log-uniform prior.

@@ -3,8 +3,8 @@
 Definition of Term: Nugget
 ==========================
 
-A covariance function :math::ref:`v(x,x^\prime)` expresses the covariance
-between the outputs of a `simulator<DefSimulator>` at input
+A covariance function :math:`v(x,x^\prime)` expresses the covariance
+between the outputs of a :ref:`simulator<DefSimulator>` at input
 configurations :math:`x` and :math:`x^\prime`. When :math:`x=x^\prime`,
 :math:`v(x,x)` is the variance of the output at input :math:`x`. A nugget is
 an additional component of variance when :math:`x=x^\prime`. Technically

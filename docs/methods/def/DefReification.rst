@@ -10,9 +10,9 @@ required.
 
 A more careful treatment of the link between model and reality, is given
 by a technique known as Reification. This involves linking the current
-model :math:`\strut{f}` to a Reified model :math:`\strut{f^+}` which would
+model :math:`f` to a Reified model :math:`f^+` which would
 contain all known improvements to the current model. This is often done
-via an intermediate model :math:`\strut{f'}` that represents specific
+via an intermediate model :math:`f'` that represents specific
 improvements to the current model. The Reified model is subsequently
 linked to reality.
 
