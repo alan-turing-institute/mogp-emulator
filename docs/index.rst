@@ -23,6 +23,7 @@ Welcome to Multi-Output GP Emulator's documentation!
 .. toctree::
    :maxdepth: 1
    :caption: Uncertainty Quantification Methods
+
    methods/methods
 
 
