@@ -16,6 +16,7 @@ Welcome to Multi-Output GP Emulator's documentation!
    Kernel
    ExperimentalDesign
    SequentialDesign
+   HistoryMatching
    MCMC
    benchmarks/benchmarks
 

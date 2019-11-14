@@ -364,7 +364,7 @@ class GaussianProcess(object):
         
         :returns: None
         """
-        
+
         assert not self.theta is None, "Must set a parameter value to fit a GP"
 
         self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)

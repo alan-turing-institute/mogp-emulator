@@ -7,7 +7,7 @@ from scipy import linalg
 
 def test_GaussianProcess_init():
     "Test function for correct functioning of the init method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -16,7 +16,7 @@ def test_GaussianProcess_init():
     assert gp.D == 3
     assert gp.n == 1
     assert gp.nugget == None
-    
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -25,7 +25,7 @@ def test_GaussianProcess_init():
     assert gp.D == 2
     assert gp.n == 3
     assert gp.nugget == None
-    
+
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -34,7 +34,7 @@ def test_GaussianProcess_init():
     assert gp.D == 6
     assert gp.n == 1
     assert gp.nugget == None
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y, 1.)
@@ -43,7 +43,7 @@ def test_GaussianProcess_init():
     assert gp.D == 3
     assert gp.n == 1
     assert gp.nugget == 1.
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y, None)
@@ -59,7 +59,7 @@ def test_GaussianProcess_init():
                                       nugget = None)
         tmp.seek(0)
         gp = GaussianProcess(tmp)
-        
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
     assert_allclose(gp.inputs, x)
@@ -68,7 +68,7 @@ def test_GaussianProcess_init():
     assert gp.D == 3
     assert gp.nugget == None
     assert gp.theta is None
-    
+
     with TemporaryFile() as tmp:
         np.savez(tmp, inputs=np.array([[1., 2., 3.], [4., 5., 6]]),
                                       targets = np.array([2., 4.]),
@@ -76,7 +76,7 @@ def test_GaussianProcess_init():
                                       nugget = 1.e-6)
         tmp.seek(0)
         gp = GaussianProcess(tmp)
-        
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
     theta = np.array([1., 2., 3., 4.])
@@ -86,32 +86,32 @@ def test_GaussianProcess_init():
     assert_allclose(gp.nugget, 1.e-6)
     assert gp.n == 2
     assert gp.D == 3
-    
+
 
 def test_GaussianProcess_init_failures():
     "Tests that GaussianProcess fails correctly with bad inputs"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     z = np.array([4.])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, z, z)
-        
+
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2., 3.])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y)
-        
+
     x = np.array([[1., 2., 3.], [4., 5., 6.]])
     y = np.array([2., 3., 4.])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y)
-        
+
     x = np.array([[1., 2., 3.]])
     y = np.array([[2., 3.], [4., 5]])
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y)
-        
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     with pytest.raises(ValueError):
@@ -119,11 +119,11 @@ def test_GaussianProcess_init_failures():
 
 def test_GaussianProcess_save_emulators():
     "Test function for the save_emulators method"
-    
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
     gp = GaussianProcess(x, y)
-    
+
     with TemporaryFile() as tmp:
         gp.save_emulator(tmp)
         tmp.seek(0)
@@ -132,13 +132,13 @@ def test_GaussianProcess_save_emulators():
         assert_allclose(emulator_file['targets'], y)
         assert emulator_file['nugget'] == None
         assert emulator_file['theta'] == None
-        
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (3,))
     gp = GaussianProcess(x, y, 1.e-6)
     theta = np.zeros(4)
     gp._set_params(theta)
-    
+
     with TemporaryFile() as tmp:
         gp.save_emulator(tmp)
         tmp.seek(0)
@@ -150,7 +150,7 @@ def test_GaussianProcess_save_emulators():
 
 def test_GaussianProcess_get_n():
     "Tests the get_n method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -158,7 +158,7 @@ def test_GaussianProcess_get_n():
 
 def test_GaussianProcess_get_D():
     "Tests the get_D method of Gaussian Process"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -166,47 +166,47 @@ def test_GaussianProcess_get_D():
 
 def test_GaussianProcess_get_params():
     "Tests the get_params method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     theta_expected = np.zeros(4)
     gp.theta = np.zeros(4)
     assert_allclose(gp.get_params(), theta_expected)
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     assert gp.get_params() == None
-    
+
 def test_GaussianProcess_get_nugget():
     "Tests the get_nugget method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     assert gp.get_nugget() == None
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y, 1.e-6)
     assert_allclose(gp.get_nugget(), 1.e-6)
-    
+
 def test_GaussianProcess_set_nugget():
     "Tests the set_nugget method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     gp.set_nugget(None)
     assert gp.nugget == None
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     gp.set_nugget(1.e-6)
     assert_allclose(gp.nugget, 1.e-6)
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
@@ -215,17 +215,17 @@ def test_GaussianProcess_set_nugget():
 
 def test_GaussianProcess_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine in Gaussian Process"
-    
+
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
-    
+
     L_expected = np.array([[2., 0., 0.], [6., 1., 0.], [-8., 5., 3.]])
     input_matrix = np.array([[4., 12., -16.], [12., 37., -43.], [-16., -43., 98.]])
     L_actual, jitter = gp._jit_cholesky(input_matrix)
     assert_allclose(L_expected, L_actual)
     assert_allclose(jitter, 0.)
-    
+
     L_expected = np.array([[1.0000004999998751e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
                          [9.9999950000037496e-01, 1.4142132088085626e-03, 0.0000000000000000e+00],
                          [6.7379436301144941e-03, 4.7644444411381860e-06, 9.9997779980004420e-01]])
@@ -235,18 +235,18 @@ def test_GaussianProcess_jit_cholesky():
     L_actual, jitter = gp._jit_cholesky(input_matrix)
     assert_allclose(L_expected, L_actual)
     assert_allclose(jitter, 1.e-6)
-    
+
     input_matrix = np.array([[1.e-6, 1., 0.], [1., 1., 1.], [0., 1., 1.e-10]])
     with pytest.raises(linalg.LinAlgError):
         gp._jit_cholesky(input_matrix)
-        
+
     input_matrix = np.array([[-1., 2., 2.], [2., 3., 2.], [2., 2., -3.]])
     with pytest.raises(linalg.LinAlgError):
         gp._jit_cholesky(input_matrix)
 
 def test_GaussianProcess_prepare_likelihood():
     "Tests the _prepare_likelihood method of Gaussian Process"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -261,14 +261,14 @@ def test_GaussianProcess_prepare_likelihood():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     gp.set_nugget(0.)
     gp.theta = theta
     gp._prepare_likelihood()
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -283,7 +283,7 @@ def test_GaussianProcess_prepare_likelihood():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     gp.set_nugget(1.e-6)
     gp.theta = theta
     gp._prepare_likelihood()
@@ -295,7 +295,7 @@ def test_GaussianProcess_prepare_likelihood():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     gp.set_nugget(0.)
     gp.theta = theta
     with pytest.raises(linalg.LinAlgError):
@@ -303,7 +303,7 @@ def test_GaussianProcess_prepare_likelihood():
 
 def test_GaussianProcess_set_params():
     "Tests the _set_params method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -318,7 +318,7 @@ def test_GaussianProcess_set_params():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -333,7 +333,7 @@ def test_GaussianProcess_set_params():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -348,7 +348,7 @@ def test_GaussianProcess_set_params():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     invQ_expected = np.array([[ 5.0000025001932273e+05, -4.9999974999687175e+05, -3.3691214036059968e-03],
                               [-4.9999974999687175e+05,  5.0000025001932273e+05, -3.3691214038620732e-03],
                               [-3.3691214036059972e-03, -3.3691214038620732e-03, 1.0000444018785022e+00]])
@@ -359,7 +359,7 @@ def test_GaussianProcess_set_params():
     assert_allclose(gp.invQ, invQ_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.invQt, invQt_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.logdetQ, logdetQ_expected, atol = 1.e-8, rtol = 1.e-5)
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -369,7 +369,7 @@ def test_GaussianProcess_set_params():
 
 def test_GaussianProcess_loglikelihood():
     "Test the loglikelihood method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -378,7 +378,7 @@ def test_GaussianProcess_loglikelihood():
     actual_loglikelihood = gp.loglikelihood(theta)
     assert_allclose(actual_loglikelihood, expected_loglikelihood, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(gp.theta, theta, atol = 1.e-8, rtol = 1.e-5)
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -403,7 +403,7 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(partials_actual, partials_fd, rtol = 1.e-5, atol = 1.e-8)
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -418,7 +418,7 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(partials_actual, partials_fd, rtol = 1.e-5, atol = 1.e-8)
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -429,9 +429,9 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(new_theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
 
-def test_GaussianProcess_hessian():
+def test_GaussianProcess_hessian_1():
     "test the hessian method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -475,7 +475,10 @@ def test_GaussianProcess_hessian():
     hessian_actual = gp.hessian(theta)
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(hessian_actual, hessian_fd, rtol = 1.e-5, atol = 1.e-8)
-    
+
+def test_GaussianProcess_hessian_2():
+    "test the hessian method of GaussianProcess"
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -519,7 +522,10 @@ def test_GaussianProcess_hessian():
     hessian_fd[3, 3] = (gp.partial_devs(theta)[3]-gp.partial_devs(theta-np.array([0., 0., 0., dtheta]))[3])/dtheta
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(hessian_actual, hessian_fd, rtol = 2.e-4, atol = 1.e-8)
-    
+
+def test_GaussianProcess_hessian_3():
+    "test the hessian method of GaussianProcess"
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -576,7 +582,7 @@ def test_GaussianProcess_compute_local_covariance():
 
 def test_GaussianProcess_learn():
     "Test the _learn method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -590,7 +596,7 @@ def test_GaussianProcess_learn():
 
 def test_GaussianProcess_learn_hyperparameters():
     "Test the learn_hyperparameters method of GaussianProcess"
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -598,7 +604,7 @@ def test_GaussianProcess_learn_hyperparameters():
     min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
     min_loglikelihood_expected = 4.457233158665504
     min_loglikelihood_actual, min_theta_actual = gp.learn_hyperparameters(n_tries = 1, theta0 = theta)
-    
+
     assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
 
@@ -608,7 +614,7 @@ def test_GaussianProcess_learn_hyperparameters():
     theta = np.zeros(5)
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(theta0 = theta)
-        
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -816,7 +822,7 @@ def test_GaussianProcess_predict():
     via finite differences rather than analytical results as I have not dug through references
     to find the appropriate expressions
     """
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -827,24 +833,24 @@ def test_GaussianProcess_predict():
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
-    
+
     delta = 1.e-8
     predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
     predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
     predict_3, _, _ = gp.predict(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
-    
+
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                          (predict_actual - predict_3)/delta]))
-    
+
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
-    
+
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
     assert unc_actual is None
     assert deriv_actual is None
-    
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -855,15 +861,15 @@ def test_GaussianProcess_predict():
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
-    
+
     delta = 1.e-8
     predict_1, _, _ = gp.predict(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
     predict_2, _, _ = gp.predict(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
     predict_3, _, _ = gp.predict(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
-    
+
     deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
                                       (predict_actual - predict_3)/delta]))
-    
+
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
@@ -905,7 +911,7 @@ def test_GaussianProcess_predict_failures():
         gp.predict(x_star)
         gp._predict_single(x_star)
         gp._predict_samples(x_star)
-        
+
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
     gp = GaussianProcess(x, y)
@@ -949,9 +955,8 @@ def test_GaussianProcess_predict_failures():
 
 def test_GaussianProcess_str():
     "Test function for string method"
-    
+
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     gp = GaussianProcess(x, y)
     assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
-    
