@@ -83,9 +83,10 @@ int main(){
         // Ensure FPGA and native implementation agree within a tolerance
         float TOL = 1.0e-6;
         for (int i=0; i<4; i++){
-            if (std::abs(h_k[i] - native_k[i]) > TOL)
+            if (std::abs(h_k[i] - native_k[i]) > TOL){
                 std::cout << "Element " << i << " of native and FPGA implementations do not agree: " << h_k[i] << " " << native_k[i] << std::endl;
                 exit(-1);
+            }
         }
     }
     catch (cl::Error err){
