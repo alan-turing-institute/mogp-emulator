@@ -2,8 +2,15 @@
 #define CL_HPP_TARGET_OPENCL_VERSION 200
 
 #include "CL/cl2.hpp"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
+
+void square_exponential_native(std::vector<float> r, std::vector<float>* k){
+    std::transform(r.begin(), r.end(), k->begin(),
+                   [](float x) -> float { return exp(-0.5f * x * x); });
+}
 
 int main(){
     try{
@@ -43,6 +50,7 @@ int main(){
         // Create host variables
         std::vector<float> h_r = {1.0, 2.0, 4.0, 8.0};
         std::vector<float> h_k(4, 0.0);
+        std::vector<float> native_k(4, 0.0);
         int m=2, n=2;
         // Create device objects
         cl::Buffer d_r(h_r.begin(), h_r.end(), true);
@@ -50,21 +58,35 @@ int main(){
 
         for (auto const& i : h_r)
             std::cout << i << ' ';
+        std::cout << std::endl;
 
         // Call kernel
         square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k, m, n);
-
         queue.finish();
 
+        // Copy result from buffer to host
         cl::copy(d_k, h_k.begin(), h_k.end());
-
         for (auto const& i : h_k)
             std::cout << i << ' ';
+        std::cout << std::endl;
+
+        // Run native implementation
+        square_exponential_native(h_r, &native_k);
+        for (auto const& i : native_k)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        // Ensure FPGA and native implementation agree within a tolerance
+        float TOL = 1.0e-6;
+        for (int i=0; i<4; i++){
+            if (std::abs(h_k[i] - native_k[i]) > TOL)
+                std::cout << "Element " << i << " of native and FPGA implementations do not agree: " << h_k[i] << " " << native_k[i] << std::endl;
+                exit(-1);
+        }
     }
     catch (cl::Error err){
         std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
         exit(-1);
     }
-
     return 0;
 }
