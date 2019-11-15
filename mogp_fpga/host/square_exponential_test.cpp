@@ -44,8 +44,12 @@ int main(){
 
         // Create program
         cl::Program program(context, devices, binaries);
-        // Create kernel functor
+        // Create kernel functor for square exponential kernel
         auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int>(program, "sq_exp");
+        // Create kernel functor for distance kernel
+        auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(program, "distance");
+        // Create kernel functor for matrix vector product kernel
+        auto matrix_vector_product = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
         // Create host variables
         std::vector<float> h_r = {1.0, 2.0, 4.0, 8.0};
