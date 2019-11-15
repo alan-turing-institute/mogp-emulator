@@ -12,6 +12,23 @@ void square_exponential_native(std::vector<float> r, std::vector<float>* k){
                    [](float x) -> float { return exp(-0.5f * x * x); });
 }
 
+void distance_native(std::vector<float> x, std::vector<float> y,
+                     std::vector<float> &r, int nx, int ny, int dim){
+    for (int row=0; row<nx; row++){
+        int row_stride = row*dim;
+        for (int col=0; col<ny; col++){
+            int col_stride = col*dim;
+
+            float sum = 0;
+            for (int i=0; i<dim; i++){
+                float difference = x[row_stride+i] - y[col_stride+i];
+                sum += difference*difference;
+            }
+            r[row*ny+col] = sum;
+        }
+    }
+}
+
 int main(){
     try{
         // Create context using default device
@@ -64,7 +81,7 @@ int main(){
             std::cout << i << ' ';
         std::cout << std::endl;
 
-        // Call kernel
+        // Call square exponential kernel
         square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k, m, n);
         queue.finish();
 
@@ -88,10 +105,36 @@ int main(){
                 exit(-1);
             }
         }
+
+        std::vector<float> h_a = {0,1,0,2};
+        std::vector<float> h_b = {0,0,0,1};
+        std::vector<float> h_c(4,0);
+        int nx = 2;
+        int ny = 2;
+        int dim = 2;
+        // Create device objects
+        cl::Buffer d_a(h_a.begin(), h_a.end(), true);
+        cl::Buffer d_b(h_b.begin(), h_b.end(), false);
+        cl::Buffer d_c(h_c.begin(), h_c.end(), false);
+
+        distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, nx, ny, dim);
+        queue.finish();
+
+        cl::copy(d_c, h_c.begin(), h_c.end());
+        for (auto const& i : h_c)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        std::vector<float> native_c(4,0);
+        distance_native(h_a, h_b, native_c, nx, ny, dim);
+        for (auto const& i : native_c)
+            std::cout << i << ' ';
+        std::cout << std::endl;
     }
     catch (cl::Error err){
         std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
         exit(-1);
     }
+
     return 0;
 }
