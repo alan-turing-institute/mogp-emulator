@@ -1,10 +1,6 @@
 #define CL_HPP_ENABLE_EXCEPTIONS
 #define CL_HPP_TARGET_OPENCL_VERSION 200
 
-//#define CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY
-
-#define ltt_adp std
-
 #include "CL/cl2.hpp"
 #include <iostream>
 #include <vector>
@@ -19,7 +15,6 @@ int main(){
         // Get devices
         std::vector<cl::Device> devices;
         context.getInfo(CL_CONTEXT_DEVICES, &devices);
-        //std::cout << "Number of devices: " << devices.size() << std::endl;
 
         // Create queue from binary
         const char* binary_file_name = "square_exponential.aocx";
@@ -34,20 +29,11 @@ int main(){
         // Read binary as void*
         std::vector<unsigned char> binary(binary_size);
         rewind(fp);
-#if defined CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY
-        if (fread(reinterpret_cast<void*>(&(binary[0])), binary_size, 1, fp) == 0) {
-            fclose(fp);
-            throw cl::Error(0, "error while reading kernel binary");
-        }
-        // Create Binaries object (pair of binary as void* and size)
-        cl::Program::Binaries binaries(1, std::make_pair(reinterpret_cast<void*>(&(binary[0])), binary_size));
-#else
         if (fread(&(binary[0]), binary_size, 1, fp) == 0) {
             fclose(fp);
             throw cl::Error(0, "error while reading kernel binary");
         }
         cl::Program::Binaries binaries(1, binary);
-#endif
 
         // Create program
         cl::Program program(context, devices, binaries);
