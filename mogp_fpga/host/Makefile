@@ -4,8 +4,14 @@ AOCL_LINK_CONFIG=$(shell aocl link-config)
 OPT=-O2
 CXXFLAGS=-Wall $(OPT)
 
-square_exponential_test : square_exponential_test.o
-	g++ -o square_exponential_test square_exponential_test.o $(AOCL_LINK_CONFIG)
+OBJECTS=kernel_tests.o
+TARGET=kernel_tests
 
-square_exponential_test.o : square_exponential_test.cpp
-	g++ $(CXXFLAGS) -c square_exponential_test.cpp $(AOCL_COMPILE_CONFIG)
+all : $(OBJECTS)
+	g++ $(AOCL_LINK_CONFIG) -o $(TARGET) $(OBJECTS)
+
+%.o : %.cpp
+	g++ $(CXXFLAGS) $(AOCL_COMPILE_CONFIG) -c $< -o $@
+
+clean:
+	rm -f *.o
