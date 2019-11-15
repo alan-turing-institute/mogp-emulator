@@ -17,7 +17,7 @@ int main(){
         context.getInfo(CL_CONTEXT_DEVICES, &devices);
 
         // Create queue from binary
-        const char* binary_file_name = "square_exponential.aocx";
+        const char* binary_file_name = "../device/square_exponential.aocx";
         FILE* fp;
         fp = fopen(binary_file_name, "rb");
         if(fp == 0) {
