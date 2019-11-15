@@ -38,7 +38,8 @@ kernel void distance(global float* restrict x, global float* restrict y,
             for(unsigned i=0; i<MAX_DIM; i++){
                 float x = x_cache[i];
                 float y = y_cache[i];
-                value += x*x + y*y;
+                float difference = x - y;
+                value += difference * difference;
             }
 
             // Store the value in the temporary row of r
