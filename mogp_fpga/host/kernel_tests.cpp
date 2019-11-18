@@ -172,6 +172,8 @@ int main(){
         d_c = cl::Buffer(h_c.begin(), h_c.end(), false);
 
         matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, m, n);
+        queue.finish();
+
         cl::copy(d_c, h_c.begin(), h_c.end());
         for (auto const& i : h_c)
             std::cout << i << ' ';
