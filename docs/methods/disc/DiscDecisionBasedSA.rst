@@ -36,17 +36,17 @@ The following notation and terminology is introduced in
 
 In accordance with the standard :ref:`toolkit
 notation<MetaNotation>`, we denote the simulator by :math:`f` and
-its inputs by :math:`\strut x`. The focus of SA is the relationship between
-:math:`\strut x` and the simulator output(s) :math:`f(x)`. Since SA also
+its inputs by :math:`x`. The focus of SA is the relationship between
+:math:`x` and the simulator output(s) :math:`f(x)`. Since SA also
 typically tries to isolate the influences of individual inputs, or
 groups of inputs, on the output(s), we let :math:`x_j` be the j-th element
-of :math:`\strut x` and will refer to this as the j-th input, for
+of :math:`x` and will refer to this as the j-th input, for
 :math:`j=1,2,\ldots,p`, where as usual :math:`p` is the number of inputs. If
-:math:`\strut J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
+:math:`J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
 :math:`x_J` will denote the corresponding subset of inputs. For instance,
 if :math:`J=\{2,6\}` then :math:`x_J=x_{\{2,6\}}` comprises inputs 2 and 6,
 while :math:`x_j` is the special case of :math:`x_J` when :math:`J=\{j\}`.
-Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`\strut x`
+Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`x`
 *except* :math:`x_j`, and similarly :math:`x_{-J}` will be the set of all
 inputs except those in :math:`x_J`.
 
@@ -64,10 +64,10 @@ Note that by assigning probability distributions to the inputs we
 formally treat those inputs as random variables. Notationally, it is
 conventional in statistics to denote random variables by capital
 letters, and this distinction is useful also in probabilistic SA. Thus,
-the symbol :math:`\strut X` denotes the set of inputs when regarded as
-random (i.e. uncertain), while :math:`\strut x` continues to denote a
+the symbol :math:`X` denotes the set of inputs when regarded as
+random (i.e. uncertain), while :math:`x` continues to denote a
 particular set of input values. Similarly, :math:`X_J` represents those
-random inputs with subscripts in the set :math:`\strut J`, while :math:`x_J`
+random inputs with subscripts in the set :math:`J`, while :math:`x_J`
 denotes an actual value for those inputs.
 
 Discussion
@@ -87,28 +87,28 @@ Decision under uncertainty
   components for a formal decision analysis.
 
 #. *Decision set*. The set of available decisions is denoted by
-   :math:`\strut\cal D`. We will denote an individual decision in
-   :math:`\strut\cal D` by :math:`\strut d`.
+   :math:`\cal D`. We will denote an individual decision in
+   :math:`\cal D` by :math:`d`.
 #. *Loss function*. The loss function :math:`L(d,x)` expresses the
-   consequences of taking decision :math:`\strut d` when the true inputs
-   are :math:`\strut x`.
+   consequences of taking decision :math:`d` when the true inputs
+   are :math:`x`.
 
 In order to understand the loss function, first note that we have shown
-it as a function of :math:`\strut x`, but it only depends on the inputs
+it as a function of :math:`x`, but it only depends on the inputs
 indirectly. The decision consequences actually depend on the output(s)
 :math:`f(x)`, and it is uncertainty in the output that matters in the
 decision. But the output is directly produced by the input, and so we
-can write the loss function as a function of :math:`\strut x`. However, in
-order to evaluate :math:`L(d,x)` at any :math:`\strut x` we will need to run
+can write the loss function as a function of :math:`x`. However, in
+order to evaluate :math:`L(d,x)` at any :math:`x` we will need to run
 the simulator first to find :math:`f(x)`.
 
 | The interpretation of the loss function is that it represents, on a
   suitable scale, a penalty for making a poor decision. To make the best
-  decision we need to find the :math:`\strut d` that minimises the loss,
-  but this depends on :math:`\strut x`. It is in this sense that
+  decision we need to find the :math:`d` that minimises the loss,
+  but this depends on :math:`x`. It is in this sense that
   uncertainty about (the simulator output and hence about) the inputs
-  :math:`\strut x` makes the decision difficult. Uncertainty about
-  :math:`\strut x` leads to uncertainty about the best decision. It is this
+  :math:`x` makes the decision difficult. Uncertainty about
+  :math:`x` leads to uncertainty about the best decision. It is this
   decision uncertainty that is the focus of decision-based SA.
 | Note finally that for convenience of exposition we refer to a loss
   function and a single simulator output. In decision analysis the loss
@@ -122,11 +122,12 @@ the simulator first to find :math:`f(x)`.
 Value of perfect information
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We do not know :math:`\strut x`, so it is a random variable :math:`\strut X`,
+We do not know :math:`x`, so it is a random variable :math:`X`,
 but we still have to take a decision. The optimal decision is the one
 that minimises the *expected* loss
 
-:math:`\bar L(d)=\mathrm{E}[L(d,X)] .`
+.. math::
+   \bar L(d)=\mathrm{E}[L(d,X)].
 
 The use of expectation is important here, because it relates to our
 earlier statement that the loss function represents a penalty "on a
@@ -139,26 +140,27 @@ important matter that is fundamental to decision theory - see references
 at the end of this page.
 
 If we denote this optimal decision by :math:`\strut M`, then :math:`\bar L(M) =
-\\min_d \\bar L(d)`.
+\min_d \bar L(d)`.
 
-Suppose we were able to discover the true value of :math:`\strut x`. We let
-:math:`M_\Omega(x)` be the best decision given the value of :math:`\strut x`.
+Suppose we were able to discover the true value of :math:`x`. We let
+:math:`M_\Omega(x)` be the best decision given the value of :math:`x`.
 (In later sections we will use the notation :math:`M_J(x_J)` to denote the
 best decision given a subset of inputs :math:`x_J`). For each value of
-:math:`\strut x` we have :math:`L(M_\Omega(x),x)=\min_d L(d,x)`
+:math:`x` we have :math:`L(M_\Omega(x),x)=\min_d L(d,x)`
 
-The impact of uncertainty about :math:`\strut X` can be measured by the
+The impact of uncertainty about :math:`X` can be measured by the
 amount by which expected loss would be reduced if we could learn its
-true value. Given that :math:`\strut X` is actually unknown, we compare
+true value. Given that :math:`X` is actually unknown, we compare
 :math:`\bar L(M)` with the *expectation* of the uncertain
 :math:`L(M_\Omega(X),X)`. The difference
 
-:math:`V = \\bar L(M) - \\mathrm{E}[L(M_\Omega(X),X)]`
+.. math::
+   V = \bar L(M) - \mathrm{E}[L(M_\Omega(X),X)]
 
 is known as the expected value of perfect information (EVPI).
 
 Value here is measured in the very real currency of expected loss saved.
-It is possible to show that :math:`\strut V` is always positive.
+It is possible to show that :math:`V` is always positive.
 
 Value of imperfect information
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -169,22 +171,26 @@ suppose that we were to learn the true value of input :math:`x_j`. Then our
 optimal decision would be :math:`M_j(x_j)`, which minimises the expected
 loss conditional on :math:`x_j`, i.e.
 
-:math:`\bar L_j(d,x_j)=\mathrm{E}[L(d,X)\,|\,x_j]\,.`
+.. math::
+   \bar L_j(d,x_j)=\mathrm{E}[L(d,X)\,|\,x_j].
 
 As in the case of perfect information, we do not actually know the value
 of :math:`x_j`, so the value of this information is the difference
 
-:math:`V_j = \\bar L(M) - \\mathrm{E}[\bar L_j(M_j(X_j),X_j)]\,.`
+.. math::
+   V_j = \bar L(M) - \mathrm{E}[\bar L_j(M_j(X_j),X_j)].
 
 More generally, if we were to learn the value of a group of inputs
 :math:`x_J`, then the optimal decision would become :math:`M_J(x_J)`,
 minimising
 
-:math:`\bar L_J(d,x_J) = \\mathrm{E}[L(d,X)\,|\,x_J]\,,`
+.. math::
+   \bar L_J(d,x_J) = \mathrm{E}[L(d,X)\,|\,x_J],
 
 and the value of this information is
 
-:math:`V_J = \\bar L(M) - \\mathrm{E}[\bar L_J(M_J(X_J),X_j)]\,.`
+.. math::
+   V_J = \bar L(M) - \mathrm{E}[\bar L_J(M_J(X_J),X_j)].
 
 In each case we have perfect information about :math:`x_j` or :math:`x_J` but
 no additional direct information about :math:`x_{-j}` or :math:`x_{-J}`. This
@@ -193,8 +199,8 @@ perfect information". Naturally, the value of such information, :math:`V_j`
 or :math:`V_J`, will be less than the EVPI.
 
 Another kind of imperfect information is when we can get some additional
-data :math:`\strut S`. For instance an input to the simulator might be the
-mean effect of some medical treatment, and we can get data :math:`\strut S`
+data :math:`S`. For instance an input to the simulator might be the
+mean effect of some medical treatment, and we can get data :math:`S`
 on a sample of patients. We can then calculate an expected value of
 sample information (EVSI); see references below.
 

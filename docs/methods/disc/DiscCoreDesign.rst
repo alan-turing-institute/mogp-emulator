@@ -17,8 +17,8 @@ the alternatives.
 In particular,
 
 -  :ref:`AltCoreDesign<AltCoreDesign>` assumes that the region of
-   interest has been transformed to :math::ref:`[0,1]^p` by simple linear
-   transformations of each `simulator<DefSimulator>` input. We
+   interest has been transformed to :math:`[0,1]^p` by simple linear
+   transformations of each :ref:`simulator<DefSimulator>` input. We
    discuss here the formulation of the region of interest and various
    issues around transforming it to a unit hypercube in this way.
 -  :ref:`AltCoreDesign<AltCoreDesign>` presents a number of ways to
@@ -35,9 +35,9 @@ The design region
 
 The design region, which we denote by :math:`\cal X`, is a subset of the
 space of possible input configurations that we will confine our training
-design points :math:`x_1,x_2, \\ldots,x_n` to lie in.
+design points :math:`x_1,x_2, \ldots,x_n` to lie in.
 
- Specifying the region
+Specifying the region
 ^^^^^^^^^^^^^^^^^^^^^
 
 The design region should cover the region over which it is desired to
@@ -57,8 +57,8 @@ still be a small part of the range of values that the simulator can
 accept.
 
 :math:`\cal{X}` is usually specified by thinking of a range of plausible
-values for each input and then defining :math:`{\cal X}={\cal X}_1 \\times
-{\cal X}_2 \\times \\ldots\times {\cal X}_p\,,` where :math:`{\cal X}_i`
+values for each input and then defining :math:`{\cal X}={\cal X}_1 \times
+{\cal X}_2 \times \ldots\times {\cal X}_p`, where :math:`{\cal X}_i`
 is a finite interval of plausible values for input i. We then say that
 :math:`\cal X` is rectangular. In practice, we may not be able to limit the
 plausible values for a given input, in the sense that in theory that
@@ -112,7 +112,7 @@ works because in this case there is a simple one-to-two mapping between
 indicative of tricks that could be applied in other situations it is not
 a generic approach to the problem of non-rectangular regions.
 
- Transforming to a unit hypercube
+Transforming to a unit hypercube
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :ref:`AltCoreDesign<AltCoreDesign>` assumes that :math:`\cal X` is
@@ -152,7 +152,7 @@ training sample for building an emulator. Nevertheless, we can bear in
 mind the broad nature of such a solution when considering simplified
 criteria.
 
- Principles of optimal design for a training sample
+Principles of optimal design for a training sample
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A good design will enable us to build a good emulator, one that predicts
@@ -188,7 +188,7 @@ alternatives function on the emulator prior mean function
 (:ref:`AltMeanFunction<AltMeanFunction>`). If we have a constant
 mean, :math:`m(x)=\beta`, the location of the design points is irrelevant
 and all designs are equally good. If we have a mean function of the form
-:math:`m(x) = \\beta_1 + \\beta_2^T x` expressing a linear trend in each
+:math:`m(x) = \beta_1 + \beta_2^T x` expressing a linear trend in each
 input, a good design will concentrate points in the corners of the
 design space, to learn best about the slope parameters :math:`\beta_2`. If
 the mean function includes terms that are quadratic in the inputs, we
@@ -200,7 +200,7 @@ design points are placed. To learn about :math:`\delta`, however, we will
 generally need pairs of points that are at different distances apart,
 from being very close together to being far apart.
 
- Basing design criteria on predictive variances
+Basing design criteria on predictive variances
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The primary objective of the design is that after we have run the model
@@ -226,17 +226,19 @@ a view to learning about the parameters that we have conditioned on.
 
 In the general case, conditional on the full set of hyperparameters
 :math:`\theta=\{\beta,\sigma^2,\delta\}` we have the variance function
-:math:`v^*(x,x) = \\sigma^2 c^{(1)}(x)`, where we define
+:math:`v^*(x,x) = \sigma^2 c^{(1)}(x)`, where we define
 
-:math:`c^{(1)}(x) = c(x,x) - c(x)^T A^{-1} c(x) \\,.`
+.. math::
+   c^{(1)}(x) = c(x,x) - c(x)^T A^{-1} c(x).
 
 When the mean function takes the linear form and we have weak prior
 information on :math:`\beta` and :math:`\sigma^2`, then conditional only on
 :math:`\delta` we have the variance function :math:`v^*(x,x) =
-\\widehat\sigma^2 c^{(2)}(x)`, where now we define
+\widehat\sigma^2 c^{(2)}(x)`, where now we define
 
-:math:`c^{(2)}(x) = c^{(1)}(x)\, +\, c(x)^T A^{-1} H\left( H^T A^{-1}
-H\right)^{-1}H^TA^{-1}c(x) \\,.`
+.. math::
+   c^{(2)}(x) = c^{(1)}(x) + c(x)^T A^{-1} H\left( H^T A^{-1}
+   H\right)^{-1}H^TA^{-1}c(x).
 
 In both cases we have a constant multiplier, :math:`\sigma^2` or its
 estimate :math:`\widehat\sigma^2`. As discussed above, the details of the
@@ -245,8 +247,8 @@ we consider as the primary factor for choosing a design either
 :math:`c^{(1)}(.)` or :math:`c^{(2)}(.)` as appropriate.
 
 Notice that neither formulae involves the to-be-observed simulator
-outputs from the design. The matrix :math::ref:`A` and the function :math:`c(.)`
-are defined in `ProcBuildCoreGP<ProcBuildCoreGP>` as depending
+outputs from the design. The matrix :math:`A` and the function :math:`c(.)`
+are defined in :ref:`ProcBuildCoreGP<ProcBuildCoreGP>` as depending
 only on the correlation function :math:`c(.,.)`, while the matrix :math:`H`
 depends only on the assumed structure of the mean function. The only
 hyperparameters that are required by either formula are the vector of
@@ -262,7 +264,7 @@ about :math:`\beta`. In contrast, the second term in :math:`c^{(2)}(x)`
 expresses specifically the learning about :math:`\beta` in the case of the
 linear mean function. Neither allows for learning about :math:`\delta`.
 
- The effect of transformation
+The effect of transformation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before discussing specific design criteria based on these functions, we
@@ -307,7 +309,7 @@ transformation may make the simple stationary correlation functions in
 appropriate (see also the discussion page on the Gaussian assumption
 (:ref:`DiscGaussianAssumption<DiscGaussianAssumption>`)).
 
- Specific criteria
+Specific criteria
 ^^^^^^^^^^^^^^^^^
 
 Having said that we wish to minimise the predictive variance, the
@@ -315,7 +317,8 @@ question arises: for which value(s) of :math:`x`? The usual answer is to
 minimise the predictive variance integrated over the whole of the design
 space. This gives us the two criteria
 
-:math:`C_I^{(u)}(D) = \\int_{[0,1]^p} c^{(u)}(x) dx\,,`
+.. math::
+   C_I^{(u)}(D) = \int_{[0,1]^p} c^{(u)}(x) dx,
 
 for :math:`u=1,2`. These are the integrated predictive variance criteria.
 
@@ -325,7 +328,8 @@ interested in achieving high accuracy over some regions of the space
 than over others. Then we can define a weight function :math:`\omega(.)`
 and consider the more general criteria
 
-:math:`C_W^{(u)}(D) = \\int_{R^p} c^{(u)}(x) \\omega(x) dx\,,`
+.. math::
+   C_W^{(u)}(D) = \int_{R^p} c^{(u)}(x) \omega(x) dx,
 
 for :math:`u=1,2`. Notice now that we integrate not just over the unit
 hypercube but over the whole of :math:`p`-dimensional space. This
@@ -359,7 +363,8 @@ similar to maximising the uncertainty in the design points, leading to
 the entropy criterion (also known as the D-optimality criterion), see
 :ref:`AltOptimalCriteria<AltOptimalCriteria>`.
 
-:math:`C_E(D) = \| A \|\,,`
+.. math::
+   C_E(D) = | A |,
 
 which is much quicker to compute. Whereas low values of the other
 criteria are good, we aim for high values of :math:`C_E(D)`.
@@ -372,7 +377,7 @@ that case, searching for the best Latin hypercube is less likely to
 produce near-optimal designs, and other search criteria should be
 employed.
 
- Prior choices of correlation hyperparameters
+Prior choices of correlation hyperparameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As discussed above, implementation of any of the above criteria requires
@@ -389,7 +394,7 @@ choice for the design stage does not imply an assumption of a Gaussian
 correlation function when the emulator is built.) Otherwise a value
 between 1 and 2, e.g. 1.5, would be preferred.
 
-Correlation length parameters are all relative to the [0,1] range of
+Correlation length parameters are all relative to the :math:`[0,1]` range of
 values in each dimension. Typical values might be 0.5, suggesting a
 relatively smooth response to an input over that range. A lower value,
 e.g. 0.2, would be appropriate for an input that was thought to be
@@ -400,7 +405,7 @@ the design. Assigning a lower correlation length to one input will tend
 to produce a design with shorter distances between points in this
 dimension.
 
- Space-filling designs
+Space-filling designs
 ^^^^^^^^^^^^^^^^^^^^^
 
 Unless we specify unequal correlation lengths, or use a weighted

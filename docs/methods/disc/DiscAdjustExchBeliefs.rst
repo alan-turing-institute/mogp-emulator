@@ -51,7 +51,7 @@ variables (see section 6.4 of Goldstein & Woof). Application of this
 representation theorem imposes the following structure and belief
 specifications:
 
-#. :math:`Y_i=\mathcal{M}(Y)+\mathcal{R}_i(Y)\\ \\ (1)` - Each individual
+#. :math:`Y_i=\mathcal{M}(Y)+\mathcal{R}_i(Y)` - Each individual
    :math:`Y_i` is decomposed into the population mean vector,
    :math:`\mathcal{M}(Y)`, and its individual residual vector,
    :math:`\mathcal{R}_i(Y)`.
@@ -65,16 +65,16 @@ specifications:
    :math:`\text{Cov}[\mathcal{R}_i(Y),\mathcal{R}_j(Y)]=0`, :math:`\forall
    i\neq j` - The residual component is individual to each :math:`Y_i` and
    has mean 0, constant variance, and zero correlation across the
-   :math:`Y_i` -- ie the residuals are themselves second-order
+   :math:`Y_i` -- i.e. the residuals are themselves second-order
    exchangeable.
 #. :math:`\text{Cov}[\mathcal{M}(Y),\mathcal{R}_i(Y)]=0` - The mean and
    residual components are uncorrelated.
 
 Note here that :math:`\mu`, :math:`\Sigma`, and :math:`\Gamma` are just belief
 specifications - these quantities are known and fixed - however
-:math:`\mathcal{M}[Y]` and the :math:`\mathcal{R}_j(Y)`s are uncertain and we
+:math:`\mathcal{M}[Y]` and the :math:`\mathcal{R}_j(Y)`\s are uncertain and we
 consider learning about :math:`\mathcal{M}(Y)` and the variance of the
-:math:`\mathcal{R}_j(Y)`s.
+:math:`\mathcal{R}_j(Y)`\s.
 
 Adjusting beliefs about the mean of a collection of exchangeable random vectors
 -------------------------------------------------------------------------------
@@ -90,34 +90,36 @@ It can be shown that when adjusting beliefs about :math:`\mathcal{M}(Y)` by
 the entire sample :math:`D_n`, the adjustment of our beliefs by the sample
 mean
 
-:math:`\bar{Y}_n=\frac{1}{n}\sum_{i=1}^nY_i`
+.. math::
+   \bar{Y}_n=\frac{1}{n}\sum_{i=1}^nY_i
 
 is sufficient - see Section 6.10 of the Goldstein & Wooff for details.
 Since the :math:`Y_i` are exchangeable, we can express the sample mean,
 from a sample of size :math:`n`, as
 
-:math:` \\bar{Y}_n=\mathcal{M}(Y)+\bar{\mathcal{R}}_n(Y), \`
+.. math::
+   \bar{Y}_n=\mathcal{M}(Y)+\bar{\mathcal{R}}_n(Y),
 
 where :math:`\bar{\mathcal{R}}_n(Y)` is the mean of the :math:`n` residuals,
 and so
 
--  :math:` \\text{E}[\bar{Y}_n]=\mu, \`
--  :math:` \\text{Var}[\bar{Y}_n]=\Gamma+\frac{1}{n}(\Sigma-\Gamma), \`
--  :math:` \\text{Cov}[\bar{Y}_n,\mathcal{M}(Y)]=\Gamma. \`
+-  :math:`\text{E}[\bar{Y}_n]=\mu`,
+-  :math:`\text{Var}[\bar{Y}_n]=\Gamma+\frac{1}{n}(\Sigma-\Gamma)`,
+-  :math:`\text{Cov}[\bar{Y}_n,\mathcal{M}(Y)]=\Gamma`.
 
 We can then apply the Bayes linear adjustment formulae directly to find
 our adjusted beliefs about the population mean, :math:`\mathcal{M}(Y)`,
 given the mean of a sample of size :math:`n` as
 
-:math:` \\text{E}_n[\mathcal{M}(Y)] = \\mu +
-\\Gamma\left(\Gamma+\frac{1}{n}(\Sigma-\Gamma)\right)^{-1}(\bar{Y}_n-\mu),
-\`
+.. math::
+   \text{E}_n[\mathcal{M}(Y)] = \mu +
+   \Gamma\left(\Gamma+\frac{1}{n}(\Sigma-\Gamma)\right)^{-1}(\bar{Y}_n-\mu),
 
 with corresponding adjusted variance
 
-:math:`
-\\text{Var}_n[\mathcal{M}(Y)]=\Gamma-\Gamma\left(\Gamma+\frac{1}{n}(\Sigma-\Gamma)\right)^{-1}\Gamma.
-\`
+.. math::
+   \text{Var}_n[\mathcal{M}(Y)]=\Gamma-\Gamma\left(\Gamma+\frac{1}{n}
+   (\Sigma-\Gamma)\right)^{-1}\Gamma.
 
 Adjusting beliefs about the variance of a collection of exchangeable random vectors
 -----------------------------------------------------------------------------------
@@ -135,14 +137,14 @@ scalars as above, where :math:`\text{E}[Y_i]=\mu`,
 :math:`\text{Var}[Y_i]=\sigma^2`, and :math:`\text{Cov}[Y_i,Y_j]=\gamma`. Then
 we have the standard second-order exchangeability representation
 
-:math:` Y_i=\mathcal{M}(Y)+\mathcal{R}_i(Y), \` where the
+:math:`Y_i=\mathcal{M}(Y)+\mathcal{R}_i(Y)`, where the
 :math:`\mathcal{R}_1(Y),\mathcal{R}_2(Y),\dots` are SOE with variance
 :math:`\text{Var}[\mathcal{R}_i(Y)]=\sigma^2-\gamma`. How we proceed from
 here depends on whether we can consider the population mean
 :math:`\mathcal{M}(Y)` to be known or unknown.
 
 :math:`\mathcal{M}(Y)` known
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the case where the population mean, :math:`\mathcal{M}(Y)`, is known
 then there is no uncertainty surrounding the value of :math:`\mu`. In which
@@ -152,10 +154,11 @@ To learn about population variance using this methodology, we require an
 appropriate exchangeability representation for an appropriate quantity.
 Consider the :math:`V_i=[\mathcal{R}_i(Y)]^2=(Y_i-\mathcal{M}(Y))^2` which
 are directly observable when :math:`\mathcal{M}(Y)` is known. If we assume
-that this sequence of squared residuals :math:`V_1, V_2, \\dots` is also
+that this sequence of squared residuals :math:`V_1, V_2, \dots` is also
 SOE, then we have the representation
 
-:math:`V_i=[\mathcal{R}_i(Y)]^2=\mathcal{M}(V)+\mathcal{R}_i(V),`
+.. math::
+   V_i=[\mathcal{R}_i(Y)]^2=\mathcal{M}(V)+\mathcal{R}_i(V),
 
 where, as before, :math:`\mathcal{M}(V)` is the population mean of the
 :math:`V_i=(Y_i-\mathcal{M}(Y))^2` and is hence the **population variance**
@@ -163,7 +166,7 @@ of the :math:`Y_i`. To learn about :math:`\mathcal{M}(V)` (and hence to learn
 about the population variance of the :math:`Y_i`) we require the following
 belief specifications:
 
--  :math:`\text{E}[\mathcal{M}(V)] = \\omega_Y=\sigma^2` -- our expectation
+-  :math:`\text{E}[\mathcal{M}(V)] = \omega_Y=\sigma^2` -- our expectation
    of the population variance of the :math:`Y_i`,
 -  :math:`\text{Var}[\mathcal{M}(V)]=\omega_\mathcal{M}` -- our uncertainty
    associated with the population variance of :math:`Y_i`, which can be
@@ -179,17 +182,20 @@ sufficient for the adjustment of beliefs in these situations and is
 directly observable, we calculate and adjust by the sample mean of the
 :math:`V_i`
 
-:math:`\bar{V}_n=\bar{Y}_n^{(2)} = \\sum_{i=1}^n (Y_i-\mathcal{M}(Y))^2.`
+.. math::
+   \bar{V}_n=\bar{Y}_n^{(2)} = \sum_{i=1}^n (Y_i-\mathcal{M}(Y))^2.
 
 We then evaluate our adjusted expectation and variance of the population
 variance to be
 
-:math:`\text{E}_{\bar{V}_n}[\mathcal{M}(V)] =
-\\frac{\omega_\mathcal{M}\bar{V}_n +
-\\frac{1}{n}\omega_\mathcal{R}\omega_Y}{\omega_\mathcal{M}+\frac{1}{n}\omega_\mathcal{R}},`
-
-:math:`\text{Var}_{\bar{V}_n}[\mathcal{M}(V)] =
-\\frac{\frac{1}{n}\omega_\mathcal{M}\omega_\mathcal{R}}{\omega_\mathcal{M}+\frac{1}{n}\omega_\mathcal{R}},`
+.. math::
+   \text{E}_{\bar{V}_n}[\mathcal{M}(V)] &=&
+   \frac{\omega_\mathcal{M}\bar{V}_n +
+   \frac{1}{n}\omega_\mathcal{R}\omega_Y}{\omega_\mathcal{M}+
+   \frac{1}{n}\omega_\mathcal{R}}, \\
+   \text{Var}_{\bar{V}_n}[\mathcal{M}(V)] &=&
+   \frac{\frac{1}{n}\omega_\mathcal{M}\omega_\mathcal{R}}
+   {\omega_\mathcal{M}+\frac{1}{n}\omega_\mathcal{R}},
 
 where :math:`\text{E}_{\bar{V}_n}[\mathcal{M}(V)]` represents our adjusted
 beliefs about the population variance of the :math:`Y_i`, and
@@ -197,7 +203,7 @@ beliefs about the population variance of the :math:`Y_i`, and
 uncertainty.
 
 :math:`\mathcal{M}(Y)` unknown
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Suppose we have an identical setup as before, only now the population
 mean of the :math:`Y_i`, :math:`\mathcal{M}(Y)`, is no longer known -- ie
@@ -212,15 +218,16 @@ calculate the sample variance, :math:`s^2` in the usual way. We then obtain
 the following representation (see section 8.2 of Goldstein & Wooff for
 details):
 
-:math:`s^2=\mathcal{M}(V)+ T.`
+.. math::
+   s^2=\mathcal{M}(V)+ T.
 
 We can then express our beliefs about :math:`s^2` as:
 
 -  :math:`\text{E}[s^2]=\omega_Y`,
 -  :math:`\text{Var}[s^2]=\omega_\mathcal{M}+\omega_T`,
 -  :math:`\text{Cov}[s^2,\mathcal{M}(V)]=\omega_\mathcal{M}`,
--  and
-   :math:`\text{Var}[T]=\omega_T=\frac{1}{n}\omega_\mathcal{R}+\frac{2}{n(n-1)}[\omega_\mathcal{M}+\omega_Y^2].`
+-  and :math:`\text{Var}[T]=\omega_T=\frac{1}{n}\omega_\mathcal{R}+
+   \frac{2}{n(n-1)}[\omega_\mathcal{M}+\omega_Y^2].`
 
 Thus the sample variance, :math:`s^2`, can be related directly to the
 population variance, :math:`\mathcal{M}(V)`, and so we can (in principle)
@@ -235,12 +242,11 @@ u` that :math:`\mathcal{R}_k(Y)\mathcal{R}_j(Y)` and
 assumptions and specifications, the adjusted expectation and variance of
 the population variance given :math:`s^2` are given by
 
-:math:` \\text{E}_{s^2}[\mathcal{M}(V)] =
-\\frac{\omega_\mathcal{M}s^2+\omega_T\omega_Y}{\omega_\mathcal{M}+\omega_T},
-\`
-
-:math:` \\text{Var}_{s^2}[\mathcal{M}(V)] =
-\\frac{\omega_\mathcal{M}\omega_T}{\omega_\mathcal{M}+\omega_T} \`
+.. math::
+   \text{E}_{s^2}[\mathcal{M}(V)] &=&
+   \frac{\omega_\mathcal{M}s^2+\omega_T\omega_Y}{\omega_\mathcal{M}+\omega_T}, \\
+   \text{Var}_{s^2}[\mathcal{M}(V)] &=&
+   \frac{\omega_\mathcal{M}\omega_T}{\omega_\mathcal{M}+\omega_T}
 
 Choice of prior values
 ----------------------
@@ -278,10 +284,10 @@ parameter for the residuals :math:`\mathcal{R}_i(Y)` such that
 :math:`\mathcal{R}_i(Y)=\sqrt{\mathcal{M}(V)}Z_i`, where the :math:`Z_i` are
 independent standardised quantities with zero mean and unit variance
 which are independent of the value of :math:`\mathcal{M}(V)`. Then
-:math:`\mathcal{R}_i(V)=\mathcal{M}(V)(Z_i^2-1)`, and so :math:`
-\\omega_\mathcal{R} = \\text{Var}[\mathcal{R}_i(V)] =
-(\omega_\mathcal{M} + \\omega_Y^2)\text{Var}[Z_i^2] =
-(\omega_\mathcal{M} + \\omega_Y^2)(\kappa-1), \` where
+:math:`\mathcal{R}_i(V)=\mathcal{M}(V)(Z_i^2-1)`, and so
+:math:`\omega_\mathcal{R} = \text{Var}[\mathcal{R}_i(V)] =
+(\omega_\mathcal{M} + \omega_Y^2)\text{Var}[Z_i^2] =
+(\omega_\mathcal{M} + \omega_Y^2)(\kappa-1),` where
 :math:`\kappa=\text{Kur}(Z_i)` is the kurtosis of :math:`Z_i`. If we believe
 that the :math:`Z_i` were Gaussian in distribution, this would suggest a
 value of :math:`\kappa=3`. Similarly, a Uniform distribution suggests
@@ -299,54 +305,60 @@ Given a choice for :math:`\omega_\mathcal{R}`, we now must determine an
 appropriate value for :math:`\omega_\mathcal{M}` to complete our belief
 specification. We briefly discuss two possible methods, the first
 arising from considerations of the effectiveness of the update. Let us
-write :math:`\omega_\mathcal{M}=c \\omega_Y^2 \` for some :math:` c > 0 \`,
-then the problem reduces to selection of a value of :math:`c \`. We can try
-to assess :math:` c \` by considering the proportion of uncertainty
+write :math:`\omega_\mathcal{M}=c \omega_Y^2` for some :math:`c > 0`,
+then the problem reduces to selection of a value of :math:`c`. We can try
+to assess :math:`c` by considering the proportion of uncertainty
 remaining in the population variance after the update, which is given by
 
-:math:`\frac{\text{Var}_{s^2}[\mathcal{M}(V)]}{\text{Var}[\mathcal{M}(V)]}=\frac{1}{1+\frac{n-1}{\phi}\frac{c}{c+1}}`
+.. math::
+   \frac{\text{Var}_{s^2}[\mathcal{M}(V)]}
+   {\text{Var}[\mathcal{M}(V)]}=\frac{1}{1+\frac{n-1}{\phi}\frac{c}{c+1}}
 
 which decreases monotonically as a function of :math:`c`, and where we
 define :math:`\phi` as
 
-:math:`\phi=\frac{1}{n}\{(n-1)\text{Var}[Z_i^2]+2\} \`
+.. math::
+   \phi=\frac{1}{n}\{(n-1)\text{Var}[Z_i^2]+2\}
 
-which is fixed given :math:` n \` and :math:`\kappa \`. We can then explore
+which is fixed given :math:`n` and :math:`\kappa`. We can then explore
 our attitudes to the implications of differing sample sizes; for
-example, small values of :math:` c \` would suggest that any sample
+example, small values of :math:`c` would suggest that any sample
 information will rapidly reduce our remaining variance as a proportion
 of the prior.
 
 Equivalent sample size
 ~~~~~~~~~~~~~~~~~~~~~~
 
-An alternative approach for specifying :math:`\omega_\mathcal{M} \` is to
+An alternative approach for specifying :math:`\omega_\mathcal{M}` is to
 make a direct judgement on the worth of the prior information via the
 notion of equivalent sample size. We can express the adjusted
 expectation of the population variance as
 
-:math:`\text{E}_{s^2}[\mathcal{M}(V)]=\alpha s^2 + (1-\alpha)
-\\text{E}[\mathcal{M}(V)] \`,
+.. math::
+   \text{E}_{s^2}[\mathcal{M}(V)]=\alpha s^2 + (1-\alpha)
+   \text{E}[\mathcal{M}(V)],
 
 with
 
-:math:`\alpha=\frac{\omega_\mathcal{M}}{\omega_\mathcal{M}+\omega_T}. \`
+.. math::
+   \alpha=\frac{\omega_\mathcal{M}}{\omega_\mathcal{M}+\omega_T}.
 
 Suppose that we consider that the prior information we have about the
-population variance is worth a notional sample size of :math:` m \`, and
-that we collect observations of a sample of size :math:` n \`. In which
+population variance is worth a notional sample size of :math:`m`, and
+that we collect observations of a sample of size :math:`n`. In which
 case, it would be reasonable to adjust our beliefs with a weighting
 given by
 
-:math:`\alpha=\frac{n}{n+m}. \`
+.. math::
+   \alpha=\frac{n}{n+m}.
 
 By examining our beliefs about the relative merits of the prior and
 sample information we can make an assessment for an appropriate value of
-:math:`\omega_\mathcal{M} \`. In fact, this method of specification is
+:math:`\omega_\mathcal{M}`. In fact, this method of specification is
 equivalent to the alternative method discussed above.
 
 References
 ----------
 
-\* Goldstein, M. and Wooff, D. A. (2007), Bayes Linear Statistics:
-Theory and Methods, Wiley.
+* Goldstein, M. and Wooff, D. A. (2007), Bayes Linear Statistics:
+  Theory and Methods, Wiley.

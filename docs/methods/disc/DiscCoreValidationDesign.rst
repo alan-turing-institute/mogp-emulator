@@ -64,8 +64,8 @@ instance, if we selected a training sample point :math:`x` then we could
 place the validation point :math:`x^\prime` randomly within the region
 where the correlation function :math:`c(x,x^\prime)` (with estimated values
 for :math:`\delta`) exceeds 0.8, say. The number of these points should be
-at least :math::ref:`p`. Then the remaining points could be chosen as a random
-`Latin hypercube<ProcLHC>`.
+at least :math:`p`. Then the remaining points could be chosen as a random
+:ref:`Latin hypercube<ProcLHC>`.
 
 Additional Comments
 -------------------
