@@ -128,7 +128,7 @@ int main(){
         int dim = 2;
         // Create device objects
         cl::Buffer d_a(h_a.begin(), h_a.end(), true);
-        cl::Buffer d_b(h_b.begin(), h_b.end(), false);
+        cl::Buffer d_b(h_b.begin(), h_b.end(), true);
         cl::Buffer d_c(h_c.begin(), h_c.end(), false);
 
         distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, nx, ny, dim);
