@@ -29,6 +29,26 @@ void distance_native(std::vector<float> x, std::vector<float> y,
     }
 }
 
+void compare_results(std::vector<float> host, std::vector<float> device,
+                     std::string kernel_name){
+    float TOL = 1.0e-6;
+    int length = host.size();
+    bool discrepency = false;
+
+    std::cout << "Comparing host and device results for " << kernel_name << std::endl;
+    // Ensure FPGA and native implementation agree within a tolerance
+    for (int i=0; i<length; i++){
+        if (std::abs(host[i] - device[i]) > TOL){
+            std::cout << "Element " << i << " of host and FPGA implementations do not agree: " << host[i] << " " << device[i] << std::endl;
+            discrepency = true;
+        }
+    }
+
+    if (!discrepency){
+        std::cout << "Host and device implementations agree" << std::endl;
+    }
+}
+
 int main(){
     try{
         // Create context using default device
@@ -98,13 +118,7 @@ int main(){
         std::cout << std::endl;
 
         // Ensure FPGA and native implementation agree within a tolerance
-        float TOL = 1.0e-6;
-        for (int i=0; i<4; i++){
-            if (std::abs(h_k[i] - native_k[i]) > TOL){
-                std::cout << "Element " << i << " of native and FPGA implementations do not agree: " << h_k[i] << " " << native_k[i] << std::endl;
-                exit(-1);
-            }
-        }
+        compare_results(native_k, h_k, "square exponential");
 
         std::vector<float> h_a = {0,1,0,2};
         std::vector<float> h_b = {0,0,0,1};
@@ -130,6 +144,8 @@ int main(){
         for (auto const& i : native_c)
             std::cout << i << ' ';
         std::cout << std::endl;
+
+        compare_results(native_c, h_c, "distance");
     }
     catch (cl::Error err){
         std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
