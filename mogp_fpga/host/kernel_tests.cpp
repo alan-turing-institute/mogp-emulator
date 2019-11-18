@@ -29,6 +29,20 @@ void distance_native(std::vector<float> x, std::vector<float> y,
     }
 }
 
+void matrix_vector_product_native(std::vector<float> a, std::vector<float> b,
+                                  std::vector<float> &c, int m, int n){
+    for (int row=0; row<m; row++){
+        float sum = 0.0f;
+        int offest = row*n;
+
+        for (int col=0; col<n; col++){
+            sum += a[offest+col] * b[col];
+        }
+
+        c[row] = sum;
+    }
+}
+
 void compare_results(std::vector<float> host, std::vector<float> device,
                      std::string kernel_name){
     float TOL = 1.0e-6;
@@ -141,6 +155,30 @@ int main(){
 
         std::vector<float> native_c(4,0);
         distance_native(h_a, h_b, native_c, nx, ny, dim);
+        for (auto const& i : native_c)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        compare_results(native_c, h_c, "distance");
+
+        // Create host variables
+        h_a = std::vector<float>({1,2,3,4});
+        h_b = std::vector<float>({1,2});
+        h_c = std::vector<float>(2,0);
+        m = 2; n = 2;
+        // Create device objects
+        d_a = cl::Buffer(h_a.begin(), h_a.end(), true);
+        d_b = cl::Buffer(h_b.begin(), h_b.end(), true);
+        d_c = cl::Buffer(h_c.begin(), h_c.end(), false);
+
+        matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, m, n);
+        cl::copy(d_c, h_c.begin(), h_c.end());
+        for (auto const& i : h_c)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        native_c = std::vector<float>(2,0);
+        matrix_vector_product_native(h_a, h_b, native_c, m, n);
         for (auto const& i : native_c)
             std::cout << i << ' ';
         std::cout << std::endl;
