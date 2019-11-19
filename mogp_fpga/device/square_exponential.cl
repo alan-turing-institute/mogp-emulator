@@ -24,7 +24,7 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
         #pragma unroll
         for (unsigned col=0; col<MAX_N; col++){
             float temp = r_cache[col];
-            k_cache[col] = sigma*exp(-0.5f * temp * temp);
+            k_cache[col] = sigma*exp(-0.5f * temp);
         }
 
         // Send one row of K(r) to the host
