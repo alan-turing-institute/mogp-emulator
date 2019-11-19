@@ -2,11 +2,12 @@
 //
 // r is a (m,n) matrix of squared distances
 // k is a (m,n) matrix
+// sigma is a prefactor, by which each element of k is multiplied
 
 #define MAX_N 1024
 
 kernel void sq_exp(global const float* restrict r, global float* restrict k,
-                   int m, int n){
+                   float sigma, int m, int n){
     // Declare caches for r and k
     local float r_cache[MAX_N];
     local float k_cache[MAX_N];
@@ -23,7 +24,7 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
         #pragma unroll
         for (unsigned col=0; col<MAX_N; col++){
             float temp = r_cache[col];
-            k_cache[col] = exp(-0.5f * temp * temp);
+            k_cache[col] = sigma*exp(-0.5f * temp * temp);
         }
 
         // Send one row of K(r) to the host

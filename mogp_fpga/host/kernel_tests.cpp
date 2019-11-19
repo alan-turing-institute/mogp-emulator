@@ -7,9 +7,13 @@
 #include <iostream>
 #include <vector>
 
-void square_exponential_native(std::vector<float> r, std::vector<float>* k){
-    std::transform(r.begin(), r.end(), k->begin(),
+void square_exponential_native(std::vector<float> r, std::vector<float> &k,
+                               float sigma){
+    std::transform(r.begin(), r.end(), k.begin(),
                    [](float x) -> float { return exp(-0.5f * x * x); });
+    for (auto i=k.begin(); i!=k.end(); i++){
+        *i *= sigma;
+    }
 }
 
 void distance_native(std::vector<float> x, std::vector<float> y,
@@ -98,7 +102,7 @@ int main(){
         // Create program
         cl::Program program(context, devices, binaries);
         // Create kernel functor for square exponential kernel
-        auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int>(program, "sq_exp");
+        auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, float, int, int>(program, "sq_exp");
         // Create kernel functor for distance kernel
         auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(program, "distance");
         // Create kernel functor for matrix vector product kernel
@@ -108,6 +112,7 @@ int main(){
         std::vector<float> h_r = {1.0, 2.0, 4.0, 8.0};
         std::vector<float> h_k(4, 0.0);
         std::vector<float> native_k(4, 0.0);
+        float sigma = 2.5;
         int m=2, n=2;
         // Create device objects
         cl::Buffer d_r(h_r.begin(), h_r.end(), true);
@@ -118,7 +123,7 @@ int main(){
         std::cout << std::endl;
 
         // Call square exponential kernel
-        square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k, m, n);
+        square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k, sigma, m, n);
         queue.finish();
 
         // Copy result from buffer to host
@@ -128,7 +133,7 @@ int main(){
         std::cout << std::endl;
 
         // Run native implementation
-        square_exponential_native(h_r, &native_k);
+        square_exponential_native(h_r, native_k, sigma);
         for (auto const& i : native_k)
             std::cout << i << ' ';
         std::cout << std::endl;
