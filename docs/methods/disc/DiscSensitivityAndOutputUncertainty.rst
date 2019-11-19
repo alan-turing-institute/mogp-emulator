@@ -32,17 +32,17 @@ The following notation and terminology is introduced in
 
 In accordance with the standard :ref:`toolkit
 notation<MetaNotation>`, we denote the simulator by :math:`f` and
-its inputs by :math:`\strut x`. The focus of SA is the relationship between
-:math:`\strut x` and the simulator output(s) :math:`f(x)`. Since SA also
+its inputs by :math:`x`. The focus of SA is the relationship between
+:math:`x` and the simulator output(s) :math:`f(x)`. Since SA also
 typically tries to isolate the influences of individual inputs, or
 groups of inputs, on the output(s), we let :math:`x_j` be the j-th element
-of :math:`\strut x` and will refer to this as the j-th input, for
+of :math:`x` and will refer to this as the j-th input, for
 :math:`j=1,2,\ldots,p`, where as usual :math:`p` is the number of inputs. If
-:math:`\strut J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
+:math:`J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
 :math:`x_J` will denote the corresponding subset of inputs. For instance,
 if :math:`J=\{2,6\}` then :math:`x_J=x_{\{2,6\}}` comprises inputs 2 and 6,
 while :math:`x_j` is the special case of :math:`x_J` when :math:`J=\{j\}`.
-Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`\strut x`
+Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`x`
 *except* :math:`x_j`, and similarly :math:`x_{-J}` will be the set of all
 inputs except those in :math:`x_J`.
 
@@ -58,10 +58,10 @@ We initially assume that interest focuses on a single simulator output
 before briefly considering the case of multiple outputs.
 
 Specifying :math:`\omega(x)`
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The role of :math:`\omega(x)` is to represent uncertainty about the
-simulator inputs :math:`\strut x`. As such, it should reflect the best
+simulator inputs :math:`x`. As such, it should reflect the best
 available knowledge about the true, but uncertain, values of the inputs.
 Typically, this distribution will be centred on whatever are the best
 current estimates of the inputs, with a spread around those estimates
@@ -69,8 +69,8 @@ that faithfully describes the degree of uncertainty. However, turning
 this intuitive impression into an appropriate probability distribution
 is not a simple process.
 
-The basic technique for specifying :math::ref:`\omega(x)` is known as
-`elicitation<DefElicitation>`, which is the methodology whereby
+The basic technique for specifying :math:`\omega(x)` is known as
+:ref:`elicitation<DefElicitation>`, which is the methodology whereby
 expert knowledge/uncertainty is converted into a probability
 distribution. Some resources for elicitation may be found in the
 "Additional comments" section below.
@@ -90,7 +90,8 @@ marginal density function :math:`\omega_j(x_j)` for each input separately,
 and the joint density function :math:`\omega(x)` is just the product of
 these marginal density functions:
 
-:math:`\omega(x) = \\prod_{j=1}^p \\omega_j(x_j)\,.`
+.. math::
+   \omega(x) = \prod_{j=1}^p \omega_j(x_j).
 
 Independence also simplifies the interpretation of some of the SA
 measures described in
@@ -99,11 +100,11 @@ measures described in
 Uncertainty analysis
 ~~~~~~~~~~~~~~~~~~~~
 
-Uncertainty about :math:`\strut x` induces uncertainty in the simulator
-output :math::ref:`f(x)`. The task of measuring and describing that uncertainty
-is known as `uncertainty analysis<DefUncertaintyAnalysis>` (UA).
-Formally, we regard the uncertain inputs as a random variable :math:`\strut
-X` (conventionally, random variables are denoted by capital letters in
+Uncertainty about :math:`x` induces uncertainty in the simulator
+output :math:`f(x)`. The task of measuring and describing that uncertainty
+is known as :ref:`uncertainty analysis<DefUncertaintyAnalysis>` (UA).
+Formally, we regard the uncertain inputs as a random variable :math:`X`
+(conventionally, random variables are denoted by capital letters in
 Statistics). Then the output :math:`f(X)` is also a random variable and has
 a probability distribution known as the uncertainty distribution. Some
 of the most widely used measures of output uncertainty in UA are as
@@ -113,7 +114,7 @@ follows.
 -  The uncertainty mean :math:`M=\mathrm{E}[f(X)]`.
 -  The uncertainty variance :math:`V=\mathrm{Var}[f(X)]`.
 -  The exceedance probability :math:`\bar F(c)=1-F(c)`, that :math:`f(X)`
-   exceeds some threshhold :math:`\strut c`.
+   exceeds some threshhold :math:`c`.
 
 Sensitivity
 ~~~~~~~~~~~
@@ -125,8 +126,8 @@ accountable for a large part of the output uncertainty, then the output
 is said to be very sensitive to :math:`x_j`. Therefore, SA explores the
 relative sensitivities of the inputs, both individually and in groups.
 
-Output uncertainty is primarily summarised by the variance :math::ref:`\strut
-V`. As defined in `DiscVarianceBasedSA<DiscVarianceBasedSA>`,
+Output uncertainty is primarily summarised by the variance :math:`V`.
+As defined in :ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`,
 the proportion of this overall variance that can be attributed to a
 group of inputs :math:`x_J` is given by the sensitivity index :math:`S_J` or
 by the total sensitivity index :math:`T_J`.
@@ -138,8 +139,8 @@ would reduce output uncertainty by 25%.
 
 On the other hand, :math:`T_J` is the expected proportion of uncertainty
 remaining if we were to learn the true values of all the *other* inputs,
-i.e. :math::ref:`x_{-J}`. As explained in
-`DiscVarianceBasedSA<DiscVarianceBasedSA>`, when inputs are
+i.e. :math:`x_{-J}`. As explained in
+:ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`, when inputs are
 independent :math:`T_J` will be larger than :math:`S_J` by an amount
 indicating the magnitude of interactions between inputs in :math:`x_J` and
 other inputs outside the group.
@@ -177,7 +178,7 @@ decision. This takes into the realm of decision-based SA; see
 Exceedances
 ~~~~~~~~~~~
 
-Although overall uncertainty, as measured by :math:`\strut V`, is generally
+Although overall uncertainty, as measured by :math:`V`, is generally
 the most important basis for determining sensitivity, interest may
 sometimes focus on other aspects of the uncertainty distribution. If
 there is a decision problem, for instance, even if we do not wish to
@@ -187,15 +188,16 @@ than the output itself. Then SA based on the variance of that function
 may be more useful. We present a simple example here.
 
 Suppose that interest focuses on whether :math:`f(X)` exceeds some
-threshhold :math:`\strut c`. Instead of :math:`f(x)` we consider as our output
+threshhold :math:`c`. Instead of :math:`f(x)` we consider as our output
 :math:`f_c(x)`, which takes the value :math:`f_c(x)=1` if :math:`f(X)>c` and
-otherwise :math:`f_c(x)=0`. Now the uncertainty mean :math:`\strut M` is just
+otherwise :math:`f_c(x)=0`. Now the uncertainty mean :math:`M` is just
 the exceedance probability :math:`M=\bar F(c)` and the uncertainty variance
 can be shown to be :math:`V=\bar F(c)\{1-\bar F(c)\}`.
 
 The mean effect of inputs :math:`x_J` becomes
 
-:math:`M_J(x_J) = Pr(f(X)>c\,|\,x_J)\,`
+.. math::
+   M_J(x_J) = Pr(f(X)>c\,|\,x_J)
 
 and the sensitivity variance :math:`V_J` is the variance of this mean
 effect with respect to the distribution of :math:`x_J`. The corresponding
@@ -242,5 +244,5 @@ Judgements: Eliciting Expert Probabilities. John Wiley and Sons,
 Chichester. 328pp. ISBN 0-470-02999-4.
 
 SHELF - the Sheffield Elicitation Framework - can be downloaded from
-http://tonyohagan.co.uk/shelf
+`http://tonyohagan.co.uk/shelf <http://tonyohagan.co.uk/shelf>`_
 (:ref:`Disclaimer<MetaSoftwareDisclaimer>`)

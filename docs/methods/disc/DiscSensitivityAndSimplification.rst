@@ -37,17 +37,17 @@ The following notation and terminology is introduced in
 
 In accordance with the standard :ref:`toolkit
 notation<MetaNotation>`, we denote the simulator by :math:`f` and
-its inputs by :math:`\strut x`. The focus of SA is the relationship between
-:math:`\strut x` and the simulator output(s) :math:`f(x)`. Since SA also
+its inputs by :math:`x`. The focus of SA is the relationship between
+:math:`x` and the simulator output(s) :math:`f(x)`. Since SA also
 typically tries to isolate the influences of individual inputs, or
 groups of inputs, on the output(s), we let :math:`x_j` be the j-th element
-of :math:`\strut x` and will refer to this as the j-th input, for
+of :math:`x` and will refer to this as the j-th input, for
 :math:`j=1,2,\ldots,p`, where as usual :math:`p` is the number of inputs. If
-:math:`\strut J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
+:math:`J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
 :math:`x_J` will denote the corresponding subset of inputs. For instance,
 if :math:`J=\{2,6\}` then :math:`x_J=x_{\{2,6\}}` comprises inputs 2 and 6,
 while :math:`x_j` is the special case of :math:`x_J` when :math:`J=\{j\}`.
-Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`\strut x`
+Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`x`
 *except* :math:`x_j`, and similarly :math:`x_{-J}` will be the set of all
 inputs except those in :math:`x_J`.
 
@@ -66,16 +66,16 @@ separately. However, some remarks on dimension reduction for multiple
 outputs may be found in the "Additional comments" section.
 
 Specifying :math:`\omega(x)`
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Although :math:`\omega(x)` is treated formally as a probability density
 function in probabilistic SA, for the purposes of simplification it is
 often simply a weight function specifying the relative importance of
-different :math:`\strut x` values. Indeed, it is often a uniform density
+different :math:`x` values. Indeed, it is often a uniform density
 giving equal importance for all points in a subset of the possible
-:math:`\strut x` space.
+:math:`x` space.
 
- Weight function
+Weight function
 ^^^^^^^^^^^^^^^
 
 Note that we generally wish to study the behaviour of the simulator over
@@ -91,16 +91,18 @@ catchment.
 
 Suppose first that we wish to weight all points in the subset equally,
 and so use a uniform weight function. If the range of values of input
-:math:`x_j` is specified as :math:`a_j \\le x_j \\le b_j`, for
+:math:`x_j` is specified as :math:`a_j \le x_j \le b_j`, for
 :math:`j=1,2,\ldots,p`, then the area of the subset of interest is
 
-:math:`A=\prod_{j=1}^p (b_j -a_j)\,,`
+.. math::
+   A=\prod_{j=1}^p (b_j -a_j),
 
-and the uniform density for values of :math:`\strut x` in this subset is
+and the uniform density for values of :math:`x` in this subset is
 
-:math:`\omega(x) = 1/A\,,`
+.. math::
+   \omega(x) = 1/A,
 
-with :math:`\omega(x)=0` for :math:`\strut x` outside that subset. [Since
+with :math:`\omega(x)=0` for :math:`x` outside that subset. [Since
 :math:`\omega(x)` is treated as a probability density function, the total
 weight over the subset must be 1, hence the weight at each point is
 :math:`1/A`.] Note that in this case the inputs are independent, which
@@ -110,7 +112,7 @@ leads to some simplification of the sensitivity measures presented in
 If we are more interested in some parts of the input space than in
 others, then we could use a non-uniform weight function.
 
- Probability density
+Probability density
 ^^^^^^^^^^^^^^^^^^^
 
 We can also consider situations where it would be appropriate to specify
@@ -121,7 +123,7 @@ uncertainty. In this case, we may also want to carry out SA for
 analysing output uncertainty or decision uncertainty, but understanding
 and/or dimension reduction are useful preliminary explorations. The
 appropriate choice of :math:`\omega(x)` in this case is the probability
-distribution that represents the uncertainty about :math:`\strut x`; see
+distribution that represents the uncertainty about :math:`x`; see
 the discussion page on sensitivity measures for output uncertainty
 (:ref:`DiscSensitivityAndOutputUncertainty<DiscSensitivityAndOutputUncertainty>`).
 

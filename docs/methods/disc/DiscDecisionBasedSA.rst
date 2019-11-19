@@ -76,15 +76,16 @@ Discussion
 Decision under uncertainty
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Decisions are hardest to make when their consequences are uncertain.
-  The problem of decision-making in the face of uncertainty is addressed
-  by statistical decision theory. Interest in
-  :ref:`simulator<DefSimulator>` output uncertainty is often driven
-  by the need to make decisions, where the simulator output :math:`f(x)` is
-  a factor in that decision.
-| In addition to the joint probability density function :math:`\omega(x)`
-  which represents uncertainty about the inputs, we need two more
-  components for a formal decision analysis.
+Decisions are hardest to make when their consequences are uncertain.
+The problem of decision-making in the face of uncertainty is addressed
+by statistical decision theory. Interest in
+:ref:`simulator<DefSimulator>` output uncertainty is often driven
+by the need to make decisions, where the simulator output :math:`f(x)` is
+a factor in that decision.
+
+In addition to the joint probability density function :math:`\omega(x)`
+which represents uncertainty about the inputs, we need two more
+components for a formal decision analysis.
 
 #. *Decision set*. The set of available decisions is denoted by
    :math:`\cal D`. We will denote an individual decision in
@@ -102,22 +103,23 @@ can write the loss function as a function of :math:`x`. However, in
 order to evaluate :math:`L(d,x)` at any :math:`x` we will need to run
 the simulator first to find :math:`f(x)`.
 
-| The interpretation of the loss function is that it represents, on a
-  suitable scale, a penalty for making a poor decision. To make the best
-  decision we need to find the :math:`d` that minimises the loss,
-  but this depends on :math:`x`. It is in this sense that
-  uncertainty about (the simulator output and hence about) the inputs
-  :math:`x` makes the decision difficult. Uncertainty about
-  :math:`x` leads to uncertainty about the best decision. It is this
-  decision uncertainty that is the focus of decision-based SA.
-| Note finally that for convenience of exposition we refer to a loss
-  function and a single simulator output. In decision analysis the loss
-  function is often replaced by a utility function, such that higher
-  utility is preferred and the best decision is the one which maximises
-  utility. However, we can just interpret utility as negative loss.
-  Also, :math:`f(x)` can be a vector of outputs (all of which may influence
-  the decision) - all of the development presented here follows through
-  unchanged in this case.
+The interpretation of the loss function is that it represents, on a
+suitable scale, a penalty for making a poor decision. To make the best
+decision we need to find the :math:`d` that minimises the loss,
+but this depends on :math:`x`. It is in this sense that
+uncertainty about (the simulator output and hence about) the inputs
+:math:`x` makes the decision difficult. Uncertainty about
+:math:`x` leads to uncertainty about the best decision. It is this
+decision uncertainty that is the focus of decision-based SA.
+
+Note finally that for convenience of exposition we refer to a loss
+function and a single simulator output. In decision analysis the loss
+function is often replaced by a utility function, such that higher
+utility is preferred and the best decision is the one which maximises
+utility. However, we can just interpret utility as negative loss.
+Also, :math:`f(x)` can be a vector of outputs (all of which may influence
+the decision) - all of the development presented here follows through
+unchanged in this case.
 
 Value of perfect information
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
