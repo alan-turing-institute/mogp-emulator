@@ -13,7 +13,8 @@ void square_exponential_native(std::vector<float> r, std::vector<float>* k){
 }
 
 void distance_native(std::vector<float> x, std::vector<float> y,
-                     std::vector<float> &r, int nx, int ny, int dim){
+                     std::vector<float> &r, std::vector<float> l,
+                     int nx, int ny, int dim){
     for (int row=0; row<nx; row++){
         int row_stride = row*dim;
         for (int col=0; col<ny; col++){
@@ -22,6 +23,7 @@ void distance_native(std::vector<float> x, std::vector<float> y,
             float sum = 0;
             for (int i=0; i<dim; i++){
                 float difference = x[row_stride+i] - y[col_stride+i];
+                difference /= l[i];
                 sum += difference*difference;
             }
             r[row*ny+col] = sum;
@@ -98,7 +100,7 @@ int main(){
         // Create kernel functor for square exponential kernel
         auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int>(program, "sq_exp");
         // Create kernel functor for distance kernel
-        auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(program, "distance");
+        auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(program, "distance");
         // Create kernel functor for matrix vector product kernel
         auto matrix_vector_product = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
@@ -137,6 +139,7 @@ int main(){
         std::vector<float> h_a = {0,1,0,2};
         std::vector<float> h_b = {0,0,0,1};
         std::vector<float> h_c(4,0);
+        std::vector<float> h_l = {1,3};
         int nx = 2;
         int ny = 2;
         int dim = 2;
@@ -144,8 +147,9 @@ int main(){
         cl::Buffer d_a(h_a.begin(), h_a.end(), true);
         cl::Buffer d_b(h_b.begin(), h_b.end(), true);
         cl::Buffer d_c(h_c.begin(), h_c.end(), false);
+        cl::Buffer d_l(h_l.begin(), h_l.end(), true);
 
-        distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, nx, ny, dim);
+        distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, d_l, nx, ny, dim);
         queue.finish();
 
         cl::copy(d_c, h_c.begin(), h_c.end());
@@ -154,7 +158,7 @@ int main(){
         std::cout << std::endl;
 
         std::vector<float> native_c(4,0);
-        distance_native(h_a, h_b, native_c, nx, ny, dim);
+        distance_native(h_a, h_b, native_c, h_l, nx, ny, dim);
         for (auto const& i : native_c)
             std::cout << i << ' ';
         std::cout << std::endl;

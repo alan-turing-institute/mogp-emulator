@@ -1,7 +1,10 @@
 // Determine the squared euclidean distance between each pair of vectors in x
-// and y
+// and y scaled by the array l
 //
-// x is an (nx,dim) array, y is an (ny,dim) array
+// x is an (nx,dim) array, y is an (ny,dim) array both representing n vectors
+// of length dim
+// l is a (dim) array or scaling parameters. The difference between dimension
+// i, for each pair of x and y vectors are divided by l[i]
 // Returns r, a (nx,ny) array
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
@@ -10,7 +13,17 @@
 #define MAX_N 1024
 
 kernel void distance(global float* restrict x, global float* restrict y,
-        global float* restrict r, int nx, int ny, int dim){
+                     global float* restrict r, global float* restrict l,
+                     int nx, int ny, int dim){
+
+    // Cache the scaling factors
+    float l_cache[MAX_DIM];
+    for(unsigned i=0; i<MAX_DIM; i++){
+        l_cache[i] = 1;
+    }
+    for(unsigned i=0; i<dim; i++){
+        l_cache[i] = l[i];
+    }
 
     // Calculate one row of r at a time
     for(unsigned row=0; row<nx; row++){
@@ -39,6 +52,7 @@ kernel void distance(global float* restrict x, global float* restrict y,
                 float x = x_cache[i];
                 float y = y_cache[i];
                 float difference = x - y;
+                difference /= l_cache[i];
                 value += difference * difference;
             }
 
