@@ -25,7 +25,7 @@ rights should be addressed to:
 | S3 7RH
 | UK
 | Tel : +44 (0) 114 222 3753
-| E mail: mucm@sheffieldNOSPAM.ac.uk
+| E mail: `mucm@sheffieldNOSPAM.ac.uk <mailto:mucm@sheffieldNOSPAM.ac.uk>`_
 
 Disclaimer
 

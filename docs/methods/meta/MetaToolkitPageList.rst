@@ -11,7 +11,6 @@ Generic pages
 -------------
 
 -  :ref:`AltGPorBLEmulator<AltGPorBLEmulator>`
--  :ref:`MetaCaseStudies<MetaCaseStudies>`
 -  :ref:`MetaComments<MetaComments>`
 -  :ref:`MetaCopyrightNotice<MetaCopyrightNotice>`
 -  :ref:`MetaHomePage<MetaHomePage>` \*
@@ -20,6 +19,8 @@ Generic pages
 -  :ref:`MetaToolkitPageList<MetaToolkitPageList>` \*
 -  :ref:`MetaToolkitStructure<MetaToolkitStructure>` \*
 -  :ref:`MetaToolkitTutorial<MetaToolkitTutorial>`
+
+.. -  :ref:`MetaCaseStudies<MetaCaseStudies>`
 
 Definition/Glossary pages
 -------------------------
@@ -258,46 +259,46 @@ Topic thread on Design of Experiments
 -  :ref:`ProcHaarWaveletExpansionForKL<ProcHaarWaveletExpansionForKL>`\ \*\*
 -  :ref:`ProcSobolSequence<ProcSobolSequence>`\ \*\*
 
-Case Study 1
-------------
+.. Case Study 1
+   ------------
 
--  :ref:`CaseOneJ<CaseOneJ>`
--  :ref:`WriteUpOneIntro<WriteUpOneIntro>`
--  :ref:`WriteUpOneIntroPurpo<WriteUpOneIntroPurpo>`
--  :ref:`WriteUpOneIntroLimit<WriteUpOneIntroLimit>`
--  :ref:`WriteUpOneAppli<WriteUpOneAppli>`
--  :ref:`WriteUpOneAppliRotav<WriteUpOneAppliRotav>`
--  :ref:`WriteUpOneAppliVacci<WriteUpOneAppliVacci>`
--  :ref:`WriteUpOneModel<WriteUpOneModel>`
--  :ref:`WriteUpOneModelEpide<WriteUpOneModelEpide>`
--  :ref:`WriteUpOneModelGskmo<WriteUpOneModelGskmo>`
--  :ref:`WriteUpOneModelInout<WriteUpOneModelInout>`
--  :ref:`WriteUpOneModelGskaim<WriteUpOneModelGskaim>`
--  :ref:`WriteUpOneScreen<WriteUpOneScreen>`
--  :ref:`WriteUpOneScreenMetho<WriteUpOneScreenMetho>`
--  :ref:`WriteUpOneScreenRange<WriteUpOneScreenRange>`
--  :ref:`WriteUpOneScreenResult<WriteUpOneScreenResult>`
--  :ref:`WriteUpOneElici<WriteUpOneElici>`
--  :ref:`WriteUpOneEliciPurpo<WriteUpOneEliciPurpo>`
--  :ref:`WriteUpOneEliciDesig<WriteUpOneEliciDesig>`
--  :ref:`WriteUpOneEliciResul<WriteUpOneEliciResul>`
--  :ref:`WriteUpOneEliciFitti<WriteUpOneEliciFitti>`
--  :ref:`WriteUpOneEliciScree<WriteUpOneEliciScree>`
--  :ref:`WriteUpOneEmula<WriteUpOneEmula>`
--  :ref:`WriteUpOneEmulaGauss<WriteUpOneEmulaGauss>`
--  :ref:`WriteUpOneEmulaDimen<WriteUpOneEmulaDimen>`
--  :ref:`WriteUpOneEmulaMulti<WriteUpOneEmulaMulti>`
--  :ref:`WriteUpOneEmulaValid<WriteUpOneEmulaValid>`
--  :ref:`WriteUpOneEmulaInter<WriteUpOneEmulaInter>`
--  :ref:`WriteUpOneSensi<WriteUpOneSensi>`
--  :ref:`WriteUpOneSensiUncer<WriteUpOneSensiUncer>`
--  :ref:`WriteUpOneSensiProba<WriteUpOneSensiProba>`
--  :ref:`WriteUpOneSensiPsatw<WriteUpOneSensiPsatw>`
--  :ref:`WriteUpOneSensiResul<WriteUpOneSensiResul>`
--  :ref:`WriteUpOneExten<WriteUpOneExten>`
--  :ref:`WriteUpOneExtenVaryp<WriteUpOneExtenVaryp>`
--  :ref:`WriteUpOneExtenCalib<WriteUpOneExtenCalib>`
--  :ref:`WriteUpOneExtenDyem<WriteUpOneExtenDyem>`
--  :ref:`WriteUpOneOverv<WriteUpOneOverv>`
--  :ref:`WriteUpOneAppB<WriteUpOneAppB>`
--  :ref:`WriteUpOneRefer<WriteUpOneRefer>`
+.. -  :ref:`CaseOneJ<CaseOneJ>`
+   -  :ref:`WriteUpOneIntro<WriteUpOneIntro>`
+   -  :ref:`WriteUpOneIntroPurpo<WriteUpOneIntroPurpo>`
+   -  :ref:`WriteUpOneIntroLimit<WriteUpOneIntroLimit>`
+   -  :ref:`WriteUpOneAppli<WriteUpOneAppli>`
+   -  :ref:`WriteUpOneAppliRotav<WriteUpOneAppliRotav>`
+   -  :ref:`WriteUpOneAppliVacci<WriteUpOneAppliVacci>`
+   -  :ref:`WriteUpOneModel<WriteUpOneModel>`
+   -  :ref:`WriteUpOneModelEpide<WriteUpOneModelEpide>`
+   -  :ref:`WriteUpOneModelGskmo<WriteUpOneModelGskmo>`
+   -  :ref:`WriteUpOneModelInout<WriteUpOneModelInout>`
+   -  :ref:`WriteUpOneModelGskaim<WriteUpOneModelGskaim>`
+   -  :ref:`WriteUpOneScreen<WriteUpOneScreen>`
+   -  :ref:`WriteUpOneScreenMetho<WriteUpOneScreenMetho>`
+   -  :ref:`WriteUpOneScreenRange<WriteUpOneScreenRange>`
+   -  :ref:`WriteUpOneScreenResult<WriteUpOneScreenResult>`
+   -  :ref:`WriteUpOneElici<WriteUpOneElici>`
+   -  :ref:`WriteUpOneEliciPurpo<WriteUpOneEliciPurpo>`
+   -  :ref:`WriteUpOneEliciDesig<WriteUpOneEliciDesig>`
+   -  :ref:`WriteUpOneEliciResul<WriteUpOneEliciResul>`
+   -  :ref:`WriteUpOneEliciFitti<WriteUpOneEliciFitti>`
+   -  :ref:`WriteUpOneEliciScree<WriteUpOneEliciScree>`
+   -  :ref:`WriteUpOneEmula<WriteUpOneEmula>`
+   -  :ref:`WriteUpOneEmulaGauss<WriteUpOneEmulaGauss>`
+   -  :ref:`WriteUpOneEmulaDimen<WriteUpOneEmulaDimen>`
+   -  :ref:`WriteUpOneEmulaMulti<WriteUpOneEmulaMulti>`
+   -  :ref:`WriteUpOneEmulaValid<WriteUpOneEmulaValid>`
+   -  :ref:`WriteUpOneEmulaInter<WriteUpOneEmulaInter>`
+   -  :ref:`WriteUpOneSensi<WriteUpOneSensi>`
+   -  :ref:`WriteUpOneSensiUncer<WriteUpOneSensiUncer>`
+   -  :ref:`WriteUpOneSensiProba<WriteUpOneSensiProba>`
+   -  :ref:`WriteUpOneSensiPsatw<WriteUpOneSensiPsatw>`
+   -  :ref:`WriteUpOneSensiResul<WriteUpOneSensiResul>`
+   -  :ref:`WriteUpOneExten<WriteUpOneExten>`
+   -  :ref:`WriteUpOneExtenVaryp<WriteUpOneExtenVaryp>`
+   -  :ref:`WriteUpOneExtenCalib<WriteUpOneExtenCalib>`
+   -  :ref:`WriteUpOneExtenDyem<WriteUpOneExtenDyem>`
+   -  :ref:`WriteUpOneOverv<WriteUpOneOverv>`
+   -  :ref:`WriteUpOneAppB<WriteUpOneAppB>`
+   -  :ref:`WriteUpOneRefer<WriteUpOneRefer>`

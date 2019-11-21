@@ -16,69 +16,76 @@ decision-based SA page
 key definitions here for convenience.
 
 In probabilistic SA, we regard the :ref:`simulator<DefSimulator>`
-inputs :math:`\strut X` as uncertain with probability distribution
+inputs :math:`X` as uncertain with probability distribution
 :math:`\omega(x)`. In decision-based SA, we further require a decision set
-:math:`\strut\cal{D}` whose elements are the possible decisions, and a loss
+:math:`\cal{D}` whose elements are the possible decisions, and a loss
 function :math:`L(d,x)` expressing the consequences of taking decision
-:math:`d\in\cal{D}` when the true inputs are :math:`\strut X=x`. The optimal
+:math:`d\in\cal{D}` when the true inputs are :math:`X=x`. The optimal
 decision is the one having smallest expected loss
 
-:math:`\bar{L}(d) = {\rm E}[L(d,X)]\,,`
+.. math::
+   \bar{L}(d) = {\rm E}[L(d,X)],
 
 where the expectation is taken with respect to the distribution of
-:math:`\strut X`. Therefore if the optimal decision is :math:`\strut M`,
+:math:`X`. Therefore if the optimal decision is :math:`M`,
 
-:math:`\bar{L}(M) = \\min_d\{\bar{L}(d)\}\,.`
+.. math::
+   \bar{L}(M) = \min_d\{\bar{L}(d)\}.
 
 If we were able to learn the true value of a subset :math:`x_J` of the
 inputs, then the optimal decision would minimise
 
-:math:`\bar{L}_J(d,x_J) = {\rm E}[L(d,X)\,|\,X_J = x_J]\,.`
+.. math::
+   \bar{L}_J(d,x_J) = {\rm E}[L(d,X)\,|\,X_J = x_J].
 
 and would depend on :math:`x_J`. If we denote this decision by
 :math:`M_J(x_J)`, then the decision-based sensitivity measure for :math:`X_J`
 is the expected value of information
 
-:math:`V_J = \\bar{L}(M) - {\rm E}[\bar{L}_J(M_J(X_J),X_J)]\,.`.
+.. math::
+   V_J = \bar{L}(M) - {\rm E}[\bar{L}_J(M_J(X_J),X_J)].
 
 Our examples illustrate some decision problems that can be formulated
-through :math:`\strut\cal{D}` and :math:`L(d,x)`, and explore the nature of
+through :math:`\cal{D}` and :math:`L(d,x)`, and explore the nature of
 :math:`V_J` in each case.
 
 Example 1: Estimation with quadratic loss
 -----------------------------------------
 
 First suppose that the decision problem is to estimate the true
-simulator output :math:`f(x)`. Hence the decision set :math:`\strut\cal{D}`
+simulator output :math:`f(x)`. Hence the decision set :math:`\cal{D}`
 consists of all possible values of the simulator output :math:`f(x)`. Our
 loss function should be of the form that there is no loss if the
 estimate (decision) exactly equals the true :math:`f(X)`, and should be an
 increasing function of the estimation error :math:`f(x)-d`. One such
 function is the quadratic loss function
 
-:math:`L(d,x) = \\{f(x) - d\}^2\,.`
+.. math::
+   L(d,x) = \{f(x) - d\}^2.
 
-If we now apply the above theory, the optimal estimate :math:`\strut d`
+If we now apply the above theory, the optimal estimate :math:`d`
 will minimise
 
-:math:`\begin{array}{rl} \\bar{L}(d) &= {\rm E}[f(X)^2 -2d\,f(X) + d^2] =
-{\rm E}[f(X)^2] - 2d\,{\rm E}[f(X)] + d^2\\\ &= {\rm Var}[f(X)] +
-\\{{\rm E}[f(X)] - d\}^2 \\,, \\end{array}`
+.. math::
+   \begin{array}{rl} \bar{L}(d) &= {\rm E}[f(X)^2 -2d\,f(X) + d^2] =
+   {\rm E}[f(X)^2] - 2d\,{\rm E}[f(X)] + d^2 \\ &= {\rm Var}[f(X)] +
+   \{{\rm E}[f(X)] - d\}^2 \,, \end{array}
 
 after simple manipulation using the fact that, for any random variable
-:math:`\strut Z`, :math:`{\rm Var}[Z] = {\rm E}[Z^2] - \\{{\rm E}[Z]\}^2`. We
+:math:`Z`, :math:`{\rm Var}[Z] = {\rm E}[Z^2] - \{{\rm E}[Z]\}^2`. We
 can now see that this is minimised by setting :math:`d = {\rm E}[f(X)]`. We
 can also see that the expected loss of this optimal decision is
 :math:`\bar{L}[M]={\rm Var}[f(X)]`. In this decision problem, then, we find
-that :math::ref:`\strut M` has the same form as defined for `variance-based
+that :math:`M` has the same form as defined for :ref:`variance-based
 SA<DefVarianceBasedSA>` in the page
 :ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`. By an identical
 argument we find that if we learn the value of :math:`x_J` the optimal
-decision becomes :math::ref:`M_J(x_J) = {\rm E}[f(X)\,|\,x_J]`, which is also as
-defined in `DiscVarianceBasedSA<DiscVarianceBasedSA>`. Finally,
+decision becomes :math:`M_J(x_J) = {\rm E}[f(X)\,|\,x_J]`, which is also as
+defined in :ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`. Finally,
 the sensitivity measure becomes
 
-:math:`V_J = {\rm Var}[f(X)] - {\rm E}[{\rm Var}[f(X)\,|\,X_J]]\,,`
+.. math::
+   V_J = {\rm Var}[f(X)] - {\rm E}[{\rm Var}[f(X)\,|\,X_J]],
 
 which is once again the sensitivity measure defined in
 :ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`.
@@ -94,9 +101,9 @@ decision problem. But second, if there genuinely is a decision to
 estimate :math:`f(x)` the loss function should be chosen appropriately to
 the context of that decision. It might be quadratic loss, but depending
 on what units we choose to measure that loss in we might have a
-multiplier :math:`\strut c` such that :math:`L(d,x) = c\{f(x)-d\}^2`. The
+multiplier :math:`c` such that :math:`L(d,x) = c\{f(x)-d\}^2`. The
 optimal decisions would be unchanged but the sensitivity measure (the
-value of information) would now be multiplied by :math:`\strut c`.
+value of information) would now be multiplied by :math:`c`.
 
 The same applies to any decision problem. Making a linear transformation
 of the loss function does not change the optimal decision, but the value
@@ -112,42 +119,48 @@ the output. We will suppose here that the objective is to minimise
 is straightforward if all of the inputs are under our control, but the
 problem becomes more interesting when only some of the inputs can be
 controlled to optimise the output, while the remainder are uncertain. We
-therefore write the simulator as :math:`f(d,y)`, where :math:`\strut d`
-denotes the control inputs and :math:`\strut y` the remaining inputs. The
+therefore write the simulator as :math:`f(d,y)`, where :math:`d`
+denotes the control inputs and :math:`y` the remaining inputs. The
 latter are uncertain with distribution :math:`\omega(y)`.
 
 So the decision problem is characterised by a decision set
-:math:`\strut\cal{D}` comprising all possible values of the control inputs
-:math:`\strut d`, together with a loss function
+:math:`\cal{D}` comprising all possible values of the control inputs
+:math:`d`, together with a loss function
 
-:math:`L(d,x) = f(x) = f(d,y)\,.`
+.. math::
+   L(d,x) = f(x) = f(d,y).
 
 To illustrate the calculations in this case, let the simulator have the
 form
 
-:math:`f(d,y) = y_1\{y_2 + (y_1-d)^2\}\,,`
+.. math::
+   f(d,y) = y_1\{y_2 + (y_1-d)^2\},
 
-where :math:`\strut d` is a scalar and :math:`y=(y_1,y_2)`. With :math:`\strut y`
+where :math:`d` is a scalar and :math:`y=(y_1,y_2)`. With :math:`y`
 uncertain, we compute the expected loss. Simple algebra gives
 
-:math:`\bar{L}(d) = {\rm E}[Y_1Y_2 + Y_1^3 - 2dY_1^2 +d^2Y_1] = {\rm
-E}[Y_1](d-M)^2 + \\bar{L}[M]\,,`
+.. math::
+   \bar{L}(d) = {\rm E}[Y_1Y_2 + Y_1^3 - 2dY_1^2 +d^2Y_1] = {\rm
+   E}[Y_1](d-M)^2 + \bar{L}[M],
 
 where
 
-:math:`M = {\rm E}[Y_1^2]/{\rm E}[Y_1]`
+.. math::
+   M = {\rm E}[Y_1^2]/{\rm E}[Y_1]
 
 is the optimal decision and
 
-:math:`\bar{L}[M] = {\rm E}[Y_1Y_2] +{\rm E}[Y_1^3] - \\{{\rm
-E}[Y_1^2]\}^2/{\rm E}[Y_1]`
+.. math::
+   \bar{L}[M] = {\rm E}[Y_1Y_2] +{\rm E}[Y_1^3] - \{{\rm
+   E}[Y_1^2]\}^2/{\rm E}[Y_1]
 
 is the minimal expected loss, i.e. the expected value of the simulator
-output at :math:`\strut d=M`. If now we were to learn the value of
+output at :math:`d=M`. If now we were to learn the value of
 :math:`y_1`, then
 
-:math:`\bar{L}_1(y_1) = {\rm E}[L(d,X)\,|\,y_1] = y_1\{{\rm E}[Y_2\,|\,y_1]
-+ (y_1-d)^2\}\,,`
+.. math::
+   \bar{L}_1(y_1) = {\rm E}[L(d,X)\,|\,y_1] = y_1\{{\rm E}[Y_2\,|\,y_1]
+   + (y_1-d)^2\},
 
 and the optimal decision would be :math:`d=y_1` with minimal (expected)
 loss :math:`y_1{\rm E}[Y_2|y_1]`. Since the expectation of this with
@@ -155,7 +168,8 @@ respect to the uncertainty in :math:`y_1` is just :math:`{\rm E}[Y_1Y_2]`, we
 then find that the sensitivity measure for :math:`y_1`, i.e. the expected
 value of learning the true value of :math:`y_1`, is
 
-:math:`V_{\{1\}} = {\rm E}[Y_1^3] - \\{{\rm E}[Y_1^2]\}^2/{\rm E}[Y_1]\,.`
+.. math::
+   V_{\{1\}} = {\rm E}[Y_1^3] - \{{\rm E}[Y_1^2]\}^2/{\rm E}[Y_1].
 
 It is straightforward to see that the value of learning both :math:`y_1`
 and :math:`y_2` is the same, :math:`V_{\{1,2\}} = V_{\{1\}}`, because the
@@ -165,12 +179,14 @@ there would be no additional value in learning :math:`y_2`.
 It remains to consider the sensitivity measure for learning :math:`y_2`. We
 now find that the optimal decision is
 
-:math:`M_2(y_2) = {\rm E}[Y_1^2\,|\,y_2]/{\rm E}[Y_1\,|\,y_2]`
+.. math::
+   M_2(y_2) = {\rm E}[Y_1^2\,|\,y_2]/{\rm E}[Y_1\,|\,y_2]
 
 and the expected value of learning the true value of :math:`y_2` is
 
-:math:`V_{\{2\}} = {\rm E}\left [\{{\rm E}[Y_1^2\,|\,Y_2]\}^2/{\rm
-E}[Y_1\,|\,Y_2]\right ] - \\{{\rm E}[Y_1^2]\}^2/{\rm E}[Y_1]\,.`
+.. math::
+   V_{\{2\}} = {\rm E}\left [\{{\rm E}[Y_1^2\,|\,Y_2]\}^2/{\rm
+   E}[Y_1\,|\,Y_2]\right ] - \{{\rm E}[Y_1^2]\}^2/{\rm E}[Y_1].
 
 If the two uncertain inputs are independent, then we find that this
 reduces to zero. Otherwise, learning the value of :math:`y_2` gives us some
@@ -182,7 +198,8 @@ with equal probabilities and that the distribution of :math:`Y_1` given
 E}[Y_1|y_2]=(5+y_2)/2`, :math:`{\rm E}[Y_1^2|y_2]=(5+y_2)(6+y_2)/4` and
 :math:`{\rm E}[Y_1^3|y_2]=(5+y_2)(6+y_2)(7+y_2)/8`. Then
 
-:math:`{\rm E}[Y_1] = 0.5(5/2 + 6/2) = 2.75\,.`
+.. math::
+   {\rm E}[Y_1] = 0.5(5/2 + 6/2) = 2.75.
 
 We similarly find that :math:`{\rm E}[Y_1^2]=9` and :math:`{\rm
 E}[Y_1^3]=34.125` and hence that :math:`V_{\{1,2\}} = V_{\{1\}}=4.67`. In
@@ -203,8 +220,8 @@ are discussed in
 
 In the approach characterised as decision under code uncertainty, we
 optimise the posterior expected loss :math:`\bar{L}^*(d) = {\rm
-E}^*[\bar{L}(d)]:ref:`, where :math:`{\rm E}^*[\cdot]` denotes a posterior
-expectation (in the case of a fully `Bayesian<DefBayesian>`
+E}^*[\bar{L}(d)]`, where :math:`{\rm E}^*[\cdot]` denotes a posterior
+expectation (in the case of a fully :ref:`Bayesian<DefBayesian>`
 emulator, or the adjusted mean in the :ref:`Bayes
 linear<DefBayesLinear>` case). In this example,
 :math:`\bar{L}^*(d)` is the expectation of the posterior mean of
@@ -213,7 +230,7 @@ carry out all the computations above.
 
 However, it is often more appropriate to consider the second approach
 that is characterised as code uncertainty about the decision. Code
-uncertainty now induces a (posterior) distribution for :math:`\strut M`
+uncertainty now induces a (posterior) distribution for :math:`M`
 whose mean is not generally just the result of minimising
 :math:`\bar{L}^*(d)`. In general, the analysis for the optimisation problem
 becomes much more complex in this approach.

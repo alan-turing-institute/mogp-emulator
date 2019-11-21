@@ -85,16 +85,16 @@ the toolkit.
       design that are relevant to MUCM, particularly those relating to
       the design of a training sample.
 
--  Another important feature of the toolkit is the MUCM Case Studies.
-   The Case Studies are demonstrations of the MUCM methodology applied
-   to address substantive challenges faced by users of real simulation
-   models. The techniques that they use are all described in the toolkit
-   and there are appropriate links from each Case Study to the relevant
-   pages in the toolkit. The Case Studies generally are accessed from
-   the page :ref:`MetaCaseStudies<MetaCaseStudies>`, and from the
-   menu bar. Currently, this page links just to the first case study,
-   but the intention is to add at least two more case studies in
-   subsequent releases.
+.. -  Another important feature of the toolkit is the MUCM Case Studies.
+      The Case Studies are demonstrations of the MUCM methodology applied
+      to address substantive challenges faced by users of real simulation
+      models. The techniques that they use are all described in the toolkit
+      and there are appropriate links from each Case Study to the relevant
+      pages in the toolkit. The Case Studies generally are accessed from
+      the page :ref:`MetaCaseStudies<MetaCaseStudies>`, and from the
+      menu bar. Currently, this page links just to the first case study,
+      but the intention is to add at least two more case studies in
+      subsequent releases.
 
 Later releases of the toolkit will add more threads and other material,
 including more extensive examples to guide the toolkit user and further
