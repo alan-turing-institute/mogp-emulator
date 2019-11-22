@@ -367,18 +367,18 @@ class GaussianProcess(object):
 
         assert not self.theta is None, "Must set a parameter value to fit a GP"
 
-        self.Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
+        Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
 
         if self.nugget == None:
-            L, nugget = self._jit_cholesky(self.Q)
-            self.Z = self.Q + nugget*np.eye(self.n)
+            self.L, nugget = self._jit_cholesky(Q)
+            Z = Q + nugget*np.eye(self.n)
         else:
-            self.Z = self.Q + self.nugget*np.eye(self.n)
-            L = linalg.cholesky(self.Z, lower=True)
+            Z = Q + self.nugget*np.eye(self.n)
+            self.L = linalg.cholesky(Z, lower=True)
 
-        self.invQ = np.linalg.inv(L.T).dot(np.linalg.inv(L))
-        self.invQt = np.dot(self.invQ, self.targets)
-        self.logdetQ = 2.0 * np.sum(np.log(np.diag(L)))
+        #self.invQ = np.linalg.inv(self.L.T).dot(np.linalg.inv(self.L))
+        self.invQt = np.linalg.solve(self.L.T, np.linalg.solve(self.L, self.targets))
+        self.logdetQ = 2.0 * np.sum(np.log(np.diag(self.L)))
 
     def _set_params(self, theta):
         """
@@ -459,7 +459,9 @@ class GaussianProcess(object):
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
 
         for d in range(self.D + 1):
-            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) - np.sum(self.invQ * dKdtheta[d]))
+            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
+                                  np.trace(np.linalg.solve(self.L.T,
+                                                           np.linalg.solve(self.L, dKdtheta[d]))))
 
         return partials
 
@@ -500,12 +502,15 @@ class GaussianProcess(object):
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
 
         for d1 in range(self.D + 1):
+            invQ_dot_d1 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, dKdtheta[d1]))
             for d2 in range(self.D + 1):
+                invQ_dot_d2 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, dKdtheta[d2]))
+                invQ_dot_d1d2 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, d2Kdtheta2[d1, d2]))
                 hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt,
-                                        2.*np.linalg.multi_dot([dKdtheta[d1], self.invQ, dKdtheta[d2]])-d2Kdtheta2[d1, d2],
-                                        self.invQt])-
-                                        np.trace(np.linalg.multi_dot([self.invQ, dKdtheta[d1], self.invQ, dKdtheta[d2]])
-                                                 -np.dot(self.invQ, d2Kdtheta2[d1, d2])))
+                                                            2.*np.dot(dKdtheta[d1], invQ_dot_d2) -
+                                                            d2Kdtheta2[d1, d2],
+                                                            self.invQt]) -
+                                        np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2))
 
         return hessian
 
@@ -873,7 +878,9 @@ class GaussianProcess(object):
 
         var = None
         if do_unc:
-            var = np.maximum(exp_theta[self.D] - np.sum(Ktest * np.dot(self.invQ, Ktest), axis=0), 0.)
+            var = np.maximum(exp_theta[self.D] - np.sum(Ktest *
+                                    np.linalg.solve(self.L.T,
+                                                    np.linalg.solve(self.L, Ktest)), axis=0), 0.)
 
         deriv = None
         if do_deriv:
