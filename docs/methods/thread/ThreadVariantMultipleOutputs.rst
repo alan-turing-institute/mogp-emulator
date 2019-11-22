@@ -6,8 +6,6 @@ Thread: Analysis of a simulator with multiple outputs using Gaussian Process met
 Overview
 --------
 
-%TOPICLINKGRAPH{name="TestGraph" regen="1"}%
-
 The multivariate emulator
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -78,13 +76,13 @@ general, the choice will lead to the mean function depending on a set of
 :ref:`hyperparameters<DefHyperparameter>` that we will denote by
 :math:`\beta`. We will generally write the mean function as :math:`m(\cdot)`
 where the dependence on :math:`\beta` is implicit. Note that if we have
-:math:`r` outputs, then :math:`m(\cdot)` is a vector of :math:`1 \\times r`
+:math:`r` outputs, then :math:`m(\cdot)` is a vector of :math:`1 \times r`
 elements comprising the mean functions of the various outputs.
 
 The most common approach is to define the mean function to have the
 linear form :math:`m(x) = h^T (x)\beta`, where :math:`h(\cdot)` is a :math:`q
-\\times 1` vector of regressor (or basis) functions whose specification
-is part of the choice to be made. Note that :math:`\beta` is a :math:`q \\times
+\times 1` vector of regressor (or basis) functions whose specification
+is part of the choice to be made. Note that :math:`\beta` is a :math:`q \times
 r` matrix.
 
 The covariance function for a multivariate GP specifies the :math:`r\times
@@ -115,8 +113,8 @@ now requires that we express probability distributions for these that
 are again *prior* distributions. Alternative forms of prior
 distributions for GP hyperparameters are discussed in
 :ref:`AltGPPriors<AltGPPriors>`, with some specific suggestions for
-the covariance function hyperparameters :math::ref:`\omega` given in
-`AltMultivariateCovarianceStructures<AltMultivariateCovarianceStructures>`.
+the covariance function hyperparameters :math:`\omega` given in
+:ref:`AltMultivariateCovarianceStructures<AltMultivariateCovarianceStructures>`.
 The result is in general a joint (prior) distribution
 :math:`\pi(\beta,\omega)`. Where required, we will denote the marginal
 distribution of :math:`\omega` by :math:`\pi_\omega(\cdot)`, and similarly for
@@ -138,7 +136,7 @@ problem, although it seems likely that a larger number of design points
 could be required.
 
 The result of applying one of the design procedures described there is
-an ordered set of points :math:`D = \\{x_1, x_2, \\ldots, x_n\}`. The
+an ordered set of points :math:`D = \{x_1, x_2, \ldots, x_n\}`. The
 simulator is then run at each of these input configurations, producing a
 :math:`n\times r` matrix of outputs. The i-th column of this matrix is the
 output produced by the simulator from the run with inputs :math:`x_i`.

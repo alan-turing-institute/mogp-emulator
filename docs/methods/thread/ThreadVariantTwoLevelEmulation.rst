@@ -80,9 +80,10 @@ To represent our uncertainty about the high-dimensional coarse computer
 model :math:`f^c(x)`, we build a coarse emulator for the coarse simulator.
 This gives an emulator of the form:
 
-:math:` f^c(x) = m^c(x) + w^c(x),\\ (1) \`
+.. math::
+   f^c(x) = m^c(x) + w^c(x)
 
-where :math::ref:`m^c(x)` represents the emulator `mean
+where :math:`m^c(x)` represents the emulator :ref:`mean
 function<AltMeanFunction>`, and :math:`w^c(x)` is a stochastic
 residual process with a specified :ref:`covariance
 function<DiscCovarianceFunction>`.
@@ -125,7 +126,8 @@ combine information from :math:`f^c(x)` with appropriate belief
 specifications about this relationship. We express our emulator for the
 accurate model in a similar form as the coarse emulator
 
-:math:` f^a(x) = m^a(x) + w^a(x), \`
+.. math::
+   f^a(x) = m^a(x) + w^a(x),
 
 In general, we express the accurate emulator in terms of either the
 coarse simulator itself or elements of the coarse simulator in
@@ -140,7 +142,8 @@ is to consider the accurate simulator to be a re-scaled version of the
 coarse simulator plus additional residual variation. This yields an
 accurate emulator of the form:
 
-:math:` f^a(x)=\rho f^c(x) + {w^a}'(x),\\ (1) \`
+.. math::
+   f^a(x)=\rho f^c(x) + {w^a}'(x),
 
 where :math:`\rho` is an unknown scaling parameter, and :math:`{w^a}'(x)` is a
 new stochastic residual process unique to the accurate computer model.
@@ -149,32 +152,32 @@ difference in behaviour between the two models is mainly a matter of
 scale, rather than changes in the shape or location of the output.
 
 In this case, we can consider the mean function of the accurate emulator
-to be :math:` m^a(x)=\rho m^c(x) \`, and the residual process can be
-expressed as :math:` w^a(x) = \\rho w^c(x) +{w^a}'(x) \`.
+to be :math:`m^a(x)=\rho m^c(x)`, and the residual process can be
+expressed as :math:`w^a(x) = \rho w^c(x) +{w^a}'(x)`.
 
 **Regression multipliers:** When the coarse emulator mean function takes
-a :ref:`linear form<AltMeanFunction>`, :math:`m^c(x)=\sum_j \\beta^c_j(x)
-h_j(x) \`, the single multiplier method can be generalised. Instead of
+a :ref:`linear form<AltMeanFunction>`, :math:`m^c(x)=\sum_j \beta^c_j(x)
+h_j(x)`, the single multiplier method can be generalised. Instead of
 re-scaling the value of the coarse simulator itself, we can consider
 re-scaling the contributions from each of the regression :ref:`basis
 functions<DefBasisFunctions>` to the emulator's mean function.
 This gives an accurate emulator of identical structure to the coarse
 emulator though with modified values of the regression coefficients,
 
-:math:`f^a(x)=\sum_j \\rho_j \\beta^c_j h_j(x) + \\rho_w w^c(x) + {w^a}'(x)
-\\ (2)`.
+.. math::
+   f^a(x)=\sum_j \rho_j \beta^c_j h_j(x) + \rho_w w^c(x) + {w^a}'(x)
 
 where :math:`\rho_j` is an unknown scaling parameter for basis function
 :math:`h_j(x)`, and :math:`\rho_w` scales the contribution of the coarse
 residual process to the accurate emulator. We might choose to use this
 regression form, for example, when we consider that each term in the
 regression represents a physical process and the effects represented by
-:math:` h_j(x) \` change as we move between the the two simulators.
+:math:`h_j(x)` change as we move between the the two simulators.
 
 In this case, we can consider the mean function of the accurate emulator
-to be :math:` m^a(x)=\sum_j \\beta^a_j h_j(x) \` where
+to be :math:`m^a(x)=\sum_j \beta^a_j h_j(x)` where
 :math:`\beta^a_j=\rho_j\beta^c_j`, and the residual process can be
-expressed as :math:` w^a(x) = \\rho_w w^c(x) +{w^a}'(x) \`. In some cases
+expressed as :math:`w^a(x) = \rho_w w^c(x) +{w^a}'(x)`. In some cases
 it can be appropriate to express this relationship in the alternative
 form :math:`\beta^a_j=\rho_j\beta^c_j +\gamma_j`, where :math:`\gamma_j` is an
 additional unknown parameter. This alternative form can better
@@ -190,14 +193,15 @@ still consider the accurate simulator to be a re-scaling of the coarse
 simulator. However, the scaling factor is no longer a single unknown
 value but a stochastic process, :math:`\rho(x)`, over the input space.
 
-:math:`f^a(x)=\rho(x) f^c(x) + w^a(x).\\ (3)`
+.. math::
+   f^a(x)=\rho(x) f^c(x) + w^a(x).
 
 This spatial multiplier approach is applicable when we expect the nature
 of the relationship between the two models to change as we move
 throughout the input space. Similarly to (1), we can write the mean
-function of the accurate emulator to be :math:` m^a(x)=\rho(x) m^c(x) \`,
-and the residual process can be expressed as :math:` w^a(x) = \\rho(x)
-w^c(x) +{w^a}'(x) \`.
+function of the accurate emulator to be :math:`m^a(x)=\rho(x) m^c(x)`,
+and the residual process can be expressed as :math:`w^a(x) = \rho(x)
+w^c(x) +{w^a}'(x)`.
 
 In general, we obtain a form for the accurate emulator given by the
 appropriate expressions for :math:`m^a(x)` and :math:`w^a(x)`. Each of these
@@ -207,7 +211,7 @@ parametrised by a collection of unknown linkage hyperparameters
 :math:`\rho`.
 
 Specifying beliefs about :math:`\rho_j` and :math:`w^a(x)`
-----------------------------------------------------
+----------------------------------------------------------
 
 Given the coarse emulator :math:`f^c(x)` and a model linking :math:`f^c(x)` to
 :math:`f^a(x)`, then a prior specification for :math:`\rho` and :math:`w^a(x)`
@@ -223,15 +227,16 @@ to considering that there exists no known systematic biases between the
 two models. This equates to the belief that the expected value of
 :math:`m^a(x)` is the same as :math:`m^c(x)`, which implies
 
-:math:`\textrm{E}[\rho_j]=1`
+.. math::
+   \textrm{E}[\rho_j]=1
 
 The simplest specification for the variance and covariance of the
 :math:`\rho_j` is to parametrise the variance matrix by two constants
-:math:`\sigma^2_\rho \` and :math:` \\alpha \` such that
+:math:`\sigma^2_\rho \` and :math:`\alpha` such that
 
-:math:`\textrm{Var}[\rho_j]=\sigma^2_\rho`
-
-:math:`\textrm{Corr}[\rho_j,\rho_k]=\alpha,\\ i\neq j`
+.. math::
+   \textrm{Var}[\rho_j]&=&\sigma^2_\rho \\
+   \textrm{Corr}[\rho_j,\rho_k]&=&\alpha, i\neq j
 
 where :math:`\sigma^2_\rho\geq 0` and :math:`\alpha\in[-1,1]`. This belief
 specification is relatively simple. However by adjusting the value of
@@ -266,49 +271,43 @@ and :math:`h_k(x)` are functions of the same input parameter or are of
 similar functional forms.
 
 Constructing the prior emulator for :math:`f^a(x)`
------------------------------------------------
+---------------------------------------------------
 
 In the :ref:`Bayes linear<DefBayesLinear>` approach to emulation, our
-prior beliefs about the emulator :math::ref:`f^a(x)` are defined entirely by the
-`expectation and variance<DefSecondOrderSpec>`. Using the
+prior beliefs about the emulator :math:`f^a(x)` are defined entirely by the
+:ref:`expectation and variance<DefSecondOrderSpec>`. Using the
 regression multiplier method (2) of linking the simulators, these
 beliefs are as follows:
 
-:math:`\textrm{E}[f^a(x)]`
-
-=
-
-:math:`\sum_j \\textrm{E}[\rho_j \\beta^c_j] h_j(x) + \\textrm{E}[\rho_w
-w^c(x)] + \\textrm{E}[{w^a}'(x)]`
-
-:math:`\textrm{Var}[f^a(x)]`
-
-=
-
-:math:`\sum_j\sum_k h_j(x)h_k(x)\textrm{Cov}[\rho_j \\beta^c_j,\rho_k
-\\beta^c_k] + \\textrm{Var}[\rho_w w^c(x)]`
-
-:math:` +\textrm{Var}[{w^a}'(x)] + 2\sum_j h_j(x)\textrm{Cov}[\rho_j
-\\beta^c_j,\rho_w w^c(x)] \`
+.. math::
+   \textrm{E}[f^a(x)] &=& \sum_j \textrm{E}[\rho_j \beta^c_j]
+   h_j(x) + \textrm{E}[\rho_w w^c(x)] + \textrm{E}[{w^a}'(x)] \\
+   \textrm{Var}[f^a(x)] &=& \sum_j\sum_k h_j(x)h_k(x)
+   \textrm{Cov}[\rho_j \beta^c_j,\rho_k \beta^c_k] +
+   \textrm{Var}[\rho_w w^c(x)] + \textrm{Var}[{w^a}'(x)] +
+   2\sum_j h_j(x)\textrm{Cov}[\rho_j \beta^c_j,\rho_w w^c(x)]
 
 where the constituent elements are either expressed directly in terms of
 our beliefs about :math:`\rho_j` and :math:`{w^a}'(x)`, or are obtained from
 the expressions below:
 
-======================================================== =
-=========================================================================================================================================================================================================================
-:math:` \\textrm{E}[\rho_j \\beta^c_j]`                     = :math:`\textrm{E}[\rho_j] \\textrm{E}[\beta^c_j] \`
-:math:` \\textrm{E}[\rho_w w^c(x)]`                         = :math:`\textrm{E}[\rho_w] \\textrm{E}[w^c(x)] \`
-:math:` \\textrm{Var}[\rho_w w^c(x)]`                       = :math:` \\textrm{Var}[\rho_w]\textrm{Var}[w^c(x)] + \\textrm{Var}[\rho_w]\textrm{E}[w^c(x)]^2 + \\textrm{E}[\rho_w]^2\textrm{Var}[w^c(x)] \`
-:math:` \\textrm{Cov}[\rho_j \\beta^c_j,\rho_k \\beta^c_k]` = :math:` \\textrm{Cov}[\rho_j,\rho_k] \\textrm{Cov}[\beta^c_j,\beta^c_k] + \\textrm{Cov}[\rho_j,\rho_k]\textrm{E}[\beta^c_j]\textrm{E}[\beta^c_k] + \\textrm{Cov}[\beta^c_j,\beta^c_k]\textrm{E}[\rho_j]\textrm{E}[\rho_k] \`
-:math:` \\textrm{Cov}[\rho_j \\beta^c_j,\rho_w w^c(x)]`     = :math:` \\textrm{Cov}[\rho_j,\rho_w] \\textrm{Cov}[\beta^c_j,w^c(x)] + \\textrm{Cov}[\rho_j,\rho_w]\textrm{E}[\beta^c_j]\textrm{E}[w^c(x)] + \\textrm{Cov}[\beta^c_j,w^c(x)]\textrm{E}[\rho_j]\textrm{E}[\rho_w] \`
-======================================================== =
-=========================================================================================================================================================================================================================
+.. math::
+   \textrm{E}[\rho_j \beta^c_j] &=& \textrm{E}[\rho_j] \textrm{E}[\beta^c_j] \\
+   \textrm{E}[\rho_w w^c(x)]    &=& \textrm{E}[\rho_w] \textrm{E}[w^c(x)] \\
+   \textrm{Var}[\rho_w w^c(x)]  &=& \textrm{Var}[\rho_w]\textrm{Var}[w^c(x)] +
+                                    \textrm{Var}[\rho_w]\textrm{E}[w^c(x)]^2 +
+                                    \textrm{E}[\rho_w]^2\textrm{Var}[w^c(x)] \\
+   \textrm{Cov}[\rho_j \beta^c_j,\rho_k \beta^c_k] &=& \textrm{Cov}[\rho_j,\rho_k] \textrm{Cov}[\beta^c_j,\beta^c_k] +
+                                                       \textrm{Cov}[\rho_j,\rho_k]\textrm{E}[\beta^c_j]\textrm{E}[\beta^c_k] +
+                                                       \textrm{Cov}[\beta^c_j,\beta^c_k]\textrm{E}[\rho_j]\textrm{E}[\rho_k] \\
+   \textrm{Cov}[\rho_j \beta^c_j,\rho_w w^c(x)]    &=& \textrm{Cov}[\rho_j,\rho_w] \textrm{Cov}[\beta^c_j,w^c(x)] +
+                                                       \textrm{Cov}[\rho_j,\rho_w]\textrm{E}[\beta^c_j]\textrm{E}[w^c(x)] +
+                                                       \textrm{Cov}[\beta^c_j,w^c(x)]\textrm{E}[\rho_j]\textrm{E}[\rho_w]
 
 Expressions for the single multiplier approach are obtained by replacing
 all occurrences of :math:`\rho_j` and :math:`\rho_w` with the single parameter
 :math:`\rho` and beliefs about that parameter are substituted into the
-above expressions with :math:` \\textrm{Corr}[\rho,\rho] =1 \`. Similarly
+above expressions with :math:`\textrm{Corr}[\rho,\rho] =1`. Similarly
 for the spatial multiplier method (3), :math:`\rho_j` and :math:`\rho_w` are
 replaced by the process :math:`\rho(x)`.
 
@@ -321,22 +320,13 @@ make the assumption that the :math:`\beta^c_j` (and hence the :math:`w^c(x)`)
 are known and thus substantially simplify the expressions for
 :math:`\textrm{E}[f^a(x)]` and :math:`\textrm{Var}[f^a(x)]` as follows:
 
-:math:`\textrm{E}[f^a(x)]`
-
-=
-
-:math:`\sum_j \\textrm{E}[\rho_j] g_j(x) + \\textrm{E}[\rho_w] w^c(x) +
-\\textrm{E}[{w^a}'(x)]`
-
-:math:`\textrm{Var}[f^a(x)]`
-
-=
-
-:math:`\sum_j\sum_k g_j(x)g_k(x)\textrm{Cov}[\rho_j ,\rho_k] + w^c(x)^2
-\\textrm{Var}[\rho_w]`
-
-:math:` +\textrm{Var}[{w^a}'(x)] + 2\sum_j
-g_j(x)w^c(x)\textrm{Cov}[\rho_j,\rho_w ] \`
+.. math::
+   \textrm{E}[f^a(x)] &=& \sum_j \textrm{E}[\rho_j] g_j(x) +
+                          \textrm{E}[\rho_w] w^c(x) +
+                          \textrm{E}[{w^a}'(x)] \\
+   \textrm{Var}[f^a(x)] &=& \sum_j\sum_k g_j(x)g_k(x)\textrm{Cov}[\rho_j ,\rho_k] +
+                            w^c(x)^2 \textrm{Var}[\rho_w] +
+                            \textrm{Var}[{w^a}'(x)] + 2\sum_j g_j(x)w^c(x)\textrm{Cov}[\rho_j,\rho_w ]
 
 where we define :math:`g_j(x)=\beta^c_jh_j(x)`. These simplifications
 substantially reduce the complexity of the emulation calculations as now
@@ -344,7 +334,7 @@ the only uncertain quantities in :math:`f^a(x)` are :math:`\rho_j`,
 :math:`\rho_w` and :math:`{w^a}'(x)`.
 
 These quantities are sufficient to describe the Bayes linear emulator of
-:math::ref:`f^a(x)`. The `Gaussian process<DefGP>` approach requires a
+:math:`f^a(x)`. The :ref:`Gaussian process<DefGP>` approach requires a
 probability distribution for :math:`f^a(x)`, which will be taken to be
 Gaussian with the above specified mean and variance.
 

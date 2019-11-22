@@ -76,7 +76,7 @@ lead to the mean function depending on a set of
 :math:`\beta`.
 
 The most common approach is to define the mean function to have the
-linear form :math:` m(x) = h(x)^{\rm T}\beta \`, where :math:`h(\cdot)` is a
+linear form :math:`m(x) = h(x)^{\rm T}\beta`, where :math:`h(\cdot)` is a
 vector of regressor functions, whose specification is part of the choice
 to be made. For appropriate ways to model the mean, both generally and
 in linear form, see :ref:`AltMeanFunction<AltMeanFunction>`.
@@ -85,22 +85,22 @@ The GP covariance function is discussed in page
 :ref:`DiscCovarianceFunction<DiscCovarianceFunction>`. Within the
 toolkit we will assume that the covariance function takes the form
 :math:`\sigma^2 c(\cdot,\cdot)`, where :math:`\sigma^2` is an unknown scale
-hyperparameter and :math:`c(\cdot, \\cdot)` is called the correlation
+hyperparameter and :math:`c(\cdot, \cdot)` is called the correlation
 function indexed by a set of correlation hyperparameters :math:`\delta`.
 The choice of the emulator prior correlation function is considered in
 the alternatives page
 :ref:`AltCorrelationFunction<AltCorrelationFunction>`.
 
 The most common approach is to define the correlation function to have
-the Gaussian form :math:`c(x,x') = \\exp\{-(x-x')^{\rm T}C(x-x')\}`, where
+the Gaussian form :math:`c(x,x') = \exp\{-(x-x')^{\rm T}C(x-x')\}`, where
 :math:`C` is a diagonal matrix with elements the inverse squares of the
 elements of the :math:`\delta` vector. A slightly more complex form is the
-Gaussian with nugget, :math:`c(x,x') = \\nu I_{x=x'} +
-(1-\nu)\exp\{-(x-x')^{\rm T}C(x-x')\}:ref:`, where the
-`nugget<DefNugget>` :math:`\nu` may represent effects of inactive
+Gaussian with nugget, :math:`c(x,x') = \nu I_{x=x'} +
+(1-\nu)\exp\{-(x-x')^{\rm T}C(x-x')\}`, where the
+:ref:`nugget<DefNugget>` :math:`\nu` may represent effects of inactive
 variables and the expression :math:`I_{x=x'}` takes the value 1 if
-:math::ref:`x=x'` and otherwise is 0. See
-`AltCorrelationFunction<AltCorrelationFunction>` for more
+:math:`x=x'` and otherwise is 0. See
+:ref:`AltCorrelationFunction<AltCorrelationFunction>` for more
 details.
 
 The techniques that follow in this thread will be expressed as far as
@@ -135,7 +135,7 @@ are discussed in the alternatives page on training sample design for the
 core problem (:ref:`AltCoreDesign<AltCoreDesign>`).
 
 The result of applying one of the design procedures described there is
-an ordered set of points :math:`D = \\{x_1, x_2, \\ldots, x_n\}`. The
+an ordered set of points :math:`D = \{x_1, x_2, \ldots, x_n\}`. The
 simulator :math:`f(\cdot)` is then run at each of these input
 configurations, producing a vector :math:`f(D)` of :math:`n` elements, whose
 i-th element :math:`f(x_i)` is the output produced by the simulator from
