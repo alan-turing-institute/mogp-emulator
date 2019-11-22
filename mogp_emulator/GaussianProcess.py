@@ -376,7 +376,6 @@ class GaussianProcess(object):
             Z = Q + self.nugget*np.eye(self.n)
             self.L = linalg.cholesky(Z, lower=True)
 
-        #self.invQ = np.linalg.inv(self.L.T).dot(np.linalg.inv(self.L))
         self.invQt = np.linalg.solve(self.L.T, np.linalg.solve(self.L, self.targets))
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(self.L)))
 
