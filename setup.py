@@ -3,7 +3,7 @@ import setuptools
 # version information
 MAJOR = 0
 MINOR = 1
-MICRO = 0
+MICRO = 1
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 # write version information to file
@@ -15,7 +15,7 @@ Version file automatically created by setup.py file
 '''
 version = '{}'
     """.format(version)
-    
+
     with open("mogp_emulator/version.py", "w") as fh:
         fh.write(version_file)
 
