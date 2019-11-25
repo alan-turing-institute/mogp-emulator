@@ -141,6 +141,7 @@ int main(){
         std::vector<float> h_k_native(nx*nxstar, 0);
         // Prediction result
         std::vector<float> h_Ystar(nxstar, 0);
+        std::vector<float> h_Ystar_native(nxstar, 0);
 
         // Create device variables
         cl::Buffer d_X(h_X.begin(), h_X.end(), true);
@@ -155,10 +156,10 @@ int main(){
         std::vector<float> expected_distances = {2.0, 8.0,
                                                  3.0, 5.0,
                                                  10.0, 2.0};
-        std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
         std::vector<float> expected_k = {0.36787944, 0.01831564,
                                          0.22313016, 0.082085,
                                          0.00673795, 0.36787944};
+        std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
 
         // Prediction
         // Determine SQUARED distances between training and test inputs
@@ -183,9 +184,10 @@ int main(){
         matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_k,
                               d_InvQt, d_Ystar, nx, nxstar);
         queue.finish();
-
-        // Copy prediction result to host
         cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
+        matrix_vector_product_native(h_k, h_InvQt, h_Ystar_native, nx, nxstar);
+        compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");
+        compare_results(expected_Ystar, h_Ystar_native, "matrix_vector_product_native");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
         std::cout << std::endl;
