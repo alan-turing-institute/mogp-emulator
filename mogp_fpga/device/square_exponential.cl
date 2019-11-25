@@ -4,7 +4,7 @@
 // k is a (m,n) matrix
 // sigma is a prefactor, by which each element of k is multiplied
 
-#define MAX_N 1024
+#define MAX_N 128
 
 kernel void sq_exp(global const float* restrict r, global float* restrict k,
                    float sigma, int m, int n){

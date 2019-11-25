@@ -10,7 +10,7 @@
 // dim is the length of each of the vectors in x and y
 
 #define MAX_DIM 64
-#define MAX_N 1024
+#define MAX_N 128
 
 kernel void distance(global float* restrict x, global float* restrict y,
                      global float* restrict r, global float* restrict l,
