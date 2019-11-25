@@ -60,8 +60,9 @@ kernel void distance(global float* restrict x, global float* restrict y,
         }
 
         // Copy row of r back to global memory
+        int r_stride = row*ny;
         for(unsigned i=0; i<ny; i++){
-            r[row_stride+i] = temp[i];
+            r[r_stride+i] = temp[i];
         }
     }
 }
