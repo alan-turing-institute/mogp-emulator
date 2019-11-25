@@ -108,93 +108,72 @@ int main(){
         // Create kernel functor for matrix vector product kernel
         auto matrix_vector_product = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
+        // Test prediction case
+        // Based on the Python package test 'test_GaussianProcess_predict_single'
+        // X = [[1,2,3],[2,4,1],[4,2,2]]
+        // Y = [2,3,4]
+        // Hyperparameters = [0,0,0,0]
+        //
+        // After training InvQt = [1.9407565,2.93451157,3.95432381]
+        //
+        // X* = [[1,3,2],[3,2,1]]
+        // Expected Y* = [1.39538648,1.73114001]
+
         // Create host variables
-        std::vector<float> h_r = {1.0, 2.0, 4.0, 8.0};
-        std::vector<float> h_k(4, 0.0);
-        std::vector<float> native_k(4, 0.0);
-        float sigma = 2.5;
-        int m=2, n=2;
-        // Create device objects
-        cl::Buffer d_r(h_r.begin(), h_r.end(), true);
-        cl::Buffer d_k(h_k.begin(), h_k.end(), false);
+        // Training inputs X
+        std::vector<float> h_X = {1.0, 2.0, 3.0,
+                                  2.0, 4.0, 1.0,
+                                  4.0, 2.0, 2.0};
+        // Prediction inputs X*
+        std::vector<float> h_Xstar = {1.0, 3.0, 2.0,
+                                      3.0, 2.0, 1.0};
+        // Number of training inputs and prediction inputs
+        int nx = 3; int nxstar = 2;
+        // Dimension of inputs
+        int dim = 3;
+        // Square distances between X and X*
+        std::vector<float> h_r(nx*nxstar, 0);
+        // InvQt vector, a product of training
+        std::vector<float> h_InvQt = {1.9407565, 2.93451157, 3.95432381};
+        // Hyperparameter used to scale predictions
+        float sigma = 0.0f;
+        // Hyperparameters to set length scale of distances between inputs
+        std::vector<float> h_l = {0.0, 0.0, 0.0, 0.0};
+        // Kernel matrix
+        std::vector<float> h_k(nx*nxstar, 0);
+        // Prediction result
+        std::vector<float> h_Ystar(nxstar, 0);
 
-        for (auto const& i : h_r)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        // Call square exponential kernel
-        square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k, sigma, m, n);
-        queue.finish();
-
-        // Copy result from buffer to host
-        cl::copy(d_k, h_k.begin(), h_k.end());
-        for (auto const& i : h_k)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        // Run native implementation
-        square_exponential_native(h_r, native_k, sigma);
-        for (auto const& i : native_k)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        // Ensure FPGA and native implementation agree within a tolerance
-        compare_results(native_k, h_k, "square exponential");
-
-        std::vector<float> h_a = {0,1,0,2};
-        std::vector<float> h_b = {0,0,0,1};
-        std::vector<float> h_c(4,0);
-        std::vector<float> h_l = {1,3};
-        int nx = 2;
-        int ny = 2;
-        int dim = 2;
-        // Create device objects
-        cl::Buffer d_a(h_a.begin(), h_a.end(), true);
-        cl::Buffer d_b(h_b.begin(), h_b.end(), true);
-        cl::Buffer d_c(h_c.begin(), h_c.end(), false);
+        // Create device variables
+        cl::Buffer d_X(h_X.begin(), h_X.end(), true);
+        cl::Buffer d_Xstar(h_Xstar.begin(), h_Xstar.end(), true);
+        cl::Buffer d_r(h_r.begin(), h_r.end(), false);
+        cl::Buffer d_InvQt(h_InvQt.begin(), h_InvQt.end(), true);
         cl::Buffer d_l(h_l.begin(), h_l.end(), true);
+        cl::Buffer d_k(h_k.begin(), h_k.end(), false);
+        cl::Buffer d_Ystar(h_Ystar.begin(), h_Ystar.end(), false);
 
-        distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, d_l, nx, ny, dim);
+        // Prediction
+        // Determine SQUARED distances between training and test inputs
+        distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_X, d_Xstar, d_r, d_l,
+                 nx, nxstar, dim);
         queue.finish();
 
-        cl::copy(d_c, h_c.begin(), h_c.end());
-        for (auto const& i : h_c)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        std::vector<float> native_c(4,0);
-        distance_native(h_a, h_b, native_c, h_l, nx, ny, dim);
-        for (auto const& i : native_c)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        compare_results(native_c, h_c, "distance");
-
-        // Create host variables
-        h_a = std::vector<float>({1,2,3,4});
-        h_b = std::vector<float>({1,2});
-        h_c = std::vector<float>(2,0);
-        m = 2; n = 2;
-        // Create device objects
-        d_a = cl::Buffer(h_a.begin(), h_a.end(), true);
-        d_b = cl::Buffer(h_b.begin(), h_b.end(), true);
-        d_c = cl::Buffer(h_c.begin(), h_c.end(), false);
-
-        matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_a, d_b, d_c, m, n);
+        // Determine kernel matrix of distances
+        square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k,
+                           sigma, nx, nxstar);
         queue.finish();
 
-        cl::copy(d_c, h_c.begin(), h_c.end());
-        for (auto const& i : h_c)
+        // Get prediction result
+        matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_k,
+                              d_InvQt, d_Ystar, nx, nxstar);
+        queue.finish();
+
+        // Copy prediction result to host
+        cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
+        for (auto const& i : h_Ystar)
             std::cout << i << ' ';
         std::cout << std::endl;
-
-        native_c = std::vector<float>(2,0);
-        matrix_vector_product_native(h_a, h_b, native_c, m, n);
-        for (auto const& i : native_c)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-
-        compare_results(native_c, h_c, "distance");
     }
     catch (cl::Error err){
         std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
