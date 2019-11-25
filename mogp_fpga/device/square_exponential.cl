@@ -12,6 +12,10 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
     local float r_cache[MAX_N];
     local float k_cache[MAX_N];
 
+    // Determine exponential of sigma
+    local float exp_sigma;
+    exp_sigma = exp(sigma);
+
     // Calculate K(r) one row at a time
     for (unsigned row=0; row<m; row++){
         unsigned offset = row*n;
@@ -24,7 +28,7 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
         #pragma unroll
         for (unsigned col=0; col<MAX_N; col++){
             float temp = r_cache[col];
-            k_cache[col] = sigma*exp(-0.5f * temp);
+            k_cache[col] = exp_sigma*exp(-0.5f * temp);
         }
 
         // Send one row of K(r) to the host

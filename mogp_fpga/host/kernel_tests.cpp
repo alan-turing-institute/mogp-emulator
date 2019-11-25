@@ -11,8 +11,9 @@ void square_exponential_native(std::vector<float> r, std::vector<float> &k,
                                float sigma){
     std::transform(r.begin(), r.end(), k.begin(),
                    [](float x) -> float { return exp(-0.5f * x); });
+    float exp_sigma = exp(sigma);
     for (auto i=k.begin(); i!=k.end(); i++){
-        *i *= sigma;
+        *i *= exp_sigma;
     }
 }
 
