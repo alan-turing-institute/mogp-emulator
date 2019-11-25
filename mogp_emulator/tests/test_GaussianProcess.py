@@ -898,6 +898,26 @@ def test_GaussianProcess_predict():
     assert unc_actual is None
     assert deriv_actual is None
 
+def test_GaussianProcess_predict_variance():
+    "confirm that caching factorized matrix produces stable variance predictions"
+
+    x = np.linspace(0., 5., 21)
+    y = x**2
+    x = np.reshape(x, (-1, 1))
+    nugget = 1.e-8
+
+    gp = GaussianProcess(x, y, nugget)
+
+    theta = np.array([-7.352408190715323, 15.041447753599755])
+    gp._set_params(theta)
+    gp.mle_theta = theta
+
+    testing = np.reshape(np.linspace(0., 5., 101), (-1, 1))
+
+    _, var, _ = gp.predict(testing)
+
+    assert_allclose(np.zeros(101), var, atol = 1.e-3)
+
 def test_GaussianProcess_predict_failures():
     "Test predict method of GaussianProcess with bad inputs or warnings"
 
