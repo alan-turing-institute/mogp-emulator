@@ -613,8 +613,10 @@ def test_GaussianProcess_learn():
         min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
         min_loglikelihood_expected = 4.457233158665504
         min_theta_actual, min_loglikelihood_actual = gp._learn(theta)
-        assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
+
         assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
+
 
         
 def test_GaussianProcess_learn_hyperparameters():
@@ -629,8 +631,8 @@ def test_GaussianProcess_learn_hyperparameters():
         min_loglikelihood_expected = 4.457233158665504
         min_loglikelihood_actual, min_theta_actual = gp.learn_hyperparameters(n_tries = 1, theta0 = theta)
 
-        assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
         assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
+        assert_allclose(min_theta_expected, min_theta_actual, atol = 1.e-8, rtol = 1.e-5)
 
         x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
         y = np.array([2., 3., 4.])
@@ -1119,7 +1121,7 @@ def test_GaussianProcess_str():
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GP(x, y)
+    gp = GaussianProcess(x, y)
     assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
 
 

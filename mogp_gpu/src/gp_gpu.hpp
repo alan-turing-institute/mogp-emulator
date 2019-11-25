@@ -379,6 +379,11 @@ public:
         return logdetC;
     }
 
+    void dloglik_dtheta(double *result_h)
+    {
+        // Dcov(dev_ptr(invC_d), N, Ninput, dev_ptr(xs_d), dev_ptr(theta_d));
+    }
+    
     DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,
                 const double *xs_, const double *ts_)
         : N(N_)

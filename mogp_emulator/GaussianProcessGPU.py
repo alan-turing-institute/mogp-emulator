@@ -7,6 +7,7 @@ import ctypes
 import ctypes.util
 import numpy as np
 import numpy.ctypeslib as npctypes
+from scipy.optimize import minimize
 
 from . import GaussianProcess
 
@@ -396,7 +397,7 @@ class GaussianProcessGPU(object):
 
     def _device_gp_create(self):
         """Attempt to update the various GP data on the device"""
-        if self.theta != None:
+        if self.theta is not None:
             theta = self.theta
         else:
             theta = np.zeros(self.get_D() + 1)
@@ -412,16 +413,68 @@ class GaussianProcessGPU(object):
 
     def loglikelihood(self, theta):
         self._set_params(theta)
+        loglikelihood = (0.5 * self.logdetQ +
+                         0.5 * np.dot(self.targets, self.invQt) +
+                         0.5 * self.n * np.log(2. * np.pi))
+
+        return loglikelihood
+
+    def _learn(self, theta0, method = 'COBYLA', **kwargs):        
+        self._set_params(theta0)
+        
+        fmin_dict = minimize(self.loglikelihood, theta0, method = method, 
+                             options = kwargs)
+        
+        return fmin_dict['x'], fmin_dict['fun']
+
+    
+    def learn_hyperparameters(self, n_tries = 15, theta0 = None, method = 'COBYLA', **kwargs):    
+        n_tries = int(n_tries)
+        assert n_tries > 0, "number of attempts must be positive"
+        
+        np.seterr(divide = 'raise', over = 'raise', invalid = 'raise')
+        
+        loglikelihood_values = []
+        theta_values = []
+        
+        theta_startvals = 5.*(np.random.rand(n_tries, self.D + 1) - 0.5)
+        if not theta0 is None:
+            theta0 = np.array(theta0)
+            assert theta0.shape == (self.D + 1,), "theta0 must be a 1D array with length D + 1"
+            theta_startvals[0,:] = theta0
+
+        for theta in theta_startvals:
+            try:
+                min_theta, min_loglikelihood = self._learn(theta, method, **kwargs)
+                loglikelihood_values.append(min_loglikelihood)
+                theta_values.append(min_theta)
+            except linalg.LinAlgError:
+                print("Matrix not positive definite, skipping this iteration")
+            except FloatingPointError:
+                print("Floating point error in optimization routine, skipping this iteration")
+                
+        if len(loglikelihood_values) == 0:
+            raise RuntimeError("Minimization routine failed to return a value")
             
+        loglikelihood_values = np.array(loglikelihood_values)
+        idx = np.argmin(loglikelihood_values)
+        
+        self._set_params(theta_values[idx])
+        self.mle_theta = theta_values[idx]
+        
+        return loglikelihood_values[idx], theta_values[idx]
+
+
+    
     def predict(self, testing, do_deriv = True, do_unc = True, *args, **kwargs):
         """Make a prediction for a set of input vectors
 
         See :func:`mogp_emulator.GaussianProcess.predict`, which provides the
         same interface and functionality.
 
-        Currently, the GPU implementation does not provide variance or
-        derivative computations.  Therefore, if `do_deriv` or `do_unc` are
-        ``True``, the prediction will fall back to the CPU implementation.
+        Currently, the GPU implementation does not provide derivative
+        computations.  Therefore, if `do_deriv` is ``True``, the
+        prediction will fail with a NotImplementedError.
 
         :type testing: ndarray
 
@@ -452,6 +505,7 @@ class GaussianProcessGPU(object):
                                derived "UnavailableError" exception, a
                                "NotImplementedError", or a plain "RuntimeError"
                                indicating some other runtime failure.
+
         """
         if not do_deriv and not args and not kwargs:
             if do_unc:
