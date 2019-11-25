@@ -22,7 +22,7 @@ kernel void distance(global float* restrict x, global float* restrict y,
         l_cache[i] = 1;
     }
     for(unsigned i=0; i<dim; i++){
-        l_cache[i] = l[i];
+        l_cache[i] = exp(-1.0f * l[i]);
     }
 
     // Calculate one row of r at a time
