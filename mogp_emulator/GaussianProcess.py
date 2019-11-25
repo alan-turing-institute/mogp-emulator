@@ -376,7 +376,7 @@ class GaussianProcess(object):
             Z = Q + self.nugget*np.eye(self.n)
             self.L = linalg.cholesky(Z, lower=True)
 
-        self.invQt = np.linalg.solve(self.L.T, np.linalg.solve(self.L, self.targets))
+        self.invQt = linalg.cho_solve((self.L, True), self.targets)
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(self.L)))
 
     def _set_params(self, theta):
@@ -458,9 +458,9 @@ class GaussianProcess(object):
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
 
         for d in range(self.D + 1):
+            invQ_dot_dKdtheta_trace = np.trace(linalg.cho_solve((self.L, True), dKdtheta[d]))
             partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
-                                  np.trace(np.linalg.solve(self.L.T,
-                                                           np.linalg.solve(self.L, dKdtheta[d]))))
+                                  invQ_dot_dKdtheta_trace)
 
         return partials
 
@@ -501,10 +501,10 @@ class GaussianProcess(object):
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
 
         for d1 in range(self.D + 1):
-            invQ_dot_d1 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, dKdtheta[d1]))
+            invQ_dot_d1 = linalg.cho_solve((self.L, True), dKdtheta[d1])
             for d2 in range(self.D + 1):
-                invQ_dot_d2 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, dKdtheta[d2]))
-                invQ_dot_d1d2 = np.linalg.solve(self.L.T, np.linalg.solve(self.L, d2Kdtheta2[d1, d2]))
+                invQ_dot_d2 = linalg.cho_solve((self.L, True), dKdtheta[d2])
+                invQ_dot_d1d2 = linalg.cho_solve((self.L, True), d2Kdtheta2[d1, d2])
                 hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt,
                                                             2.*np.dot(dKdtheta[d1], invQ_dot_d2) -
                                                             d2Kdtheta2[d1, d2],
@@ -659,7 +659,7 @@ class GaussianProcess(object):
 
         try:
             L = np.linalg.cholesky(hess)
-            cov = np.linalg.inv(L.T).dot(np.linalg.inv(L))
+            cov = linalg.cho_solve((L, True), np.eye(self.D + 1))
         except linalg.LinAlgError:
             raise linalg.LinAlgError("Hessian matrix is not symmetric positive definite, optimization may not have converged")
 
@@ -878,8 +878,7 @@ class GaussianProcess(object):
         var = None
         if do_unc:
             var = np.maximum(exp_theta[self.D] - np.sum(Ktest *
-                                    np.linalg.solve(self.L.T,
-                                                    np.linalg.solve(self.L, Ktest)), axis=0), 0.)
+                                    linalg.cho_solve((self.L, True), Ktest), axis=0), 0.)
 
         deriv = None
         if do_deriv:
