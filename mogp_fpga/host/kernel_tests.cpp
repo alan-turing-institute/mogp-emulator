@@ -141,6 +141,7 @@ int main(){
         std::vector<float> h_l = {0.0, 0.0, 0.0};
         // Kernel matrix
         std::vector<float> h_k(nx*nxstar, 0);
+        std::vector<float> h_k_native(nx*nxstar, 0);
         // Prediction result
         std::vector<float> h_Ystar(nxstar, 0);
 
@@ -158,6 +159,9 @@ int main(){
                                                  3.0, 5.0,
                                                  10.0, 2.0};
         std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
+        std::vector<float> expected_k = {0.36787944, 0.01831564,
+                                         0.22313016, 0.082085,
+                                         0.00673795, 0.36787944};
 
         // Prediction
         // Determine SQUARED distances between training and test inputs
@@ -165,17 +169,7 @@ int main(){
                  nx, nxstar, dim);
         queue.finish();
         cl::copy(d_r, h_r.begin(), h_r.end());
-        /*
-        for (auto const& i : h_r)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-        */
         distance_native(h_X, h_Xstar, h_r_native, h_l, nx, nxstar, dim);
-        /*
-        for (auto const& i : h_r_native)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-        */
         compare_results(expected_distances, h_r, "distance");
         compare_results(expected_distances, h_r_native, "distance_native");
 
@@ -183,6 +177,10 @@ int main(){
         square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k,
                            sigma, nx, nxstar);
         queue.finish();
+        cl::copy(d_k, h_k.begin(), h_k.end());
+        square_exponential_native(h_r, h_k_native, sigma);
+        compare_results(expected_k, h_k, "square_exponential");
+        compare_results(expected_k, h_k_native, "square_exponential_native");
 
         // Get prediction result
         matrix_vector_product(cl::EnqueueArgs(queue, cl::NDRange(1)), d_k,
