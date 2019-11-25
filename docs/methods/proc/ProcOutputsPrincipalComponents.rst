@@ -65,7 +65,7 @@ then so is :math:`RS` for any orthogonal matrix :math:`R`.
 Inputs
 ------
 
--  The (\(r\times 1`) row vectors :math:`f(x_i)` (for :math:`i=1,2,\ldots n`)
+-  The :math:`(r\times 1)` row vectors :math:`f(x_i)` (for :math:`i=1,2,\ldots n`)
    of outputs from the simulator at :math:`n` design points
    :math:`D=\{x_1,x_2,\ldots,x_n\}`.
 
@@ -80,7 +80,7 @@ Procedure
 ---------
 
 Derive :math:`V`
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 #. Choose a set of :ref:`basis functions<DefBasisFunctions>` in the
    form of a :math:`q\times 1` vector function :math:`h(\cdot)`. The same set
@@ -90,11 +90,11 @@ Derive :math:`V`
    of the inputs) then this should be included in :math:`h(\cdot)`.
 #. For each :math:`u=1,2,\ldots,r`, construct the :math:`n\times 1` vector
    :math:`F_u` of values of output :math:`u`. Thus, :math:`F_u` is the :math:`u`-th
-   column of the matrix :math::ref:`f(D)`. (See the toolkit notation page
-   (`MetaNotation<MetaNotation>`) for the use of :math:`D` as a
+   column of the matrix :math:`f(D)`. (See the toolkit notation page
+   (:ref:`MetaNotation<MetaNotation>`) for the use of :math:`D` as a
    function argument, as in :math:`f(D)`.)
 #. For each :math:`u`, fit a conventional linear regression model to
-   vector\(F_u`, with :math:`h(D)` as the usual :math:`n\times q` X-matrix.
+   vector :math:`F_u`, with :math:`h(D)` as the usual :math:`n\times q` X-matrix.
    Let the :math:`q\times 1` vector :math:`\hat\beta_u` be the fitted (i.e.
    estimated) regression coefficients.
 #. For each :math:`u`, form the :math:`n\times 1` vector of residuals
@@ -148,7 +148,7 @@ predictive variance matrix of the validation sample.
 
 If the outputs are strongly correlated, then it might be possible to
 reduce the number of outputs, for example by retaining only the first
-:math:`r^\star < r` eigenvectors of the :math:`\strut P` matrix with the
+:math:`r^\star < r` eigenvectors of the :math:`P` matrix with the
 largest eigenvalues, although in this case it is necessary to include an
 additional nugget effect as discussed in the alternatives page on
 emulator prior correlation function

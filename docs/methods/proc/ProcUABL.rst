@@ -23,12 +23,14 @@ of the computer model when the input at which it is evaluated is
 uncertain. The expressions for these quantities when the input :math:`x`
 takes the unknown value :math:`x_0` are:
 
-:math:` \\mu = \\text{E}[f(x_0)] = \\text{E}^*[ \\mu(x_0) ] \`
+.. math::
+   \mu = \text{E}[f(x_0)] = \text{E}^*[ \mu(x_0) ]
 
 and
 
-:math:` \\Sigma = \\text{Var}[f(x_0)] = \\text{Var}^*[ \\mu(x_0) ] +
-\\text{E}^*[ \\Sigma(x_0) ] \`
+.. math::
+   \Sigma = \text{Var}[f(x_0)] = \text{Var}^*[ \mu(x_0) ] +
+   \text{E}^*[ \Sigma(x_0) ]
 
 where expectations and variances marked with a \* are over the unknown
 input :math:`x_0`, and where we use the shorthand expressions
@@ -63,24 +65,24 @@ simulator output at a known input
 -  :math:`B=\text{Var}[\beta]`
 -  :math:`\sigma^2=\text{Var}[w(x)]`
 -  :math:`V=\text{Var}[f(X)]`
--  :math:` e=f(X)-\textrm{E}[f(X)] \`
--  :math:`B_F = \\text{Var}_F[\beta]=B-BHV^{-1}H^TB^T`
+-  :math:`e=f(X)-\textrm{E}[f(X)]`
+-  :math:`B_F =\text{Var}_F[\beta]=B-BHV^{-1}H^TB^T`
 
-where :math:`f(x), \\beta` and :math:`w(x)` are as defined in the thread for
+where :math:`f(x)`, :math:`\beta` and :math:`w(x)` are as defined in the thread for
 Bayes linear emulation of the core model
 (:ref:`ThreadCoreBL<ThreadCoreBL>`).
 
 Using these definitions, we can write the general adjusted emulator
-expectation and variance at a **known** input :math::ref:`x` (as given in
-`ProcBLPredict<ProcBLPredict>`) in the form:
+expectation and variance at a **known** input :math:`x` (as given in
+:ref:`ProcBLPredict<ProcBLPredict>`) in the form:
 
-:math:`\mu(x)=\hat{\beta}^T h(x) + c(x) V^{-1} e`
+.. math::
+   \mu(x) &=& \hat{\beta}^T h(x) + c(x) V^{-1} e \\
+   \Sigma(x) &=& h(x)^T B_F h(x) + \sigma^2 - c(x)^T V^{-1} c(x) -
+   h(x)^T BHV^{-1} c(x) - c(x)^T V^{-1} H^T B h(x)
 
-:math:` \\Sigma(x) = h(x)^T B_F h(x) + \\sigma^2 - c(x)^T V^{-1} c(x) -
-h(x)^T BHV^{-1} c(x) - c(x)^T V^{-1} H^T B h(x)`
-
-where the vector :math::ref:`h(x)` and the matrix :math:`H` are as defined in
-`ProcBLPredict<ProcBLPredict>`, :math:`c(x)` is the :math:`n\times 1`
+where the vector :math:`h(x)` and the matrix :math:`H` are as defined in
+:ref:`ProcBLPredict<ProcBLPredict>`, :math:`c(x)` is the :math:`n\times 1`
 vector such that :math:`c(x)^T=\text{Cov}[w(x),w(X)]`, and :math:`B_F` is the
 adjusted variance of the :math:`\beta`.
 
@@ -89,14 +91,13 @@ simulator at the unknown input :math:`x_0` we take expectations and
 variances of these quantities over :math:`x` as described below.
 
 Calculating :math:`\mu`
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 To calculate :math:`\mu`, the expectation of the simulator at the unknown
 input :math:`x_0`, we calculate the following expectation:
 
-:math:`
-\\mu=\text{E}[\mu(x_0)]=\hat{\beta}^T\text{E}[h_0]+\text{E}[c_0]^TV^{-1}d,
-\`
+.. math::
+   \mu=\text{E}[\mu(x_0)]=\hat{\beta}^T\text{E}[h_0]+\text{E}[c_0]^TV^{-1}d,
 
 where we define :math:`h_0=h(x_0)` and :math:`c_0^T=\text{Cov}[w(x_0),w(X)]`.
 
@@ -104,34 +105,25 @@ Specification of beliefs for :math:`h_0` and :math:`c_o` is discussed at the
 end of this page.
 
 Calculating :math:`\Sigma`
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :math:`\Sigma` is defined to be the sum of two components
-:math:`\text{Var}[\mu(x_0)]` and :math:`\text{E}^*[ \\Sigma(x_0) ]`. Using
+:math:`\text{Var}[\mu(x_0)]` and :math:`\text{E}^*[ \Sigma(x_0) ]`. Using
 :math:`h_0` and :math:`c_0` as defined above, we can write these expressions
 as:
 
-:math:` \\textrm{Var}[\mu(x_0)]`
-
-=
-
-:math:` \\hat{\beta}^T\textrm{Var}[h_0]
-\\hat{\beta}+e^TV^{-1}\textrm{Var}[c_0]^TV^{-1}e +
-2\hat{\beta}^T\textrm{Cov}[h_0,c_0] V^{-1}e \`
-
-:math:`\text{E}[\Sigma(x_0)]`
-
-=
-
-:math:`\sigma^2 + \\text{E}[h_0]^TB_F\text{E}[h_0] -
-\\text{E}[c_0]^TV^{-1}\text{E}[c_0] - 2 \\text{E}[h_0]^TB H
-V^{-1}\text{E}[c_0]`
-
-:math:`+\text{tr}\left\{ \\text{Var}[h_0]B_F - \\text{Var}[c_0]V^{-1}
--2\text{Cov}[h_0,c_0]V^{-1}H^TB\right\}`
+.. math::
+   \textrm{Var}[\mu(x_0)] &=& \hat{\beta}^T\textrm{Var}[h_0]
+   \hat{\beta}+e^TV^{-1}\textrm{Var}[c_0]^TV^{-1}e +
+   2\hat{\beta}^T\textrm{Cov}[h_0,c_0] V^{-1}e \\
+   \text{E}[\Sigma(x_0)] &=& \sigma^2 + \text{E}[h_0]^TB_F\text{E}[h_0] -
+   \text{E}[c_0]^TV^{-1}\text{E}[c_0] - 2 \text{E}[h_0]^TB H
+   V^{-1}\text{E}[c_0] \\
+   & & + \text{tr}\left\{ \text{Var}[h_0]B_F - \text{Var}[c_0]V^{-1}
+   -2\text{Cov}[h_0,c_0]V^{-1}H^TB\right\}
 
 Beliefs about :math:`g_0` and :math:`c_0`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We can see from the expressions given above, that in order to calculate
 :math:`\mu` and :math:`\sigma`, we require statements on the expectations,

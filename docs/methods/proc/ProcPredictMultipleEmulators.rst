@@ -44,7 +44,8 @@ Procedures
 The simplest case is when the prediction functions are linear in the
 outputs. Then
 
-:math:`f_w^*(x)=a_w + f(x)^T b_w`,
+.. math::
+   f_w^*(x)=a_w + f(x)^T b_w,
 
 where :math:`a_w` is a known constant, :math:`f(x)` is the vector of :math:`r`
 outputs :math:`f_1(x),\ldots,f_r(x)` and :math:`b_w` is a known :math:`r\times 1`
@@ -78,12 +79,14 @@ single point, then this is a scalar.) Let :math:`b_{uw}` be the :math:`\strut
 u`-th element of :math:`b_w`. Then the variance matrix for :math:`f_w^*(x)`
 at the :math:`n'` prediction points is
 
-:math:`\sum_{u=1}^r b_{uw}^2 V_u`,
+.. math::
+   \sum_{u=1}^r b_{uw}^2 V_u,
 
 and the covariance matrix between :math:`f_w^*(x)` and :math:`f_{w'}^*(x)` at
 those points is
 
-:math:`\sum_{u=1}^r b_{uw} b_{uw'} V_u`.
+.. math::
+   \sum_{u=1}^r b_{uw} b_{uw'} V_u.
 
 Sample of predictions
 ~~~~~~~~~~~~~~~~~~~~~
@@ -93,8 +96,8 @@ predictive distribution of the prediction functions at the input
 :math:`x^\prime`, or at the points :math:`x^\prime_1,
 x^\prime_2,\ldots,x^\prime_{n^\prime}`. For GP emulators, such samples
 can be drawn from the predictive distributions of the individual
-outputs. Let :math:`f_u^{(I)}(x'_t)` be the :math:`\strut I`-th sampled value
-of :math:`f_u(x)` at :math:`\strut t`-th prediction point.
+outputs. Let :math:`f_u^{(I)}(x'_t)` be the :math:`I`-th sampled value
+of :math:`f_u(x)` at :math:`t`-th prediction point.
 
-Then the :math:`\strut I`-th sampled value, :math:`I=1,2,\ldots,N`, of
+Then the :math:`I`-th sampled value, :math:`I=1,2,\ldots,N`, of
 :math:`f^*_w(x'_t)` is :math:`g_w\{f_1^{(I)}(x'_t),\ldots,f_r^{(I)}(x'_t)\}`.

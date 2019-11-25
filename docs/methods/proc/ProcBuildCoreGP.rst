@@ -46,7 +46,7 @@ prior distribution:
 -  A GP posterior conditional distribution with mean function
    :math:`m^*(\cdot)` and covariance function :math:`v^*(\cdot,\cdot)`
    conditional on :math:`\theta=\{\beta,\sigma^2,\delta\}`
--  A posterior representation for :math:`\strut \\theta`
+-  A posterior representation for :math:`\theta`
 
 In the case of linear mean function, general correlation function, weak
 prior information on :math:`\beta,\sigma^2` and general prior distribution

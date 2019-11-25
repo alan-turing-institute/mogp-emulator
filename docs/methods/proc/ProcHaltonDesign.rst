@@ -25,7 +25,7 @@ Inputs
 Outputs
 -------
 
--  Halton design :math:`D = \\{x_1, x_2, \\ldots, x_n\}`
+-  Halton design :math:`D = \{x_1, x_2, \ldots, x_n\}`
 
 Procedure
 ---------
@@ -40,7 +40,7 @@ Procedure
 #. For each :math:`i=1,2,\ldots,p` and :math:`j=1,2,\ldots,n`, let :math:`x_{ij} =
    R_{ij} /g_i^{n_{ij}}`.
 #. For :math:`j=1,2,\ldots,n`, the j-th design point is :math:`x_j = (x_{1j},
-   x_{2j}, \\ldots, x_{pj})`.
+   x_{2j}, \ldots, x_{pj})`.
 
 For example, if :math:`j=10` and :math:`g_i=2`, then :math:`a_{ij}=1010`, from
 which we have :math:`n_{ij}=4`. Then :math:`R_{ij}` is the binary number 0101,
@@ -50,7 +50,7 @@ Additional Comments
 -------------------
 
 A potential problem with Halton designs is the difficulty in finding
-suitable generators. One suggestion is to let :math:`g_i` be the i-th
+suitable generators. One suggestion is to let :math:`g_i` be the :math:`i`-th
 prime, but this may not work well when :math:`p` is large.
 
 References
@@ -58,5 +58,5 @@ References
 
 The following is a link to the repository for Matlab code for the Halton
 sequence in up to 11 dimensions:
-:ref:`CPHaltonSequence.m <https://virgo.aston.ac.uk/MUCM/WP3_1/code/CPHaltonSequence.m>`__
-(`disclaimer<MetaSoftwareDisclaimer>`).
+`CPHaltonSequence.m <https://virgo.aston.ac.uk/MUCM/WP3_1/code/CPHaltonSequence.m>`_
+(:ref:`disclaimer<MetaSoftwareDisclaimer>`).

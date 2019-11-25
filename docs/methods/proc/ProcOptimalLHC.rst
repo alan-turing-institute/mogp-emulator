@@ -31,7 +31,7 @@ Inputs
 Outputs
 -------
 
--  Optimised LHC design :math:`D = \\{x_1, x_2, \\ldots, x_n\}`
+-  Optimised LHC design :math:`D = \{x_1, x_2, \ldots, x_n\}`
 
 Procedure
 ---------
@@ -56,14 +56,16 @@ Maximin criterion
 
 A commonly used criterion is
 
-:math:`C(D) = \\min_{j\ne j^\prime}|x_j - x_{j^\prime}|` ,
+.. math::
+   C(D) = \min_{j\ne j^\prime}|x_j - x_{j^\prime}|,
 
 where :math:`|x_j - x_{j^\prime}|` denotes a measure of distance between
 the two points :math:`x_j` and :math:`x_{j^\prime}` in the design. The
 distance measure is usually taken to be squared Euclidean distance: that
 is, if :math:`u=(u_1,u_2,\ldots,u_p)` then we define
 
-:math:`|u\| = u^T u = \\sum_{i=1}^p u_i^2\,.`
+.. math::
+   |u| = u^T u = \sum_{i=1}^p u_i^2.
 
 High values of this criterion are desirable.
 

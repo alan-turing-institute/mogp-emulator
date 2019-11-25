@@ -20,7 +20,7 @@ dependency of the output to inputs such as monotonicity or linearity.
 Algorithm
 ---------
 
-The algorithm involves generating :math:`\strut R` trajectory designs, as
+The algorithm involves generating :math:`R` trajectory designs, as
 described below. Each trajectory design is used to compute the expected
 value of the elementary effects in the simulator function locally. By
 averaging these a global approximation is obtained. The steps are:
@@ -31,44 +31,45 @@ averaging these a global approximation is obtained. The steps are:
    (:ref:`ProcDataPreProcessing<ProcDataPreProcessing>`). Otherwise
    different values of the step size (see below) will be needed for each
    input variable.
+
 #. Each point in the trajectory differs from the previous point in only
-   one input variable by a fixed step size, :math:`\strut \\Delta`. For
-   :math:`\strut k` variables, each trajectory has :math:`\strut k+1` points,
+   one input variable by a fixed step size, :math:`\Delta`. For
+   :math:`k` variables, each trajectory has :math:`k+1` points,
    changing each variable exactly once. The start point for the
    trajectory is random, although this can be modified to improve the
    algorithm. See the discussion below.
-#. Compute the elementary effect for each input variable :math:`\strut
-   1,\ldots,k`: :math:`\strut EE_i(x)=\frac{f(x+\Delta
-   e_i)-f(x)}{\Delta}`. :math:`\strut e_i` is the unit vector in the
-   direction of the :math:`\strut i^{th}` axis for :math:`\strut
-   i=1,\ldots,k`. Each elementary effect is computed with observations
-   at the pair of points :math:`\strut x, x+\Delta e_i` that differ in the
-   :math:`\strut i^{th}` input variable by the fixed step size :math:`\strut
-   \\Delta`.
+
+#. Compute the elementary effect for each input variable
+   :math:`1,\ldots,k`: :math:`EE_i(x)=\frac{f(x+\Delta
+   e_i)-f(x)}{\Delta}`. :math:`e_i` is the unit vector in the
+   direction of the :math:`i^{th}` axis for :math:`i=1,\ldots,k`.
+   Each elementary effect is computed with observations
+   at the pair of points :math:`x, x+\Delta e_i` that differ in the
+   :math:`i^{th}` input variable by the fixed step size :math:`\Delta`.
+
 #. Compute the moments of the elementary effects distribution for each
    input variable:
 
-:math:` \\mu_i = \\sum_{r=1} ^{R} \\frac{EE_i(x_r)}{R}, \`
+   .. math::
+      \mu_i &=& \sum_{r=1} ^{R} \frac{EE_i(x_r)}{R}, \\
+      \mu^{*}_i &=& \sum_{r=1} ^{R} \left|\frac{EE_i(x_r)}{R}\right|, \\
+      \sigma_i &=& \sqrt{\sum_{r=1}^{R} \frac{(EE_i(x_r) - \mu_i)^2}{R}}.
 
-:math:` \\mu^{*}_i = \\sum_{r=1} ^{R} \\left|\frac{EE_i(x_r)}{R}\right|, \`
-
-:math:`\sigma_i=\sqrt{\sum_{r=1}^{R} \\frac{(EE_i(x_r) - \\mu_i)^2}{R}}. \`
-
-The sample moment :math:`\strut \\mu_i` is an average effect measure, and a
-high value suggests a dominant contribution of the :math:`\strut i^{th}`
+The sample moment :math:`\mu_i` is an average effect measure, and a
+high value suggests a dominant contribution of the :math:`i^{th}`
 input factor in positive or negative response values (i.e. typically
-linear, or at least monotonic). The sample moment :math:`\strut \\mu^{*}_i`
+linear, or at least monotonic). The sample moment :math:`\mu^{*}_i`
 is a total effect measure; a high value indicates large influence of the
-corresponding input factor. :math:`\strut \\mu_i` may prove misleading due
+corresponding input factor. :math:`\mu_i` may prove misleading due
 to cancellation effects (that is on average over the input space the
 output goes up in response to the input as much as it comes down), thus
-to capture main effects :math:`\strut \\mu^{*}_i` should be used.
-Non-linear and interaction effects are estimated with :math:`\strut
-\\sigma_i`. The total number of model runs needed in the Morris's
-method is :math:`\strut (k+1)R`.
+to capture main effects :math:`\mu^{*}_i` should be used.
+Non-linear and interaction effects are estimated with :math:`\sigma_i`.
+The total number of model runs needed in the Morris's
+method is :math:`(k+1)R`.
 
-An effects plot is constructed by plotting :math:`\strut \\mu_i` or
-:math:`\strut \\mu^*_i` against :math:`\strut \\sigma_i`. This plot is a
+An effects plot is constructed by plotting :math:`\mu_i` or
+:math:`\mu^*_i` against :math:`\sigma_i`. This plot is a
 visual tool to detecting and ranking effects.
 
 An example on synthetic data demonstrating the Morris method is provided
@@ -78,33 +79,33 @@ Setting the parameters of the Morris method
 -------------------------------------------
 
 There is interest in undertaking input screening with as few simulator
-runs as possible, but as the number of input factors :math:`\strut k` is
+runs as possible, but as the number of input factors :math:`k` is
 fixed, the size of the experiment required is controlled by the number
-of trajectory designs :math:`\strut R`. Usually small values of :math:`\strut
-R` are used; for instance, in Morris (1991) the values :math:`\strut R=3`
-and :math:`\strut R=4` were used in the examples. A value of :math:`\strut R`
+of trajectory designs :math:`R`. Usually small values of :math:`R`
+are used; for instance, in Morris (1991) the values :math:`R=3`
+and :math:`R=4` were used in the examples. A value of :math:`R`
 between 10 and 50 is mentioned in the more recent literature (see
-References). A larger value of :math:`\strut R` may improve the quality of
+References). A larger value of :math:`R` may improve the quality of
 the global estimates at the price of extra runs. For a reasonably high
 dimensional input space, with more than say 10 inputs, it would seem
-unwise to select :math:`\strut R` less than 10, since coverage of the
+unwise to select :math:`R` less than 10, since coverage of the
 space, and thus global effects estimates require something close to
-space filling. It is likely for large :math:`\strut k` the number of
-trajectory designs will need some dependency on :math:`\strut R`.
+space filling. It is likely for large :math:`k` the number of
+trajectory designs will need some dependency on :math:`R`.
 
-The step size :math:`\strut \\Delta` is selected in such a way that all the
+The step size :math:`\Delta` is selected in such a way that all the
 simulator runs lie in the input space and the elementary effects are
-computed with reasonable precision. The usual choice of :math:`\strut
-\\Delta` in the literature is determined by the input space considered
-for experimentation, which is a :math:`\strut k` dimensional grid
-constructed with :math:`\strut p` uniformly spaced values for each input.
-The number :math:`\strut p` is recommended to be even and :math:`\strut
-\\Delta` to be an integer multiple of :math:`\strut 1/(p-1)`. Morris
-(1991) suggests a value of :math:`\strut \\Delta = p/2(p-1)` that ensures
+computed with reasonable precision. The usual choice of :math:`\Delta`
+in the literature is determined by the input space considered
+for experimentation, which is a :math:`k` dimensional grid
+constructed with :math:`p` uniformly spaced values for each input.
+The number :math:`p` is recommended to be even and :math:`\Delta`
+to be an integer multiple of :math:`1/(p-1)`. Morris
+(1991) suggests a value of :math:`\Delta = p/2(p-1)` that ensures
 good coverage of the input space with few trajectories. One value for
-:math:`\strut \\Delta` is generally used for all the inputs, but the method
-can be generalised to instead use different values of :math:`\strut
-\\Delta` and :math:`\strut p` for every input.
+:math:`\Delta` is generally used for all the inputs, but the method
+can be generalised to instead use different values of :math:`\Delta`
+and :math:`p` for every input.
 
 Extending the Morris method
 ---------------------------
@@ -123,7 +124,7 @@ This disadvantage becomes more apparent when the design runs are to be
 used in further modelling after discarding unimportant factors. An
 alternative is to construct a randomly rotated simplex at every point
 from which elementary effects are computed (Pujol, 2009). The
-computation of distribution moments :math:`\strut \\mu_i,\mu^*_i,\sigma_i`
+computation of distribution moments :math:`\mu_i,\mu^*_i,\sigma_i`
 and further analysis is similar as the Morris's method, with the
 advantage that projections of the resulting design do not fall on top of
 existing points, and all observations can be reused in a later stage. A
@@ -139,24 +140,24 @@ References
 ----------
 
 Morris, M. D. (1991, May). Factorial sampling plans for preliminary
-computational experiments. Technometrics, 33 (2), 161–174.
+computational experiments. *Technometrics*, 33 (2), 161–174.
 
 Boukouvalas, A., Gosling, J.P. and Maruri-Aguilar, H., `An efficient
 screening method for computer
-experiments <http://wiki.aston.ac.uk/twiki/pub/AlexisBoukouvalas/WebHome/screenReport.pdf>`__.
+experiments <http://wiki.aston.ac.uk/twiki/pub/AlexisBoukouvalas/WebHome/screenReport.pdf>`_.
 NCRG Technical Report, Aston University (2010)
 
-Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). :ref:`Sensitivity
-Analysis<http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`.
+Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). `Sensitivity
+Analysis <http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`_.
 Wiley.
 
 Francesca Campolongo, Jessica Cariboni, and Andrea Saltelli. An
 effective screening design for sensitivity analysis of large models.
-Environ. Model. Softw., 22(10):1509–18, 2007.
+*Environ. Model. Softw.*, 22(10):1509–18, 2007.
 
 Francesca Campolongo, Jessica Cariboni, Andrea Saltelli, and W.
-Schoutens. Enhancing the Morris Method. In Sensitivity Analysis of Model
-Output, pages 369–79, 2004.
+Schoutens. Enhancing the Morris Method. In *Sensitivity Analysis of Model
+Output*, pages 369–79, 2004.
 
 Gilles Pujol. Simplex-based screening designs for estimating metamodels.
-Reliability Engineering & System Safety, 94:1156–60, 2009.
+*Reliability Engineering & System Safety*, 94:1156–60, 2009.

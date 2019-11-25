@@ -18,7 +18,7 @@ Examples include:
 -  A simulator that outputs the probability of a natural disaster and
    its consequence in loss of lives, and we are interested in the
    expected loss of life, which is the product of these two outputs.
--  A simulator that outputs atmospheric :math:`CO_2` concentration and
+-  A simulator that outputs atmospheric :math:`{\rm CO}_2` concentration and
    global temperature, and we are interested in using them to compute
    the gross primary productivity of an ecosystem.
 
@@ -39,9 +39,9 @@ The multivariate emulator can then be used to predict any function of
 the outputs, at any set of auxiliary variable values, by following the
 procedure given here.
 
-We consider a simulator :math:`f(.)` that has :math:`r` outputs, and a
-function of the outputs :math:`g(.)`. The procedure for predicting
-:math:`g(f(.))` is based on generating random samples of output values from
+We consider a simulator :math:`f(\cdot)` that has :math:`r` outputs, and a
+function of the outputs :math:`g(\cdot)`. The procedure for predicting
+:math:`g(f(\cdot))` is based on generating random samples of output values from
 the emulator, using the procedure
 :ref:`ProcOutputSample<ProcOutputSample>`.
 
@@ -63,9 +63,9 @@ Inputs
 Outputs
 -------
 
--  Predictions of :math:`g(.)` at :math:`x^\prime_1,
+-  Predictions of :math:`g(\cdot)` at :math:`x^\prime_1,
    x^\prime_2,\ldots,x^\prime_{n^\prime}` in the form of a sample of
-   size :math:`N` of values from the predictive distribution of :math:`g(.)`.
+   size :math:`N` of values from the predictive distribution of :math:`g(\cdot)`.
 
 Procedure
 ---------
@@ -74,11 +74,11 @@ For :math:`j=1,...,N`,
 
 #. Pick a set of hyperparameter values at random from the :math:`s` sets
    that are available.
-#. Generate a :math:`n^\prime r \\times 1` random vector :math:`F^{j}` from
-   the emulator, using the procedure set out in the \`Multivariate
+#. Generate a :math:`n^\prime r \times 1` random vector :math:`F^{j}` from
+   the emulator, using the procedure set out in the 'Multivariate
    output general case' section of
    :ref:`ProcOutputSample<ProcOutputSample>`.
-#. Form the :math:`r \\times n^\prime` matrix :math:`M^{j}` such that
+#. Form the :math:`r \times n^\prime` matrix :math:`M^{j}` such that
    :math:`\mathrm{vec}[M^{jT}]=F^{j}`.
 #. For :math:`\ell=1,...,n^\prime`, let :math:`m^{j}_\ell` be the :math:`\ell`th
    column of :math:`M^{j}` and let :math:`G^{j}_\ell=g(m_\ell)`

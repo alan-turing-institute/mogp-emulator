@@ -48,7 +48,7 @@ output. For instance, if we let the inputs be random, denoting them now
 by :math:`X`, then uncertainty analysis of :math:`f(X)` might include as one
 specific inference the expectation (with respect to the :ref:`code
 uncertainty<DefCodeUncertainty>`) of the uncertainty mean :math:`M =
-\\textrm{E}[f(X)]`. In this case the property is :math:`M` and the
+\textrm{E}[f(X)]`. In this case the property is :math:`M` and the
 inference is the mean (interpreted as an estimate of :math:`M`).
 
 Procedure
@@ -74,7 +74,7 @@ Additional Comments
 
 There are specific cases where we can do better than this. For some
 transformations we can derive the distribution of :math:`f(x)` for any
-given :math::ref:`\strut x` analytically, at least conditionally on
-`hyperparameters<DefHyperparameter>`. In some cases, we may even
+given :math:`x` analytically, at least conditionally on
+:ref:`hyperparameters<DefHyperparameter>`. In some cases, we may even
 be able to derive uncertainty analysis or sensitivity analysis. This is
 an area for ongoing research.

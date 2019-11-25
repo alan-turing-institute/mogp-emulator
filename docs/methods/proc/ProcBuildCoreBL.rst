@@ -77,7 +77,7 @@ we require the following prior specifications:
 Given the relationship :math:`f(x)=h(x)^T\beta+w(x)`, define the following
 quantities obtained from the prior specifications:
 
- Adjusted expectation and variance for trend coefficients
+Adjusted expectation and variance for trend coefficients
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Define :math:`H(X)` to be the :math:`n\times q` matrix of basis functions over
@@ -87,62 +87,39 @@ be the :math:`n`-vector of emulator trend residuals with elements
 design :math:`X`. Then the adjusted expectation and variance for :math:`\beta`
 are given by:
 
-:math:`\textrm{E}_F[\beta]`
+.. math::
+   \textrm{E}_F[\beta] &=& \textrm{E}[\beta] + \textrm{Var}[\beta] H(X)
+   \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
+   \times (F - H(X)^T\textrm{E}[\beta] - \textrm{E}[w(X)]) \\
+   \textrm{Var}_F[\beta] &=& \textrm{Var}[\beta] - (\textrm{Var}[\beta] H(X))
+   \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
+   (H(X)^T\textrm{Var}[\beta])
 
-=
-
-:math:`\textrm{E}[\beta] + \\textrm{Var}[\beta] H(X)
-\\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)] \\}^{-1} \`
-
-:math:`\times (F - H(X)^T\textrm{E}[\beta] - \\textrm{E}[w(X)])`
-
-:math:`\textrm{Var}_F[\beta]`
-
-=
-
-:math:`\textrm{Var}[\beta] - (\textrm{Var}[\beta] H(X))
-\\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)] \\}^{-1}
-(H(X)^T\textrm{Var}[\beta])`
-
- Adjusted expectation and variance for residual process
+Adjusted expectation and variance for residual process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The adjusted expectation and variance for :math:`w(\cdot)` at any further
 input point :math:`x`, and the adjusted covariance between any further pair
 of points :math:`(x,x')` are given by:
 
-:math:`\textrm{E}_F[w(x)]`
+.. math::
+   \textrm{E}_F[w(x)] &=& \textrm{E}[w(x)] + \textrm{Cov}[w(x),w(X)]
+   \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
+   \times(F - H(X)^T\textrm{E}[\beta] - \textrm{E}[w(X)]) \\
+   \textrm{Var}_F[w(x)] &=& \textrm{Var}[w(x)] - \textrm{Cov}[w(x),w(X)]
+   \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
+   \textrm{Cov}[w(X),w(x)] \\
+   \textrm{Cov}_F[w(x),w(x')] &=& \textrm{Cov}[w(x),w(x')] - \textrm{Cov}[w(x),w(X)]
+   \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)]\}^{-1}
+   \textrm{Cov}[w(X),w(x')]
 
-=
-
-:math:`\textrm{E}[w(x)] + \\textrm{Cov}[w(x),w(X)]
-\\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)] \\}^{-1}`
-
-:math:` \\times(F - H(X)^T\textrm{E}[\beta] - \\textrm{E}[w(X)])`
-
-:math:`\textrm{Var}_F[w(x)]`
-
-=
-
-:math:`\textrm{Var}[w(x)] - \\textrm{Cov}[w(x),w(X)]
-\\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)] \\}^{-1}
-\\textrm{Cov}[w(X),w(x)]`
-
-:math:`\textrm{Cov}_F[w(x),w(x')]`
-
-=
-
-:math:`\textrm{Cov}[w(x),w(x')] - \\textrm{Cov}[w(x),w(X)]
-\\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)]\}^{-1}
-\\textrm{Cov}[w(X),w(x')]`
-
- Adjusted covariance between trend coefficients and residual process
+Adjusted covariance between trend coefficients and residual process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The adjusted covariance between the trend coefficients and the residual
 process :math:`w(\cdot)` at any further input point :math:`x` is given by:
 
-:math:`\textrm{Cov}_F[\beta,w(x)] =
-\\textrm{Cov}[\beta,w(x)]-\textrm{Var}[\beta]
-H(X)\{H(X)^T\textrm{Var}[\beta]H(X) + \\textrm{Var}[w(X)] \\}^{-1}
-\\textrm{Cov}[w(X),w(x)]`
+.. math::
+   \textrm{Cov}_F[\beta,w(x)] = \textrm{Cov}[\beta,w(x)]-\textrm{Var}[\beta]
+   H(X)\{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
+   \textrm{Cov}[w(X),w(x)]

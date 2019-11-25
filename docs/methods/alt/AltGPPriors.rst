@@ -200,7 +200,7 @@ Judgements: Eliciting Expert Probabilities. John Wiley and Sons,
 Chichester. 328pp. ISBN 0-470-02999-4.
 
 SHELF - the Sheffield Elicitation Framework - can be downloaded from
-`http://tonyohagan.co.uk/shelf <http://tonyohagan.co.uk/shelf>`__
+`http://tonyohagan.co.uk/shelf <http://tonyohagan.co.uk/shelf>`_
 (:ref:`Disclaimer<MetaSoftwareDisclaimer>`)
 
 Oakley, J. (2002). Eliciting Gaussian process priors for complex

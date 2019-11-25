@@ -79,13 +79,13 @@ simulator outputs (:ref:`ProcPredictGP<ProcPredictGP>`). The
 procedure is particularly simple in the case of a linear mean function,
 weak prior information on hyperparameters :math:`\beta` and :math:`\sigma^2`,
 and a single posterior estimate of :math:`\delta`, since then the required
-moments are simply given by the functions :math::ref:`m^*(.)` and :math:`v^*(.,.)`
-given in `ProcBuildCoreGP<ProcBuildCoreGP>` (evaluated at the
-estimate of :math:`\delta`). In fact, where we have a linear mean function
-and weak prior information on the other hyperparameters, it is
-recommended that only a single estimate of :math:`\delta` is computed prior
-to validation. If the validation tests declare the emulator to be valid,
-*then* it may be worthwhile to go back and derive a sample of
+moments are simply given by the functions :math:`m^*(\cdot)` and
+:math:`v^*(\cdot,\cdot)` given in :ref:`ProcBuildCoreGP<ProcBuildCoreGP>`
+(evaluated at the estimate of :math:`\delta`). In fact, where we have a
+linear mean function and weak prior information on the other hyperparameters,
+it is recommended that only a single estimate of :math:`\delta` is computed
+prior to validation. If the validation tests declare the emulator to be
+valid, *then* it may be worthwhile to go back and derive a sample of
 :math:`\delta` values for subsequent use.
 
 We denote the predictive means and covariances of the validation data by
@@ -137,9 +137,9 @@ the response is more dynamic.
 Finally, although the form of the correlation function may be
 appropriate, we may estimate the parameters :math:`\sigma^2` and
 :math:`\delta` poorly. When we have incorrect estimation of the variance
-(\(\sigma^2`), the credible intervals of the emulator predictions are
+(:math:`\sigma^2`), the credible intervals of the emulator predictions are
 systematically too wide or too narrow. Poor estimation of the
-correlation parameters (\(\delta`) leads to credible intervals that are
+correlation parameters (:math:`\delta`) leads to credible intervals that are
 too wide or too narrow in the neighbourhood of the training data points.
 
 Validation diagnostics
@@ -163,23 +163,26 @@ decision that the emulator is not valid.
 Reference distributions are approximate, but the approximations are good
 enough for the purposes of identifying validation failures.
 
- Mahalanobis distance
+Mahalanobis distance
 ^^^^^^^^^^^^^^^^^^^^
 
 The Mahalanobis distance diagnostic is
 
-:math:`M = (f(D^\prime)-m^*)^T(V^*)^{-1}(f(D^\prime)-m^*)\,.`
+.. math::
+   M = (f(D^\prime)-m^*)^T(V^*)^{-1}(f(D^\prime)-m^*).
 
 The reference distribution for :math:`M` is the scaled F-Snedecor
 distribution with :math:`n^\prime` and :math:`(n - q)` degrees of freedom,
 where :math:`q` is the dimension of the :math:`h(\cdot)` function. The mean of
 this reference distribution is
 
-:math:`\textrm{E}[M] = n^\prime`
+.. math::
+   \textrm{E}[M] = n^\prime
 
 and the variance is
 
-:math:`\textrm{Var}[M] = \\frac{2n^{\prime}(n^{\prime}+n-q-2)}{n-q-4}`
+.. math::
+   \textrm{Var}[M] = \frac{2n^{\prime}(n^{\prime}+n-q-2)}{n-q-4}
 
 :math:`M` is a measure of overall fit. If too large it suggests that the
 emulator is over-confident, in the sense that the uncertainty expressed
@@ -199,13 +202,14 @@ of :math:`M` generally suggests that the emulator is valid, it is prudent
 to engage anyway in these further diagnostic checks, because they may
 bring out areas of concern.
 
- Individual standardised errors
+Individual standardised errors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The individual standardised errors are, for :math:`j=1,2,\ldots,n^\prime`,
 
-:math:`e_j =
-\\frac{f(x^\prime_j)-m^*(x_j^\prime)}{\sqrt{v^*(x^\prime_j,x^\prime_j)}}\,.`
+.. math::
+   e_j =
+   \frac{f(x^\prime_j)-m^*(x_j^\prime)}{\sqrt{v^*(x^\prime_j,x^\prime_j)}}.
 
 Each of these is a validation diagnostic in its own right with reference
 distribution the standard normal distribution, :math:`{\cal N}(0,1)`. When
@@ -234,7 +238,7 @@ individual errors difficult. The next group of diagnostics, the pivoted
 Cholesky errors, are the most promising of a number of ways to generate
 independent standardised errors.
 
- Pivoted Cholesky errors
+Pivoted Cholesky errors
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The well-known Cholesky decomposition of a positive-definite matrix
@@ -244,7 +248,8 @@ this is given in page
 :ref:`ProcPivotedCholesky<ProcPivotedCholesky>`. Let :math:`C` be the
 pivoted Cholesky decomposition of :math:`V^*` and let
 
-:math:`t = C^{-1} (f(D^\prime)-m^*)\,.`
+.. math::
+   t = C^{-1} (f(D^\prime)-m^*).
 
 Then we consider each of the individual elements :math:`t_k` of this vector
 to be a validation diagnostics, for :math:`k=1,2,\ldots,n^\prime`. The
@@ -304,8 +309,8 @@ These diagnostics, and some others, were developed in
 
 Bastos, L. S. and O'Hagan, A. (2008). Diagnostics for Gaussian process
 emulators. MUCM Technical Report 08/02. (May be downloaded from the
-:ref:`MUCM
-website<http://mucm.group.shef.ac.uk/Pages/Dissemination/Dissemination_Papers_Technical>`.)
+`MUCM
+website <http://mucm.group.shef.ac.uk/Pages/Dissemination/Dissemination_Papers_Technical>`_.)
 
 Validation is something of an evolving art. We hope to extend the
 discussion here as we gain more experience in :ref:`MUCM<DefMUCM>`

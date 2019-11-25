@@ -36,9 +36,9 @@ covariance used in most of the toolkit. Such a covariance function is
 the Rational Quadratic (RQ) :
 
 :math:`v(x_p,x_q) =\sigma^2 [1 + (x_p - x_q)^{\tau} P^{-1} (x_p - x_q)/(2
-\\alpha)]^{-\alpha}` where :math:`\sigma` is the scale parameter and
+\alpha)]^{-\alpha}` where :math:`\sigma` is the scale parameter and
 :math:`P=\mathrm{diag}(\delta_i)^{2}` a diagonal matrix of correlation
-length scale parameters. Taking the limit :math:`a\rightarrow\infty \`
+length scale parameters. Taking the limit :math:`a\rightarrow\infty`
 parameter, we obtain the squared exponential kernel.
 
 Assuming :math:`p` input variables, each hyperparameter :math:`\delta_i` is
@@ -99,9 +99,9 @@ References
 ----------
 
 Williams, C. K. I. and C. E. Rasmussen (2006). `Gaussian Processes for
-Machine Learning <http://www.gaussianprocess.org/gpml/>`__. MIT Press.
+Machine Learning <http://www.gaussianprocess.org/gpml/>`_. MIT Press.
 
 William J. Welch, Robert. J. Buck, Jerome Sacks, Henry P. Wynn, Toby J.
 Mitchell and Max D. Morris. " Screening, Predicting, and Computer
-Experiments", Technometrics, Vol. 34, No. 1 (Feb., 1992), pp. 15-25.
-Available at http://www.jstor.org/stable/1269548.
+Experiments", *Technometrics*, Vol. 34, No. 1 (Feb., 1992), pp. 15-25.
+Available at `http://www.jstor.org/stable/1269548 <http://www.jstor.org/stable/1269548>`_.

@@ -23,7 +23,7 @@ Centring
 
 It is often useful to remove the mean from a data set. In general the
 mean, :math:`\textrm{E}[x]`, will not be known and thus must be estimated
-and the centered data is given by: :math:` x' =x-\textrm{E}[x]`. Centring
+and the centered data is given by: :math:`x' =x-\textrm{E}[x]`. Centring
 will often be used if a zero mean Gaussian process is being used to
 build the emulator, although in general it would be better to include an
 explicit mean function in the emulator.
@@ -31,10 +31,10 @@ explicit mean function in the emulator.
 Linear transformations
 ----------------------
 
-To linearly transform the data region :math:`x \\in [c,d]` to another
-domain :math:`x' \\in [a,b]`:
+To linearly transform the data region :math:`x \in [c,d]` to another
+domain :math:`x' \in [a,b]`:
 
-:math:`x' = \\frac{x-c}{d-c} (b-a) + a`
+:math:`x' = \frac{x-c}{d-c} (b-a) + a`
 
 In experimental design the convention is for :math:`[a,b]=[0,1]`.
 
@@ -46,16 +46,16 @@ space can be used to rescale the data to have 0 mean, unit variance by
 using the process of standardisation. If on the other hand the design
 domain is known we can employ a linear rescaling.
 
-The process involves estimating the mean :math:`\mu = \\textrm{E}[x]` and
+The process involves estimating the mean :math:`\mu = \textrm{E}[x]` and
 standard deviation of the data :math:`\sigma` and applying the
-transformation :math:` x' = \\frac{x-\mu} { \\sigma } \`. It is possible to
-standardise each input / output separately which rescales the data, but
+transformation :math:`x' = \frac{x-\mu}{\sigma}`. It is possible to
+standardise each input/output separately which rescales the data, but
 does not render the outputs uncorrelated. This might be useful in
 situations where correlations or covariances are difficult to estimate,
 or where these relationships want to be preserved, so that individual
 inputs can still be distinguished.
 
-Sphering / Whitening
+Sphering/Whitening
 --------------------
 
 For multivariate inputs and outputs it is possible to whiten the data,
@@ -68,8 +68,8 @@ and would typically be applied to outputs rather than inputs.
 
 The data sphering process involves estimating the mean
 :math:`\textrm{E}[x]` and variance matrix of the data :math:`\textrm{Var}[x]`,
-computing the eigen decomposition :math:`\strut P {\Delta} P^{T}` of
-:math:`\textrm{Var}[x]` and applying the transformation :math:`\strut x' = P
+computing the eigen decomposition :math:`P {\Delta} P^{T}` of
+:math:`\textrm{Var}[x]` and applying the transformation :math:`x' = P
 {\Delta}^{-1/2} P^T (x-\textrm{E}[x])`. Alternative approaches are
 possible and are discussed in
 :ref:`ProcOutputsPrincipalComponents<ProcOutputsPrincipalComponents>`.
