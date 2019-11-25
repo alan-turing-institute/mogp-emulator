@@ -37,15 +37,12 @@ void distance_native(std::vector<float> x, std::vector<float> y,
 
 void matrix_vector_product_native(std::vector<float> a, std::vector<float> b,
                                   std::vector<float> &c, int m, int n){
-    for (int row=0; row<m; row++){
+    for (int col=0; col<n; col++){
         float sum = 0.0f;
-        int offest = row*n;
-
-        for (int col=0; col<n; col++){
-            sum += a[offest+col] * b[col];
+        for (int row=0; row<m; row++){
+            sum += a[row*n+col] * b[row];
         }
-
-        c[row] = sum;
+        c[col] = sum;
     }
 }
 
