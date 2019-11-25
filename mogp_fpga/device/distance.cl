@@ -52,8 +52,7 @@ kernel void distance(global float* restrict x, global float* restrict y,
                 float x = x_cache[i];
                 float y = y_cache[i];
                 float difference = x - y;
-                difference /= l_cache[i];
-                value += difference * difference;
+                value += (difference * difference) / l_cache[i];
             }
 
             // Store the value in the temporary row of r

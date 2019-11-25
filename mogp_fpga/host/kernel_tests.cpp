@@ -27,8 +27,7 @@ void distance_native(std::vector<float> x, std::vector<float> y,
             float sum = 0;
             for (int i=0; i<dim; i++){
                 float difference = x[row_stride+i] - y[col_stride+i];
-                difference /= exp(-1.0f*l[i]);
-                sum += difference*difference;
+                sum += (difference * difference) / exp(-1.0f*l[i]);
             }
             r[row*ny+col] = sum;
         }
