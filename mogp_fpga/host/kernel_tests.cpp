@@ -49,23 +49,22 @@ void matrix_vector_product_native(std::vector<float> a, std::vector<float> b,
     }
 }
 
-void compare_results(std::vector<float> host, std::vector<float> device,
+void compare_results(std::vector<float> expected, std::vector<float> actual,
                      std::string kernel_name){
     float TOL = 1.0e-6;
-    int length = host.size();
+    int length = expected.size();
     bool discrepency = false;
 
-    std::cout << "Comparing host and device results for " << kernel_name << std::endl;
-    // Ensure FPGA and native implementation agree within a tolerance
+    std::cout << "Comparing expected and actual results for " << kernel_name << std::endl;
     for (int i=0; i<length; i++){
-        if (std::abs(host[i] - device[i]) > TOL){
-            std::cout << "Element " << i << " of host and FPGA implementations do not agree: " << host[i] << " " << device[i] << std::endl;
+        if (std::abs(expected[i] - actual[i]) > TOL){
+            std::cout << "Element " << i << " of expected and actual results do not agree: " << expected[i] << " " << actual[i] << std::endl;
             discrepency = true;
         }
     }
 
     if (!discrepency){
-        std::cout << "Host and device implementations agree" << std::endl;
+        std::cout << "Expected and actual results agree" << std::endl;
     }
 }
 
@@ -133,12 +132,13 @@ int main(){
         int dim = 3;
         // Square distances between X and X*
         std::vector<float> h_r(nx*nxstar, 0);
+        std::vector<float> h_r_native(nx*nxstar, 0);
         // InvQt vector, a product of training
         std::vector<float> h_InvQt = {1.9407565, 2.93451157, 3.95432381};
         // Hyperparameter used to scale predictions
         float sigma = 0.0f;
         // Hyperparameters to set length scale of distances between inputs
-        std::vector<float> h_l = {0.0, 0.0, 0.0, 0.0};
+        std::vector<float> h_l = {0.0, 0.0, 0.0};
         // Kernel matrix
         std::vector<float> h_k(nx*nxstar, 0);
         // Prediction result
@@ -153,11 +153,31 @@ int main(){
         cl::Buffer d_k(h_k.begin(), h_k.end(), false);
         cl::Buffer d_Ystar(h_Ystar.begin(), h_Ystar.end(), false);
 
+        // Expected results
+        std::vector<float> expected_distances = {2.0, 8.0,
+                                                 3.0, 5.0,
+                                                 10.0, 2.0};
+        std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
+
         // Prediction
         // Determine SQUARED distances between training and test inputs
         distance(cl::EnqueueArgs(queue, cl::NDRange(1)), d_X, d_Xstar, d_r, d_l,
                  nx, nxstar, dim);
         queue.finish();
+        cl::copy(d_r, h_r.begin(), h_r.end());
+        /*
+        for (auto const& i : h_r)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        */
+        distance_native(h_X, h_Xstar, h_r_native, h_l, nx, nxstar, dim);
+        /*
+        for (auto const& i : h_r_native)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        */
+        compare_results(expected_distances, h_r, "distance");
+        compare_results(expected_distances, h_r_native, "distance_native");
 
         // Determine kernel matrix of distances
         square_exponential(cl::EnqueueArgs(queue, cl::NDRange(1)), d_r, d_k,
