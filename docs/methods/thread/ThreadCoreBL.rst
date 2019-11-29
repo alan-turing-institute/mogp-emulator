@@ -47,19 +47,20 @@ to emulation, see :ref:`AltGPorBLEmulator<AltGPorBLEmulator>`.
 
 Our belief specification for the univariate deterministic simulator is
 given by the Bayes linear :ref:`emulator<DefEmulator>` of the
-simulator :math::ref:`f(x)` which takes the a linear `mean
+simulator :math:`f(x)` which takes the a linear :ref:`mean
 function<AltMeanFunction>` in the following structural form:
 
-:math:`f(x) = \\sum_j \\beta_{j}\, h_{j}(x) + w(x)`
+.. math::
+   f(x) = \sum_j \beta_{j}\, h_{j}(x) + w(x)
 
-In this formulation, :math:`\beta=(\beta_{1}, \\dots,\beta_{p})` are
-unknown scalars, :math:`h(x)=(h_{1}(x), \\dots,h_{p}(x))` are known
+In this formulation, :math:`\beta=(\beta_{1}, \dots,\beta_{p})` are
+unknown scalars, :math:`h(x)=(h_{1}(x), \dots,h_{p}(x))` are known
 deterministic functions of :math:`x`, and :math:`w(x)` is a stochastic
 residual process. Thus our mean function has the linear form
 :math:`m(x)=h(x)^T\beta`.
 
 Thus our belief specification for the computer model can be expressed in
-terms of beliefs about two components. The component :math:`h^T(x) \\beta`
+terms of beliefs about two components. The component :math:`h^T(x) \beta`
 is a linear trend term that expresses our beliefs about the global
 variation in :math:`f`, namely that portion of the variation in :math:`f(x)`
 which we can resolve without having to make evaluations for :math:`f` at
@@ -102,7 +103,7 @@ have about the simulator before incorporating information from the
 appropriate specifications for each of these quantities.
 
 Choosing the form of :math:`h(x)`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For Bayes linear emulation, the emphasis of the emulator is often placed
 on a :ref:`detailed structural
@@ -115,7 +116,7 @@ are discussed in the alternatives page on basis functions for the
 emulator mean (:ref:`AltBasisFunctions<AltBasisFunctions>`).
 
 Choosing the form of :math:`c(x,x')`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If the simulator's behaviour is well-captured by the chosen mean
 function, then the proportion of variation in the simulator output that
@@ -134,7 +135,7 @@ the discussion page on active and inactive inputs
 (:ref:`DiscActiveInputs<DiscActiveInputs>`).
 
 Belief specifications for :math:`\beta`, :math:`\sigma^2`, and :math:`\delta`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The emulator modelling stage will have described the form of the mean
 and covariance structures in terms of some hyperparameters. A Bayes
@@ -192,7 +193,7 @@ Bayes linear assessment of the emulator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Given the output :math:`f(X)`, we make a Bayes linear adjustment of the
-trend coefficients\(\beta` and the residual function :math:`w(x)`. This
+trend coefficients :math:`\beta` and the residual function :math:`w(x)`. This
 adjustment requires the specification of a prior mean and variance
 :math:`\beta`, a covariance specification for :math:`w(x)`, and specified
 values for :math:`\sigma^2` and :math:`\delta`. Given the design, model runs

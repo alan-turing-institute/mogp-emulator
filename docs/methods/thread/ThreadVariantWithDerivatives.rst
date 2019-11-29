@@ -76,7 +76,7 @@ vector of regressor functions, whose specification is part of the choice
 to be made. As we are including derivative information in the training
 sample we must ensure that :math:`h(\cdot)` is differentiable. This will
 then lead to the derivative of the mean function:
-:math:`\frac{\partial}{\partial x}m(x) = \\frac{\partial}{\partial
+:math:`\frac{\partial}{\partial x}m(x) = \frac{\partial}{\partial
 x}h(x)^{\rm T}\beta`. For appropriate ways to model the mean, both
 generally and in linear form, see
 :ref:`AltMeanFunction<AltMeanFunction>`.
@@ -86,44 +86,47 @@ The covariance function is considered in the discussion page
 be twice differentiable. Within the toolkit we will assume that the
 covariance function takes the form :math:`\sigma^2 c(\cdot,\cdot)`, where
 :math:`\sigma^2` is an unknown scale hyperparameter and :math:`c(\cdot,
-\\cdot)` is called the correlation function indexed by a set of
+\cdot)` is called the correlation function indexed by a set of
 correlation hyperparameters :math:`\delta`. The correlation then between a
-point, :math:`\strut x_i`, and a derivative w.r.t input :math:`\strut k` at
+point, :math:`x_i`, and a derivative w.r.t input :math:`k` at
 :math:`x_j`, (denoted by :math:`x_j^{(k)}`), is :math:`\frac{\partial}{\partial
 x_j^{(k)}} c(x_i,x_j)`. The correlation between a derivative w.r.t
-input :math:`\strut k` at :math:`\strut x_i`, (denoted by :math:`x_i^{(k)}`), and
-a derivative w.r.t input :math:`\strut l` at :math:`\strut x_j`, (denoted by
+input :math:`k` at :math:`x_i`, (denoted by :math:`x_i^{(k)}`), and
+a derivative w.r.t input :math:`l` at :math:`x_j`, (denoted by
 :math:`x_j^{(l)}`), is :math:`\frac{\partial^2}{\partial x_i^{(k)}\partial
 x_j^{(l)}} c(x_i,x_j)`. The choice of correlation function is
 considered in the alternatives page
 :ref:`AltCorrelationFunction<AltCorrelationFunction>`.
 
 The most common approach is to define the correlation function to have
-the Gaussian form :math:`c(x_i,x_j) = \\exp\{-(x_i-x_j)^{\rm
-T}C(x_i-x_j)\}`, where :math:`\strut C` is a diagonal matrix with elements
+the Gaussian form :math:`c(x_i,x_j) = \exp\{-(x_i-x_j)^{\rm
+T}C(x_i-x_j)\}`, where :math:`C` is a diagonal matrix with elements
 the inverse squares of the elements of the :math:`\delta` vector. The
-correlation then between a point, :math:`\strut x_i`, and a derivative
-w.r.t input :math:`\strut k` at point :math:`\strut j`, :math:`x_j^{(k)},` is:
+correlation then between a point, :math:`x_i`, and a derivative
+w.r.t input :math:`k` at point :math:`j`, :math:`x_j^{(k)},` is:
 
-\\[\frac{\partial}{\partial x_j^{(k)}} c(x_i,x_j) =
-\\frac{2}{\delta^2\{k\}}\left(x_i^{(k)}-x_j^{(k)}\right)\,\exp\{-(x_i-x_j)^{\rm
-T}C(x_i-x_j)\},\]
+.. math::
+   \frac{\partial}{\partial x_j^{(k)}} c(x_i,x_j) =
+   \frac{2}{\delta^2\{k\}}\left(x_i^{(k)}-x_j^{(k)}\right)\,\exp\{-(x_i-x_j)^{\rm
+   T}C(x_i-x_j)\},
 
-the correlation between two derivatives w.r.t input :math:`\strut k` but at
-points :math:`\strut i` and :math:`\strut j` is:
+the correlation between two derivatives w.r.t input :math:`k` but at
+points :math:`i` and :math:`j` is:
 
-\\[\frac{\partial^2}{\partial x_i^{(k)} \\partial x_j^{(k)}} c(x_i,x_j)
-= \\left(\frac{2}{\delta^2\{k\}} -
-\\frac{4\left(x_i^{(k)}-x_j^{(k)}\right)^2}{\delta^4\{k\}}\right)\exp\{-(x_i-x_j)^{\rm
-T}C(x_i-x_j)\},\]
+.. math::
+   \frac{\partial^2}{\partial x_i^{(k)} \partial x_j^{(k)}} c(x_i,x_j)
+   = \left(\frac{2}{\delta^2\{k\}} -
+   \frac{4\left(x_i^{(k)}-x_j^{(k)}\right)^2}{\delta^4\{k\}}\right)\exp\{-(x_i-x_j)^{\rm
+   T}C(x_i-x_j)\},
 
 and finally the correlation between two derivatives w.r.t inputs
-:math:`\strut k` and :math:`\strut l`, where :math:`k \\ne l`, at points
-:math:`\strut i` and :math:`\strut j` is:
+:math:`k` and :math:`l`, where :math:`k \ne l`, at points
+:math:`i` and :math:`j` is:
 
-\\[\frac{\partial^2}{\partial x_i^{(k)} \\partial x_j^{(l)}} c(x_i,x_j)
-=\frac{4}{\delta^2\{k\}\delta^2\{l\}}\left(x_j^{(k)}-x_i^{(k)}\right)\left(x_i^{(l)}-x_j^{(l)}\right)\exp\{-(x_i-x_j)^{\rm
-T}C(x_i-x_j)\}.\]
+.. math::
+   \frac{\partial^2}{\partial x_i^{(k)} \partial x_j^{(l)}} c(x_i,x_j)
+   =\frac{4}{\delta^2\{k\}\delta^2\{l\}}\left(x_j^{(k)}-x_i^{(k)}\right)\left(x_i^{(l)}-x_j^{(l)}\right)\exp\{-(x_i-x_j)^{\rm
+   T}C(x_i-x_j)\}
 
 Prior distributions
 -------------------
@@ -146,24 +149,24 @@ derivative information.
 
 If one of the design procedures described in
 :ref:`AltCoreDesign<AltCoreDesign>` is applied, the result is an
-ordered set of points :math:`D = \\{x_1, x_2, \\ldots, x_n\}`. Given
-:math:`\strut D`, we would now need to choose at which of these points we
+ordered set of points :math:`D = \{x_1, x_2, \ldots, x_n\}`. Given
+:math:`D`, we would now need to choose at which of these points we
 want to obtain function output and at which we want to obtain partial
-derivatives. This information is added to :math:`\strut D` resulting in the
-design, :math:`\strut{\tilde{D}}` of length :math:`\strut \\tilde{n}`. A point
-in :math:`\strut \\tilde{D}` has the form :math:`(x,d)`, where :math:`\strut d`
+derivatives. This information is added to :math:`D` resulting in the
+design, :math:`\tilde{D}` of length :math:`\tilde{n}`. A point
+in :math:`\tilde{D}` has the form :math:`(x,d)`, where :math:`d`
 denotes whether a derivative or the function output is to be included at
 that point. The simulator, :math:`f(\cdot)`, or the adjoint of the
 simulator, :math:`\tilde{f}(\cdot)`, (depending on the value of each
-:math:`\strut d`), is then run at each of the input configurations.
+:math:`d`), is then run at each of the input configurations.
 
 One suggestion that is commonly made for the choice of the sample size,
-:math:`\strut n`, for the core problem is :math:`n=10p`, where :math:`\strut p`
+:math:`n`, for the core problem is :math:`n=10p`, where :math:`p`
 is the number of inputs. (This may typically be enough to obtain an
 initial fit, but additional simulator runs are likely to be needed for
 the purposes of :ref:`validation<DefValidation>`, and then to address
 problems raised in the validation diagnostics.) There is not, however,
-such a guide for what :math:`\strut \\tilde{n}` might be. If we choose to
+such a guide for what :math:`\tilde{n}` might be. If we choose to
 obtain function output and the first derivatives w.r.t to all inputs at
 every location in the design, then we would expect that fewer than
 :math:`10p` locations would be required; how many fewer though, is
@@ -193,17 +196,17 @@ process of validation is described in the procedure page
 :ref:`ProcValidateCoreGP<ProcValidateCoreGP>`. Here, we are
 interested in predicting function output, therefore as in
 :ref:`ProcValidateCoreGP<ProcValidateCoreGP>` we will have a
-validation design :math:`\strut D^\prime` which only consists of points for
+validation design :math:`D^\prime` which only consists of points for
 function output; no derivatives are required and as such the simulator,
 :math:`f(\cdot)`, not the adjoint, :math:`\tilde{f}(\cdot)`, is run at each
-:math:`\strut x_j^\prime` in :math:`\strut D^\prime`. Then in the case of a
+:math:`x_j^\prime` in :math:`D^\prime`. Then in the case of a
 linear mean function, weak prior information on hyperparameters
-:math:`\strut \\beta` and :math:`\strut \\sigma`, and a single posterior
-estimate of :math:`\strut \\delta`, the predictive mean vector, :math:`\strut
-m^*:ref:`, and the predictive covariance matrix, :math:`\strut V^*`, required
-in `ProcValidateCoreGP<ProcValidateCoreGP>`, are given by the
-functions :math::ref:`m^*(\cdot)` and :math:`v^*(\cdot,\cdot)` which are given in
-`ProcBuildWithDerivsGP<ProcBuildWithDerivsGP>`. We can therefore
+:math:`\beta` and :math:`\sigma`, and a single posterior
+estimate of :math:`\delta`, the predictive mean vector, :math:`m^*`,
+and the predictive covariance matrix, :math:`\strut V^*`, required
+in :ref:`ProcValidateCoreGP<ProcValidateCoreGP>`, are given by the
+functions :math:`m^*(\cdot)` and :math:`v^*(\cdot,\cdot)` which are given in
+:ref:`ProcBuildWithDerivsGP<ProcBuildWithDerivsGP>`. We can therefore
 validate an emulator built with derivatives using the same procedure as
 that which we apply to validate an emulator of the core problem. It is
 often necessary, in response to the validation diagnostics, to rebuild
@@ -234,7 +237,7 @@ the core problem is set out in :ref:`ProcPredictGP<ProcPredictGP>`.
 When we have derivatives in the training sample the process of
 prediction is the same as for the core problem, but anywhere :math:`D, t, A,
 e` etc are required, they should be replaced with :math:`\tilde{D},
-\\tilde{t}, \\tilde{A}, \\tilde{e}`.
+\tilde{t}, \tilde{A}, \tilde{e}`.
 
 For some of the tasks considered below, we require to predict the output
 not at a set of discrete points, but in effect the entire output

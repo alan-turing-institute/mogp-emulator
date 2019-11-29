@@ -48,10 +48,10 @@ a training set, supervised learning, selective sampling, spatial
 sampling and so on. Historically, "experiment" has always been a key
 part of the scientific method. Francis Bacon (1620, Novum Organum):
 
-*... the real order of experience begins by setting up a light, and then
-shows the road by it, commencing with a regulated and digested, not a
-misplaced and vague course of experiment, and hence deducing axioms, and
-from those axioms new experiments...*
+   *... the real order of experience begins by setting up a light, and then
+   shows the road by it, commencing with a regulated and digested, not a
+   misplaced and vague course of experiment, and hence deducing axioms, and
+   from those axioms new experiments...*
 
 The subject came of age with the introduction of properly planned
 agricultural field trials in the 1920s by R A Fisher. It then developed
@@ -116,7 +116,7 @@ output (ii) basic effect plots.
    combination (iii) data on set-up time, run time, etc. By
    experimenting at the "centre" of the input space a useful bench-mark
    for future runs is provided.
-#. *Initial*\ :ref:`screening<DefScreening>`\ *experiment.* One may
+#. *Initial* :ref:`screening<DefScreening>` *experiment*. One may
    use a formal screening design. The purpose is to identify input
    factors which significantly affect one or more outputs, with a view
    to not including (or keeping at their nominal values) the
@@ -128,7 +128,7 @@ output (ii) basic effect plots.
    prior knowledge of possible models. It is here that a more
    sophisticated design for computer experiments may be used.
 #. *Confirmatory experiment
-   (*\ :ref:`validation<DiscCoreValidationDesign>`\ *experiment)*. At
+   (*:ref:`validation<DiscCoreValidationDesign>` *experiment)*. At
    a basic level it is useful to have additional training runs as an
    overall check on the accuracy/validity of the emulator. If the
    experiments are a success they will confirm or disconfirm prior
@@ -234,8 +234,9 @@ covariance parameters are unknown.
    exchanging "bad" points for "better" points. The algorithms are
    simple to implement and fast, but not guaranteed to converge to the
    globally best solution. More sophisticated algorithms such as branch
-   and bound which give a global optimum (see ProcBranchAndBound?) are
-   available but slower and harder tio implement.
+   and bound which give a global optimum
+   (see :ref:`ProcBranchAndBoundAlgorithm<ProcBranchAndBoundAlgorithm>`)
+   are available but slower and harder to implement.
 -  *The Karhunen-Loeve expansion*. A promising way to handle the
    nonlinearity of the covariance function in its parameters is to use
    the Karhunen-Loeve expansion. This approach is described in more
@@ -353,4 +354,5 @@ A recent paper on computer/physical experiments is:
 
 D. Romano (with A Giovagnoli) A sequential methodology for integrating
 physical and computer experiments. Presentation at the Newton Institute.
-http://www.newton.ac.uk/programmes/DOE/seminars/081515001.html
+`http://www.newton.ac.uk/programmes/DOE/seminars/081515001.html
+<http://www.newton.ac.uk/programmes/DOE/seminars/081515001.html>`__

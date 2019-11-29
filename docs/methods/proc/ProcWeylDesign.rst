@@ -25,37 +25,40 @@ Inputs
 Outputs
 -------
 
--  Weyl design :math:`D = \\{x_1, x_2, \\ldots, x_n\}`
+-  Weyl design :math:`D = \{x_1, x_2, \ldots, x_n\}`
 
 Procedure
 ---------
 
 For :math:`j=0,\ldots,n-1`, generate points as
 
-:math:`x_{j+1}=\left(j\times g_1{\rm mod} 1, j\times g_2{\rm mod}
-1,\ldots,j\times g_d{\rm mod} 1\right)`.
+.. math::
+   x_{j+1}=\left(j\times g_1{\rm mod} 1, j\times g_2{\rm mod}
+   1,\ldots,j\times g_d{\rm mod} 1\right).
 
 Note that the operator "mod 1" here has the effect of returning the
 fractional part of each number. For instance, if :math:`j=7` and :math:`g_1 =
-\\sqrt{2} = 1.414\ldots`, then
+\sqrt{2} = 1.414\ldots`, then
 
-:math:`j\times g_1 = 9.89949\ldots`
+.. math::
+   j\times g_1 = 9.89949\ldots
 
 and so
 
-:math:`j\times g_1 {\rm mod} 1 = 0.89949\ldots`.
+.. math::
+   j\times g_1 {\rm mod} 1 = 0.89949\ldots.
 
 Additional Comments
 -------------------
 
 A potential problem with Weyl designs is the difficulty in finding
 suitable generators. One suggestion is to let :math:`g_i` be the square
-root of the i-th prime, but this may not work well when :math:`p` is large.
+root of the :math:`i`-th prime, but this may not work well when :math:`p` is large.
 
 References
 ----------
 
 The following is a link to the repository for Matlab code for the Weyl
 sequence in up to 100 dimensions:
-:ref:`CPWeylSequence.m <https://virgo.aston.ac.uk/MUCM/WP3_1/code/CPWeylSequence.m>`__
-(`disclaimer<MetaSoftwareDisclaimer>`).
+`CPWeylSequence.m <https://virgo.aston.ac.uk/MUCM/WP3_1/code/CPWeylSequence.m>`_
+(:ref:`disclaimer<MetaSoftwareDisclaimer>`).

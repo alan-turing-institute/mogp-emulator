@@ -25,25 +25,28 @@ Inputs
 Outputs
 -------
 
--  Lattice design :math:`D = \\{x_1, x_2, \\ldots, x_n\}`
+-  Lattice design :math:`D = \{x_1, x_2, \ldots, x_n\}`
 
 Procedure
 ---------
 
 For :math:`j=0,\ldots,n-1`, generate lattice points as
 
-:math:`x_{j+1}=\left(\frac{j}{n}g_1{\rm mod} 1,\ldots,\frac{j}{n}g_d{\rm
-mod} 1\right)`.
+.. math::
+   x_{j+1}=\left(\frac{j}{n}g_1{\rm mod} 1,\ldots,\frac{j}{n}g_d{\rm
+   mod} 1\right).
 
 Note that the operator "mod 1" here has the effect of returning the
 fractional part of each number. For instance, if :math:`j=7, n=50` and
 :math:`g_1 = 13`, then
 
-:math:`\frac{j}{n}g_1 = 1.82`
+.. math::
+   \frac{j}{n}g_1 = 1.82
 
 and so
 
-:math:`\frac{j}{n}g_1 {\rm mod} 1=0.82`.
+.. math::
+   \frac{j}{n}g_1 {\rm mod} 1=0.82.
 
 Additional Comments
 -------------------
@@ -65,5 +68,5 @@ Sloan, I.H., Joe, S. (1994). Lattice methods for multiple integration.
 Clarendon Press, Oxford.
 
 Matlab code for generating lattice designs is available from `Ron
-Bates <http://www.lse.ac.uk/collections/cats/People%20&%20CVs/RonBates.htm>:ref:`__
-(`disclaimer<MetaSoftwareDisclaimer>`).
+Bates <http://www.lse.ac.uk/collections/cats/People%20&%20CVs/RonBates.htm>`_
+(:ref:`disclaimer<MetaSoftwareDisclaimer>`).

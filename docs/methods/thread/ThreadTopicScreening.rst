@@ -102,6 +102,6 @@ on active and inactive inputs
 References
 ----------
 
-Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). :ref:`Sensitivity
-Analysis<http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`.
+Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). `Sensitivity
+Analysis <http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`__.
 Wiley.

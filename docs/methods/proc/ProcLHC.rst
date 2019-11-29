@@ -19,19 +19,19 @@ Inputs
 Outputs
 -------
 
--  LHC :math:`D = \\{x_1, x_2, \\ldots, x_n\}`
+-  LHC :math:`D = \{x_1, x_2, \ldots, x_n\}`
 
 Procedure
 ---------
 
 #. For each :math:`i=1,2,\ldots,p`, independently generate :math:`n` random
-   numbers :math:`u_{i1}, u_{i2}, \\ldots, u_{in}` in [0,1] and a random
-   permutation :math:`b_{i1}, b_{i2}, \\ldots, b_{in}` of the integers
+   numbers :math:`u_{i1}, u_{i2}, \ldots, u_{in}` in [0,1] and a random
+   permutation :math:`b_{i1}, b_{i2}, \ldots, b_{in}` of the integers
    :math:`0,1,\ldots,n-1`.
 #. For each :math:`i=1,2,\ldots,p` and :math:`j=1,2,\ldots,n` let :math:`x_{ij} =
    (b_{ij}+u_{ij})/n`.
 #. For :math:`j=1,2,\ldots,n`, the j-th LHC point is :math:`x_j = (x_{1j},
-   x_{2j}, \\ldots, x_{pj})`.
+   x_{2j}, \ldots, x_{pj})`.
 
 Additional Comments
 -------------------

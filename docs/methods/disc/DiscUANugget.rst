@@ -29,7 +29,8 @@ The closed form expressions are derived for the generalised Gaussian
 correlation function with nugget (see
 :ref:`AltCorrelationFunction<AltCorrelationFunction>`)
 
-:math:`c(x,x') = \\nu I_{x=x'} + (1-\nu)\exp\{-(x-x')^T C (x-x')\} \`
+.. math::
+   c(x,x') = \nu I_{x=x'} + (1-\nu)\exp\{-(x-x')^T C (x-x')\}
 
 where :math:`I_{x=x'}` equals 1 if :math:`x=x'` but is otherwise zero, and
 :math:`\nu` represents the nugget term. They also assume a normal

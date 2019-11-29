@@ -90,21 +90,21 @@ Notation
 
 In accordance with the standard :ref:`toolkit
 notation<MetaNotation>`, we denote the simulator by :math:`f` and
-its inputs by :math:`\strut x`. The focus of SA is the relationship between
-:math:`\strut x` and the simulator output(s) :math:`f(x)`. Since SA also
+its inputs by :math:`x`. The focus of SA is the relationship between
+:math:`x` and the simulator output(s) :math:`f(x)`. Since SA also
 typically tries to isolate the influences of individual inputs, or
 groups of inputs, on the output(s), we let :math:`x_j` be the j-th element
-of :math:`\strut x` and will refer to this as the j-th input, for
+of :math:`x` and will refer to this as the j-th input, for
 :math:`j=1,2,\ldots,p`, where as usual :math:`p` is the number of inputs. If
-:math:`\strut J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
+:math:`J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
 :math:`x_J` will denote the corresponding subset of inputs. For instance,
 if :math:`J=\{2,6\}` then :math:`x_J=x_{\{2,6\}}` comprises inputs 2 and 6.
-Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`\strut x`
+Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`x`
 *except* :math:`x_j`, and similarly :math:`x_{-J}` will be the set of all
 inputs except those in :math:`x_J`.
 
-We denote the probability distribution over the inputs :math:`\strut x` by
-:math:`\strut\omega`. Formally, :math:`\omega(x)` is the joint probability
+We denote the probability distribution over the inputs :math:`x` by
+:math:`\omega`. Formally, :math:`\omega(x)` is the joint probability
 density function for all the inputs. The marginal density function for
 input :math:`x_j` is denoted by :math:`\omega_j(x_j)`, while for the group of
 inputs :math:`x_J` the density function is :math:`\omega_J(x_J)`. The
@@ -115,41 +115,41 @@ are statistically independent. In this case the conditional distribution
 :math:`\omega_{-J|J}` does not depend on :math:`x_J` and is identical to the
 marginal distribution :math:`\omega_{-J}`.
 
-Random :math:`\strut X`
+Random :math:`X`
 ~~~~~~~~~~~~~~~~~~~~
 
 Note that by assigning probability distributions to the inputs in
 probabilistic SA we formally treat those inputs as random variables.
 Notationally, it is conventional in statistics to denote random
 variables by capital letters, and this distinction is useful also in
-probabilistic SA. Thus, the symbol :math:`\strut X` denotes the set of
-inputs when regarded as random (i.e. uncertain), while :math:`\strut x`
+probabilistic SA. Thus, the symbol :math:`X` denotes the set of
+inputs when regarded as random (i.e. uncertain), while :math:`x`
 continues to denote a particular set of input values. Similarly,
 :math:`X_J` represents those random inputs with subscripts in the set
-:math:`\strut J`, while :math:`x_J` denotes an actual value for those inputs.
+:math:`J`, while :math:`x_J` denotes an actual value for those inputs.
 
-It is most natural to think of :math:`\strut X` as a random variable in the
+It is most natural to think of :math:`X` as a random variable in the
 context of the third and fourth uses of SA, as listed above. When there
 is genuine uncertainty about the proper values to assign to inputs in
-order to obtain the output(s) of interest, then :math:`X \\strut` can
+order to obtain the output(s) of interest, then :math:`X` can
 indeed be interpreted as random, and :math:`\omega(x)` is then the
 probability density function describing the relative probabilities of
-different possible values :math:`x\strut` for :math:`\strut X`. SA then
+different possible values :math:`x` for :math:`X`. SA then
 involves trying to understand the role of uncertainty about the various
 inputs in the induced uncertainty concerning the outputs :math:`f(X)` or
 concerning a decision based on these outputs.
 
 Interpretation of :math:`\omega(x)` as a weight function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 However, in the context of other uses of SA it may be less natural to
-think of :math:`X \\strut` as random. When our objective is to gain
+think of :math:`X` as random. When our objective is to gain
 understanding of the simulator's behaviour or to identify inputs that
 are more or less redundant, it is not necessary to regard the inputs as
 uncertain. It is, nevertheless, important to think about the range of
 input values over which we wish to achieve the desired understanding or
 dimension reduction. In this case, :math:`\omega(x)` can simply define that
-range by being zero for any :math:`x\strut` outside the range. Within the
+range by being zero for any :math:`x` outside the range. Within the
 range of interest, we may regard :math:`\omega(x)` as a weight function.
 Whilst we might normally give equal weight to all points in the range,
 for some purposes it may be appropriate to give more weight to some
@@ -190,12 +190,12 @@ SA in the toolkit
 
 All SA measures concern the relationship between a simulator's inputs
 and outputs. They generally depend on the whole function :math:`f` and
-implicitly suppose that we know :math:`f(x)` for all :math:`\strut x`. In
+implicitly suppose that we know :math:`f(x)` for all :math:`x`. In
 practice, we can only run the simulator at a limited number of input
 configurations, and as a result any computation of SA measures must be
 subject to computation error. The conventional Monte Carlo approach, for
 instance, involves randomly sampling input values and then running the
-simulator at each sampled :math:`\strut x`. Its accuracy can be quantified
+simulator at each sampled :math:`x`. Its accuracy can be quantified
 statistically and reduces as the sample size increases. For large and
 complex simulators, Monte Carlo may be infeasible because of the amount
 of computation required. One of the motivations for the MUCM approach is
@@ -225,7 +225,7 @@ often built to explore how that real phenomenon behaves and some or all
 of its inputs represent quantities in the real world. The simulator
 output :math:`f(x)` is intended to predict the value of some aspect of the
 real phenomenon when the corresponding real quantities take values
-:math:`\strut x`. So in principle we may wish to consider SA in which the
+:math:`x`. So in principle we may wish to consider SA in which the
 simulator is replaced by reality. This may be developed in a later
 version of this toolkit.
 
@@ -239,20 +239,20 @@ Three books are extremely useful guides to the uses of SA in practice,
 and for non-MUCM methods for computing some of the most important
 measures.
 
-Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). :ref:`Sensitivity
-Analysis<http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`.
+Saltelli, A., Chan, K. and Scott, E. M. (eds.) (2000). `Sensitivity
+Analysis <http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0471998923>`__.
 Wiley.
 
 Saltelli, A., Tarantola, S., Campolongo, F. and Ratto, M. (2004).
-:ref:`Sensitivity Analysis in Practice: A guide to assessing scientific
-models<http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470870931>`.
+`Sensitivity Analysis in Practice: A guide to assessing scientific
+models <http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470870931>`__.
 Wiley.
 
 Saltelli, A., Ratto, M., Andres, T., Campolongo, F., Cariboni, J.,
 Gatelli, D., Saisana, M. and Tarantola, S. (2008). `Global Sensitivity
 Analysis: The
 primer <http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470059974.html>`__.
-WIley.
+Wiley.
 
 MUCM methods for computing SA measures are based on using emulators. The
 basic theory was presented in

@@ -45,18 +45,18 @@ validation is described in the procedure page
 interested in emulating derivatives, as we know the derivatives of a
 Gaussian process remain a Gaussian process, we can apply the same
 validation techniques as for the core problem. We require a validation
-design :math::ref:`\strut D^\prime` which consists of points where we want to
-obtain validation derivatives. An `adjoint<DefAdjoint>` is then
+design :math:`D^\prime` which consists of points where we want to
+obtain validation derivatives. An :ref:`adjoint<DefAdjoint>` is then
 run at these points; if an appropriate adjoint does not exist the
 derivatives are obtained through another technique, for example finite
 differences. If any local sensitivity analysis has already been
 performed on the simulator, some derivatives may already have been
 obtained and can be used here for validation. Then in the case of a
 linear mean function, weak prior information on hyperparameters
-:math:`\strut \\beta` and :math:`\strut \\sigma`, and a single posterior
-estimate of :math:`\strut \\delta`, the predictive mean vector, :math:`\strut
-m^*:ref:`, and the predictive covariance matrix, :math:`\strut V^*`, required
-in `ProcValidateCoreGP<ProcValidateCoreGP>`, are given by the
+:math:`\beta` and :math:`\sigma`, and a single posterior
+estimate of :math:`\delta`, the predictive mean vector, :math:`m^*`,
+and the predictive covariance matrix, :math:`V^*`, required
+in :ref:`ProcValidateCoreGP<ProcValidateCoreGP>`, are given by the
 functions :math:`\tilde{m}^*(\cdot)` and :math:`\tilde{v}^*(\cdot,\cdot)`
 which are given in
 :ref:`ProcBuildEmulateDerivsGP<ProcBuildEmulateDerivsGP>`. We can
@@ -90,9 +90,9 @@ problem is set out in the prediction page
 derivatives and the process of prediction is the same as for the core
 problem. If the procedure in
 :ref:`ProcBuildEmulateDerivsGP<ProcBuildEmulateDerivsGP>` is
-followed, :math:`\tilde{D}, \\tilde{t}, \\tilde{A}, \\tilde{e}` etc are
-used in replace of :math::ref:`D, t, A, e`, as required in
-`ProcPredictGP<ProcPredictGP>`.
+followed, :math:`\tilde{D}, \tilde{t}, \tilde{A}, \tilde{e}` etc. are
+used in replace of :math:`D, t, A, e`, as required in
+:ref:`ProcPredictGP<ProcPredictGP>`.
 
 Sensitivity analysis
 ~~~~~~~~~~~~~~~~~~~~

@@ -54,7 +54,7 @@ Excluding inactive inputs
 There are two ways to exclude inactive inputs when building and using an
 emulator.
 
- Inactive inputs fixed
+Inactive inputs fixed
 ^^^^^^^^^^^^^^^^^^^^^
 
 The first method is to fix all the inactive inputs at some specified
@@ -80,7 +80,7 @@ identify which are inactive. The fixed inactive inputs approach then
 cannot use these runs as part of its training sample, so the training
 sample involves a new set of simulator runs.
 
- Inactive inputs ignored
+Inactive inputs ignored
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The second method is to ignore the values of inactive inputs in training

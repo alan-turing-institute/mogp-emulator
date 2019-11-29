@@ -22,15 +22,15 @@ its inputs.
 
 Examples of decisions that might be based on simulator output are not
 difficult to find. Consider a simulator which models the response of the
-global climate to atmospheric CO\(_2` levels. The simulator will
+global climate to atmospheric :math:`\textrm{CO}_2` levels. The simulator will
 predict global warming and rising sea levels based on future carbon
 emissions scenarios, and we can imagine a national policy decision
 whether to build sea defences to protect a coastal area or city.
 Uncertainty in the future carbon emissions and climate response to
-increased CO\(_2` mean that the consequences of buiding or not building
+increased :math:`\textrm{CO}_2` mean that the consequences of buiding or not building
 sea defences are uncertain. Another decision based on this simulator
 might involve setting policy on power station emissions to try to
-control the nation's contribution to atmospheric CO\(_2`.
+control the nation's contribution to atmospheric :math:`\textrm{CO}_2`.
 
 Uncertainty in the inputs is described by a joint probability density
 function :math:`\omega(x)`, whose specification will be considered as part
@@ -44,17 +44,17 @@ The following notation and terminology is introduced in
 
 In accordance with the standard :ref:`toolkit
 notation<MetaNotation>`, we denote the simulator by :math:`f` and
-its inputs by :math:`\strut x`. The focus of SA is the relationship between
-:math:`\strut x` and the simulator output(s) :math:`f(x)`. Since SA also
+its inputs by :math:`x`. The focus of SA is the relationship between
+:math:`x` and the simulator output(s) :math:`f(x)`. Since SA also
 typically tries to isolate the influences of individual inputs, or
 groups of inputs, on the output(s), we let :math:`x_j` be the j-th element
-of :math:`\strut x` and will refer to this as the j-th input, for
+of :math:`x` and will refer to this as the j-th input, for
 :math:`j=1,2,\ldots,p`, where as usual :math:`p` is the number of inputs. If
-:math:`\strut J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
+:math:`J` is a subset of the indices :math:`\{1,2,\ldots,p\}`, then
 :math:`x_J` will denote the corresponding subset of inputs. For instance,
 if :math:`J=\{2,6\}` then :math:`x_J=x_{\{2,6\}}` comprises inputs 2 and 6,
 while :math:`x_j` is the special case of :math:`x_J` when :math:`J=\{j\}`.
-Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`\strut x`
+Finally, :math:`x_{-j}` will denote the whole of the inputs :math:`x`
 *except* :math:`x_j`, and similarly :math:`x_{-J}` will be the set of all
 inputs except those in :math:`x_J`.
 
@@ -67,10 +67,10 @@ are defined and discussed in page
 :ref:`DiscDecisionBasedSA<DiscDecisionBasedSA>`.
 
 Specifying :math:`\omega(x)`
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The role of :math:`\omega(x)` is to represent uncertainty about the
-simulator inputs :math:`\strut x`. As such, it should reflect the best
+simulator inputs :math:`x`. As such, it should reflect the best
 available knowledge about the true, but uncertain, values of the inputs.
 Typically, this distribution will be centred on whatever are the best
 current estimates of the inputs, with a spread around those estimates
@@ -78,8 +78,8 @@ that faithfully describes the degree of uncertainty. However, turning
 this intuitive impression into an appropriate probability distribution
 is not a simple process.
 
-The basic technique for specifying :math::ref:`\omega(x)` is known as
-`elicitation<DefElicitation>`, which is the methodology whereby
+The basic technique for specifying :math:`\omega(x)` is known as
+:ref:`elicitation<DefElicitation>`, which is the methodology whereby
 expert knowledge/uncertainty is converted into a probability
 distribution. Some resources for elicitation may be found in the
 "Additional comments" section below.
@@ -99,40 +99,43 @@ marginal density function :math:`\omega_j(x_j)` for each input separately,
 and the joint density function :math:`\omega(x)` is just the product of
 these marginal density functions:
 
-:math:`\omega(x) = \\prod_{j=1}^p \\omega_j(x_j)\,.`
+.. math::
+   \omega(x) = \prod_{j=1}^p \omega_j(x_j).
 
 Decision under uncertainty
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Decisions are hardest to make when their consequences are uncertain.
-  The problem of decision-making in the face of uncertainty is addressed
-  by statistical decision theory. Interest in
-  :ref:`simulator<DefSimulator>` output uncertainty is often driven
-  by the need to make decisions, where the simulator output :math:`f(x)` is
-  a factor in that decision.
-| In addition to the joint probability density function :math:`\omega(x)`
-  which represents uncertainty about the inputs, we need two more
-  components for a formal decision analysis.
+Decisions are hardest to make when their consequences are uncertain.
+The problem of decision-making in the face of uncertainty is addressed
+by statistical decision theory. Interest in
+:ref:`simulator<DefSimulator>` output uncertainty is often driven
+by the need to make decisions, where the simulator output :math:`f(x)` is
+a factor in that decision.
+
+In addition to the joint probability density function :math:`\omega(x)`
+which represents uncertainty about the inputs, we need two more
+components for a formal decision analysis.
 
 #. *Decision set*. The set of available decisions is denoted by
-   :math:`\strut\cal D`. We will denote an individual decision in
-   :math:`\strut\cal D` by :math:`\strut d`.
+   :math:`\cal D`. We will denote an individual decision in
+   :math:`\cal D` by :math:`d`.
 #. *Loss function*. The loss function :math:`L(d,x)` expresses the
-   consequences of taking decision :math:`\strut d` when the true inputs
-   are :math:`\strut x`.
+  consequences of taking decision :math:`d` when the true inputs
+  are :math:`x`.
 
-| The interpretation of the loss function is that it represents, on a
-  suitable scale, a penalty for making a poor decision. To make the best
-  decision we need to find the :math:`\strut d` that minimises the loss,
-  but this depends on :math:`\strut x`. It is in this sense that
-  uncertainty about (the simulator output and hence about) the inputs
-  :math:`\strut x` makes the decision difficult. Uncertainty about
-  :math:`\strut x` leads to uncertainty about the best decision. It is this
-  decision uncertainty that is the focus of decision-based SA.
-| There is more detailed discussion of the loss function in
-  :ref:`DiscDecisionBasedSA<DiscDecisionBasedSA>`, and examples may
-  be found in the example page
-  :ref:`ExamDecisionBasedSA<ExamDecisionBasedSA>`.
+The interpretation of the loss function is that it represents, on a
+suitable scale, a penalty for making a poor decision. To make the best
+decision we need to find the :math:`d` that minimises the loss,
+but this depends on :math:`x`. It is in this sense that
+uncertainty about (the simulator output and hence about) the inputs
+:math:`x` makes the decision difficult. Uncertainty about
+:math:`x` leads to uncertainty about the best decision. It is this
+decision uncertainty that is the focus of decision-based SA.
+
+There is more detailed discussion of the loss function in
+:ref:`DiscDecisionBasedSA<DiscDecisionBasedSA>`, and examples may
+be found in the example page
+:ref:`ExamDecisionBasedSA<ExamDecisionBasedSA>`.
 
 Sensitivity
 ~~~~~~~~~~~
@@ -201,5 +204,5 @@ Judgements: Eliciting Expert Probabilities. John Wiley and Sons,
 Chichester. 328pp. ISBN 0-470-02999-4.
 
 SHELF - the Sheffield Elicitation Framework - can be downloaded from
-http://tonyohagan.co.uk/shelf
+`http://tonyohagan.co.uk/shelf <http://tonyohagan.co.uk/shelf>`_
 (:ref:`Disclaimer<MetaSoftwareDisclaimer>`)

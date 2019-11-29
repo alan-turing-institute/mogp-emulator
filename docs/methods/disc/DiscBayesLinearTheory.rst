@@ -24,8 +24,8 @@ Notation
 Given the vector :math:`X` of random quantities, then we write
 :math:`\textrm{E}[X]` as the expectation vector for :math:`X`, and
 :math:`\textrm{Var}[X]` as the variance-covariance matrix for the elements
-of :math::ref:`X`. Given observations :math:`D`, we modify our prior expectations
-and variances to obtain `adjusted<DefBLAdjust>` expectations and
+of :math:`X`. Given observations :math:`D`, we modify our prior expectations
+and variances to obtain :ref:`adjusted<DefBLAdjust>` expectations and
 variances for :math:`X` indicated by a subscript, giving
 :math:`\textrm{E}_D[X]`, and :math:`\textrm{Var}_D[X]`.
 
@@ -50,20 +50,22 @@ Following Bayes linear methods, our modified beliefs are expressed by
 the *adjusted* expectations, variances and covariance for :math:`B` given
 :math:`D`. The adjusted expectation for element :math:`B_i` given :math:`D`,
 written :math:`\textrm{E}_D[B_i]`, is the linear combination :math:`a_0 +
-\\textbf{a}^T D` minimising :math:`\textrm{E}[B_i - a_0 - \\textbf{a}^T
-D)^2]` over choices of :math:`\{a_0, \\textbf{a}\}`. The adjusted
+\textbf{a}^T D` minimising :math:`\textrm{E}[B_i - a_0 - \textbf{a}^T
+D)^2]` over choices of :math:`\{a_0, \textbf{a}\}`. The adjusted
 expectation vector is evaluated as
 
-:math:` \\textrm{E}_D[B] = \\textrm{E}[B] + \\textrm{Cov}[B,D]
-\\textrm{Var}[D]^{-1} (D-\textrm{E}[D]) \`
+.. math::
+   \textrm{E}_D[B] = \textrm{E}[B] + \textrm{Cov}[B,D]
+   \textrm{Var}[D]^{-1} (D-\textrm{E}[D])
 
 If the variance matrix :math:`\textrm{Var}[D]` is not invertible, then we
 use an appropriate generalised inverse.
 
 Similarly, the *adjusted variance matrix* for :math:`B` given :math:`D` is
 
-:math:` \\textrm{Var}_D[B] = \\textrm{Var}[B] -
-\\textrm{Cov}[B,D]\textrm{Var}[D]^{-1}\textrm{Cov}[D,B] \`
+.. math::
+   \textrm{Var}_D[B] = \textrm{Var}[B] -
+   \textrm{Cov}[B,D]\textrm{Var}[D]^{-1}\textrm{Cov}[D,B]
 
 Stone (1963), and Hartigan (1969) are among the first to discuss the
 role of such assessments in partial Bayes analysis. A detailed account
@@ -91,7 +93,7 @@ one or zero and precisely one element :math:`D_i` will equal one, then the
 adjusted expectation is numerically equivalent to conditional
 expectation. Consequently, adjusted expectation can be viewed as a
 generalisation of de Finetti's approach to conditional expectation based
-on \`called-off' quadratic penalties, where we now lift the restriction
+on 'called-off' quadratic penalties, where we now lift the restriction
 that we may only condition on the indicator functions for a partition.
 
 Geometrically, we may view each individual random quantity as a vector,
@@ -112,7 +114,7 @@ now have a strict preference for penalty :math:`C` over :math:`A`. A
 consequence of this principle is that you must judge now that your
 actual posterior expectation, :math:`\textrm{E}_T[B]`, at time :math:`T` when
 you have observed :math:`D`, satisfies the relation :math:`\textrm{E}_T[B]=
-\\textrm{E}_D[B] + R`, where :math:`R` has, a priori, zero expectation and
+\textrm{E}_D[B] + R`, where :math:`R` has, a priori, zero expectation and
 is uncorrelated with :math:`D`. If :math:`D` represents a partition, then
 :math:`E_D[B]` is equal to the conditional expectation given :math:`D`, and
 :math:`R` has conditional expectation zero for each member of the
@@ -127,7 +129,7 @@ References
 -  De Finetti, B. (1975), Theory of Probability, vol. 2, Wiley.
 -  Goldstein, M. and Wooff, D. A. (2007), Bayes Linear Statistics:
    Theory and Methods, Wiley.
--  Hartigan, J. A. (1969), “Linear Bayes methods,” Journal of the Royal
-   Statistical Society, Series B, 31, 446–454.
+-  Hartigan, J. A. (1969), “Linear Bayes methods,” *Journal of the Royal
+   Statistical Society*, Series B, 31, 446–454.
 -  Stone, M. (1963), “Robustness of non-ideal decision procedures,”
-   Journal of the American Statistical Association, 58, 480–486.
+   *Journal of the American Statistical Association*, 58, 480–486.

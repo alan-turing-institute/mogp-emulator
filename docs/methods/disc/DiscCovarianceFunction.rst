@@ -31,7 +31,7 @@ In principal, this function can take a very wide variety of forms.
 Within the :ref:`MUCM<DefMUCM>` toolkit, we make an assumption of
 constant prior variance, so that in the case of a single output (as in
 the core problem) the covariance function has the form :math:`\sigma^2
-c(\cdot, \\cdot)`, where :math:`c(\cdot, \\cdot)` is a correlation
+c(\cdot, \cdot)`, where :math:`c(\cdot, \cdot)` is a correlation
 function having the property that, for any input vector :math:`x`,
 :math:`c(x,x)=1`. Hence the interpretation of :math:`\sigma^2` is as the
 variance of the output (at any input). The correlation function
@@ -41,10 +41,10 @@ while :math:`\sigma^2` is another hyperparameter.
 
 When building a :ref:`multivariate GP<DefMultivariateGP>` emulator
 for a simulator with multiple outputs, the covariance between the sets
-of outputs at inputs :math::ref:`x` and :math:`x'` is a matrix which is assumed to
-have the `separable<DefSeparable>` form :math:`\Sigma c(\cdot,
-\\cdot)`, where now :math:`\Sigma` is a between-outputs covariance matrix
-but :math:`c(\cdot, \\cdot)` is a correlation function over the input space
+of outputs at inputs :math:`x` and :math:`x'` is a matrix which is assumed to
+have the :ref:`separable<DefSeparable>` form :math:`\Sigma c(\cdot,
+\cdot)`, where now :math:`\Sigma` is a between-outputs covariance matrix
+but :math:`c(\cdot, \cdot)` is a correlation function over the input space
 with the same interpretation for each output as in the single output
 case. See the variant thread for the analysis of a simulator with
 multiple outputs using Gaussian process methods
@@ -60,7 +60,7 @@ variance for any linear combination of outputs at different input points
 remains positive.
 
 One valid covariance function in which the variance is not constant
-takes the form :math:`u(x) u(x') c(x,x')`, where :math:`c(\cdot, \\cdot)` is a
+takes the form :math:`u(x) u(x') c(x,x')`, where :math:`c(\cdot, \cdot)` is a
 correlation function (see the alternatives page on emulator prior
 correlation function
 (:ref:`AltCorrelationFunction<AltCorrelationFunction>`)) as before,

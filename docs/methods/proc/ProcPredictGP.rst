@@ -48,18 +48,18 @@ The first is a distribution, either a GP or its cousin the
 :ref:`t-process<DefTProcess>`, for the simulator output function
 conditional on some hyperparameters. The second is generally a
 collection of sets of values of the hyperparameters being conditioned
-on, but may be just a single set of values. We let :math:`\strut s` denote
+on, but may be just a single set of values. We let :math:`s` denote
 the number of hyperparameter sets provided with the emulator. When we
-have a single set of hyperparameter values, :math:`\strut s=1`. See the
+have a single set of hyperparameter values, :math:`s=1`. See the
 discussion page on the forms of GP based emulators
 (:ref:`DiscGPBasedEmulator<DiscGPBasedEmulator>`) for more details.
 
 The procedure for computing predictions generally takes the form of
 computing the appropriate predictions from the GP or t-process, given
-that the hyperparameters takes each of the :math:`\strut s` sets of values
-in turn, and if :math:`\strut s>1` then combining the resulting :math:`\strut
-s:ref:` predictions. See also the discussion page on Monte Carlo estimation
-(`DiscMonteCarlo<DiscMonteCarlo>`), where this approach is
+that the hyperparameters takes each of the :math:`s` sets of values
+in turn, and if :math:`s>1` then combining the resulting :math:`s`
+predictions. See also the discussion page on Monte Carlo estimation
+(:ref:`DiscMonteCarlo<DiscMonteCarlo>`), where this approach is
 treated in more detail and in particular there is consideration of how
 many sets of hyperparameters should be used.
 
@@ -68,21 +68,21 @@ Predictive mean
 
 The conditional mean of the output at :math:`x^\prime`, given the
 hyperparameters, is obtained by evaluating the mean function of the GP
-or t-process at that point. When :math:`\strut s=1`, this is done with the
-hyperparameters fixed at the single set of values. When :math:`\strut s>1`,
-we evaluate the mean function using each of the :math:`\strut s`
+or t-process at that point. When :math:`s=1`, this is done with the
+hyperparameters fixed at the single set of values. When :math:`s>1`,
+we evaluate the mean function using each of the :math:`s`
 hyperparameter sets and the predictive mean is the average of those
-:math:`\strut s` conditional means.
+:math:`s` conditional means.
 
 If required for a set of points :math:`x^\prime_1,
 x^\prime_2,\ldots,x^\prime_{n^\prime}`, the predictive mean of the
 output vector is the vector of predictive means obtained by applying the
 above procedure to each :math:`x^\prime_j` separately. In the multi-ouput
 case things are somewhat more complicated. Each output is itself a :math:`1
-\\times r` vector, so the outputs at several input configurations can
+\times r` vector, so the outputs at several input configurations can
 be treated in two ways, either as as vector of vectors (that is a
-:math:`{n^\prime} \\times r` matrix) or more helpfully stacked into a
-:math:`{n^\prime} r \\times 1` vector of outputs at each input
+:math:`{n^\prime} \times r` matrix) or more helpfully stacked into a
+:math:`{n^\prime} r \times 1` vector of outputs at each input
 configuration. This vector can then be treated as described above.
 
 Predictive variance (matrix)
@@ -90,12 +90,12 @@ Predictive variance (matrix)
 
 Consider the case where we wish to derive the predictive variance matrix
 of the output vector at a set of points :math:`x^\prime_1,
-x^\prime_2,\ldots,x^\prime_{n^\prime}`. If :math:`\strut s=1` the
+x^\prime_2,\ldots,x^\prime_{n^\prime}`. If :math:`s=1` the
 predictive variance matrix is just the matrix of conditional variances
 and covariances from the GP or t process, using the single set of
 hyperparameter values.
 
-If :math:`\strut s>1` the procedure is more complex, and requires several
+If :math:`s>1` the procedure is more complex, and requires several
 steps as follows.
 
 #. For :math:`i=1,2,\ldots,s` fix the hyperparameters at the i-th set, and
@@ -113,11 +113,11 @@ steps as follows.
 Prediction at a single point :math:`x^\prime` is the special case
 :math:`n^\prime=1` of this procedure. In brief, the predictive variance is
 either just the conditional variance evaluated with the single set of
-hyperparameter values, or if :math:`\strut s>1` the average of the
+hyperparameter values, or if :math:`s>1` the average of the
 conditional variances plus the variance of the conditional means. To
 handle the multi-output case the most simple approach is to pursue the
-vectorisation of the outputs to a :math:`{n^\prime} r \\times 1` vector. In
-this case the variance matrix is :math:`{n^\prime} r \\times {n^\prime} r`
+vectorisation of the outputs to a :math:`{n^\prime} r \times 1` vector. In
+this case the variance matrix is :math:`{n^\prime} r \times {n^\prime} r`
 (with a range of possible simplifications if the covariance is assumed
 to be :ref:`separable<DefSeparable>`. This (potentially very large)
 variance matrix can be treated identically to the single output case.
@@ -130,8 +130,8 @@ from the GP or t-process for any given set of hyperparameter values. For
 a GP, this means computing the probability of exceeding a given value
 for a normal random variable with given mean and variance. For the
 t-process it is the probability of exceeding that value for a t random
-variable with given mean, variance and degrees of freedom. For :math:`\strut
-s>1`, the predictive probability is the average of the conditional
+variable with given mean, variance and degrees of freedom. For
+:math:`s>1`, the predictive probability is the average of the conditional
 probabilities.
 
 For multiple outputs this is more complex, since it is possible to ask
@@ -160,7 +160,7 @@ should be chosen by thinning the sequence of hyperparameter sets, e.g.
 if :math:`N=s/2` we could take only even numbered hyperparameter sets.)
 
 If :math:`N>s` we will need to reuse some hyperparameter sets. Although
-this is generally undesirable, in the case :math:`\strut s=1` it is
+this is generally undesirable, in the case :math:`s=1` it is
 unavoidable! However, it may be feasible to obtain a larger sample of
 hyperparameter sets: see :ref:`DiscMonteCarlo<DiscMonteCarlo>`.
 

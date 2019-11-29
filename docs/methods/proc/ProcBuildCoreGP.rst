@@ -28,7 +28,7 @@ Inputs
 -  Prior distribution :math:`\pi(\cdot,\cdot,\cdot)` for
    :math:`\beta,\sigma^2` and :math:`\delta`, where :math:`\sigma^2` is the
    process variance hyperparameter
--  Design :math:`\strut D` comprising points :math:`\{x_1,x_2,\ldots,x_n\}` in
+-  Design :math:`D` comprising points :math:`\{x_1,x_2,\ldots,x_n\}` in
    the input space
 -  Output vector :math:`f(D)=(f(x_1),f(x_2),\ldots,f(x_n))^T`, where
    :math:`f(x_j)` is the simulator output from input point :math:`x_j`
@@ -46,7 +46,7 @@ prior distribution:
 -  A GP posterior conditional distribution with mean function
    :math:`m^*(\cdot)` and covariance function :math:`v^*(\cdot,\cdot)`
    conditional on :math:`\theta=\{\beta,\sigma^2,\delta\}`
--  A posterior representation for :math:`\strut \\theta`
+-  A posterior representation for :math:`\theta`
 
 In the case of linear mean function, general correlation function, weak
 prior information on :math:`\beta,\sigma^2` and general prior distribution
@@ -54,7 +54,7 @@ for :math:`\delta`:
 
 -  A :ref:`t process<DefTProcess>` posterior conditional distribution
    with mean function :math:`m^*(\cdot)`, covariance function
-   :math:`v^*(\cdot,\cdot)` and degrees of freedom :math:`\strut b^*`
+   :math:`v^*(\cdot,\cdot)` and degrees of freedom :math:`b^*`
    conditional on :math:`\delta`
 -  A posterior representation for :math:`\delta`
 
@@ -80,27 +80,29 @@ notation page (:ref:`MetaNotation<MetaNotation>`).
 
 :math:`A=c(D,D)`, an :math:`n\times n` matrix;
 
-:math:`t(x)=c(D,x)`, an :math:`\strut n\times 1` vector function of :math:`\strut
-x`.
+:math:`t(x)=c(D,x)`, an :math:`n\times 1` vector function of :math:`x`.
 
 Then, conditional on :math:`\theta` and the training sample, the simulator
 output :math:`f(x)` is a GP with posterior mean function
 
-:math:`m^*(x) = m(x) + t(x)^{\rm T} A^{-1} e`
+.. math::
+   m^*(x) = m(x) + t(x)^{\rm T} A^{-1} e
 
 and posterior covariance function
 
-:math:`v^*(x,x^\prime) = \\sigma^2\{c(x,x^\prime) - t(x)^{\rm T} A^{-1}
-t(x^\prime) \\}\,.`
+.. math::
+   v^*(x,x^\prime) = \sigma^2\{c(x,x^\prime) - t(x)^{\rm T} A^{-1}
+   t(x^\prime) \}.
 
 This is the first part of the emulator as discussed in
 :ref:`DiscGPBasedEmulator<DiscGPBasedEmulator>`. The emulator is
 completed by a second part formally comprising the posterior
 distribution of :math:`\theta`, which has density given by
 
-:math:` \\pi^*(\beta,\sigma^2,\delta) \\propto \\pi(\beta,\sigma^2,\delta)
-\\times (\sigma^2)^{-n/2}|A|^{-1/2} \\times \\exp\{-e^{\rm
-T}A^{-1}e/(2\sigma^2)\}\,, \`
+.. math::
+   \pi^*(\beta,\sigma^2,\delta) \propto \pi(\beta,\sigma^2,\delta)
+   \times (\sigma^2)^{-n/2}|A|^{-1/2} \times \exp\{-e^{\rm
+   T}A^{-1}e/(2\sigma^2)\},
 
 where the symbol :math:`\propto` denotes proportionality as usual in
 Bayesian statistics. In order to compute the emulator predictions and
@@ -116,58 +118,64 @@ Linear mean and weak prior case
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Suppose now that the mean function has the linear form :math:`m(x) =
-h(x)^{\rm T}\beta:ref:`, where :math:`h(\cdot)` is a vector of :math:`q` known
-`basis functions<DefBasisFunctions>` of the inputs and
+h(x)^{\rm T}\beta`, where :math:`h(\cdot)` is a vector of :math:`q` known
+:ref:`basis functions<DefBasisFunctions>` of the inputs and
 :math:`\beta` is a :math:`q\times 1` column vector of hyperparameters. Suppose
 also that the prior distribution has the form
-:math:`\pi(\beta,\sigma^2,\delta) \\propto \\sigma^{-2}\pi_\delta(\delta)`,
+:math:`\pi(\beta,\sigma^2,\delta) \propto \sigma^{-2}\pi_\delta(\delta)`,
 i.e. that we have weak prior information on :math:`\beta` and :math:`\sigma^2`
 and an arbitrary prior distribution :math:`\pi_\delta(\cdot)` for
 :math:`\delta`.
 
-Define :math:`\strut A` and :math:`t(\cdot)` as in the previous case. In
+Define :math:`A` and :math:`t(\cdot)` as in the previous case. In
 addition, define the :math:`n\times q` matrix
 
-:math:`H = [h(x_1),h(x_2),\ldots,h(x_n)]^{\rm T}\,,` or in a more compact
-notation as :math:`H = h(D^{\rm T})^{\rm T}`.
+.. math::
+   H = [h(x_1),h(x_2),\ldots,h(x_n)]^{\rm T},
 
-the vector
+or in a more compact notation as :math:`H = h(D^{\rm T})^{\rm T}`, the vector
 
-:math:`\widehat{\beta}=\left( H^{\rm T} A^{-1} H\right)^{-1}H^{\rm T} A^{-1}
-f(D)`
+.. math::
+   \widehat{\beta}=\left( H^{\rm T} A^{-1} H\right)^{-1}H^{\rm T} A^{-1}
+   f(D),
 
 and the scalar
 
-:math:`\widehat\sigma^2 = (n-q-2)^{-1}f(D)^{\rm T}\left\{A^{-1} - A^{-1}
-H\left( H^{\rm T} A^{-1} H\right)^{-1}H^{\rm T}A^{-1}\right\} f(D)\, ,`
+.. math::
+   \widehat\sigma^2 = (n-q-2)^{-1}f(D)^{\rm T}\left\{A^{-1} - A^{-1}
+   H\left( H^{\rm T} A^{-1} H\right)^{-1}H^{\rm T}A^{-1}\right\} f(D),
 
 which can also be written as
 
-:math:`\widehat\sigma^2 = (n-q-2)^{-1}(f(D)-H\hat{\beta})^{\rm T} A^{-1}
-(f(D)-H\hat{\beta})\,.`
+.. math::
+   \widehat\sigma^2 = (n-q-2)^{-1}(f(D)-H\hat{\beta})^{\rm T} A^{-1}
+   (f(D)-H\hat{\beta}).
 
 Then, conditional on :math:`\delta` and the training sample, the simulator
 output :math:`f(x)` is a t process with :math:`b^*=n-q` degrees of freedom,
 posterior mean function
 
-:math:`m^*(x) = h(x)^{\rm T}\widehat\beta + t(x)^{\rm T} A^{-1}
-(f(D)-H\widehat\beta)`
+.. math::
+   m^*(x) = h(x)^{\rm T}\widehat\beta + t(x)^{\rm T} A^{-1}
+   (f(D)-H\widehat\beta)
 
 and posterior covariance function
 
-:math:`v^*(x,x^\prime) = \\widehat\sigma^2\{c(x,x^\prime)\, -\, t(x)^{\rm T}
-A^{-1} t(x^\prime)\, +\, \\left( h(x)^{\rm T} - t(x)^{\rm T} A^{-1}H
-\\right) \\left( H^{\rm T} A^{-1} H\right)^{-1} \\left( h(x^\prime)^{\rm
-T} - t(x^\prime)^{\rm T} A^{-1}H \\right)^{\rm T} \\}\,.`
+.. math::
+   v^*(x,x^\prime) = \widehat\sigma^2\{c(x,x^\prime) - t(x)^{\rm T}
+   A^{-1} t(x^\prime) + \left( h(x)^{\rm T} - t(x)^{\rm T} A^{-1}H
+   \right) \left( H^{\rm T} A^{-1} H\right)^{-1} \left( h(x^\prime)^{\rm
+   T} - t(x^\prime)^{\rm T} A^{-1}H \right)^{\rm T} \}.
 
 This is the first part of the emulator as discussed in
 :ref:`DiscGPBasedEmulator<DiscGPBasedEmulator>`. The emulator is
 formally completed by a second part comprising the posterior
 distribution of :math:`\delta`, which has density given by
 
-:math:`\pi_\delta^*(\delta) \\propto \\pi_\delta(\delta) \\times
-(\widehat\sigma^2)^{-(n-q)/2}|A|^{-1/2}\| H^{\rm T} A^{-1}
-H|^{-1/2}\,.`
+.. math::
+   \pi_\delta^*(\delta) \propto \pi_\delta(\delta) \times
+   (\widehat\sigma^2)^{-(n-q)/2}|A|^{-1/2}| H^{\rm T} A^{-1}
+   H|^{-1/2}.
 
 In order to derive the sample representation of this posterior
 distribution for the second part of the emulator, three approaches can
@@ -184,7 +192,7 @@ be considered.
    (:ref:`AltEstimateDelta<AltEstimateDelta>`) for a discussion of
    alternative estimators.
 #. Another approach is to formally account for the uncertainty about the
-   true value of :math:`\strut \\delta`, by sampling the posterior
+   true value of :math:`\delta`, by sampling the posterior
    distribution of the correlation lengths and performing a Monte Carlo
    integration. This is described in the procedure page
    :ref:`ProcMCMCDeltaCoreGP<ProcMCMCDeltaCoreGP>`. A reference on
@@ -213,8 +221,8 @@ simpler than the full MCMC approach 2, but should capture the
 uncertainty in :math:`\delta` well.
 
 Approaches 1 and 2 are both used in the
-:ref:`GEM-SA <http://tonyohagan.co.uk/academic/GEM/>`__ software
-(`disclaimer<MetaSoftwareDisclaimer>`).
+`GEM-SA <http://tonyohagan.co.uk/academic/GEM/>`_ software
+(:ref:`disclaimer<MetaSoftwareDisclaimer>`).
 
 Additional Comments
 -------------------

@@ -24,9 +24,9 @@ the GP emulator.
 In the case of :math:`r` outputs, the simulator is a :math:`1\times r` row
 vector function :math:`f(\cdot)`,and so its mean function :math:`m(\cdot)` is
 also a :math:`1\times r` row vector function, while its covariance function
-:math:`v(\cdot,\cdot)` is a :math:`r\times r` matrix function. The :math:`i, j`th
-element of :math:`v(\cdot,\cdot)` expresses the covariance between :math:`
-f_i(.)` and :math:`f_j(.)`.
+:math:`v(\cdot,\cdot)` is a :math:`r\times r` matrix function. The :math:`i, j`\th
+element of :math:`v(\cdot,\cdot)` expresses the covariance between
+:math:`f_i(\cdot)` and :math:`f_j(\cdot)`.
 
 Inputs
 ------
@@ -51,7 +51,7 @@ In the case of general prior mean and correlation functions and general
 prior distribution
 
 -  A multivariate GP posterior conditional distribution with mean
-   function :math:`m^{*}(\cdot) \` and covariance function
+   function :math:`m^{*}(\cdot)` and covariance function
    :math:`v^{*}(\cdot,\cdot)` conditional on :math:`\theta=\{\beta,\omega\}`.
 -  A posterior representation for :math:`\theta`.
 
@@ -61,7 +61,7 @@ prior information on :math:`\beta` and general prior distribution for
 
 -  A :ref:`multivariate Gaussian process<DefMultivariateGP>`
    posterior conditional distribution with mean function
-   :math:`{m^{*}(\cdot)} \` and covariance function :math:`v^{*}(\cdot,\cdot)`
+   :math:`{m^{*}(\cdot)}` and covariance function :math:`v^{*}(\cdot,\cdot)`
    conditional on :math:`\omega`.
 -  A posterior representation for :math:`\omega`.
 
@@ -87,7 +87,7 @@ Toolkit's notation page (:ref:`MetaNotation<MetaNotation>`)).
 
 -  :math:`V=v(D,D)`, the :math:`rn\times rn` covariance matrix composed of
    :math:`n\times n` blocks :math:`\{V_{ij}:i,j=1,...,r\}`, where the
-   :math:`k,\ell`th entry of :math:`V_{ij}` is the covariance between
+   :math:`k,\ell`\th entry of :math:`V_{ij}` is the covariance between
    :math:`f_i(x_k)` and :math:`f_j(x_\ell)`;
 
 -  :math:`\strut u(x)=v(D,x)`, the :math:`rn\times r` matrix function of
@@ -100,21 +100,24 @@ Then, conditional on :math:`\theta` and the training sample, the simulator
 output vector :math:`f(x)` is a multivariate GP with posterior mean
 function
 
-:math:`\strut m^*(x) = m(x) + \\mathrm{vec}(e)^{\rm T}V^{-1}u(x)`
+.. math::
+   \strut m^*(x) = m(x) + \mathrm{vec}(e)^{\rm T}V^{-1}u(x)
 
 and posterior covariance function
 
-:math:`\strut v^*(x,x^\prime) = v(x,x^\prime) - u(x)^{\rm T} V^{-1}
-u(x^\prime)\,.`
+.. math::
+   \strut v^*(x,x^\prime) = v(x,x^\prime) - u(x)^{\rm T} V^{-1}
+   u(x^\prime).
 
 This is the first part of the emulator as discussed in
 :ref:`DiscGPBasedEmulator<DiscGPBasedEmulator>`. The emulator is
 completed by a second part formally comprising the posterior
 distribution of :math:`\theta`, which has density given by
 
-:math:`\strut \\pi^*(\beta,\omega) \\propto \\pi(\beta,\omega) \\times
-\|V|^{-1/2} \\exp\left\{-\frac{1}{2}\mathrm{vec}(e)^{\rm
-T}V^{-1}\mathrm{vec}(e)\right\}\,`
+.. math::
+   \pi^*(\beta,\omega) \propto \pi(\beta,\omega) \times
+   |V|^{-1/2} \exp\left\{-\frac{1}{2}\mathrm{vec}(e)^{\rm
+   T}V^{-1}\mathrm{vec}(e)\right\}
 
 where the symbol :math:`\propto` denotes proportionality as usual in
 Bayesian statistics. In order to compute the emulator predictions and
@@ -130,52 +133,58 @@ Linear mean and weak prior case
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Suppose now that the mean function has the linear form :math:`m(x) =
-h(x)^{\rm T}\beta:ref:`, where :math:`h(\cdot)` is a vector of :math:`q` known
-`basis functions<DefBasisFunctions>` of the inputs and
+h(x)^{\rm T}\beta`, where :math:`h(\cdot)` is a vector of :math:`q` known
+:ref:`basis functions<DefBasisFunctions>` of the inputs and
 :math:`\beta` is a :math:`q\times r` matrix of hyperparameters. Suppose also
-that the prior distribution has the form :math:`\pi(\beta,\omega) \\propto
-\\pi_\omega(\omega)`, i.e. that we have weak prior information on
+that the prior distribution has the form :math:`\pi(\beta,\omega) \propto
+\pi_\omega(\omega)`, i.e. that we have weak prior information on
 :math:`{\beta}` and an arbitrary prior distribution :math:`\pi_\omega(\cdot)`
 for :math:`\omega`.
 
 Define :math:`V` and :math:`u(x)` as in the previous case. In addition, define
-the :math:`n \\times q \` matrix
+the :math:`n \times q` matrix
 
-:math:`\strut H = h(D)^{\rm T} \\, , \`
+.. math::
+   H = h(D)^{\rm T},
 
 the :math:`q\times r` matrix :math:`\widehat{\beta}=` such that
 
-:math:`\strut \\mathrm{vec}(\widehat{\beta})=\left( (I_k\otimes H^{\rm T})
-V^{-1} (I_k\otimes H)\right)^{-1}(I_k\otimes H^{\rm T}) V^{-1}
-\\mathrm{vec}(f(D))\, , \`
+.. math::
+   \mathrm{vec}(\widehat{\beta})=\left( (I_k\otimes H^{\rm T})
+   V^{-1} (I_k\otimes H)\right)^{-1}(I_k\otimes H^{\rm T}) V^{-1}
+   \mathrm{vec}(f(D)),
 
 and the :math:`r\times qr` matrix
 
-:math:`\strut R(x) = I_k\otimes h(x)^{\rm T} - u(x)^{\rm T}
-V^{-1}(I_k\otimes H)\, . \`
+.. math::
+   R(x) = I_k\otimes h(x)^{\rm T} - u(x)^{\rm T}
+   V^{-1}(I_k\otimes H).
 
 Then, conditional on :math:`\omega` and the training sample, the simulator
-output vector :math::ref:`f(x)` is a `multivariate
+output vector :math:`f(x)` is a :ref:`multivariate
 GP<DefMultivariateGP>` with posterior mean function
 
-:math:`\strut m^*(x) = h(x)^T\widehat\beta + u(x)^{\rm T} V^{-1}
-\\mathrm{vec}(f(D)-H\widehat\beta)`
+.. math::
+   m^*(x) = h(x)^T\widehat\beta + u(x)^{\rm T} V^{-1}
+   \mathrm{vec}(f(D)-H\widehat\beta)
 
 and posterior covariance function
 
-:math:`\strut v^{*}(x,x^{\prime}) = v(x,x^\prime) - u(x)^{\rm T} V^{-1}
-u(x^\prime) + R(x) \\left( (I_k\otimes H^{\rm T}) V^{-1} (I_k\otimes
-H)\right)^{-1} R(x^{\prime})^{\rm T} \\,.`
+.. math::
+   v^{*}(x,x^{\prime}) = v(x,x^\prime) - u(x)^{\rm T} V^{-1}
+   u(x^\prime) + R(x) \left( (I_k\otimes H^{\rm T}) V^{-1} (I_k\otimes
+   H)\right)^{-1} R(x^{\prime})^{\rm T}.
 
 This is the first part of the emulator as discussed in
 :ref:`DiscGPBasedEmulator<DiscGPBasedEmulator>`. The emulator is
 formally completed by a second part comprising the posterior
 distribution of :math:`\omega`, which has density given by
 
-:math:`\strut \\pi_\omega^{*}(\omega) \\propto \\pi_\omega(\omega) \\times
-\|V|^{-1/2}\| (I_k\otimes H^{\rm T}) V^{-1} (I_k\otimes H)|^{-1/2}
-\\exp\left\{-\frac{1}{2}\mathrm{vec}(f(D)-H\widehat\beta)^{\rm
-T}V^{-1}\mathrm{vec}(f(D)-H\widehat\beta)\right\} \\,. \`
+.. math::
+   \strut \\pi_\omega^{*}(\omega) \propto \pi_\omega(\omega) \times
+   |V|^{-1/2}\| (I_k\otimes H^{\rm T}) V^{-1} (I_k\otimes H)|^{-1/2}
+   \exp\left\{-\frac{1}{2}\mathrm{vec}(f(D)-H\widehat\beta)^{\rm
+   T}V^{-1}\mathrm{vec}(f(D)-H\widehat\beta)\right\}.
 
 In order to compute the emulator predictions and other tasks, the
 posterior representation of :math:`\theta` includes a sample from this
@@ -190,9 +199,9 @@ Choice of covariance function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The procedures above are for a general multivariate covariance function
-:math:`v(.,.)`. As such, the emulators are conditional on the choice of
-covariance function :math:`v(.,.)` and its associated hyperparameters
-:math:`\omega`. In order to use the emulator, a structure for :math:`v(.,.)`
+:math:`v(\cdot,\cdot)`. As such, the emulators are conditional on the choice of
+covariance function :math:`v(\cdot,\cdot)` and its associated hyperparameters
+:math:`\omega`. In order to use the emulator, a structure for :math:`v(\cdot,\cdot)`
 must be chosen that ensures the covariance matrix :math:`v(D,D)` is
 positive semi-definite for any design :math:`D`. The options for this
 structure are found in the alternatives page

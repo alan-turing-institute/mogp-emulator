@@ -44,13 +44,13 @@ pieces of information:
    :math:`\text{Var}_F[\beta]` for the trend coefficients :math:`\beta` given
    the model runs :math:`F`
 -  An adjusted expectation :math:`\text{E}_F[w(x)]` and variance
-   :math:`\text{Var}_F[w(x)]` for the residual process\(w(x)`, at any
+   :math:`\text{Var}_F[w(x)]` for the residual process :math:`w(x)`, at any
    point :math:`x`, given the model runs :math:`F`
 -  An adjusted covariance :math:`\text{Cov}_F[\beta,w(x)]` between the
    trend coefficients and the residual process
 
-The adjusted expectation and variance at the new point :math::ref:`x'` are
-obtained by application of `ProcBLAdjust<ProcBLAdjust>` to the
+The adjusted expectation and variance at the new point :math:`x'` are
+obtained by application of :ref:`ProcBLAdjust<ProcBLAdjust>` to the
 emulator as described below.
 
 Predictive mean (vector)
@@ -59,15 +59,15 @@ Predictive mean (vector)
 Then our adjusted beliefs about the expected simulator output at a
 single further input configuration :math:`x'` are given by:
 
-:math:` \\text{E}_F[f(x')] = h(x')^T \\text{E}_F[\beta] + \\text{E}_F[w(x')
-]. \`
+.. math::
+   \text{E}_F[f(x')] = h(x')^T \text{E}_F[\beta] + \text{E}_F[w(x').
 
 In the case of a set of additional inputs :math:`X'`, where :math:`X'` is the
 matrix with rows :math:`x^\prime_1, x^\prime_2,\ldots,x^\prime_{n^\prime}`,
 the adjusted expectation is:
 
-:math:` \\text{E}_F[f(X')] = H(X')^T \\text{E}_F[\beta] + \\text{E}_F[w(X')
-], \`
+.. math::
+   \text{E}_F[f(X')] = H(X')^T \text{E}_F[\beta] + \text{E}_F[w(X')
 
 where :math:`f(X)` is the :math:`n^\prime`-vector of simulator values with
 elements :math:`(f(x^\prime_1), f(x^\prime_2),\ldots,
@@ -83,14 +83,14 @@ Predictive variance (matrix)
 Our adjusted variance of the simulator output at a single further input
 configuration :math:`x'` is given by:
 
-:math:` \\text{Var}_F[f(x')] = h(x')^T \\text{Var}_F[\beta] h(x')
-+\text{Var}_F[w(x')]+2h(x')^T\text{Cov}_F[\beta,w(x')]`
+.. math::
+   \text{Var}_F[f(x')] = h(x')^T \text{Var}_F[\beta] h(x')
+   +\text{Var}_F[w(x')]+2h(x')^T\text{Cov}_F[\beta,w(x')]
 
 In the case of a set of additional inputs :math:`X'`, the adjusted variance
 is:
 
-========================== =
-=================================================================================================================================
-:math:` \\text{Var}_F[f(X')]` = :math:`H(X')^T \\text{Var}_F[\beta] H(X') +\text{Var}_F[w(X')]+H(X')^T\text{Cov}_F[\beta,w(X')] + \\text{Cov}_F[w(X'),\beta] H(X').`
-========================== =
-=================================================================================================================================
+.. math::
+   \text{Var}_F[f(X')] =& H(X')^T \text{Var}_F[\beta] H(X')
+   +\text{Var}_F[w(X')]+ \\
+   & H(X')^T\text{Cov}_F[\beta,w(X')] + \text{Cov}_F[w(X'),\beta] H(X').

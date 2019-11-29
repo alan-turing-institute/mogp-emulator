@@ -95,13 +95,13 @@ There are many possible approaches for empirically determining active
 variables. The process of identifying active variable is known as
 :ref:`screening<DefScreening>`. Typically, these methods take the
 form of `model
-selection <http://en.wikipedia.org/wiki/Model_selection>`__ and model
+selection <http://en.wikipedia.org/wiki/Model_selection>`_ and model
 search problems. A simple such approach using backward `stepwise
-regression <http://en.wikipedia.org/wiki/Stepwise_regression>`__ would
+regression <http://en.wikipedia.org/wiki/Stepwise_regression>`_ would
 be:
 
 #. Fit the emulator mean function using all possible basis functions -
-   this is now the \`current' model
+   this is now the 'current' model
 #. For each input in the current model, remove all terms involving that
    input variable and re-fit the mean function
 #. Compare each of these sub-models with the current model using an
@@ -186,5 +186,5 @@ References
 ~~~~~~~~~~
 
 Craig, P. S., Goldstein, M., Seheult, A. H., and Smith, J. A. (1998),
-\``Constructing partial prior specifications for models of complex
-physical systems,'' *Applied Statistics*, 47, 37-53.
+"Constructing partial prior specifications for models of complex
+physical systems," *Applied Statistics*, 47, 37-53.

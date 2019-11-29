@@ -24,13 +24,15 @@ induced by this distribution for :math:`X`. This distribution is known as
 the uncertainty distribution. In particular, we are often interested in
 the uncertainty mean and and variance
 
-:math:`M_0 = \\textrm{E}[f_0(X)] = \\int_{\cal
-X}f_0(x)\,\omega(x)\,{\textrm{d}}x`
+.. math::
+   M_0 = \textrm{E}[f_0(X)] = \int_{\cal
+   X}f_0(x)\,\omega(x)\,{\textrm{d}}x
 
 and
 
-:math:`V_0 = {\textrm{Var}}[f_0(X)] = \\int_{\cal X}(f_0(x) - M_0)^2
-\\omega(x)\,{\textrm{d}}x\,.`
+.. math::
+   V_0 = {\textrm{Var}}[f_0(X)] = \int_{\cal X}(f_0(x) - M_0)^2
+   \omega(x)\,{\textrm{d}}x.
 
 The traditional way to compute these quantities is by Monte Carlo
 methods, drawing many random values of :math:`x` from its distribution
@@ -58,7 +60,7 @@ Inputs
 ------
 
 -  Emulators for :math:`r` simulator outputs :math:`f_u(x)`,
-   :math:`u=1,2,\cdots,r`
+   :math:`u=1,2,\ldots,r`
 -  A function :math:`f_0(x)` of these outputs for which uncertainty
    analysis is required
 -  A probability distribution :math:`\omega(.)` for the uncertain inputs
@@ -78,16 +80,17 @@ Linear case
 The simplest case is when the function :math:`f_0(x)` is linear in the
 outputs. Thus,
 
-:math:`f_0(x)=a + \\sum_{u=1}^r b_u f_u(x)\,,`
+.. math::
+   f_0(x)=a + \sum_{u=1}^r b_u f_u(x),
 
-where :math:`a` and :math:`b_1,b_2,\cdots,b_r` are known constants. In the
+where :math:`a` and :math:`b_1,b_2,\ldots,b_r` are known constants. In the
 linear case, the emulator mean and variance of :math:`M_0` may be computed
 directly from uncertainty means and variances of the individual
 emulators, and the emulator mean of :math:`V_0` requires only a little
 extra computation.
 
 Let the following be the results of uncertainty analysis of :math:`f_u(X)`,
-:math:`u=1,2,\cdots,r`, where :math:`X` has the specified distribution
+:math:`u=1,2,\ldots,r`, where :math:`X` has the specified distribution
 :math:`\omega(x)`.
 
 -  :math:`\textrm{E}^*[M_u]`, the emulator mean of the uncertainty mean
@@ -98,18 +101,22 @@ Let the following be the results of uncertainty analysis of :math:`f_u(X)`,
 
 Then
 
-:math:`\textrm{E}^*[M_0] = \\sum_{u=1}^r b_u \\textrm{E}^*[M_u]\,,`
+.. math::
+   \textrm{E}^*[M_0] = \sum_{u=1}^r b_u \textrm{E}^*[M_u],
 
-:math:`{\textrm{Var}}^*[M_0] = \\sum_{u=1}^r b_u^2
-{\textrm{Var}}^*[M_u]\,,`
+.. math::
+   {\textrm{Var}}^*[M_0] = \sum_{u=1}^r b_u^2
+   {\textrm{Var}}^*[M_u],
 
-:math:`\textrm{E}^*[V_0] = \\sum_{u=1}^r b_u^2 \\textrm{E}^*[V_u] +
-2\sum_{u<w}(F_{uw}-\textrm{E}^*[M_u]\textrm{E}^*[M_w])\,.`
+.. math::
+   \textrm{E}^*[V_0] = \sum_{u=1}^r b_u^2 \\textrm{E}^*[V_u] +
+   2\sum_{u<w}(F_{uw}-\textrm{E}^*[M_u]\textrm{E}^*[M_w]).
 
 The only term in the above formulae that we now need to consider is
 
-:math:`F_{uw} = \\int_{\cal X} \\textrm{E}^*[f_u(x)] \\textrm{E}^*[f_w(x)]
-\\,\omega(x) \\,{\textrm{d}}x\,.`
+.. math::
+   F_{uw} = \int_{\cal X} \textrm{E}^*[f_u(x)] \textrm{E}^*[f_w(x)]
+   \, \omega(x) \, {\textrm{d}}x.
 
 For general emulator structures, this can be evaluated very easily and
 quickly by simulation. We simply draw many random input vectors :math:`x`
@@ -123,10 +130,10 @@ and so is typically computationally feasible.
 We can do better than this in a special case which arises commonly in
 practice.
 
- Special case
+Special case
 ^^^^^^^^^^^^
 
-Suppose that for each :math:`u=1,2,\cdots,r`, the emulator of :math:`f_u(x)`
+Suppose that for each :math:`u=1,2,\ldots,r`, the emulator of :math:`f_u(x)`
 is a GP emulator built using the procedures of the core thread
 :ref:`ThreadCoreGP<ThreadCoreGP>` and with the following
 specifications:
@@ -146,36 +153,40 @@ value if :math:`M=1`. If :math:`M>1` the :math:`M` resulting values should be
 averaged.
 
 Let :math:`\hat\beta_u`, :math:`c_u(x)` and :math:`e_u` be the :math:`\hat\beta`,
-:math:`c(x)` and :math:`e` vectors for the :math:`\strut u`-th emulator as
+:math:`c(x)` and :math:`e` vectors for the :math:`u`-th emulator as
 defined in the procedure pages for building the GP emulator
 (:ref:`ProcBuildCoreGP<ProcBuildCoreGP>`) and carrying out
 uncertainty analysis (:ref:`ProcUAGP<ProcUAGP>`). Then
 
-:math:`F_{uw} = \\hat\beta_u^T Q_{uw} \\hat\beta_w +\hat\beta_u^T S_{uw} e_w
-+ \\hat\beta_w^T S_{wu} e_u + e_u^T P_{uw} e_w\,,`
+.. math::
+   F_{uw} = \hat\beta_u^T Q_{uw} \hat\beta_w +\hat\beta_u^T S_{uw} e_w
+   + \hat\beta_w^T S_{wu} e_u + e_u^T P_{uw} e_w,
 
 where the matrices :math:`Q_{uw}`, :math:`S_{uw}` and :math:`P_{uw}` are defined
 as follows:
 
-:math:`Q_{uw} = \\int_{\cal X} h_u(x) \\,h_w(x)^T \\,\omega(x)
-\\,{\textrm{d}}x\,,`
+.. math::
+   Q_{uw} = \int_{\cal X} h_u(x) \,h_w(x)^T \,\omega(x)
+   \,{\textrm{d}}x,
 
-:math:`S_{uw} = \\int_{\cal X} h_u(x) \\,c_w(x)^T \\,\omega(x)
-\\,{\textrm{d}}x\,,`
+.. math::
+   S_{uw} = \int_{\cal X} h_u(x) \,c_w(x)^T \,\omega(x)
+   \,{\textrm{d}}x,
 
-:math:`P_{uw} = \\int_{\cal X} c_u(x) \\,c_w(x)^T \\,\omega(x)
-\\,{\textrm{d}}x\,.`
+.. math::
+   P_{uw} = \int_{\cal X} c_u(x) \,c_w(x)^T \,\omega(x)
+   \,{\textrm{d}}x.
 
 Notice that elements of :math:`Q_{uw}` are just expectations of products of
 basis functions with respect to the distribution :math:`\omega(x)`, and
 will usually be trivial to compute in the same way as the matrix
-:math::ref:`Q_p` in `ProcUAGP<ProcUAGP>`. Indeed, if all the emulators
+:math:`Q_p` in :ref:`ProcUAGP<ProcUAGP>`. Indeed, if all the emulators
 are built with the same set of basis functions then :math:`Q_{uw}` is the
-same for all :math::ref:`u,w` and equals the :math:`Q_p` matrix given in
-`ProcUAGP<ProcUAGP>`.
+same for all :math:`u,w` and equals the :math:`Q_p` matrix given in
+:ref:`ProcUAGP<ProcUAGP>`.
 
-Similarly, the matrix :math::ref:`S_{uw}` is the same as the matrix :math:`S_p` in
-`ProcUAGP<ProcUAGP>` (for the :math:`w`-th emulator) except that
+Similarly, the matrix :math:`S_{uw}` is the same as the matrix :math:`S_p` in
+:ref:`ProcUAGP<ProcUAGP>` (for the :math:`w`-th emulator) except that
 instead of its own basis function vector we have the vector :math:`h_u(x)`
 from the other emulator. If they have the same basis functions, then
 :math:`S_{uw}` is just the :math:`S_p` matrix for emulator :math:`w`.
@@ -190,20 +201,24 @@ correlation function
 (:ref:`AltCorrelationFunction<AltCorrelationFunction>`)) which we
 write for the :math:`u`-th emulator as
 
-:math:`\exp\{(x-x')^T D_u (x-x')\}\,.`
+.. math::
+   \exp\{(x-x')^T D_u (x-x')\}.
 
 Then the :math:`(k,\ell)` element of :math:`F_{uw}` is
 
-:math:`F_{uw}^{k\ell} = \|B|^{1/2} \|2D_u+2D_w+B|^{-1/2} \\exp(-g/2)\,,`
+.. math::
+   F_{uw}^{k\ell} = |B|^{1/2} |2D_u+2D_w+B|^{-1/2} \exp(-g/2),
 
 where
 
-:math:` \\begin{array}{r l} g =&2(m^*-x_k)^T D_u (m^*-x_k) +2(m^*-x_\ell)^T
-D_w (m^*-x_\ell) \\\\ &\quad + (m^*-m)^T B (m^*-m) \\end{array}`
+.. math::
+   \begin{array}{r l} g =&2(m^*-x_k)^T D_u (m^*-x_k) +2(m^*-x_\ell)^T
+   D_w (m^*-x_\ell) \\ & \quad + (m^*-m)^T B (m^*-m) \end{array}
 
 and
 
-:math:`m^\* = (2D_u + 2D_w +B)^{-1}(2D_u x_k + 2D_w x_\ell +Bm)\,.`
+.. math::
+   m^* = (2D_u + 2D_w +B)^{-1}(2D_u x_k + 2D_w x_\ell +Bm).
 
 Although the generalised Gaussian correlation structure is sometimes
 used, it is more common to have the simple Gaussian correlation
@@ -229,9 +244,9 @@ the emulator variance as a summary of emulator uncertainty about :math:`Z`.
 
 A formal description of this procedure is as follows.
 
-#. For :math:`s=1,2,\cdots,N`:
+#. For :math:`s=1,2,\ldots,N`:
 
-   #. Draw random realisations :math:`f_u^{(s)}(x)`, :math:`s=1.2.\cdots,r`,
+   #. Draw random realisations :math:`f_u^{(s)}(x)`, :math:`s=1,2,\ldots,r`,
       from the emulators
    #. Draw a large sample of random :math:`x` values from the distribution
       :math:`\omega(x)`

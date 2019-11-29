@@ -194,9 +194,9 @@ a wider class of information criteria which include Tsallis entropy
 Maximum Entropy Sampling (MES)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-| This is a special way of using the Bayesian information criterion for
-  prediction. We exploit an importat formula for Shannon entropy which
-  applies to two random variables: :math:`( U,V )`:
+This is a special way of using the Bayesian information criterion for
+prediction. We exploit an importat formula for Shannon entropy which
+applies to two random variables: :math:`( U,V )`:
 
 .. math::
    \mbox{Ent}(U,V) = \mbox{Ent}(U) + \mbox{E}_U (\mbox{Ent}(V|U).

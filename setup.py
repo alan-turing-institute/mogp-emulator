@@ -4,7 +4,7 @@ import setuptools
 MAJOR = 0
 MINOR = 2
 MICRO = 0
-PRERELEASE = 6
+PRERELEASE = 7
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 

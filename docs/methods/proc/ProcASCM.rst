@@ -17,11 +17,11 @@ design<DefModelBasedDesign>`.
 Inputs
 ------
 
--  The design size :math:`\strut{n}`, the subdesign size :math:`\strut{n_i}`,
-   a counter :math:`\strut{nn=0}`, initial design :math:`\strut{D_0}` usually
-   a space filling design, the candidate set :math:`\strut{E}` of size
-   :math:`\strut{N}`, also another space filling design usually chosen to
-   be a grid defined on the design space :math:`\strut{\mathcal{X}}`.
+-  The design size :math:`n`, the subdesign size :math:`n_i`,
+   a counter :math:`nn=0`, initial design :math:`D_0` usually
+   a space filling design, the candidate set :math:`E` of size
+   :math:`N`, also another space filling design usually chosen to
+   be a grid defined on the design space :math:`\mathcal{X}`.
 -  The output at the initial design points, :math:`Y(D_{0})`.
 -  A model for the output, for simplicity, the model is chosen to be
    :math:`Y(x)=X\theta+Z(x)`.
@@ -35,27 +35,27 @@ Inputs
 -  Note that :math:`\Sigma_{nn}` is within-design process covariance matrix
    and :math:`\Sigma_{nr}` the between design and non-design process
    covariance matrix, and similarly, in the case of unknown
-   :math:`\strut{\sigma^2}\;`, :math:`\Sigma_{nn}= \\sigma^2 R_{nn}` and
+   :math:`\sigma^2`, :math:`\Sigma_{nn}= \sigma^2 R_{nn}` and
    :math:`\Sigma_{nr}=\sigma^2 R_{nr}` where :math:`R_{nn},R_{nr}` are the
    correlation matrices.
 
 Outputs
 -------
 
--  A sequentially chosen optimal design :math:`\strut{D}`.
--  The value of the chosen criterion :math:`\strut{\mathcal{C}}`.
+-  A sequentially chosen optimal design :math:`D`.
+-  The value of the chosen criterion :math:`\mathcal{C}`.
 -  The posterior distribution :math:`\pi(\Theta|Y_n)` and the predictive
-   distribution :math:`f(Y_r|Y_n)`, where :math:`\strut{Y_n}` is the vector on
-   :math:`\strut{n}` observed outputs and :math:`\strut{Y_r}` is the vector of
-   :math:`\strut{r}` unobserved outputs. The predictive distribution is
+   distribution :math:`f(Y_r|Y_n)`, where :math:`Y_n` is the vector on
+   :math:`n` observed outputs and :math:`Y_r` is the vector of
+   :math:`r` unobserved outputs. The predictive distribution is
    used as an emulator.
 
 Procedure
 ---------
 
-#. Check if the candidate set :math:`\strut{E}` contains any points of the
-   initial design points :math:`\strut{D_0}`. If it does then :math:`E=E
-   \\setminus D_0`.
+#. Check if the candidate set :math:`E` contains any points of the
+   initial design points :math:`D_0`. If it does then :math:`E=E
+   \setminus D_0`.
 #. Compute the posterior distribution for the unknown parameters
    :math:`\pi(\Theta|Y_n)` and the predictive distribution :math:`f(Y_r|Y_n)`.
    The posterior distribution can be obtained analytically or
@@ -65,13 +65,17 @@ Procedure
    algorithm<ProcExchangeAlgorithm>`. The criterion is based on
    the posterior distribution. For example, the maximum entropy sampling
    criterion has approximately the form
-   :math:`\det((X_rVX_r^T+\Sigma_{rr}-(X_{r}VX_{n}^T+\Sigma_{rn})(X_nVX_n^T+\Sigma_{nn})^{-1}(X_nVX_r^T+\Sigma_{nr})))`
+
+   .. math::
+      \det((X_rVX_r^T+\Sigma_{rr}-(X_{r}VX_{n}^T+\Sigma_{rn})
+      (X_nVX_n^T+\Sigma_{nn})^{-1}(X_nVX_r^T+\Sigma_{nr})))
+
    if the predictive distribution :math:`f(Y_r|Y_n)` is a Gaussian process
    or approximately the form
    :math:`a^*(X_rVX_r^T+R_{rr}-(X_{r}VX_{n}^T+R_{rn})(X_nVX_n^T+R_{nn})^{-1}(X_nVX_r^T+R_{nr}))`
-   if the predictive distribution is a Student :math:`\strut{t}` process.
-   They are almost the same because :math:`\strut{a^*}` is just a constant
-   not dependent on the design; the unknown :math:`\strut{\sigma^2}` does
+   if the predictive distribution is a Student :math:`t` process.
+   They are almost the same because :math:`a^*` is just a constant
+   not dependent on the design; the unknown :math:`\sigma^2` does
    not affect the choice of the design, in this case.
 #. Observe the output at the design points :math:`D_i` selected in step 3.
    The observation itself is useful for the purposes of assessing the
@@ -81,10 +85,10 @@ Procedure
 #. Update the predictive distribution :math:`f(Y_r|Y_n)`.
 #. Compute the measures of accuracy in order to assess the improvement
    of prediction.
-#. Update the candidate set :math:`\strut{E=E \\setminus D_i}`, the design
-   :math:`\strut{S}`, :math:`\strut{D=D \\cup D_i}`, and the design size
-   :math:`\strut{nn=nn+n_i}` .
-#. Stop if :math:`\strut{nn = n}` or a certain value of the criterion is
+#. Update the candidate set :math:`E=E \setminus D_i`, the design
+   :math:`S`, :math:`D=D \cup D_i`, and the design size
+   :math:`nn=nn+n_i` .
+#. Stop if :math:`nn = n` or a certain value of the criterion is
    achieved stop otherwise go to step 3.
 
 Additional Comments, References, and Links

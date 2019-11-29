@@ -72,17 +72,17 @@ Discussion
 Code uncertainty
 ~~~~~~~~~~~~~~~~
 
- Notation
+Notation
 ^^^^^^^^
 
 Computation of any SA measure, such as the sensitivity index :math:`V_j`
 for input :math:`x_j`, using emulator techniques is subject to code
 uncertainty. The emulator is an expression of our knowledge or beliefs
-about a simulator's output :math::ref:`f(x)` based on a `training
+about a simulator's output :math:`f(x)` based on a :ref:`training
 sample<DefTrainingSample>` of simulator runs. In the fully
 :ref:`Bayesian<DefBayesian>` form of emulator based on a :ref:`Gaussian
 process<DefGP>` (GP), the emulator is a posterior distribution
-for :math::ref:`f(x)`. A `Bayes linear<DefBayesLinear>` (BL) emulator
+for :math:`f(x)`. A :ref:`Bayes linear<DefBayesLinear>` (BL) emulator
 provides instead the adjusted mean and variance for :math:`f(x)` based on
 the training sample. The posterior distribution or adjusted mean and
 variance represent uncertainty about :math:`f(x)` due to emulation, called
@@ -100,7 +100,7 @@ For example, :math:`\mathrm{E}^*[V_j]` is the computed value or estimate of
 the sensitivity index :math:`V_j`, with code uncertainty quantified by
 :math:`\mathrm{Var}^*[V_j]`.
 
- Code uncertainty in variance-based SA
+Code uncertainty in variance-based SA
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In both probabilistic SA and :ref:`uncertainty
@@ -113,42 +113,44 @@ described in
 the uncertainty variance :math:`V=\mathrm{Var}[f(X)]` expresses overall
 uncertainty about the simulator output :math:`f(X)` when there is
 uncertainty about the inputs (in which case we conventionally use the
-capital letter :math:`\strut X` to rerpresent a random variable).
+capital letter :math:`X` to rerpresent a random variable).
 Similarly, :math:`M=\mathrm{E}[f(X)]` is generally thought of as the best
 estimate of :math:`f(X)` in the presence of input uncertainty. But
 uncertainty about the simulator output is not confined to uncertainty
-about :math:`\strut X`; we are also uncertain about the simulator itself,
+about :math:`X`; we are also uncertain about the simulator itself,
 :math:`f(\cdot)`, and this uncertainty is code uncertainty.
 
 In the presence of both input and code uncertainty, we would estimate
 :math:`f(x)` by
 
-:math:`M^\* = \\mathrm{E}^*[M]\,,`
+.. math::
+   M^* = \mathrm{E}^*[M],
 
 with overall uncertainty comprising
 
-:math:`V^\* = \\mathrm{E}^*[V] + \\mathrm{Var}^*[M]\,.`
+.. math::
+   V^* = \mathrm{E}^*[V] + \mathrm{Var}^*[M].
 
-So in addition to the posterior estimated or computed value of :math:`\strut
-V` we also have code uncertainty about :math:`\strut M`.
+So in addition to the posterior estimated or computed value of :math:`V`
+we also have code uncertainty about :math:`M`.
 
 In variance based SA, set out in
 :ref:`DiscVarianceBasedSA<DiscVarianceBasedSA>`, we consider what
-part of the overall output uncertainty :math:`\strut V` is attributable to
+part of the overall output uncertainty :math:`V` is attributable to
 a single input :math:`x_j` or a group of inputs :math:`x_J`. Should code
 uncertainty also be a part of these computations? In particular, should
-variance based SA analyse how much of :math:`\strut V^*` (rather than
-:math:`\strut V`) is attributable to :math:`x_j` or :math:`x_J`?
+variance based SA analyse how much of :math:`V^*` (rather than
+:math:`V`) is attributable to :math:`x_j` or :math:`x_J`?
 
 The answer basically is that learning about the uncertain inputs does
 not affect code uncertainty. No matter how much and in what way we
-reduce uncertainty about :math:`\strut X`, the code uncertainty
+reduce uncertainty about :math:`X`, the code uncertainty
 :math:`\mathrm{Var}^*[M]` will always be a component of the overall
 uncertainty about :math:`f(x)`. The computed sensitivity variances
 :math:`\mathrm{E}^*[V_J]` or interaction variances :math:`\mathrm{E}^*[V^I_J]`
 quantify reductions in the uncertainty of :math:`f(x)`, whether we think of
 this as being just the computed input uncertainty variance
-:math:`\mathrm{E}^*[V]` or the overall variance :math:`\strut V^*`.
+:math:`\mathrm{E}^*[V]` or the overall variance :math:`V^*`.
 
 In the case of independent inputs, the computed main effect and
 interaction variances, :math:`\mathrm{E}^*[V_j]` and
@@ -156,13 +158,13 @@ interaction variances, :math:`\mathrm{E}^*[V_j]` and
 exactly the way described in the discussion page on the theory of
 variance based SA
 (:ref:`DiscVarianceBasedSATheory<DiscVarianceBasedSATheory>`), while
-:math:`\strut V^*` is partitioned by these terms plus the code uncertainty
+:math:`V^*` is partitioned by these terms plus the code uncertainty
 :math:`\mathrm{Var}^*[M]`. We can define a sensitivity index for :math:`x_J`
 as :math:`\mathrm{E}^*[V_J]/\mathrm{E}^*[V]` or allowing for code
 uncertainty as :math:`\mathrm{E}^*[V_J]/V^*`. In the latter case, code
 uncertainty has its own index :math:`\mathrm{Var}^*[M]/V^*`.
 
- Code uncertainty in decision-based SA
+Code uncertainty in decision-based SA
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The situation in decision-based SA is potentially more complex because
@@ -178,14 +180,16 @@ input uncertainty, then we define the expected utility to be the
 expectation with respect to both code uncertainty and input uncertainty,
 and so define
 
-:math:`\bar{L}^*(d) = {\rm E}^*[\bar{L}(d)]\,,`
+.. math::
+   \bar{L}^*(d) = {\rm E}^*[\bar{L}(d)],
 
 and the optimal decision :math:`\strut M^*` minimises this expected loss.
 With analogous definitions of :math:`\bar{L}_J^*(d,x_J)` and
 :math:`M_J^*(x_J)` when we learn the value of :math:`x_J`, we can define the
 expected value of information
 
-:math:`V_J^\* = \\bar{L}^*(M^*) - {\rm E}[\bar{L}_J^*(M_J^*(X_J),X_J)]\,.`
+.. math::
+   V_J^* = \bar{L}^*(M^*) - {\rm E}[\bar{L}_J^*(M_J^*(X_J),X_J)].
 
 However, this analysis is for decision making in the presence of code
 uncertainty. It implicity supposes that we learn about :math:`x_J` without
@@ -201,7 +205,8 @@ In this context, we are concerned with code uncertainty about a
 decision. First define the expected value of eliminating code
 uncertainty as
 
-:math:`V^\* = \\bar{L}^*(M^*) -{\rm E}^*[\bar{L}(M)]\,.`
+.. math::
+   V^* = \bar{L}^*(M^*) -{\rm E}^*[\bar{L}(M)].
 
 Then the expected value of information from learning the value of
 :math:`X_J` becomes simply :math:`{\rm E}^*[V_J]`. If we can also calculate

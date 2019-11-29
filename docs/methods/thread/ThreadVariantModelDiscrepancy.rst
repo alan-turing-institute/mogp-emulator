@@ -54,12 +54,12 @@ Notation
 In accordance with :ref:`toolkit notation<MetaNotation>`, in this
 page we use the following definitions:
 
--  :math:`\strut{x }` - vector of inputs to the model
--  :math:`\strut{f(x) }` - vector of outputs of the model function
--  :math:`\strut{y }` - vector of the actual system values
--  :math:`\strut{z }` - vector of observations of reality :math:`\strut{y }`
--  :math:`\strut{x^+ }` - the \`best input'
--  :math:`\strut{d }` - the model discrepancy
+-  :math:`x` - vector of inputs to the model
+-  :math:`f(x)` - vector of outputs of the model function
+-  :math:`y` - vector of the actual system values
+-  :math:`z` - vector of observations of reality :math:`y`
+-  :math:`x^+` - the 'best input'
+-  :math:`d` - the model discrepancy
 
 Model Discrepancy
 -----------------
@@ -75,28 +75,29 @@ discussion page on model discrepancy
 (:ref:`DiscWhyModelDiscrepancy<DiscWhyModelDiscrepancy>`) where these
 ideas are detailed further.
 
-We assume that the simulator produces :math:`\strut{r }` outputs that we
+We assume that the simulator produces :math:`r` outputs that we
 are interested in comparing to real observations. One of the simplest
 and most popular methods to represent the difference between model and
 reality is that of the :ref:`Best Input Approach<DefBestInput>` which
 defines the Model Discrepancy via:
 
-:math:`\strut{ y \\;\; = \\;\; f(x^+) + d, }`
+.. math::
+   y = f(x^+) + d,
 
-where :math:`\strut{y }`, :math:`\strut{f(x) }`, :math:`\strut{d }` are all
-random :math:`\strut{r }`-vectors representing the system values, the
+where :math:`y`, :math:`f(x)`, :math:`d` are all
+random :math:`r`-vectors representing the system values, the
 simulator outputs and the :ref:`Model
-Discrepancy<DefModelDiscrepancy>` respectively. :math::ref:`\strut{x^+
-}` is the vector of \`\ `Best Inputs<DefBestInput>`', which
+Discrepancy<DefModelDiscrepancy>` respectively. :math:`x^+`
+is the vector of ':ref:`Best Inputs<DefBestInput>`', which
 represents the values that the input parameters take in the real system.
-We consider :math:`\strut{d }` to be independent of :math:`\strut{x^+ }` and
-uncorrelated with :math:`\strut{f }` and :math:`\strut{f^+ }` (in the Bayes
-Linear Case) or independent of :math:`\strut{f }` (in the fully Bayesian
-Case), where :math:`\strut{f^+=f(x^+) }`. Note that the :math:`\strut{r
-}:ref:`-vector :math:`\strut{d }` may still posses a rich covariance structure,
-which will need to be `assessed<DefAssessment>`. Although the
+We consider :math:`d` to be independent of :math:`x^+` and
+uncorrelated with :math:`f` and :math:`f^+` (in the Bayes
+Linear Case) or independent of :math:`f` (in the fully Bayesian
+Case), where :math:`f^+=f(x^+)`. Note that the :math:`r`-vector
+:math:`d` may still posses a rich covariance structure,
+which will need to be :ref:`assessed<DefAssessment>`. Although the
 Best Input approach is often chosen for its simplicity, there are
-certain subtleties in the definition of :math:`\strut{x^+ }` and in the
+certain subtleties in the definition of :math:`x^+` and in the
 independence assumptions. A full discussion of this approach is given in
 the discussion page on the best input approach
 (:ref:`DiscBestInput<DiscBestInput>`), and also see
@@ -113,59 +114,60 @@ Observation Equation
 --------------------
 
 Unfortunately, we are never able to measure the real system values
-represented by the vector :math:`\strut{y }`. Instead, we can perform
-measurements :math:`\strut{z }` of :math:`\strut{y }` that involve some
-measurement error. A simple way to express the link between :math:`\strut{z
-}` and :math:`\strut{y }` is using the observation equation:
+represented by the vector :math:`y`. Instead, we can perform
+measurements :math:`z` of :math:`y` that involve some
+measurement error. A simple way to express the link between
+:math:`z` and :math:`y` is using the observation equation:
 
-:math:`\strut{ z \\; \\; = \\; \\; y + e }`
+.. math::
+   z = y + e
 
-where we assume that the measurement error :math:`\strut{e }` is
-uncorrelated with :math:`\strut{y }` (in the Bayes Linear case) and
-independent of :math:`\strut{y }` (in the fully Bayesian case). It maybe
-the case that :math:`\strut{z }` does not correspond exactly to :math:`\strut{y
-}`; for example, :math:`\strut{z }` could correspond to either a subset or
-some linear combination of the elements of the vector :math:`\strut{y }`.
-Methods for dealing with these cases where :math:`\strut{z=Hy+e }`, for
-some matrix :math:`\strut{H }`, and cases where :math:`\strut{z }` is a more
-complex function of :math:`\strut{y }` are described in the discussion page
+where we assume that the measurement error :math:`e` is
+uncorrelated with :math:`y ` (in the Bayes Linear case) and
+independent of :math:`y` (in the fully Bayesian case). It maybe
+the case that :math:`z` does not correspond exactly to :math:`y`;
+for example, :math:`z` could correspond to either a subset or
+some linear combination of the elements of the vector :math:`y`.
+Methods for dealing with these cases where :math:`z=Hy+e`, for
+some matrix :math:`H`, and cases where :math:`z` is a more
+complex function of :math:`y` are described in the discussion page
 on the observation equation
 (:ref:`DiscObservations<DiscObservations>`).
 
 Assessing the Model Discrepancy
 -------------------------------
 
-In order to make statements about the real system :math::ref:`\strut{y }`, we
-need to be able to `assess<DefAssessment>` the Model Discrepancy
-:math:`\strut{d }`. Assessing or estimating :math:`\strut{d }` is a difficult
+In order to make statements about the real system :math:`y`, we
+need to be able to :ref:`assess<DefAssessment>` the Model Discrepancy
+:math:`d`. Assessing or estimating :math:`d` is a difficult
 problem: as is discussed in
-:ref:`DiscWhyModelDiscrepancy<DiscWhyModelDiscrepancy>` :math:`\strut{d
-}` represents a statistical model of a difference which is in reality
+:ref:`DiscWhyModelDiscrepancy<DiscWhyModelDiscrepancy>` :math:`d`
+represents a statistical model of a difference which is in reality
 very complex. Various strategies are available, the suitability of each
 depending on the context of the problem.
 
 The first is that of Expert assessment, where the modeller's beliefs
 about the deficiencies of the model are converted into statistical
-statements about :math::ref:`\strut{ d }` (see
-`DiscExpertAssessMD<DiscExpertAssessMD>`). Such considerations
+statements about :math:`d` (see
+:ref:`DiscExpertAssessMD<DiscExpertAssessMD>`). Such considerations
 are always important, but they are of particular value when there is a
 relatively small amount of observational data to compare the model
 output to.
 
 The second is the use of informal methods to obtain order of magnitude
-assessments of :math::ref:`\strut{d }` (see
-`DiscInformalAssessMD<DiscInformalAssessMD>`). These would often
+assessments of :math:`d` (see
+:ref:`DiscInformalAssessMD<DiscInformalAssessMD>`). These would often
 involve the use of simple computer model experiments to assess the
 contributions to the model discrepancy from particular sources (e.g.
 forcing function uncertainty).
 
 The third is the use of more formal statistical techniques to assess
-:math:`\strut{d }`. These include Bayesian inference (for example, using
+:math:`d`. These include Bayesian inference (for example, using
 MCMC), Bayes Linear inference methods and Likelihood inference. Although
 more difficult to implement, these methods have the benefit of rigour
 (see :ref:`DiscFormalAssessMD<DiscFormalAssessMD>` for details). It
 is worth noting that a full Bayesian inference would
-:ref:`calibrate<DefCalibration>` the model and assess :math:`\strut{d }`
+:ref:`calibrate<DefCalibration>` the model and assess :math:`d`
 simultaneously.
 
 Cases Where Discrepancy has Clearly Defined Structure.
@@ -178,27 +180,28 @@ The structure of the discrepancy vector corresponds to the underlying
 structure of the output vector, and we often choose to make aspects of
 this structure explicit in our notation. Often such structures are
 physical in nature, for example various parts of the system could be
-naturally labeled by their space-time location :math:`\strut{u }`. Then we
+naturally labeled by their space-time location :math:`u`. Then we
 might define the model discrepancy via:
 
-:math:`\strut{ y(u) \\;\;=\;\; f(u,x^+) + d(u) }`
+.. math::
+   y(u) = f(u,x^+) + d(u)
 
-where :math:`\strut{u }` labels the space-time location of the system,
+where :math:`u` labels the space-time location of the system,
 model and model discrepancy. Note that there may still be multiple
-outputs at each value of :math:`\strut{u }`.
+outputs at each value of :math:`u`.
 
 Consideration of such structures is important as they suggest natural
-ways of parameterising the covariance matrix of :math::ref:`\strut{d(u) }`, for
-example using a `separable form<DefSeparable>`, and they can
-also suggest building certain physical trends into :math:`\strut{{\rm E}[d]
-}:ref:`. Further discussion and examples of structured model discrepancies
-can be found in `DiscStructuredMD<DiscStructuredMD>`.
+ways of parameterising the covariance matrix of :math:`d(u)`, for
+example using a :ref:`separable form<DefSeparable>`, and they can
+also suggest building certain physical trends into :math:`{\rm E}[d]`.
+Further discussion and examples of structured model discrepancies
+can be found in :ref:`DiscStructuredMD<DiscStructuredMD>`.
 
 Exchangeable Models
 ~~~~~~~~~~~~~~~~~~~
 
 In some situations a simulator may require, in addition to the usual
-input parameters :math:`\strut{x }`, a specification of certain system
+input parameters :math:`x`, a specification of certain system
 conditions. The most common example of a system condition is that of a
 forcing function (e.g. rainfall in a flood model). Often there exists a
 set of different system conditions (e.g. a set of different possible

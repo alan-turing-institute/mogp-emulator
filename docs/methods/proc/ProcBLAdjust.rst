@@ -40,16 +40,18 @@ Procedure
 
 The adjusted expectation vector, :math:`\textrm{E}_D[B]` is evaluated as
 
-:math:` \\textrm{E}_D[B] = \\textrm{E}[B] + \\textrm{Cov}[B,D]
-\\textrm{Var}[D]^{-1} (D_{obs}-\textrm{E}[D]) \`
+.. math::
+   \textrm{E}_D[B] = \textrm{E}[B] + \textrm{Cov}[B,D]
+   \textrm{Var}[D]^{-1} (D_{obs}-\textrm{E}[D])
 
 (If :math:`\textrm{Var}[D]` is not invertible, then we use a generalised
 inverse such as Moore-Penrose).
 
 The *adjusted variance matrix* for :math:`B` given :math:`D` is
 
-:math:` \\textrm{Var}_D[B] = \\textrm{Var}[B] -
-\\textrm{Cov}[B,D]\textrm{Var}[D]^{-1}\textrm{Cov}[D,B] \`
+.. math::
+   \textrm{Var}_D[B] = \textrm{Var}[B] -
+   \textrm{Cov}[B,D]\textrm{Var}[D]^{-1}\textrm{Cov}[D,B]
 
 Additional Comments
 -------------------

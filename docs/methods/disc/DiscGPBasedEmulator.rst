@@ -92,9 +92,9 @@ the size of the sample.
 Additional Comments
 -------------------
 
-The way in which the sample of :math:`\strut \\theta^{(j)}` values is used
+The way in which the sample of :math:`\theta^{(j)}` values is used
 for computation of specific tasks, and in particular the way in which
-the number :math:`\strut s` of :math:`\theta` values is matched to the number
+the number :math:`s` of :math:`\theta` values is matched to the number
 required for the computation, is considered in the discussion page on
 Monte Carlo estimation, sample sizes and emulator hyperparameter sets
 (:ref:`DiscMonteCarlo<DiscMonteCarlo>`).
