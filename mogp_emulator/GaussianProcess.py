@@ -1050,7 +1050,6 @@ class GaussianProcess(object):
                 warnings.warn("Warning: Current parameters are not MLE values")
             return self._predict_single(testing, do_deriv, do_unc)
 
-
     def __str__(self):
         """
         Returns a string representation of the model
