@@ -9,12 +9,15 @@
 // of length dim
 // l is a (dim) array or scaling parameters. The difference between dimension
 // i, for each pair of x and y vectors are divided by l[i]
-// Returns r, a (nx,ny) array
+//
+// The output is a (nx,ny) array which is written one row at a time to the pipe
+// r
+//
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
 kernel void distance(global float* restrict x, global float* restrict y,
-                     global float* restrict r, global float* restrict l,
-                     int nx, int ny, int dim){
+                     write_only pipe float __attribute__((blocking)) r,
+                     global float* restrict l, int nx, int ny, int dim){
     // Cache the scaling factors
     float l_cache[MAX_DIM];
     for(unsigned i=0; i<MAX_DIM; i++){
@@ -58,21 +61,21 @@ kernel void distance(global float* restrict x, global float* restrict y,
             temp[col] = value;
         }
 
-        // Copy row of r back to global memory
+        // Copy row of r to the pipe
         int r_stride = row*ny;
         for(unsigned i=0; i<ny; i++){
-            r[r_stride+i] = temp[i];
+            write_pipe(r, &temp[i]);
         }
     }
 }
 
 // Determine K(r) for the squared exponential Kernel
 //
-// r is a (m,n) matrix of squared distances
+// r is a pipe from which the (m,n) matrix of squared distances is read
 // k is a (m,n) matrix
 // sigma is a prefactor, by which each element of k is multiplied
-kernel void sq_exp(global const float* restrict r, global float* restrict k,
-                   float sigma, int m, int n){
+kernel void sq_exp(read_only pipe float __attribute__((blocking)) r,
+                   global float* restrict k, float sigma, int m, int n){
     // Declare caches for r and k
     local float r_cache[MAX_N];
     local float k_cache[MAX_N];
@@ -86,7 +89,7 @@ kernel void sq_exp(global const float* restrict r, global float* restrict k,
         unsigned offset = row*n;
         // Cache one row of r
         for (unsigned col=0; col<n; col++){
-            r_cache[col] = r[offset+col];
+            read_pipe(r, &r_cache[col]);
         }
 
         // Calculate one row of K(r)
