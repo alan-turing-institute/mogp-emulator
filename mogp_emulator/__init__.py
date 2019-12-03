@@ -4,3 +4,5 @@ from .MultiOutputGP import MultiOutputGP
 from .GaussianProcess import GaussianProcess
 from .ExperimentalDesign import ExperimentalDesign, MonteCarloDesign, LatinHypercubeDesign
 from .SequentialDesign import SequentialDesign, MICEDesign
+from .HistoryMatching import HistoryMatching
+from .DimensionReduction import gKDR

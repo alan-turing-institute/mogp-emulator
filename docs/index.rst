@@ -11,11 +11,20 @@ Welcome to Multi-Output GP Emulator's documentation!
    :caption: Contents:
 
    GaussianProcess
+   DimensionReduction
    MultiOutputGP
    Kernel
    ExperimentalDesign
    SequentialDesign
+   HistoryMatching
+   MCMC
    benchmarks/benchmarks
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Uncertainty Quantification Methods
+
+   methods/methods
 
 
 

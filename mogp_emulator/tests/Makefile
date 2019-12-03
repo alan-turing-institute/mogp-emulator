@@ -16,9 +16,10 @@ all: tests benchmarks
 tests:
 	pytest
 
-## benchmarks : Run the Branin, Rosenbrock (convergence), and tsunami (performance) benchmarks
+## benchmarks : Run the Branin, Rosenbrock (convergence), Tsunami (performance),
+##            : MICE, and History Matching benchmarks
 .PHONY: benchmarks
-benchmarks: branin tsunami rosenbrock mice
+benchmarks: branin tsunami rosenbrock mice mcmc gKDR histmatch
 
 ## branin     : Run the 2D Branin tests of convergence. Produces the plots
 ##            : branin_2d_error.png and branin_2d_unc.png
@@ -32,7 +33,6 @@ tsunami: tsunami_scaling.png
 
 ## rosenbrock : Run the Rosenbrock test of convergence. Produces the plots
 ##            : rosenbrock_error.png and rosenbrock_unc.png
-
 .PHONY: rosenbrock
 rosenbrock: rosenbrock_error.png rosenbrock_unc.png
 
@@ -41,16 +41,40 @@ rosenbrock: rosenbrock_error.png rosenbrock_unc.png
 .PHONY: mice
 mice: mice_error.png mice_unc.png
 
+## histmatch  : Run the History Matching demo showing 1D and 2D examples.
+##            : Produces the plots histmatch_1D.png and histmatch_2D.png
+.PHONY: histmatch
+histmatch: histmatch_1D.png histmatch_2D.png
+
+## mcmc       : Run the MCMC sampling benchmark
+##            : Produces the plot MCMC_histogram.png
+.PHONY: mcmc
+mcmc: MCMC_histogram.png
+
+## gKDR       : Run the dimension reduction benchmark
+##            : Produces the plot benchmark_kdr_GP_loss.pdf
+.PHONY: gKDR
+gKDR: benchmark_kdr_GP_loss.pdf
+
 # commands above are shortcuts to the targets below
 
 branin_2d_unc.png branin_2d_error.png: benchmark_branin.py
 	python3 benchmark_branin.py
-	
+
 rosenbrock_unc.png rosenbrock_error.png: benchmark_rosenbrock.py
-		python3 benchmark_rosenbrock.py
-	
+	python3 benchmark_rosenbrock.py
+
 tsunami_scaling.png: benchmark_tsunami.py
 	python3 benchmark_tsunami.py
 
 mice_unc.png mice_error.png: benchmark_MICE.py
 	python3 benchmark_MICE.py
+
+histmatch_1D.png histmatch_2D.png: benchmark_historymatching.py
+	python3 benchmark_historymatching.py
+
+benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
+	python3 benchmark_kdr_GP.py
+
+MCMC_histogram.png: benchmark_MCMC.py
+	python3 benchmark_MCMC.py
