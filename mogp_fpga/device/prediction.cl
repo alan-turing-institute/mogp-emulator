@@ -10,8 +10,8 @@
 // l is a (dim) array or scaling parameters. The difference between dimension
 // i, for each pair of x and y vectors are divided by l[i]
 //
-// The output is a (nx,ny) array which is written one row at a time to the pipe
-// r
+// The output is a (nx,ny) array which is written one column at a time to the
+// pipe r
 //
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
@@ -27,23 +27,23 @@ kernel void distance(global float* restrict x, global float* restrict y,
         l_cache[i] = exp(-1.0f * l[i]);
     }
 
-    // Calculate one row of r at a time
-    for(unsigned row=0; row<nx; row++){
-        int row_stride = row*dim;
-        // Cache the corresponding vector from x
-        float x_cache[MAX_DIM];
+    // Calculate one column of r at a time
+    for(unsigned col=0; col<ny; col++){
+        int col_stride = col*dim;
+        // Cache the corresponing vector from y
+        float y_cache[MAX_DIM];
         for(unsigned i=0; i<dim; i++){
-            x_cache[i] = x[row_stride+i];
+            y_cache[i] = y[col_stride+i];
         }
 
-        // Declare local array for row of r
-        float temp[MAX_N];
-        for(unsigned col=0; col<ny; col++){
-            int col_stride = col*dim;
-            // Cache the corresponding vector from y
-            float y_cache[MAX_DIM];
+        // Declare local array for column of r
+        float temp[MAX_M];
+        for(unsigned row=0; row<nx; row++){
+            int row_stride = row*dim;
+            // Cache the corresponding vector from x
+            float x_cache[MAX_DIM];
             for(unsigned i=0; i<dim; i++){
-                y_cache[i] = y[col_stride+i];
+                x_cache[i] = x[row_stride+i];
             }
 
             // Determine the value of r[row,col], the squared euclidean
@@ -57,13 +57,12 @@ kernel void distance(global float* restrict x, global float* restrict y,
                 value += (difference * difference) / l_cache[i];
             }
 
-            // Store the value in the temporary row of r
-            temp[col] = value;
+            // Store the value in the temporary column of r
+            temp[row] = value;
         }
 
-        // Copy row of r to the pipe
-        int r_stride = row*ny;
-        for(unsigned i=0; i<ny; i++){
+        // Copy column of r to the pipe
+        for(unsigned i=0; i<nx; i++){
             write_pipe(r, &temp[i]);
         }
     }
@@ -71,38 +70,38 @@ kernel void distance(global float* restrict x, global float* restrict y,
 
 // Determine K(r) for the squared exponential Kernel
 //
-// r is a pipe from which the (m,n) matrix of squared distances is read
+// r is a pipe from which the (m,n) matrix of squared distances is read one
+// column at a time
 // k is a (m,n) matrix
 // sigma is a prefactor, by which each element of k is multiplied
 kernel void sq_exp(read_only pipe float __attribute__((blocking)) r,
                    write_only pipe float __attribute__((blocking)) k,
                    float sigma, int m, int n){
     // Declare caches for r and k
-    local float r_cache[MAX_N];
-    local float k_cache[MAX_N];
+    local float r_cache[MAX_M];
+    local float k_cache[MAX_M];
 
     // Determine exponential of sigma
     local float exp_sigma;
     exp_sigma = exp(sigma);
 
-    // Calculate K(r) one row at a time
-    for (unsigned row=0; row<m; row++){
-        unsigned offset = row*n;
-        // Cache one row of r
-        for (unsigned col=0; col<n; col++){
-            read_pipe(r, &r_cache[col]);
+    // Calculate K(r) one column at a time
+    for (unsigned col=0; col<n; col++){
+        // Cache one column of r
+        for (unsigned row=0; row<m; row++){
+            read_pipe(r, &r_cache[row]);
         }
 
-        // Calculate one row of K(r)
+        // Calculate one column of K(r)
         #pragma unroll
-        for (unsigned col=0; col<MAX_N; col++){
-            float temp = r_cache[col];
-            k_cache[col] = exp_sigma*exp(-0.5f * temp);
+        for (unsigned row=0; row<MAX_M; row++){
+            float temp = r_cache[row];
+            k_cache[row] = exp_sigma*exp(-0.5f * temp);
         }
 
-        // Send one row of K(r) to the host
-        for (unsigned col=0; col<n; col++){
-            write_pipe(k, &k_cache[col]);
+        // Send one column of K(r) to the pipe
+        for (unsigned row=0; row<m; row++){
+            write_pipe(k, &k_cache[row]);
         }
     }
 }
