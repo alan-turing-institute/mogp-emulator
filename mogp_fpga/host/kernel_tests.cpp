@@ -9,6 +9,7 @@
 #include <vector>
 
 #define MAX_M 128
+#define MAX_N 128
 
 void square_exponential_native(std::vector<float> r, std::vector<float> &k,
                                float sigma){
@@ -75,6 +76,7 @@ int main(){
         // Create queues
         cl::CommandQueue queue1(context);
         cl::CommandQueue queue2(context);
+        cl::CommandQueue queue3(context);
 
         // Get devices
         std::vector<cl::Device> devices;
@@ -104,9 +106,9 @@ int main(){
         // Create kernel functor for distance kernel
         auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Buffer, int, int, int>(program, "distance");
         // Create kernel functor for square exponential kernel
-        auto square_exponential = cl::KernelFunctor<cl::Pipe&, cl::Buffer, float, int, int>(program, "sq_exp");
+        auto square_exponential = cl::KernelFunctor<cl::Pipe&, cl::Pipe&, float, int, int>(program, "sq_exp");
         // Create kernel functor for matrix vector product kernel
-        auto matrix_vector_product = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
+        auto matrix_vector_product = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
         // Test prediction case
         // Based on the Python package test 'test_GaussianProcess_predict_single'
@@ -156,13 +158,12 @@ int main(){
         cl::Pipe r(pipe);
         cl::Buffer d_InvQt(h_InvQt.begin(), h_InvQt.end(), true);
         cl::Buffer d_l(h_l.begin(), h_l.end(), true);
-        cl::Buffer d_k(h_k.begin(), h_k.end(), false);
+        //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+        cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_N, NULL, &status);
+        cl::Pipe k(pipe_k);
         cl::Buffer d_Ystar(h_Ystar.begin(), h_Ystar.end(), false);
 
         // Expected results
-        std::vector<float> expected_k = {0.36787944, 0.01831564,
-                                         0.22313016, 0.082085,
-                                         0.00673795, 0.36787944};
         std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
 
         // Prediction
@@ -171,18 +172,14 @@ int main(){
                  nx, nxstar, dim);
 
         // Determine kernel matrix of distances
-        square_exponential(cl::EnqueueArgs(queue2, cl::NDRange(1)), r, d_k,
+        square_exponential(cl::EnqueueArgs(queue2, cl::NDRange(1)), r, k,
                            sigma, nx, nxstar);
-        queue2.finish();
-        cl::copy(d_k, h_k.begin(), h_k.end());
         square_exponential_native(h_r, h_k_native, sigma);
-        compare_results(expected_k, h_k, "square_exponential");
-        compare_results(expected_k, h_k_native, "square_exponential_native");
 
         // Get prediction result
-        matrix_vector_product(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_k,
+        matrix_vector_product(cl::EnqueueArgs(queue3, cl::NDRange(1)), k,
                               d_InvQt, d_Ystar, nx, nxstar);
-        queue1.finish();
+        queue3.finish();
         cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
         matrix_vector_product_native(h_k, h_InvQt, h_Ystar_native, nx, nxstar);
         compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");

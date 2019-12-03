@@ -75,7 +75,8 @@ kernel void distance(global float* restrict x, global float* restrict y,
 // k is a (m,n) matrix
 // sigma is a prefactor, by which each element of k is multiplied
 kernel void sq_exp(read_only pipe float __attribute__((blocking)) r,
-                   global float* restrict k, float sigma, int m, int n){
+                   write_only pipe float __attribute__((blocking)) k,
+                   float sigma, int m, int n){
     // Declare caches for r and k
     local float r_cache[MAX_N];
     local float k_cache[MAX_N];
@@ -101,16 +102,17 @@ kernel void sq_exp(read_only pipe float __attribute__((blocking)) r,
 
         // Send one row of K(r) to the host
         for (unsigned col=0; col<n; col++){
-            k[offset+col] = k_cache[col];
+            write_pipe(k, &k_cache[col]);
         }
     }
 }
 
-// Determine the product c=A^Tb where A is a (m,n) matrix, and b and c are (m)
-// vectors (A^T means the transpose of the matrix A).
-kernel void matrix_vector_product(global float* restrict a,
-                                  global float* restrict b,
-                                  global float* restrict c, int m, int n){
+// Determine the product c=K^Tb where K is a (m,n) matrix, and b and c are (m)
+// vectors (K^T means the transpose of the matrix K).
+kernel void matrix_vector_product(
+    read_only pipe float __attribute__((blocking)) k,
+    global float* restrict b, global float* restrict c, int m, int n
+    ){
     // Copy b to local memory
     float b_cache[MAX_M];
     for (unsigned i=0; i<m; i++){
@@ -118,19 +120,19 @@ kernel void matrix_vector_product(global float* restrict a,
     }
 
     // Calculate one element of c at at time by finding the 'dot product' of
-    // one column of a with b
+    // one column of k with b
     for (unsigned col=0; col<n; col++){
         float sum = 0;
 
-        // Cache column of a
-        float a_cache[MAX_M];
+        // Cache column of k
+        float k_cache[MAX_M];
         for (unsigned i=0; i<m; i++){
-            a_cache[i] = a[i*n+col];
+            read_pipe(k, &k_cache[i]);
         }
 
         #pragma unroll
         for (unsigned i=0; i<MAX_M; i++){
-            sum += a_cache[i] * b_cache[i];
+            sum += k_cache[i] * b_cache[i];
         }
         c[col] = sum;
     }
