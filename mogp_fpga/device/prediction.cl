@@ -1,3 +1,7 @@
+#define MAX_DIM 64
+#define MAX_M 128
+#define MAX_N 128
+
 // Determine the squared euclidean distance between each pair of vectors in x
 // and y scaled by the array l
 //
@@ -8,14 +12,9 @@
 // Returns r, a (nx,ny) array
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
-
-#define MAX_DIM 64
-#define MAX_N 128
-
 kernel void distance(global float* restrict x, global float* restrict y,
                      global float* restrict r, global float* restrict l,
                      int nx, int ny, int dim){
-
     // Cache the scaling factors
     float l_cache[MAX_DIM];
     for(unsigned i=0; i<MAX_DIM; i++){
@@ -64,5 +63,72 @@ kernel void distance(global float* restrict x, global float* restrict y,
         for(unsigned i=0; i<ny; i++){
             r[r_stride+i] = temp[i];
         }
+    }
+}
+
+// Determine K(r) for the squared exponential Kernel
+//
+// r is a (m,n) matrix of squared distances
+// k is a (m,n) matrix
+// sigma is a prefactor, by which each element of k is multiplied
+kernel void sq_exp(global const float* restrict r, global float* restrict k,
+                   float sigma, int m, int n){
+    // Declare caches for r and k
+    local float r_cache[MAX_N];
+    local float k_cache[MAX_N];
+
+    // Determine exponential of sigma
+    local float exp_sigma;
+    exp_sigma = exp(sigma);
+
+    // Calculate K(r) one row at a time
+    for (unsigned row=0; row<m; row++){
+        unsigned offset = row*n;
+        // Cache one row of r
+        for (unsigned col=0; col<n; col++){
+            r_cache[col] = r[offset+col];
+        }
+
+        // Calculate one row of K(r)
+        #pragma unroll
+        for (unsigned col=0; col<MAX_N; col++){
+            float temp = r_cache[col];
+            k_cache[col] = exp_sigma*exp(-0.5f * temp);
+        }
+
+        // Send one row of K(r) to the host
+        for (unsigned col=0; col<n; col++){
+            k[offset+col] = k_cache[col];
+        }
+    }
+}
+
+// Determine the product c=A^Tb where A is a (m,n) matrix, and b and c are (m)
+// vectors (A^T means the transpose of the matrix A).
+kernel void matrix_vector_product(global float* restrict a,
+                                  global float* restrict b,
+                                  global float* restrict c, int m, int n){
+    // Copy b to local memory
+    float b_cache[MAX_M];
+    for (unsigned i=0; i<m; i++){
+        b_cache[i] = b[i];
+    }
+
+    // Calculate one element of c at at time by finding the 'dot product' of
+    // one column of a with b
+    for (unsigned col=0; col<n; col++){
+        float sum = 0;
+
+        // Cache column of a
+        float a_cache[MAX_M];
+        for (unsigned i=0; i<m; i++){
+            a_cache[i] = a[i*n+col];
+        }
+
+        #pragma unroll
+        for (unsigned i=0; i<MAX_M; i++){
+            sum += a_cache[i] * b_cache[i];
+        }
+        c[col] = sum;
     }
 }
