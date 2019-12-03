@@ -134,8 +134,7 @@ int main(){
         // Dimension of inputs
         int dim = 3;
         // Square distances between X and X*
-        std::vector<float> h_r(nx*nxstar, 0);
-        std::vector<float> h_r_native(nx*nxstar, 0);
+        std::vector<float> r_native(nx*nxstar, 0);
         // InvQt vector, a product of training
         std::vector<float> h_InvQt = {1.9407565, 2.93451157, 3.95432381};
         // Hyperparameter used to scale predictions
@@ -143,8 +142,7 @@ int main(){
         // Hyperparameters to set length scale of distances between inputs
         std::vector<float> h_l = {0.0, 0.0, 0.0};
         // Kernel matrix
-        std::vector<float> h_k(nx*nxstar, 0);
-        std::vector<float> h_k_native(nx*nxstar, 0);
+        std::vector<float> k_native(nx*nxstar, 0);
         // Prediction result
         std::vector<float> h_Ystar(nxstar, 0);
         std::vector<float> h_Ystar_native(nxstar, 0);
@@ -170,18 +168,19 @@ int main(){
         // Determine SQUARED distances between training and test inputs
         distance(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X, d_Xstar, r, d_l,
                  nx, nxstar, dim);
+        distance_native(h_X, h_Xstar, r_native, h_l, nx, nxstar, dim);
 
         // Determine kernel matrix of distances
         square_exponential(cl::EnqueueArgs(queue2, cl::NDRange(1)), r, k,
                            sigma, nx, nxstar);
-        square_exponential_native(h_r, h_k_native, sigma);
+        square_exponential_native(r_native, k_native, sigma);
 
         // Get prediction result
         matrix_vector_product(cl::EnqueueArgs(queue3, cl::NDRange(1)), k,
                               d_InvQt, d_Ystar, nx, nxstar);
         queue3.finish();
         cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
-        matrix_vector_product_native(h_k, h_InvQt, h_Ystar_native, nx, nxstar);
+        matrix_vector_product_native(k_native, h_InvQt, h_Ystar_native, nx, nxstar);
         compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");
         compare_results(expected_Ystar, h_Ystar_native, "matrix_vector_product_native");
         for (auto const& i : h_Ystar)
