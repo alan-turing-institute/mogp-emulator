@@ -1,6 +1,6 @@
 """This module provides classes and utilities for performing dimension
 reduction.  Currently there is a single class :class:`mogp_emulator.gKDR` which implements
-the method of Fukumizu and Leng [FL13]_.
+the method of Liu and Guillas [LG17]_.
 
 Example: ::
 
@@ -120,12 +120,12 @@ class gKDR(object):
 
     """Dimension reduction by the gKDR method.
 
-    See link [Fukumizu1]_ (and in particular, [FL13]_) for details of
+    See link [LG17]_ (as well as [Fukumizu1]_ and [FL13]_) for details of
     the method.
 
     Note that this is a simpler and faster method than the original
-    "KDR" method by the same authors (but with an added
-    approximation).  The KDR method will be implemented separately.
+    "KDR" method by Fukumizu and Leng (but with an added approximation).
+    The KDR method will be implemented separately.
 
     An instance of this class is callable, with the ``__call__``
     method taking an input coordinate and mapping it to a reduced
