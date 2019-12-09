@@ -147,13 +147,10 @@ int main(){
         // Create device variables
         cl::Buffer d_X(h_X.begin(), h_X.end(), true);
         cl::Buffer d_Xstar(h_Xstar.begin(), h_Xstar.end(), true);
-        //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
-        cl_int status;
-        cl_mem pipe = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
-        cl::Pipe r(pipe);
         cl::Buffer d_InvQt(h_InvQt.begin(), h_InvQt.end(), true);
         cl::Buffer d_l(h_l.begin(), h_l.end(), true);
         //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+        cl_int status;
         cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_N, NULL, &status);
         cl::Pipe k(pipe_k);
         cl::Buffer d_Ystar(h_Ystar.begin(), h_Ystar.end(), false);
