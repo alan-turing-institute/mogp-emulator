@@ -2,22 +2,25 @@
 #define MAX_M 128
 #define MAX_N 128
 
-// Determine the squared euclidean distance between each pair of vectors in x
-// and y scaled by the array l
+// Determine K(X,Y) for the squared exponential Kernel
 //
 // x is an (nx,dim) array, y is an (ny,dim) array both representing n vectors
 // of length dim
+//
 // l is a (dim) array or scaling parameters. The difference between dimension
 // i, for each pair of x and y vectors are divided by l[i]
 //
+// sigma is a prefactor, each element of K is multiplied by exp(sigma)
+//
 // The output is a (nx,ny) array which is written one column at a time to the
-// pipe r
+// pipe k
 //
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
-kernel void distance(global float* restrict x, global float* restrict y,
-                     write_only pipe float __attribute__((blocking)) r,
-                     global float* restrict l, int nx, int ny, int dim){
+kernel void sq_exp(global float* restrict x, global float* restrict y,
+                   write_only pipe float __attribute__((blocking)) k,
+                   global float* restrict l, float sigma, int nx, int ny,
+                   int dim){
     // Cache the scaling factors
     float l_cache[MAX_DIM];
     for(unsigned i=0; i<MAX_DIM; i++){
@@ -27,7 +30,11 @@ kernel void distance(global float* restrict x, global float* restrict y,
         l_cache[i] = exp(-1.0f * l[i]);
     }
 
-    // Calculate one column of r at a time
+    // Determine exponential of sigma
+    local float exp_sigma;
+    exp_sigma = exp(sigma);
+
+    // Calculate one column of k at a time
     for(unsigned col=0; col<ny; col++){
         int col_stride = col*dim;
         // Cache the corresponing vector from y
@@ -58,50 +65,12 @@ kernel void distance(global float* restrict x, global float* restrict y,
             }
 
             // Store the value in the temporary column of r
-            temp[row] = value;
+            temp[row] = exp_sigma*exp(-0.5f * value);
         }
 
         // Copy column of r to the pipe
         for(unsigned i=0; i<nx; i++){
-            write_pipe(r, &temp[i]);
-        }
-    }
-}
-
-// Determine K(r) for the squared exponential Kernel
-//
-// r is a pipe from which the (m,n) matrix of squared distances is read one
-// column at a time
-// k is a (m,n) matrix
-// sigma is a prefactor, by which each element of k is multiplied
-kernel void sq_exp(read_only pipe float __attribute__((blocking)) r,
-                   write_only pipe float __attribute__((blocking)) k,
-                   float sigma, int m, int n){
-    // Declare caches for r and k
-    local float r_cache[MAX_M];
-    local float k_cache[MAX_M];
-
-    // Determine exponential of sigma
-    local float exp_sigma;
-    exp_sigma = exp(sigma);
-
-    // Calculate K(r) one column at a time
-    for (unsigned col=0; col<n; col++){
-        // Cache one column of r
-        for (unsigned row=0; row<m; row++){
-            read_pipe(r, &r_cache[row]);
-        }
-
-        // Calculate one column of K(r)
-        #pragma unroll
-        for (unsigned row=0; row<MAX_M; row++){
-            float temp = r_cache[row];
-            k_cache[row] = exp_sigma*exp(-0.5f * temp);
-        }
-
-        // Send one column of K(r) to the pipe
-        for (unsigned row=0; row<m; row++){
-            write_pipe(k, &k_cache[row]);
+            write_pipe(k, &temp[i]);
         }
     }
 }

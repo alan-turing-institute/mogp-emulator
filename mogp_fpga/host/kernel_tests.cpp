@@ -76,7 +76,6 @@ int main(){
         // Create queues
         cl::CommandQueue queue1(context);
         cl::CommandQueue queue2(context);
-        cl::CommandQueue queue3(context);
 
         // Get devices
         std::vector<cl::Device> devices;
@@ -103,10 +102,8 @@ int main(){
 
         // Create program
         cl::Program program(context, devices, binaries);
-        // Create kernel functor for distance kernel
-        auto distance = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Buffer, int, int, int>(program, "distance");
         // Create kernel functor for square exponential kernel
-        auto square_exponential = cl::KernelFunctor<cl::Pipe&, cl::Pipe&, float, int, int>(program, "sq_exp");
+        auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Buffer, float, int, int, int>(program, "sq_exp");
         // Create kernel functor for matrix vector product kernel
         auto matrix_vector_product = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
@@ -165,20 +162,16 @@ int main(){
         std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
 
         // Prediction
-        // Determine SQUARED distances between training and test inputs
-        distance(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X, d_Xstar, r, d_l,
-                 nx, nxstar, dim);
+        // Determine square exponential kernel matrix
+        square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
+                           d_Xstar, k, d_l, sigma, nx, nxstar, dim);
         distance_native(h_X, h_Xstar, r_native, h_l, nx, nxstar, dim);
-
-        // Determine kernel matrix of distances
-        square_exponential(cl::EnqueueArgs(queue2, cl::NDRange(1)), r, k,
-                           sigma, nx, nxstar);
         square_exponential_native(r_native, k_native, sigma);
 
         // Get prediction result
-        matrix_vector_product(cl::EnqueueArgs(queue3, cl::NDRange(1)), k,
+        matrix_vector_product(cl::EnqueueArgs(queue2, cl::NDRange(1)), k,
                               d_InvQt, d_Ystar, nx, nxstar);
-        queue3.finish();
+        queue2.finish();
         cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
         matrix_vector_product_native(k_native, h_InvQt, h_Ystar_native, nx, nxstar);
         compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");
