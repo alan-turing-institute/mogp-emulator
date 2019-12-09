@@ -4,8 +4,8 @@ AOCL_LINK_CONFIG=$(shell aocl link-config)
 OPT=-O2
 CXXFLAGS=-Wall $(OPT)
 
-OBJECTS=kernel_tests.o
-TARGET=kernel_tests
+OBJECTS=prediction.o
+TARGET=prediction
 
 all : $(OBJECTS)
 	g++ $(AOCL_LINK_CONFIG) -o $(TARGET) $(OBJECTS)
