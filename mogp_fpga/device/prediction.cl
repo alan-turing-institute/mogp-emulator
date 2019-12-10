@@ -44,7 +44,6 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
         }
 
         // Declare local array for column of r
-        float temp[MAX_M];
         for(unsigned row=0; row<nx; row++){
             int row_stride = row*dim;
             // Cache the corresponding vector from x
@@ -53,24 +52,21 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
                 x_cache[i] = x[row_stride+i];
             }
 
-            // Determine the value of r[row,col], the squared euclidean
+            // Determine the element r[row,col], the squared euclidean
             // distance between x[row] and y[col]
-            float value = 0;
+            float elem = 0;
             #pragma unroll
             for(unsigned i=0; i<MAX_DIM; i++){
                 float x = x_cache[i];
                 float y = y_cache[i];
                 float difference = x - y;
-                value += (difference * difference) / l_cache[i];
+                elem += (difference * difference) / l_cache[i];
             }
 
-            // Store the value in the temporary column of r
-            temp[row] = exp_sigma*exp(-0.5f * value);
-        }
-
-        // Copy column of r to the pipe
-        for(unsigned i=0; i<nx; i++){
-            write_pipe(k, &temp[i]);
+            // Calculate the element k[row,col] of the square exponentia kernel
+            elem = exp_sigma*exp(-0.5f * elem);
+            // Push the element to the pipe
+            write_pipe(k, &elem);
         }
     }
 }
