@@ -18,4 +18,4 @@ device: $(SOURCES)
 	$(AOC) $(SOURCES)
 
 clean:
-	rm -f *.aoco *.aocr
+	rm -rf *.aoco *.aocr *.temp
