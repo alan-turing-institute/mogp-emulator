@@ -204,6 +204,28 @@ int main(){
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
         std::cout << std::endl;
+
+        // Based on the Python package test 'test_GaussianProcess_predict_single'
+        // X = [[1,2,3],[2,4,1],[4,2,2]]
+        // Y = [2,3,4]
+        // Hyperparameters = [1,1,1,01
+        //
+        // After training InvQt = [0.73575167,1.10362757,1.47151147]
+        //
+        // X* = [4,0,2]
+        // Expected Y* = [0.01741762]
+        h_Xstar = {4.0, 0.0, 2.0};
+        nxstar = 1;
+        h_InvQt = {0.73575167, 1.10362757, 1.47151147};
+        h_l = {1.0, 1.0, 1.0};
+        sigma = 1.0;
+        expected_Ystar = {0.01741762};
+        h_Ystar = predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l,
+                                 sigma, h_InvQt, context, program);
+        compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");
+        for (auto const& i : h_Ystar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
     }
     catch (cl::Error err){
         std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
