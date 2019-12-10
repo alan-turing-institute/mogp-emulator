@@ -69,13 +69,63 @@ void compare_results(std::vector<float> expected, std::vector<float> actual,
     }
 }
 
+// Conduct a single prediction using the square exponetial kernel
+// X - Training inputs
+// nx - Number of training inputs
+// dim - The number of input dimensions (length of X and Xstar records)
+// Xstar - Testing inputs
+// nx_star - Number of testing inputs
+// theta - Hyperparameters (used to scale pairwise distances)
+// sigma - Kernel scaling parameter
+// InvQt - Vector which K(X,X*) is multiplied by to obtain expectation values
+std::vector<float> predict_single(std::vector<float> &X, int nx, int dim,
+                                  std::vector<float> &Xstar, int nxstar,
+                                  std::vector<float> &theta, float sigma,
+                                  std::vector<float> &InvQt,
+                                  cl::Context &context,
+                                  cl::Program &program){
+    // Prediction results array
+    std::vector<float> Ystar(nxstar, 0);
+
+    // Create queues
+    cl::CommandQueue queue1(context);
+    cl::CommandQueue queue2(context);
+
+    // Create kernel functor for square exponential kernel
+    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Buffer, float, int, int, int>(program, "sq_exp");
+    // Create kernel functor for matrix vector product kernel
+    auto matrix_vector_product = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
+
+    // Create device variables
+    cl::Buffer d_X(X.begin(), X.end(), true);
+    cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
+    cl::Buffer d_theta(theta.begin(), theta.end(), true);
+    cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
+    //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+    cl_int status;
+    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_N, NULL, &status);
+    cl::Pipe k(pipe_k);
+    cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
+
+    // Prediction
+    // Determine square exponential kernel matrix
+    square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
+                       d_Xstar, k, d_theta, sigma, nx, nxstar, dim);
+    // Columns of the kernel matrix are sent by a pipe to the matrix vector
+    // product matrix
+    matrix_vector_product(cl::EnqueueArgs(queue2, cl::NDRange(1)), k,
+                          d_InvQt, d_Ystar, nx, nxstar);
+    queue2.finish();
+
+    // Retreive expectation values
+    cl::copy(d_Ystar, Ystar.begin(), Ystar.end());
+    return Ystar;
+}
+
 int main(){
     try{
         // Create context using default device
         cl::Context context(CL_DEVICE_TYPE_DEFAULT);
-        // Create queues
-        cl::CommandQueue queue1(context);
-        cl::CommandQueue queue2(context);
 
         // Get devices
         std::vector<cl::Device> devices;
@@ -102,10 +152,6 @@ int main(){
 
         // Create program
         cl::Program program(context, devices, binaries);
-        // Create kernel functor for square exponential kernel
-        auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Buffer, float, int, int, int>(program, "sq_exp");
-        // Create kernel functor for matrix vector product kernel
-        auto matrix_vector_product = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "matrix_vector_product");
 
         // Test prediction case
         // Based on the Python package test 'test_GaussianProcess_predict_single'
@@ -141,36 +187,18 @@ int main(){
         // Kernel matrix
         std::vector<float> k_native(nx*nxstar, 0);
         // Prediction result
-        std::vector<float> h_Ystar(nxstar, 0);
         std::vector<float> h_Ystar_native(nxstar, 0);
-
-        // Create device variables
-        cl::Buffer d_X(h_X.begin(), h_X.end(), true);
-        cl::Buffer d_Xstar(h_Xstar.begin(), h_Xstar.end(), true);
-        cl::Buffer d_InvQt(h_InvQt.begin(), h_InvQt.end(), true);
-        cl::Buffer d_l(h_l.begin(), h_l.end(), true);
-        //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
-        cl_int status;
-        cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_N, NULL, &status);
-        cl::Pipe k(pipe_k);
-        cl::Buffer d_Ystar(h_Ystar.begin(), h_Ystar.end(), false);
 
         // Expected results
         std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
 
-        // Prediction
-        // Determine square exponential kernel matrix
-        square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                           d_Xstar, k, d_l, sigma, nx, nxstar, dim);
         distance_native(h_X, h_Xstar, r_native, h_l, nx, nxstar, dim);
         square_exponential_native(r_native, k_native, sigma);
-
-        // Get prediction result
-        matrix_vector_product(cl::EnqueueArgs(queue2, cl::NDRange(1)), k,
-                              d_InvQt, d_Ystar, nx, nxstar);
-        queue2.finish();
-        cl::copy(d_Ystar, h_Ystar.begin(), h_Ystar.end());
         matrix_vector_product_native(k_native, h_InvQt, h_Ystar_native, nx, nxstar);
+
+        auto h_Ystar = predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l,
+                                      sigma, h_InvQt, context, program);
+
         compare_results(expected_Ystar, h_Ystar, "matrix_vector_product");
         compare_results(expected_Ystar, h_Ystar_native, "matrix_vector_product_native");
         for (auto const& i : h_Ystar)
