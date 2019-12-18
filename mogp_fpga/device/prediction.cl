@@ -16,7 +16,7 @@
 // sigma is a prefactor, each element of K is multiplied by exp(sigma)
 //
 // The output is a (nx,ny) array which is written one column at a time to the
-// pipe k1 or k2 depending on the mode
+// pipe k1 or k1 and k2 depending on the mode
 //
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
@@ -70,12 +70,13 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
                 elem += (difference * difference) / l_cache[i];
             }
 
-            // Calculate the element k[row,col] of the square exponentia kernel
+            // Calculate the element k[row,col] of the square exponential kernel
             elem = exp_sigma*exp(-0.5f * elem);
             // Push the element to the pipe
             if (mode == MODE_EXPECTATION){
                 write_pipe(k1, &elem);
             } else if (mode == MODE_VARIANCE){
+                write_pipe(k1, &elem);
                 write_pipe(k2, &elem);
             }
         }
@@ -83,7 +84,7 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
 }
 
 // Determine the expectation values of predictions
-kernel void prediction(
+kernel void expectation(
     read_only pipe float __attribute__((blocking)) k1,
     global float* restrict invqt,
     global float* restrict expectation,
@@ -114,19 +115,12 @@ kernel void prediction(
     }
 }
 
-// Determine the expectation values and variance of predictions
-kernel void prediction_with_variance(
+// Determine the variance of predictions
+kernel void variance(
     read_only pipe float __attribute__((blocking)) k2,
-    global float* restrict expectation,
     global float* restrict variance,
-    global float* restrict invqt,
     global float* restrict invq, float sigma, int m, int n
     ){
-    // Copy invq and invqt to local memory
-    local float invqt_cache[MAX_M];
-    for (unsigned i=0; i<m; i++){
-        invqt_cache[i] = invqt[i];
-    }
     local float invq_cache[MAX_M*MAX_M];
     for (unsigned i=0; i<m; i++){
         int offset1 = i*m;
@@ -147,15 +141,6 @@ kernel void prediction_with_variance(
         for (unsigned i=0; i<m; i++){
             read_pipe(k2, &k_cache[i]);
         }
-
-        // Expectation value calculation
-        // dot product of one column of k with invqt
-        #pragma unroll
-        for (unsigned i=0; i<MAX_M; i++){
-            sum += k_cache[i] * invqt_cache[i];
-        }
-        expectation[col] = sum;
-
 
         // Variance calculation
         // dot products of the column of k with each row of invQ

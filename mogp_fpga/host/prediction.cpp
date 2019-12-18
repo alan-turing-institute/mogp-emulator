@@ -59,8 +59,8 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 
     // Create kernel functor for square exponential kernel
     auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int>(program, "sq_exp");
-    // Create kernel functor for matrix vector product kernel
-    auto predict = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "prediction");
+    // Create kernel functor for expectation kernel
+    auto expectation = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "expectation");
 
     // Create device variables
     cl::Buffer d_X(X.begin(), X.end(), true);
@@ -75,14 +75,11 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
 
     // Prediction
-    // Determine square exponential kernel matrix
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
                        d_Xstar, k, dummy, d_theta, sigma, nx, nxstar, dim,
                        MODE_EXPECTATION);
-    // Columns of the kernel matrix are sent by a pipe to the matrix vector
-    // product matrix
-    predict(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
-            nxstar);
+    expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
+                nxstar);
     queue1.finish();
     queue2.finish();
 
@@ -116,11 +113,14 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     // Create queues
     cl::CommandQueue queue1(context);
     cl::CommandQueue queue2(context);
+    cl::CommandQueue queue3(context);
 
     // Create kernel functor for square exponential kernel
     auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int>(program, "sq_exp");
-    // Create kernel functor for matrix vector product kernel
-    auto predict = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, int, int>(program, "prediction_with_variance");
+    // Create kernel functor for expectation kernel
+    auto expectation = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "expectation");
+    // Create kernel functor for variance kernel
+    auto variance = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, float, int, int>(program, "variance");
 
     // Create device variables
     cl::Buffer d_X(X.begin(), X.end(), true);
@@ -132,22 +132,22 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl_int status;
     cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
     cl::Pipe k(pipe_k);
-    cl_mem pipe_dummy = clCreatePipe(context(), 0, sizeof(int), 0, NULL, &status);
-    cl::Pipe dummy(pipe_dummy);
+    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl::Pipe k2(pipe_k2);
     cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
     cl::Buffer d_Ystarvar(Ystarvar.begin(), Ystarvar.end(), false);
 
     // Prediction
-    // Determine square exponential kernel matrix
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, dummy, k, d_theta, sigma, nx, nxstar, dim,
+                       d_Xstar, k, k2, d_theta, sigma, nx, nxstar, dim,
                        MODE_VARIANCE);
-    // Columns of the kernel matrix are sent by a pipe to the matrix vector
-    // product matrix
-    predict(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_Ystar, d_Ystarvar,
-            d_InvQt, d_InvQ, sigma, nx, nxstar);
+    expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
+                nxstar);
+    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
+             sigma, nx, nxstar);
     queue1.finish();
     queue2.finish();
+    queue3.finish();
 
     // Retreive expectation values
     cl::copy(d_Ystar, Ystar.begin(), Ystar.end());
