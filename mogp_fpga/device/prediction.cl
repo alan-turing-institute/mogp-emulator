@@ -15,8 +15,8 @@
 //
 // sigma is a prefactor, each element of K is multiplied by exp(sigma)
 //
-// The output is a (nx,ny) array which is written one column at a time to the
-// pipe k1 or k1 and k2 depending on the mode
+// The output is a (ny,nx) array which is written one column at a time to the
+// pipe k1, or k1 and k2  when var=1
 //
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
@@ -59,7 +59,7 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
                 x_cache[i] = x[row_stride+i];
             }
 
-            // Determine the element r[row,col], the squared euclidean
+            // Determine the element k[row,col], the squared euclidean
             // distance between x[row] and y[col]
             float elem = 0;
             #pragma unroll
