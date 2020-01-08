@@ -11,9 +11,6 @@
 #define MAX_M 128
 #define MAX_N 128
 
-#define MODE_EXPECTATION 1
-#define MODE_VARIANCE 2
-
 void compare_results(std::vector<float> expected, std::vector<float> actual,
                      std::string kernel_name){
     float TOL = 1.0e-6;
@@ -58,7 +55,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::CommandQueue queue2(context);
 
     // Create kernel functor for square exponential kernel
-    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int>(program, "sq_exp");
+    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int, int>(program, "sq_exp");
     // Create kernel functor for expectation kernel
     auto expectation = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "expectation");
 
@@ -76,8 +73,8 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 
     // Prediction
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, dummy, d_theta, sigma, nx, nxstar, dim,
-                       MODE_EXPECTATION);
+                       d_Xstar, k, dummy, dummy, d_theta, sigma, nx, nxstar,
+                       dim, 0, 0);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
     queue1.finish();
@@ -116,7 +113,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::CommandQueue queue3(context);
 
     // Create kernel functor for square exponential kernel
-    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int>(program, "sq_exp");
+    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int, int>(program, "sq_exp");
     // Create kernel functor for expectation kernel
     auto expectation = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "expectation");
     // Create kernel functor for variance kernel
@@ -134,13 +131,15 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Pipe k(pipe_k);
     cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
     cl::Pipe k2(pipe_k2);
+    cl_mem pipe_dummy = clCreatePipe(context(), 0, sizeof(int), 0, NULL, &status);
+    cl::Pipe dummy(pipe_dummy);
     cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
     cl::Buffer d_Ystarvar(Ystarvar.begin(), Ystarvar.end(), false);
 
     // Prediction
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, k2, d_theta, sigma, nx, nxstar, dim,
-                       MODE_VARIANCE);
+                       d_Xstar, k, k2, dummy, d_theta, sigma, nx, nxstar, dim,
+                       1, 0);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
     variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
@@ -152,6 +151,84 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     // Retreive expectation values
     cl::copy(d_Ystar, Ystar.begin(), Ystar.end());
     cl::copy(d_Ystarvar, Ystarvar.begin(), Ystarvar.end());
+}
+
+// Conduct a single prediction using the square exponetial kernel
+// X - Training inputs
+// nx - Number of training inputs
+// dim - The number of input dimensions (length of X and Xstar records)
+// Xstar - Testing inputs
+// nx_star - Number of testing inputs
+// theta - Hyperparameters (used to scale pairwise distances)
+// sigma - Kernel scaling parameter
+// InvQt - Vector calculated during training (invQ*Y) used for expecation value
+//         calculation
+// invQ - Matrix calculated during training ((K(X,X) + nugget)^-1) used for
+//        variance calculation
+// Ystar - Training prediction expectation values
+// Ystarvar - Training prediction variances
+// Ystarderiv - Prediction derivatives
+// context - The OpenCL Context
+// program - The OpenCL Program
+void predict_single(std::vector<float> &X, int nx, int dim,
+                    std::vector<float> &Xstar, int nxstar,
+                    std::vector<float> &theta, float sigma,
+                    std::vector<float> &InvQt, std::vector<float> &InvQ,
+                    std::vector<float> &Ystar, std::vector<float> &Ystarvar,
+                    std::vector<float> &Ystarderiv,
+                    cl::Context &context, cl::Program &program){
+
+    // Create queues
+    cl::CommandQueue queue1(context);
+    cl::CommandQueue queue2(context);
+    cl::CommandQueue queue3(context);
+    cl::CommandQueue queue4(context);
+
+    // Create kernel functor for square exponential kernel
+    auto square_exponential = cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Pipe&, cl::Pipe&, cl::Pipe&, cl::Buffer, float, int, int, int, int, int>(program, "sq_exp");
+    // Create kernel functor for expectation kernel
+    auto expectation = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, int, int>(program, "expectation");
+    // Create kernel functor for variance kernel
+    auto variance = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, float, int, int>(program, "variance");
+    // Create kernel functor for derivative kernel
+    auto derivatives = cl::KernelFunctor<cl::Pipe&, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, int, int, int>(program, "derivatives");
+
+    // Create device variables
+    cl::Buffer d_X(X.begin(), X.end(), true);
+    cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
+    cl::Buffer d_theta(theta.begin(), theta.end(), true);
+    cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
+    cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
+    //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+    cl_int status;
+    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl::Pipe k(pipe_k);
+    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl::Pipe k2(pipe_k2);
+    cl_mem pipe_r = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M*MAX_N, NULL, &status);
+    cl::Pipe r(pipe_r);
+    cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
+    cl::Buffer d_Ystarvar(Ystarvar.begin(), Ystarvar.end(), false);
+    cl::Buffer d_Ystarderiv(Ystarderiv.begin(), Ystarderiv.end(), false);
+
+    // Prediction
+    square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
+                       d_Xstar, k, k2, r, d_theta, sigma, nx, nxstar, dim,
+                       1, 1);
+    expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
+                nxstar);
+    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
+             sigma, nx, nxstar);
+    derivatives(cl::EnqueueArgs(queue4, cl::NDRange(1)), r, d_Ystarderiv, d_X, d_Xstar, d_InvQt, d_theta, sigma, nx, nxstar, dim);
+    queue1.finish();
+    queue2.finish();
+    queue3.finish();
+    queue4.finish();
+
+    // Retreive expectation values
+    cl::copy(d_Ystar, Ystar.begin(), Ystar.end());
+    cl::copy(d_Ystarvar, Ystarvar.begin(), Ystarvar.end());
+    cl::copy(d_Ystarderiv, Ystarderiv.begin(), Ystarderiv.end());
 }
 
 int main(){
@@ -222,10 +299,16 @@ int main(){
         std::vector<float> h_Ystar(nxstar, 0);
         // Prediction variance
         std::vector<float> h_Ystarvar(nxstar, 0);
+        // Prediction derivatives
+        std::vector<float> h_Ystarderiv(nxstar*dim, 0);
 
         // Expected results
         std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
         std::vector<float> expected_Ystarvar = {0.81667540, 0.858355920};
+        std::vector<float> expected_Ystarderiv = {
+            0.73471011, -0.0858304,  0.05918638,
+            1.14274266,  0.48175876,  1.52580682
+            };
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
                        h_Ystar, context, program);
@@ -242,6 +325,22 @@ int main(){
         std::cout << std::endl;
         compare_results(expected_Ystarvar, h_Ystarvar, "predict variance");
         for (auto const& i : h_Ystarvar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+                       h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
+                       program);
+        compare_results(expected_Ystar, h_Ystar, "predict expectation values");
+        for (auto const& i : h_Ystar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        compare_results(expected_Ystarvar, h_Ystarvar, "predict variance");
+        for (auto const& i : h_Ystarvar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        compare_results(expected_Ystarderiv, h_Ystarderiv, "predict derivatives");
+        for (auto const& i : h_Ystarderiv)
             std::cout << i << ' ';
         std::cout << std::endl;
 

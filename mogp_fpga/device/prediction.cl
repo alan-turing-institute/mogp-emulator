@@ -2,9 +2,6 @@
 #define MAX_M 128
 #define MAX_N 128
 
-#define MODE_EXPECTATION 1
-#define MODE_VARIANCE 2
-
 // Determine K(X,Y) for the squared exponential Kernel
 //
 // x is an (nx,dim) array, y is an (ny,dim) array both representing n vectors
@@ -18,16 +15,20 @@
 // The output is a (ny,nx) array which is written one column at a time to the
 // pipe k1, or k1 and k2  when var=1
 //
+// Optionally the pairwise distances r may also be output (for derivative
+// calculation) when deriv=1
+//
 // nx, ny are the number of vectors in x and y respectively
 // dim is the length of each of the vectors in x and y
 //
-// mode sets whether to calculate only the expectation values (mode=1) or
-// expectation values and variance (mode=2)
+// var sets whether to calculate variance for predictions
+// deriv sets whether to calculate derivatives
 kernel void sq_exp(global float* restrict x, global float* restrict y,
                    write_only pipe float __attribute__((blocking)) k1,
                    write_only pipe float __attribute__((blocking)) k2,
+                   write_only pipe float __attribute__((blocking)) r,
                    global float* restrict l, float sigma, int nx, int ny,
-                   int dim, int mode){
+                   int dim, int var, int deriv){
     // Cache the scaling factors
     float l_cache[MAX_DIM];
     for(unsigned i=0; i<MAX_DIM; i++){
@@ -70,13 +71,17 @@ kernel void sq_exp(global float* restrict x, global float* restrict y,
                 elem += (difference * difference) / l_cache[i];
             }
 
+            // Calculate pairwise distance if needed for derivatives
+            if (deriv){
+                float dist = sqrt(elem);
+                write_pipe(r, &dist);
+            }
+
             // Calculate the element k[row,col] of the square exponential kernel
             elem = exp_sigma*exp(-0.5f * elem);
             // Push the element to the pipe
-            if (mode == MODE_EXPECTATION){
-                write_pipe(k1, &elem);
-            } else if (mode == MODE_VARIANCE){
-                write_pipe(k1, &elem);
+            write_pipe(k1, &elem);
+            if (var){
                 write_pipe(k2, &elem);
             }
         }
@@ -159,5 +164,106 @@ kernel void variance(
         // Subtract from hyperparameter
         var = exp_sigma - var;
         variance[col] = max(var, 0.0f);
+    }
+}
+
+// Determine the derivatives
+//
+// The pairwise distance matrix is passed, one column at a time, through the
+// pipe r.
+//
+// The entire matrix is needed for parts of the calculation (?) so not all of
+// this kernel can run concurrently with the others. However, the derivative of
+// the kernel matrix with respect to r can be calculated as r values are read
+// in.
+kernel void derivatives(
+        read_only pipe float __attribute__((blocking)) r,
+        global float* restrict deriv,
+        global float* restrict x, global float* restrict xstar,
+        global float* restrict invqt, global float* restrict l,
+        float sigma, int m, int n, int dim){
+
+    // Copy invqt to local memory
+    float invqt_cache[MAX_M];
+    for (unsigned i=0; i<m; i++){
+        invqt_cache[i] = invqt[i];
+    }
+
+    // Determine exponential of sigma
+    local float exp_sigma;
+    exp_sigma = exp(sigma);
+
+    // Cache entire r matrix and calculate dK/dr
+    local float r_cache[MAX_M*MAX_N];
+    local float dKdr[MAX_M*MAX_N];
+    local float dist;
+    for (int i=0; i<m*n; i++){
+        read_pipe(r, &r_cache[i]);
+        dist = r_cache[i];
+        dKdr[i] = -1.0 * dist * exp(-0.5 * dist * dist);
+    }
+    // At this point the exp_sq kernel has finished and determined all pairwise
+    // distances
+
+    // Calculate dr/dx
+    // Set 0 values to 1
+    #pragma unroll
+    for (int i=0; i<MAX_M*MAX_N; i++){
+        if (r_cache[i] == 0.0f){
+            r_cache[i] = 1.0f;
+        }
+    }
+
+    // For each dimension...
+    local float x_cache[MAX_M];
+    local float xstar_cache[MAX_N];
+    local float drdx[MAX_M*MAX_N];
+    local float dKdx[MAX_M*MAX_N];
+    for (int d=0; d<dim; d++){
+        // Cache scaling parameter
+        float temp = exp(l[d]);
+
+        // Cache dimension dim of all testing inputs x_star
+        for (int i=0; i<n; i++){
+            xstar_cache[i] = xstar[i*dim+d];
+        }
+        // Cache dimension dim of all training inputs x
+        for (int i=0; i<m; i++){
+            x_cache[i] = x[i*dim+d];
+        }
+
+        // Calculate drdx for dimension dim
+        for (int row=0; row<n; row++){
+            int row_stride = row*m;
+
+            for (int col=0; col<m; col++){
+                int index = row_stride + col;
+                float value;
+                // xstar - x in dimension dim only
+                value = xstar_cache[row] - x_cache[col];
+                value *= temp;
+                value /= r_cache[index];
+                drdx[index] = value;
+            }
+        }
+
+        // Calculate dK/dx for dimension dim as the elementwise product of dK/dr
+        // and dr/dx
+        #pragma unroll
+        for (int i=0; i<MAX_M*MAX_N; i++){
+            dKdx[i] = exp_sigma * dKdr[i] * drdx[i];
+        }
+
+        // Calculate d(expectation)/dx for each expectation value for dimension
+        // dim as the dot product of dK/dx and InvQt
+        // These vectors are the columns of deriv
+        for (int row=0; row<n; row++){
+            float value=0;
+            int row_stride = row*m;
+            for (int col=0; col<m; col++){
+                value += dKdx[row_stride+col] * invqt_cache[col];
+            }
+            deriv[row_stride+d] = value;
+        }
     }
 }
