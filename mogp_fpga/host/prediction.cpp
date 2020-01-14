@@ -36,7 +36,7 @@ void compare_results(std::vector<float> expected, std::vector<float> actual,
 // dim - The number of input dimensions (length of X and Xstar records)
 // Xstar - Testing inputs
 // nx_star - Number of testing inputs
-// theta - Hyperparameters (used to scale pairwise distances)
+// scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
 // InvQt - Vector calculated during training (invQ*Y) used for expecation value
 //         calculation
@@ -45,7 +45,7 @@ void compare_results(std::vector<float> expected, std::vector<float> actual,
 // program - The OpenCL Program
 void predict_single(std::vector<float> &X, int nx, int dim,
                     std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &theta, float sigma,
+                    std::vector<float> &scale, float sigma,
                     std::vector<float> &InvQt,
                     std::vector<float> &Ystar,
                     cl::Context &context, cl::Program &program){
@@ -62,7 +62,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     // Create device variables
     cl::Buffer d_X(X.begin(), X.end(), true);
     cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
-    cl::Buffer d_theta(theta.begin(), theta.end(), true);
+    cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl_int status;
     cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
@@ -73,7 +73,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 
     // Prediction
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, dummy, dummy, d_theta, sigma, nx, nxstar,
+                       d_Xstar, k, dummy, dummy, d_scale, sigma, nx, nxstar,
                        dim, 0, 0);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
@@ -90,7 +90,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // dim - The number of input dimensions (length of X and Xstar records)
 // Xstar - Testing inputs
 // nx_star - Number of testing inputs
-// theta - Hyperparameters (used to scale pairwise distances)
+// scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
 // InvQt - Vector calculated during training (invQ*Y) used for expecation value
 //         calculation
@@ -102,7 +102,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // program - The OpenCL Program
 void predict_single(std::vector<float> &X, int nx, int dim,
                     std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &theta, float sigma,
+                    std::vector<float> &scale, float sigma,
                     std::vector<float> &InvQt, std::vector<float> &InvQ,
                     std::vector<float> &Ystar, std::vector<float> &Ystarvar,
                     cl::Context &context, cl::Program &program){
@@ -122,7 +122,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     // Create device variables
     cl::Buffer d_X(X.begin(), X.end(), true);
     cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
-    cl::Buffer d_theta(theta.begin(), theta.end(), true);
+    cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
     //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
@@ -138,7 +138,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 
     // Prediction
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, k2, dummy, d_theta, sigma, nx, nxstar, dim,
+                       d_Xstar, k, k2, dummy, d_scale, sigma, nx, nxstar, dim,
                        1, 0);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
@@ -159,7 +159,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // dim - The number of input dimensions (length of X and Xstar records)
 // Xstar - Testing inputs
 // nx_star - Number of testing inputs
-// theta - Hyperparameters (used to scale pairwise distances)
+// scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
 // InvQt - Vector calculated during training (invQ*Y) used for expecation value
 //         calculation
@@ -172,7 +172,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // program - The OpenCL Program
 void predict_single(std::vector<float> &X, int nx, int dim,
                     std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &theta, float sigma,
+                    std::vector<float> &scale, float sigma,
                     std::vector<float> &InvQt, std::vector<float> &InvQ,
                     std::vector<float> &Ystar, std::vector<float> &Ystarvar,
                     std::vector<float> &Ystarderiv,
@@ -196,7 +196,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     // Create device variables
     cl::Buffer d_X(X.begin(), X.end(), true);
     cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
-    cl::Buffer d_theta(theta.begin(), theta.end(), true);
+    cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
     //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
@@ -213,13 +213,13 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 
     // Prediction
     square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, k2, r, d_theta, sigma, nx, nxstar, dim,
+                       d_Xstar, k, k2, r, d_scale, sigma, nx, nxstar, dim,
                        1, 1);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
     variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
              sigma, nx, nxstar);
-    derivatives(cl::EnqueueArgs(queue4, cl::NDRange(1)), r, d_Ystarderiv, d_X, d_Xstar, d_InvQt, d_theta, sigma, nx, nxstar, dim);
+    derivatives(cl::EnqueueArgs(queue4, cl::NDRange(1)), r, d_Ystarderiv, d_X, d_Xstar, d_InvQt, d_scale, sigma, nx, nxstar, dim);
     queue1.finish();
     queue2.finish();
     queue3.finish();
@@ -294,7 +294,7 @@ int main(){
         // Hyperparameter used to scale predictions
         float sigma = 0.0f;
         // Hyperparameters to set length scale of distances between inputs
-        std::vector<float> h_l = {0.0, 0.0, 0.0};
+        std::vector<float> h_scale = {0.0, 0.0, 0.0};
         // Prediction result
         std::vector<float> h_Ystar(nxstar, 0);
         // Prediction variance
@@ -310,14 +310,14 @@ int main(){
             1.14274266,  0.48175876,  1.52580682
             };
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_Ystar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
         std::cout << std::endl;
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_InvQ, h_Ystar, h_Ystarvar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
@@ -328,7 +328,7 @@ int main(){
             std::cout << i << ' ';
         std::cout << std::endl;
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
                        program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
@@ -363,7 +363,7 @@ int main(){
         h_InvQ = { 3.67879441e-01, -1.79183651e-06, -4.60281258e-07,
                   -1.79183651e-06,  3.67879441e-01, -1.79183651e-06,
                   -4.60281258e-07, -1.79183651e-06,  3.67879441e-01};
-        h_l = {1.0, 1.0, 1.0};
+        h_scale = {1.0, 1.0, 1.0};
         sigma = 1.0;
         expected_Ystar = {0.01741762};
         expected_Ystarvar = {2.718230287};
@@ -371,14 +371,14 @@ int main(){
             -8.88648350e-08,  9.46919992e-02,  2.96161460e-08
             };
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_Ystar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
         std::cout << std::endl;
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_InvQ, h_Ystar, h_Ystarvar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
@@ -389,7 +389,7 @@ int main(){
             std::cout << i << ' ';
         std::cout << std::endl;
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
                        h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
                        program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
