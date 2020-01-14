@@ -358,6 +358,7 @@ int main(){
         h_Xstar = {4.0, 0.0, 2.0};
         h_Ystar.resize(nxstar);
         h_Ystarvar.resize(nxstar);
+        h_Ystarderiv.resize(nxstar*dim);
         h_InvQt = {0.73575167, 1.10362757, 1.47151147};
         h_InvQ = { 3.67879441e-01, -1.79183651e-06, -4.60281258e-07,
                   -1.79183651e-06,  3.67879441e-01, -1.79183651e-06,
@@ -366,6 +367,9 @@ int main(){
         sigma = 1.0;
         expected_Ystar = {0.01741762};
         expected_Ystarvar = {2.718230287};
+        expected_Ystarderiv = {
+            -8.88648350e-08,  9.46919992e-02,  2.96161460e-08
+            };
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
                        h_Ystar, context, program);
@@ -382,6 +386,22 @@ int main(){
         std::cout << std::endl;
         compare_results(expected_Ystarvar, h_Ystarvar, "predict variance");
         for (auto const& i : h_Ystarvar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+
+        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_l, sigma, h_InvQt,
+                       h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
+                       program);
+        compare_results(expected_Ystar, h_Ystar, "predict expectation values");
+        for (auto const& i : h_Ystar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        compare_results(expected_Ystarvar, h_Ystarvar, "predict variance");
+        for (auto const& i : h_Ystarvar)
+            std::cout << i << ' ';
+        std::cout << std::endl;
+        compare_results(expected_Ystarderiv, h_Ystarderiv, "predict derivatives");
+        for (auto const& i : h_Ystarderiv)
             std::cout << i << ' ';
         std::cout << std::endl;
     }
