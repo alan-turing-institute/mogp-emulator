@@ -8,8 +8,8 @@
 #include <iostream>
 #include <vector>
 
-#define MAX_M 128
-#define MAX_N 128
+#define MAX_NX 128
+#define MAX_NXSTAR 128
 
 void compare_results(std::vector<float> expected, std::vector<float> actual,
                      std::string kernel_name){
@@ -65,7 +65,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl_int status;
-    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
     cl::Pipe k(pipe_k);
     cl_mem pipe_dummy = clCreatePipe(context(), 0, sizeof(int), 0, NULL, &status);
     cl::Pipe dummy(pipe_dummy);
@@ -125,11 +125,11 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
-    //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+    //cl::Pipe pipe(context, sizeof(cl_float), MAX_NX);
     cl_int status;
-    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
     cl::Pipe k(pipe_k);
-    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
     cl::Pipe k2(pipe_k2);
     cl_mem pipe_dummy = clCreatePipe(context(), 0, sizeof(int), 0, NULL, &status);
     cl::Pipe dummy(pipe_dummy);
@@ -199,13 +199,13 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
     cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
-    //cl::Pipe pipe(context, sizeof(cl_float), MAX_M);
+    //cl::Pipe pipe(context, sizeof(cl_float), MAX_NX);
     cl_int status;
-    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
     cl::Pipe k(pipe_k);
-    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M, NULL, &status);
+    cl_mem pipe_k2 = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
     cl::Pipe k2(pipe_k2);
-    cl_mem pipe_r = clCreatePipe(context(), 0, sizeof(cl_float), MAX_M*MAX_N, NULL, &status);
+    cl_mem pipe_r = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX*MAX_NXSTAR, NULL, &status);
     cl::Pipe r(pipe_r);
     cl::Buffer d_Ystar(Ystar.begin(), Ystar.end(), false);
     cl::Buffer d_Ystarvar(Ystarvar.begin(), Ystarvar.end(), false);

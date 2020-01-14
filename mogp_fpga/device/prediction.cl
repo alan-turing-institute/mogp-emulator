@@ -1,6 +1,6 @@
 #define MAX_DIM 64
-#define MAX_M 128
-#define MAX_N 128
+#define MAX_NX 128
+#define MAX_NXSTAR 128
 
 // Determine K(X,X*) for the squared exponential Kernel
 //
@@ -93,7 +93,7 @@ kernel void expectation(
     int nx, int nxstar
     ){
     // Copy invqt to local memory
-    local float invqt_cache[MAX_M];
+    local float invqt_cache[MAX_NX];
     for (unsigned i=0; i<nx; i++){
         invqt_cache[i] = invqt[i];
     }
@@ -104,13 +104,13 @@ kernel void expectation(
         float sum = 0;
 
         // Cache column of k
-        float k_cache[MAX_M];
+        float k_cache[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             read_pipe(k1, &k_cache[i]);
         }
 
         #pragma unroll
-        for (unsigned i=0; i<MAX_M; i++){
+        for (unsigned i=0; i<MAX_NX; i++){
             sum += k_cache[i] * invqt_cache[i];
         }
         expectation[col] = sum;
@@ -123,10 +123,10 @@ kernel void variance(
     global float* restrict variance,
     global float* restrict invq, float sigma, int nx, int nxstar
     ){
-    local float invq_cache[MAX_M*MAX_M];
+    local float invq_cache[MAX_NX*MAX_NX];
     for (unsigned i=0; i<nx; i++){
         int offset1 = i*nx;
-        int offset2 = i*MAX_M;
+        int offset2 = i*MAX_NX;
         for (unsigned j=0; j<nx; j++){
             invq_cache[offset2+j] = invq[offset1+j];
         }
@@ -139,7 +139,7 @@ kernel void variance(
         float sum = 0;
 
         // Cache column of k
-        float k_cache[MAX_M];
+        float k_cache[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             read_pipe(k2, &k_cache[i]);
         }
@@ -150,10 +150,10 @@ kernel void variance(
         // sum over
         float var = 0;
         for (unsigned row=0; row<nx; row++){
-            int offset = row*MAX_M;
+            int offset = row*MAX_NX;
             float dot_product = 0;
             #pragma unroll
-            for (unsigned i=0; i<MAX_M; i++){
+            for (unsigned i=0; i<MAX_NX; i++){
                 dot_product += k_cache[i] * invq_cache[offset+i];
             }
             var += dot_product * k_cache[row];
@@ -181,7 +181,7 @@ kernel void derivatives(
         float sigma, int nx, int nxstar, int dim){
 
     // Copy invqt to local memory
-    local float invqt_cache[MAX_M];
+    local float invqt_cache[MAX_NX];
     for (unsigned i=0; i<nx; i++){
         invqt_cache[i] = invqt[i];
     }
@@ -191,8 +191,8 @@ kernel void derivatives(
     exp_sigma = exp(sigma);
 
     // Cache entire r matrix and calculate dK/dr
-    local float r_cache[MAX_M*MAX_N];
-    local float dKdr[MAX_M*MAX_N];
+    local float r_cache[MAX_NX*MAX_NXSTAR];
+    local float dKdr[MAX_NX*MAX_NXSTAR];
     local float dist;
     for (int i=0; i<nx*nxstar; i++){
         read_pipe(r, &r_cache[i]);
@@ -205,7 +205,7 @@ kernel void derivatives(
     // Calculate dr/dx
     // Set 0 values to 1
     #pragma unroll
-    for (int i=0; i<MAX_M*MAX_N; i++){
+    for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
         if (r_cache[i] == 0.0f){
             r_cache[i] = 1.0f;
         }
@@ -217,18 +217,18 @@ kernel void derivatives(
         float scale_d = exp(scale[d]);
 
         // Cache dimension dim of all testing inputs x_star
-        float xstar_cache[MAX_N];
+        float xstar_cache[MAX_NXSTAR];
         for (int i=0; i<nxstar; i++){
             xstar_cache[i] = xstar[i*dim+d];
         }
         // Cache dimension dim of all training inputs x
-        float x_cache[MAX_M];
+        float x_cache[MAX_NX];
         for (int i=0; i<nx; i++){
             x_cache[i] = x[i*dim+d];
         }
 
         // Calculate drdx for dimension dim
-        float drdx[MAX_M*MAX_N];
+        float drdx[MAX_NX*MAX_NXSTAR];
         for (int row=0; row<nxstar; row++){
             int row_stride = row*nx;
 
@@ -245,9 +245,9 @@ kernel void derivatives(
 
         // Calculate dK/dx for dimension dim as the elementwise product of dK/dr
         // and dr/dx
-        float dKdx[MAX_M*MAX_N];
+        float dKdx[MAX_NX*MAX_NXSTAR];
         #pragma unroll
-        for (int i=0; i<MAX_M*MAX_N; i++){
+        for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
             dKdx[i] = exp_sigma * dKdr[i] * drdx[i];
         }
 
