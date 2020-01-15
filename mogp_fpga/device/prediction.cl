@@ -4,8 +4,10 @@
 
 // Determine K(X,X*) for the squared exponential Kernel
 //
-// x is an (nx,dim) array, xstar is an (nxstar,dim) array both representing n
-// vectors of length dim
+// x is an (nx,dim) array representing nx training inputs of dimension dim
+//
+// xstar is an (nxstar,dim) array representing nxstar prediction inputs of
+// dimension dim
 //
 // scale is a (dim) array or scaling parameters. The difference between
 // dimension i, for each pair of x and y vectors are divided by scale[i]
@@ -19,6 +21,7 @@
 // derivative calculation) when deriv=1
 //
 // nx, nxstar are the number of vectors in x and xstar respectively
+//
 // dim is the number of dimensions in each of the vectors of x and xstar
 kernel void sq_exp(global float* restrict x, global float* restrict xstar,
                    write_only pipe float __attribute__((blocking)) k1,
@@ -86,6 +89,18 @@ kernel void sq_exp(global float* restrict x, global float* restrict xstar,
 }
 
 // Determine the expectation values of predictions
+//
+// k1 is a pipe which provides the square exponential kernel of X and X* in
+// column major order
+//
+// invqt is an array of length nx calculated during training which is used to
+// determine expectation values of the predictions.
+// Q = K(X,X) + nugget , invqt = Q^-1 * Y
+//
+// expectation is an array of length nxstar where the predictions' expectation
+// values are written
+//
+// nx and nxstar, as before, are the number of inputs in X and X* respectively
 kernel void expectation(
     read_only pipe float __attribute__((blocking)) k1,
     global float* restrict invqt,
@@ -98,8 +113,8 @@ kernel void expectation(
         invqt_cache[i] = invqt[i];
     }
 
-    // Calculate one element of c at at time by finding the 'dot product' of
-    // one column of k with invqt
+    // Calculate one predictions expectation value at time by finding the 'dot
+    // product' of one column of k with invqt
     for (unsigned col=0; col<nxstar; col++){
         float sum = 0;
 
@@ -109,6 +124,7 @@ kernel void expectation(
             read_pipe(k1, &k_cache[i]);
         }
 
+        // Dot product
         #pragma unroll
         for (unsigned i=0; i<MAX_NX; i++){
             sum += k_cache[i] * invqt_cache[i];
@@ -118,6 +134,19 @@ kernel void expectation(
 }
 
 // Determine the variance of predictions
+//
+// k2 is a pipe which provides the square exponential kernel of X and X* in
+// column major order
+//
+// variance is an array of length nxstar where the predictions' variance
+// values are written
+//
+// invq is a (nx,nx) matrix calculated during training
+// Q = K(X,X) + nugget , invq = Q^-1
+//
+// sigma, as before, is the prefactor in the squared exponential kernel
+//
+// nx and nxstar, as before, are the number of inputs in X and X* respectively
 kernel void variance(
     read_only pipe float __attribute__((blocking)) k2,
     global float* restrict variance,
@@ -145,9 +174,6 @@ kernel void variance(
         }
 
         // Variance calculation
-        // dot products of the column of k with each row of invQ
-        // multiplied elementwise by the column of k
-        // sum over
         float var = 0;
         for (unsigned row=0; row<nx; row++){
             int offset = row*MAX_NX;
@@ -173,6 +199,30 @@ kernel void variance(
 // this kernel can run concurrently with the others. However, the derivative of
 // the kernel matrix with respect to r can be calculated as r values are read
 // in.
+//
+// r is a pipe which supplies the distance between each pair of (X, X*) in
+// column major order (as with the k pipes)
+//
+// deriv is an (nxstar,dim) array giving the derivative of each prediction with
+// respect to each dimension of the inputs X*
+//
+// x is an (nx,dim) array representing nx training inputs of dimension dim
+//
+// xstar is an (nxstar,dim) array representing nxstar prediction inputs of
+// dimension dim
+//
+// invqt is an array of length nx calculated during training which is used to
+// determine expectation values of the predictions.
+// Q = K(X,X) + nugget , invqt = Q^-1 * Y
+//
+// scale is a (dim) array or scaling parameters. The difference between
+// dimension i, for each pair of x and y vectors are divided by scale[i]
+//
+// sigma, as before, is the prefactor in the squared exponential kernel
+//
+// nx and nxstar, as before, are the number of inputs in X and X* respectively
+//
+// dim is the number of dimensions in each of the vectors of x and xstar
 kernel void derivatives(
         read_only pipe float __attribute__((blocking)) r,
         global float* restrict deriv,
@@ -202,8 +252,8 @@ kernel void derivatives(
     // At this point the exp_sq kernel has finished and determined all pairwise
     // distances
 
-    // Calculate dr/dx
     // Set 0 values to 1
+    // This avoid division by zero in dr/dx calculation
     #pragma unroll
     for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
         if (r_cache[i] == 0.0f){
@@ -227,7 +277,7 @@ kernel void derivatives(
             x_cache[i] = x[i*dim+d];
         }
 
-        // Calculate drdx for dimension dim
+        // Calculate dr/dx for dimension dim
         float drdx[MAX_NX*MAX_NXSTAR];
         for (int row=0; row<nxstar; row++){
             int row_stride = row*nx;
@@ -243,8 +293,8 @@ kernel void derivatives(
             }
         }
 
-        // Calculate dK/dx for dimension dim as the elementwise product of dK/dr
-        // and dr/dx
+        // Calculate dK/dx for dimension dim using the chain rule as the
+        // elementwise product of dK/dr and dr/dx
         float dKdx[MAX_NX*MAX_NXSTAR];
         #pragma unroll
         for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
