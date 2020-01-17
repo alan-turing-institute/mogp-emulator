@@ -310,3 +310,65 @@ class LinearMean(MeanFunction):
         x, params = self._check_inputs(x, params)
 
         return np.broadcast_to(np.reshape(params, (-1, 1)), (x.shape[1], x.shape[0]))
+
+class PolynomialMean(MeanFunction):
+    def __init__(self, degree):
+        assert int(degree) >= 0., "degree must be a positive integer"
+
+        self.degree = int(degree)
+
+    def get_n_params(self, x):
+        return x.shape[1]*self.degree + 1
+
+    def mean_f(self, x, params):
+        x, params = self._check_inputs(x, params)
+
+        n_params = self.get_n_params(x)
+
+        indices = np.arange(0, n_params - 1) % x.shape[1]
+        expon = np.arange(0, n_params - 1) // x.shape[1] + 1
+
+        output = params[0] + np.sum(params[1:]*x[:, indices]**expon, axis = 1)
+
+        return output
+
+    def mean_deriv(self, x, params):
+
+        x, params = self._check_inputs(x, params)
+
+        n_params = self.get_n_params(x)
+
+        deriv = np.zeros((n_params, x.shape[0]))
+        deriv[0] = np.ones(x.shape[0])
+
+        indices = np.arange(0, n_params - 1) % x.shape[1]
+        expon = np.arange(0, n_params - 1) // x.shape[1] + 1
+
+        deriv[1:,:] = np.transpose(x[:, indices]**expon)
+
+        return deriv
+
+    def mean_hessian(self, x, params):
+
+        x, params = self._check_inputs(x, params)
+
+        n_params = self.get_n_params(x)
+
+        hess = np.zeros((n_params, n_params, x.shape[0]))
+
+        return hess
+
+    def mean_inputderiv(self, x, params):
+        x, params = self._check_inputs(x, params)
+
+        expon = np.reshape(np.arange(0, x.shape[0]*x.shape[1]*self.degree)//x.shape[1]//self.degree,
+                           (self.degree, x.shape[0]*x.shape[1]))
+        x_indices = np.reshape(np.arange(0, x.shape[0]*x.shape[1]*self.degree) % (x.shape[0]*x.shape[1]),
+                               (self.degree, x.shape[0]*x.shape[1]))
+        param_indices = np.reshape(np.arange(0, x.shape[0]*x.shape[1]*self.degree) % x.shape[1],
+                                   (self.degree, x.shape[0]*x.shape[1])) + expon*x.shape[1]
+        param_indices = np.reshape(param_indices, (self.degree, x.shape[0]*x.shape[1]))
+
+        output = np.sum((expon + 1.)*params[1:][param_indices]*x.flatten()[x_indices]**expon, axis=0)
+
+        return np.transpose(np.reshape(output, (x.shape[0], x.shape[1])))

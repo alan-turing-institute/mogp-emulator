@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..MeanFunction import MeanFunction, MeanSum, MeanProduct, FixedMean, ConstantMean, LinearMean
+from ..MeanFunction import PolynomialMean
 
 @pytest.fixture
 def mf():
@@ -179,3 +180,29 @@ def test_MeanProduct(x):
     assert_allclose(mf2.mean_deriv(x, params), np.vstack((np.transpose(x), np.transpose(x)))*np.broadcast_to([6., 15.], (6, 2)))
     assert_allclose(mf2.mean_hessian(x, params), hess_expected)
     assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_expected)
+
+def test_PolynomialMean(x):
+    "test the polynomial mean function"
+
+    poly_mean = PolynomialMean(2)
+
+    with pytest.raises(AssertionError):
+        PolynomialMean(-1)
+
+    params = np.arange(1., 8.)
+
+    mean_expected = np.array([(params[0] + params[1]*x[0, 0] + params[2]*x[0, 1] + params[3]*x[0, 2]
+                                         + params[4]*x[0, 0]**2 + params[5]*x[0, 1]**2 + params[6]*x[0, 2]**2),
+                              (params[0] + params[1]*x[1, 0] + params[2]*x[1, 1] + params[3]*x[1, 2]
+                                         + params[4]*x[1, 0]**2 + params[5]*x[1, 1]**2 + params[6]*x[1, 2]**2)])
+    deriv_expected = np.array([[1., 1.], x[:, 0], x[:, 1], x[:, 2],
+                                         x[:, 0]**2, x[:, 1]**2, x[:, 2]**2])
+    hess_expected = np.zeros((7, 7, 2))
+    inputderiv_expected = np.array([[params[1] + 2.*params[4]*x[0,0], params[1] + 2.*params[4]*x[1,0]],
+                                    [params[2] + 2.*params[5]*x[0,1], params[2] + 2.*params[5]*x[1,1]],
+                                    [params[3] + 2.*params[6]*x[0,2], params[3] + 2.*params[6]*x[1,2]]])
+
+    assert_allclose(poly_mean.mean_f(x, params), mean_expected)
+    assert_allclose(poly_mean.mean_deriv(x, params), deriv_expected)
+    assert_allclose(poly_mean.mean_hessian(x, params), hess_expected)
+    assert_allclose(poly_mean.mean_inputderiv(x, params), inputderiv_expected)
