@@ -208,7 +208,8 @@ class FixedMean(MeanFunction):
             def f_full(x, val):
                 return np.broadcast_to(val, x.shape[0])
             f = partial(f_full, val=val)
-            deriv = lambda x: np.zeros((x.shape[1], x.shape[0]))
+            def deriv(x):
+                return np.zeros((x.shape[1], x.shape[0]))
         elif len(args) == 1 or len(args) == 2:
             f = args[0]
             if len(args) == 1:
