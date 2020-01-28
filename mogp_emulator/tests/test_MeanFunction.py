@@ -16,6 +16,10 @@ def x():
 def params():
     return np.array([1., 2., 4.])
 
+@pytest.fixture
+def dx():
+    return 1.e-6
+
 def test_MeanFunction(mf, x, params):
     "test composition of mean functions"
 
@@ -108,7 +112,7 @@ def test_ConstantMean(x):
     assert_allclose(constant_mean.mean_hessian(x, params), np.zeros((1, 1, x.shape[0])))
     assert_allclose(constant_mean.mean_inputderiv(x, params), np.zeros((x.shape[1], x.shape[0])))
 
-def test_LinearMean(x, params):
+def test_LinearMean(x, params, dx):
     "test the linear mean function"
 
     linear_mean = LinearMean()
@@ -121,7 +125,6 @@ def test_LinearMean(x, params):
     assert_allclose(linear_mean.mean_inputderiv(x, params),
                     np.broadcast_to(np.reshape(params, (-1, 1)), (x.shape[1], x.shape[0])))
 
-    dx = 1.e-6
     deriv_fd = np.zeros((3, 2))
     deriv_fd[0] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x, params - np.array([dx, 0., 0.])))/dx
     deriv_fd[1] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x, params - np.array([0., dx, 0.])))/dx
@@ -136,7 +139,7 @@ def test_LinearMean(x, params):
 
     assert_allclose(linear_mean.mean_inputderiv(x, params), inputderiv_fd)
 
-def test_MeanSum(x):
+def test_MeanSum(x, dx):
     "test the MeanSum function"
 
     mf = FixedMean(3.) + LinearMean()
@@ -150,7 +153,6 @@ def test_MeanSum(x):
     assert_allclose(mf.mean_hessian(x, params), np.zeros((3, 3, x.shape[0])))
     assert_allclose(mf.mean_inputderiv(x, params), np.ones((x.shape[1], x.shape[0])))
 
-    dx = 1.e-6
     deriv_fd = np.zeros((3, 2))
     deriv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([dx, 0., 0.])))/dx
     deriv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., dx, 0.])))/dx
@@ -191,7 +193,7 @@ def test_MeanSum(x):
 
     assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_fd)
 
-def test_MeanProduct(x):
+def test_MeanProduct(x, dx):
     "test the MeanProduct function"
 
     mf = FixedMean(3.)*LinearMean()
@@ -205,7 +207,6 @@ def test_MeanProduct(x):
     assert_allclose(mf.mean_hessian(x, params), np.zeros((3, 3, x.shape[0])))
     assert_allclose(mf.mean_inputderiv(x, params), 3.*np.ones((x.shape[1], x.shape[0])))
 
-    dx = 1.e-6
     deriv_fd = np.zeros((3, 2))
     deriv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([dx, 0., 0.])))/dx
     deriv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., dx, 0.])))/dx
@@ -241,7 +242,6 @@ def test_MeanProduct(x):
     assert_allclose(mf2.mean_hessian(x, params), hess_expected)
     assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_expected)
 
-    dx = 1.e-6
     deriv_fd = np.zeros((6, 2))
     deriv_fd[0] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([dx, 0., 0., 0., 0., 0.])))/dx
     deriv_fd[1] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., dx, 0., 0., 0., 0.])))/dx
@@ -269,7 +269,7 @@ def test_MeanProduct(x):
 
     assert_allclose(mf2.mean_hessian(x, params), hess_fd)
 
-def test_PolynomialMean(x):
+def test_PolynomialMean(x, dx):
     "test the polynomial mean function"
 
     poly_mean = PolynomialMean(2)
@@ -295,7 +295,6 @@ def test_PolynomialMean(x):
     assert_allclose(poly_mean.mean_hessian(x, params), hess_expected)
     assert_allclose(poly_mean.mean_inputderiv(x, params), inputderiv_expected)
 
-    dx = 1.e-6
     deriv_fd = np.zeros((7, 2))
     deriv_fd[0] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([dx, 0., 0., 0., 0., 0., 0.])))/dx
     deriv_fd[1] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., dx, 0., 0., 0., 0., 0.])))/dx
