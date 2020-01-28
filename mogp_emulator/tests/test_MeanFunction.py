@@ -121,6 +121,21 @@ def test_LinearMean(x, params):
     assert_allclose(linear_mean.mean_inputderiv(x, params),
                     np.broadcast_to(np.reshape(params, (-1, 1)), (x.shape[1], x.shape[0])))
 
+    dx = 1.e-6
+    deriv_fd = np.zeros((3, 2))
+    deriv_fd[0] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x, params - np.array([0., 0., dx])))/dx
+
+    assert_allclose(linear_mean.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (linear_mean.mean_f(x, params) - linear_mean.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(linear_mean.mean_inputderiv(x, params), inputderiv_fd)
+
 def test_MeanSum(x):
     "test the MeanSum function"
 
@@ -135,6 +150,21 @@ def test_MeanSum(x):
     assert_allclose(mf.mean_hessian(x, params), np.zeros((3, 3, x.shape[0])))
     assert_allclose(mf.mean_inputderiv(x, params), np.ones((x.shape[1], x.shape[0])))
 
+    dx = 1.e-6
+    deriv_fd = np.zeros((3, 2))
+    deriv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., 0., dx])))/dx
+
+    assert_allclose(mf.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(mf.mean_inputderiv(x, params), inputderiv_fd)
+
     mf2 = ConstantMean() + LinearMean()
 
     params = np.ones(4)
@@ -145,6 +175,21 @@ def test_MeanSum(x):
     assert_allclose(mf2.mean_deriv(x, params), np.vstack((np.ones((2,)), np.transpose(x))))
     assert_allclose(mf2.mean_hessian(x, params), np.zeros((4, 4, x.shape[0])))
     assert_allclose(mf2.mean_inputderiv(x, params), np.ones((x.shape[1], x.shape[0])))
+
+    deriv_fd = np.zeros((4, 2))
+    deriv_fd[0] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([dx, 0., 0., 0.])))/dx
+    deriv_fd[1] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., dx, 0., 0.])))/dx
+    deriv_fd[2] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., dx, 0.])))/dx
+    deriv_fd[3] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., 0., dx])))/dx
+
+    assert_allclose(mf2.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_fd)
 
 def test_MeanProduct(x):
     "test the MeanProduct function"
@@ -159,6 +204,21 @@ def test_MeanProduct(x):
     assert_allclose(mf.mean_deriv(x, params), 3.*np.transpose(x))
     assert_allclose(mf.mean_hessian(x, params), np.zeros((3, 3, x.shape[0])))
     assert_allclose(mf.mean_inputderiv(x, params), 3.*np.ones((x.shape[1], x.shape[0])))
+
+    dx = 1.e-6
+    deriv_fd = np.zeros((3, 2))
+    deriv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([dx, 0., 0.])))/dx
+    deriv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., dx, 0.])))/dx
+    deriv_fd[2] = (mf.mean_f(x, params) - mf.mean_f(x, params - np.array([0., 0., dx])))/dx
+
+    assert_allclose(mf.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (mf.mean_f(x, params) - mf.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(mf.mean_inputderiv(x, params), inputderiv_fd)
 
     mf2 = LinearMean()*LinearMean()
 
@@ -180,6 +240,34 @@ def test_MeanProduct(x):
     assert_allclose(mf2.mean_deriv(x, params), np.vstack((np.transpose(x), np.transpose(x)))*np.broadcast_to([6., 15.], (6, 2)))
     assert_allclose(mf2.mean_hessian(x, params), hess_expected)
     assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_expected)
+
+    dx = 1.e-6
+    deriv_fd = np.zeros((6, 2))
+    deriv_fd[0] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([dx, 0., 0., 0., 0., 0.])))/dx
+    deriv_fd[1] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., dx, 0., 0., 0., 0.])))/dx
+    deriv_fd[2] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., dx, 0., 0., 0.])))/dx
+    deriv_fd[3] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., 0., dx, 0., 0.])))/dx
+    deriv_fd[4] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., 0., 0., dx, 0.])))/dx
+    deriv_fd[5] = (mf2.mean_f(x, params) - mf2.mean_f(x, params - np.array([0., 0., 0., 0., 0., dx])))/dx
+
+    assert_allclose(mf2.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (mf2.mean_f(x, params) - mf2.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(mf2.mean_inputderiv(x, params), inputderiv_fd)
+
+    hess_fd = np.zeros((6, 6, 2))
+    hess_fd[:, 0] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([dx, 0., 0., 0., 0., 0.])))/dx
+    hess_fd[:, 1] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([0., dx, 0., 0., 0., 0.])))/dx
+    hess_fd[:, 2] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([0., 0., dx, 0., 0., 0.])))/dx
+    hess_fd[:, 3] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([0., 0., 0., dx, 0., 0.])))/dx
+    hess_fd[:, 4] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([0., 0., 0., 0., dx, 0.])))/dx
+    hess_fd[:, 5] = (mf2.mean_deriv(x, params) - mf2.mean_deriv(x, params - np.array([0., 0., 0., 0., 0., dx])))/dx
+
+    assert_allclose(mf2.mean_hessian(x, params), hess_fd)
 
 def test_PolynomialMean(x):
     "test the polynomial mean function"
@@ -206,3 +294,22 @@ def test_PolynomialMean(x):
     assert_allclose(poly_mean.mean_deriv(x, params), deriv_expected)
     assert_allclose(poly_mean.mean_hessian(x, params), hess_expected)
     assert_allclose(poly_mean.mean_inputderiv(x, params), inputderiv_expected)
+
+    dx = 1.e-6
+    deriv_fd = np.zeros((7, 2))
+    deriv_fd[0] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([dx, 0., 0., 0., 0., 0., 0.])))/dx
+    deriv_fd[1] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., dx, 0., 0., 0., 0., 0.])))/dx
+    deriv_fd[2] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., 0., dx, 0., 0., 0., 0.])))/dx
+    deriv_fd[3] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., 0., 0., dx, 0., 0., 0.])))/dx
+    deriv_fd[4] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., 0., 0., 0., dx, 0., 0.])))/dx
+    deriv_fd[5] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., 0., 0., 0., 0., dx, 0.])))/dx
+    deriv_fd[6] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x, params - np.array([0., 0., 0., 0., 0., 0., dx])))/dx
+
+    assert_allclose(poly_mean.mean_deriv(x, params), deriv_fd)
+
+    inputderiv_fd = np.zeros((3, 2))
+    inputderiv_fd[0] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x - np.array([dx, 0., 0.]), params))/dx
+    inputderiv_fd[1] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x - np.array([0., dx, 0.]), params))/dx
+    inputderiv_fd[2] = (poly_mean.mean_f(x, params) - poly_mean.mean_f(x - np.array([0., 0., dx]), params))/dx
+
+    assert_allclose(poly_mean.mean_inputderiv(x, params), inputderiv_fd, atol=1.e-5)
