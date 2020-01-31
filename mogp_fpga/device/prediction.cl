@@ -173,15 +173,13 @@ kernel void variance(
 
         // Cholesky solve for one column of k
         //
-        // There is potential for unrolling loops here is we can ensure certain
-        // elements of x, y or the chol_cache are zero.
-        //
         // Forward substitution
         float x[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             float temp;
             temp = k_cache[i];
-            for (unsigned j=i-1; j>=0; j--){
+            #pragma unroll
+            for (unsigned j=MAX_NX-1; j>=0; j--){
                 temp -= chol_cache[i, j]*y[j];
             }
             y[i] = temp / chol_cache[i, i];
@@ -192,7 +190,8 @@ kernel void variance(
         for (unsigned i=nx-1; i>=0; i--){
             float temp;
             temp = y[i];
-            for (unsigned j=i+1; i<nx; i++){
+            #pragma unroll
+            for (unsigned j=0; i<MAX_NX; i++){
                 temp -= chol_cache[j, i]*x[j];
             }
             x[i] = temp / chol_cache[i, i];
