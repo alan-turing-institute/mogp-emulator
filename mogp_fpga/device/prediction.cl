@@ -141,8 +141,7 @@ kernel void expectation(
 // variance is an array of length nxstar where the predictions' variance
 // values are written
 //
-// invq is a (nx,nx) matrix calculated during training
-// Q = K(X,X) + nugget , invq = Q^-1
+// cholesky_factor is the (nx,nx) lower triangular cholesky factor of K(X,X)
 //
 // sigma, as before, is the prefactor in the squared exponential kernel
 //
@@ -150,40 +149,62 @@ kernel void expectation(
 kernel void variance(
     read_only pipe float __attribute__((blocking)) k2,
     global float* restrict variance,
-    global float* restrict invq, float sigma, int nx, int nxstar
+    global float* restrict cholesky_factor, float sigma, int nx, int nxstar
     ){
-    local float invq_cache[MAX_NX*MAX_NX];
+    local float chol_cache[MAX_NX*MAX_NX];
     for (unsigned i=0; i<nx; i++){
         int offset1 = i*nx;
         int offset2 = i*MAX_NX;
         for (unsigned j=0; j<nx; j++){
-            invq_cache[offset2+j] = invq[offset1+j];
+            chol_cache[offset2+j] = cholesky_factor[offset1+j];
         }
     }
     // Take exponential of sigma
     local float exp_sigma;
     exp_sigma = exp(sigma);
 
+    // Calculate variance for one prediction per iteration
     for (unsigned col=0; col<nxstar; col++){
-        float sum = 0;
-
         // Cache column of k
         float k_cache[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             read_pipe(k2, &k_cache[i]);
         }
 
-        // Variance calculation
-        float var = 0;
-        for (unsigned row=0; row<nx; row++){
-            int offset = row*MAX_NX;
-            float dot_product = 0;
-            #pragma unroll
-            for (unsigned i=0; i<MAX_NX; i++){
-                dot_product += k_cache[i] * invq_cache[offset+i];
+        // Cholesky solve for one column of k
+        //
+        // There is potential for unrolling loops here is we can ensure certain
+        // elements of x, y or the chol_cache are zero.
+        //
+        // Forward substitution
+        float x[MAX_NX];
+        for (unsigned i=0; i<nx; i++){
+            float temp;
+            temp = k_cache[i];
+            for (unsigned j=i-1; j>=0; j--){
+                temp -= chol_cache[i, j]*y[j];
             }
-            var += dot_product * k_cache[row];
+            y[i] = temp / chol_cache[i, i];
         }
+
+        // Back substitution
+        float y[MAX_NX];
+        for (unsigned i=nx-1; i>=0; i--){
+            float temp;
+            temp = y[i];
+            for (unsigned j=i+1; i<nx; i++){
+                temp -= chol_cache[j, i]*x[j];
+            }
+            x[i] = temp / chol_cache[i, i];
+        }
+
+        // Multiply solution elementwise with column of k and sum
+        float var = 0;
+        #pragma unroll
+        for (unsigned i=0; i<MAX_NX; i++){
+            var += k_cache[i] * x[i];
+        }
+
         // Subtract from hyperparameter
         var = exp_sigma - var;
         variance[col] = max(var, 0.0f);
