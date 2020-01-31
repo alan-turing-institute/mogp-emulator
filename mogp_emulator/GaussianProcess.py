@@ -480,8 +480,7 @@ class GaussianProcess(object):
         dmdtheta = self.mean.mean_deriv(self.inputs, self.theta[:switch])
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:])
 
-        for d in range(switch):
-            partials[d] = -linalg.cho_solve((self.L, True), dmdtheta[d])
+        partials[:switch] = -np.dot(dmdtheta, self.invQt)
 
         for d in range(self.D + 1):
             invQ_dot_dKdtheta_trace = np.trace(linalg.cho_solve((self.L, True), dKdtheta[d]))
@@ -530,12 +529,13 @@ class GaussianProcess(object):
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:])
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta[switch:])
 
-        for d1 in range(switch):
-            hessian[d1, :switch] = -linalg.cho_solve((self.L, True), d2mdtheta2[d1])
+        hessian[switch:, switch:] = -(np.dot(d2mdtheta2, self.invQt) -
+                                      np.dot(dmdtheta, linalg.cho_solve((self.L, True),
+                                                                        np.transpose(dmdtheta))))
 
-            invQ_dot_d1 = linalg.cho_solve((self.L, True), dmdtheta[d1])
-            for d2 in range(self.D + 1):
-                hessian[d1, d2] = linalg.cho_solve((self.L, True), np.dot(dKdtheta[d2], invQ_dot_d1))
+        hessian[:switch, switch:] = -np.dot(dmdtheta,
+                                            linalg.cho_solve((self.L, True),
+                                                             np.transpose(np.dot(dKdtheta, self.invQt))))
 
         hessian[switch:, :switch] = np.transpose(hessian[:switch, switch:])
 
