@@ -1,5 +1,6 @@
 import numpy as np
 from .Kernel import SquaredExponential
+from .MeanFunction import FixedMean
 from .MCMC import sample_MCMC
 from scipy.optimize import minimize
 from scipy import linalg
@@ -133,7 +134,8 @@ class GaussianProcess(object):
 
         self.nugget = nugget
 
-        self.kernel =  SquaredExponential()
+        self.mean = FixedMean(0.)
+        self.kernel = SquaredExponential()
 
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -237,6 +239,20 @@ class GaussianProcess(object):
         """
 
         return self.D
+
+    def get_n_params(self):
+        """
+        Returns number of hyperparameters
+
+        Returns the number of hyperparameters for the emulator. The number depends on the
+        choice of mean function, covariance function, and nugget strategy, and possibly the
+        number of inputs for certain choices of the mean function.
+
+        :returns: Number of hyperparameters
+        :rtype: int
+        """
+
+        return self.mean.get_n_params(self.inputs) + self.D + 1
 
     def get_params(self):
         """
@@ -367,7 +383,10 @@ class GaussianProcess(object):
 
         assert not self.theta is None, "Must set a parameter value to fit a GP"
 
-        Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta)
+        switch = self.mean.get_n_params(self.inputs)
+
+        m = self.mean.mean_f(self.inputs, self.theta[:switch])
+        Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta[switch:])
 
         if self.nugget == None:
             self.L, nugget = self._jit_cholesky(Q)
@@ -376,7 +395,8 @@ class GaussianProcess(object):
             Z = Q + self.nugget*np.eye(self.n)
             self.L = linalg.cholesky(Z, lower=True)
 
-        self.invQt = linalg.cho_solve((self.L, True), self.targets)
+        self.invQt = linalg.cho_solve((self.L, True), self.targets - m)
+        self.tinvQt = np.dot(self.targets - m, self.invQt)
         self.logdetQ = 2.0 * np.sum(np.log(np.diag(self.L)))
 
     def _set_params(self, theta):
@@ -395,7 +415,7 @@ class GaussianProcess(object):
         """
 
         theta = np.array(theta)
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         self.theta = theta
         self._prepare_likelihood()
@@ -419,7 +439,7 @@ class GaussianProcess(object):
         self._set_params(theta)
 
         loglikelihood = (0.5 * self.logdetQ +
-                         0.5 * np.dot(self.targets, self.invQt) +
+                         0.5 * self.tinvQt +
                          0.5 * self.n * np.log(2. * np.pi))
 
         return loglikelihood
@@ -448,19 +468,25 @@ class GaussianProcess(object):
         :rtype: ndarray
         """
 
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
 
-        partials = np.zeros(self.D + 1)
+        partials = np.zeros(self.get_n_params())
 
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
+        switch = self.mean.get_n_params(self.inputs)
+
+        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta[:switch])
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:])
+
+        for d in range(switch):
+            partials[d] = -linalg.cho_solve((self.L, True), dmdtheta[d])
 
         for d in range(self.D + 1):
             invQ_dot_dKdtheta_trace = np.trace(linalg.cho_solve((self.L, True), dKdtheta[d]))
-            partials[d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
-                                  invQ_dot_dKdtheta_trace)
+            partials[switch + d] = -0.5 * (np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
+                                           invQ_dot_dKdtheta_trace)
 
         return partials
 
@@ -490,26 +516,39 @@ class GaussianProcess(object):
         :rtype: ndarray
         """
 
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
 
-        hessian = np.zeros((self.D + 1, self.D + 1))
+        hessian = np.zeros((self.get_n_params(), self.get_n_params()))
 
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
-        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
+        switch = self.mean.get_n_params(self.inputs)
+
+        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta[:switch])
+        d2mdtheta2 = self.mean.mean_hessian(self.inputs, self.theta[:switch])
+        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:])
+        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta[switch:])
+
+        for d1 in range(switch):
+            hessian[d1, :switch] = -linalg.cho_solve((self.L, True), d2mdtheta2[d1])
+
+            invQ_dot_d1 = linalg.cho_solve((self.L, True), dmdtheta[d1])
+            for d2 in range(self.D + 1):
+                hessian[d1, d2] = linalg.cho_solve((self.L, True), np.dot(dKdtheta[d2], invQ_dot_d1))
+
+        hessian[switch:, :switch] = np.transpose(hessian[:switch, switch:])
 
         for d1 in range(self.D + 1):
             invQ_dot_d1 = linalg.cho_solve((self.L, True), dKdtheta[d1])
             for d2 in range(self.D + 1):
                 invQ_dot_d2 = linalg.cho_solve((self.L, True), dKdtheta[d2])
                 invQ_dot_d1d2 = linalg.cho_solve((self.L, True), d2Kdtheta2[d1, d2])
-                hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt,
-                                                            2.*np.dot(dKdtheta[d1], invQ_dot_d2) -
-                                                            d2Kdtheta2[d1, d2],
-                                                            self.invQt]) -
-                                        np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2))
+                term_1 = np.linalg.multi_dot([self.invQt,
+                                              2.*np.dot(dKdtheta[d1], invQ_dot_d2) - d2Kdtheta2[d1, d2],
+                                              self.invQt])
+                term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
+                hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
 
         return hessian
 
@@ -606,10 +645,10 @@ class GaussianProcess(object):
         loglikelihood_values = []
         theta_values = []
 
-        theta_startvals = 5.*(np.random.rand(n_tries, self.D + 1) - 0.5)
+        theta_startvals = 5.*(np.random.rand(n_tries, self.get_n_params()) - 0.5)
         if not theta0 is None:
             theta0 = np.array(theta0)
-            assert theta0.shape == (self.D + 1,), "theta0 must be a 1D array with length D + 1"
+            assert theta0.shape == (self.get_n_params(),), "theta0 must be a 1D array with length D + 1"
             theta_startvals[0,:] = theta0
 
         for theta in theta_startvals:
@@ -659,7 +698,7 @@ class GaussianProcess(object):
 
         try:
             L = np.linalg.cholesky(hess)
-            cov = linalg.cho_solve((L, True), np.eye(self.D + 1))
+            cov = linalg.cho_solve((L, True), np.eye(self.get_n_params()))
         except linalg.LinAlgError:
             raise linalg.LinAlgError("Hessian matrix is not symmetric positive definite, optimization may not have converged")
 
@@ -871,9 +910,11 @@ class GaussianProcess(object):
 
         exp_theta = np.exp(self.theta)
 
-        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta)
+        switch = self.mean.get_n_params(testing)
+        mtest = self.mean.mean_f(testing, self.theta[:switch])
+        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta[switch:])
 
-        mu = np.dot(Ktest.T, self.invQt)
+        mu = mtest + np.dot(Ktest.T, self.invQt)
 
         var = None
         if do_unc:
@@ -883,9 +924,9 @@ class GaussianProcess(object):
         deriv = None
         if do_deriv:
             deriv = np.zeros((n_testing, self.D))
-            kern_deriv = self.kernel.kernel_inputderiv(testing, self.inputs, self.theta)
-            for d in range(self.D):
-                deriv[:, d] = np.dot(kern_deriv[d], self.invQt)
+            mean_deriv = self.mean.mean_inputderiv(testing, self.theta[:switch])
+            kern_deriv = self.kernel.kernel_inputderiv(testing, self.inputs, self.theta[switch:])
+            deriv = np.transpose(mean_deriv + np.dot(kern_deriv, self.invQt))
 
         return mu, var, deriv
 
@@ -971,7 +1012,7 @@ class GaussianProcess(object):
 
         mu_mean = np.mean(mu, axis = 0)
         if do_unc:
-            var_mean = np.mean(var, axis = 0)+np.var(mu, axis = 0)
+            var_mean = np.mean(var, axis = 0) + np.var(mu, axis = 0)
         else:
             var_mean = None
         if do_deriv:

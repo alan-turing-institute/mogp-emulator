@@ -199,17 +199,20 @@ class MeanProduct(MeanFunction):
                 self.f1.mean_f(x, params[:switch])*
                 self.f2.mean_inputderiv(x, params[switch:]))
 
+def const_f(x, val):
+    return np.broadcast_to(val, x.shape[0])
+
+def zero_inputderiv(x):
+    return np.zeros((x.shape[1], x.shape[0]))
+
 class FixedMean(MeanFunction):
     "a mean function with a fixed function/derivative and no fitting parameters"
     def __init__(self, *args):
 
         if len(args) == 1 and isinstance(args[0], (float, int)):
             val = float(args[0])
-            def f_full(x, val):
-                return np.broadcast_to(val, x.shape[0])
-            f = partial(f_full, val=val)
-            def deriv(x):
-                return np.zeros((x.shape[1], x.shape[0]))
+            f = partial(const_f, val=val)
+            deriv = zero_inputderiv
         elif len(args) == 1 or len(args) == 2:
             f = args[0]
             if len(args) == 1:
