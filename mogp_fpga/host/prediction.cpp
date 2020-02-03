@@ -38,8 +38,8 @@ void compare_results(std::vector<float> expected, std::vector<float> actual,
 // nx_star - Number of testing inputs
 // scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
-// InvQt - Vector calculated during training (invQ*Y) used for expecation value
-//         calculation
+// InvQt - Vector, calculated during training, used for expecation value
+//         calculation (Q = K(X,X), InvQt = Q^-1 * Y)
 // Ystar - Training prediction expectation values
 // context - The OpenCL Context
 // program - The OpenCL Program
@@ -92,10 +92,10 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // nx_star - Number of testing inputs
 // scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
-// InvQt - Vector calculated during training (invQ*Y) used for expecation value
-//         calculation
-// invQ - Matrix calculated during training ((K(X,X) + nugget)^-1) used for
-//        variance calculation
+// InvQt - Vector, calculated during training, used for expecation value
+//         calculation (Q = K(X,X), InvQt = Q^-1 * Y)
+// Q_chol - Lower triangular cholesky factor of K(X,X), used for variance
+//          calculation
 // Ystar - Training prediction expectation values
 // Ystarvar - Training prediction variances
 // context - The OpenCL Context
@@ -103,7 +103,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 void predict_single(std::vector<float> &X, int nx, int dim,
                     std::vector<float> &Xstar, int nxstar,
                     std::vector<float> &scale, float sigma,
-                    std::vector<float> &InvQt, std::vector<float> &InvQ,
+                    std::vector<float> &InvQt, std::vector<float> &Q_chol,
                     std::vector<float> &Ystar, std::vector<float> &Ystarvar,
                     cl::Context &context, cl::Program &program){
 
@@ -124,7 +124,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
     cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
-    cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
+    cl::Buffer d_Q_chol(Q_chol.begin(), Q_chol.end(), true);
     //cl::Pipe pipe(context, sizeof(cl_float), MAX_NX);
     cl_int status;
     cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
@@ -142,7 +142,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
                        1, 0);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
-    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
+    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_Q_chol,
              sigma, nx, nxstar);
     queue1.finish();
     queue2.finish();
@@ -161,10 +161,10 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // nx_star - Number of testing inputs
 // scale - Per dimension scaling factors for pairwise distances)
 // sigma - Kernel scaling parameter
-// InvQt - Vector calculated during training (invQ*Y) used for expecation value
-//         calculation
-// invQ - Matrix calculated during training ((K(X,X) + nugget)^-1) used for
-//        variance calculation
+// InvQt - Vector, calculated during training, used for expecation value
+//         calculation (Q = K(X,X), InvQt = Q^-1 * Y)
+// Q_chol - Lower triangular cholesky factor of K(X,X), used for variance
+//          calculation
 // Ystar - Training prediction expectation values
 // Ystarvar - Training prediction variances
 // Ystarderiv - Prediction derivatives
@@ -173,7 +173,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 void predict_single(std::vector<float> &X, int nx, int dim,
                     std::vector<float> &Xstar, int nxstar,
                     std::vector<float> &scale, float sigma,
-                    std::vector<float> &InvQt, std::vector<float> &InvQ,
+                    std::vector<float> &InvQt, std::vector<float> &Q_chol,
                     std::vector<float> &Ystar, std::vector<float> &Ystarvar,
                     std::vector<float> &Ystarderiv,
                     cl::Context &context, cl::Program &program){
@@ -198,7 +198,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::Buffer d_Xstar(Xstar.begin(), Xstar.end(), true);
     cl::Buffer d_scale(scale.begin(), scale.end(), true);
     cl::Buffer d_InvQt(InvQt.begin(), InvQt.end(), true);
-    cl::Buffer d_InvQ(InvQ.begin(), InvQ.end(), true);
+    cl::Buffer d_Q_chol(Q_chol.begin(), Q_chol.end(), true);
     //cl::Pipe pipe(context, sizeof(cl_float), MAX_NX);
     cl_int status;
     cl_mem pipe_k = clCreatePipe(context(), 0, sizeof(cl_float), MAX_NX, NULL, &status);
@@ -217,7 +217,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
                        1, 1);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar, nx,
                 nxstar);
-    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_InvQ,
+    variance(cl::EnqueueArgs(queue3, cl::NDRange(1)), k2, d_Ystarvar, d_Q_chol,
              sigma, nx, nxstar);
     derivatives(cl::EnqueueArgs(queue4, cl::NDRange(1)), r, d_Ystarderiv, d_X, d_Xstar, d_InvQt, d_scale, sigma, nx, nxstar, dim);
     queue1.finish();
@@ -288,9 +288,9 @@ int main(){
         // InvQt vector, a product of training
         std::vector<float> h_InvQt = {1.9407565, 2.93451157, 3.95432381};
         // InvQ matrix, a product of training
-        std::vector<float> h_InvQ = { 1.0001672 , -0.01103735, -0.00661646,
-                                     -0.01103735,  1.00024523, -0.01103735,
-                                     -0.00661646, -0.01103735,  1.0001672};
+        std::vector<float> h_Q_chol = {1.00000000, 0.00000000, 0.00000000,
+                                       0.01110900, 0.99993829, 0.00000000,
+                                       0.00673795, 0.01103483, 0.99991641};
         // Hyperparameter used to scale predictions
         float sigma = 0.0f;
         // Hyperparameters to set length scale of distances between inputs
@@ -318,7 +318,7 @@ int main(){
         std::cout << std::endl;
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
-                       h_InvQ, h_Ystar, h_Ystarvar, context, program);
+                       h_Q_chol, h_Ystar, h_Ystarvar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
@@ -329,7 +329,7 @@ int main(){
         std::cout << std::endl;
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
-                       h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
+                       h_Q_chol, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
                        program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
@@ -360,9 +360,9 @@ int main(){
         h_Ystarvar.resize(nxstar);
         h_Ystarderiv.resize(nxstar*dim);
         h_InvQt = {0.73575167, 1.10362757, 1.47151147};
-        h_InvQ = { 3.67879441e-01, -1.79183651e-06, -4.60281258e-07,
-                  -1.79183651e-06,  3.67879441e-01, -1.79183651e-06,
-                  -4.60281258e-07, -1.79183651e-06,  3.67879441e-01};
+        h_Q_chol = {1.64872127e+00, 0.00000000e+00, 0.00000000e+00
+                    8.03046416e-06, 1.64872127e+00, 0.00000000e+00
+                    2.06287660e-06, 8.03045412e-06, 1.64872127e+00};
         h_scale = {1.0, 1.0, 1.0};
         sigma = 1.0;
         expected_Ystar = {0.01741762};
@@ -379,7 +379,7 @@ int main(){
         std::cout << std::endl;
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
-                       h_InvQ, h_Ystar, h_Ystarvar, context, program);
+                       h_Q_chol, h_Ystar, h_Ystarvar, context, program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
@@ -390,7 +390,7 @@ int main(){
         std::cout << std::endl;
 
         predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
-                       h_InvQ, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
+                       h_Q_chol, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
                        program);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)

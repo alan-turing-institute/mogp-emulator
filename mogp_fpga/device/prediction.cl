@@ -95,7 +95,7 @@ kernel void sq_exp(global float* restrict x, global float* restrict xstar,
 //
 // invqt is an array of length nx calculated during training which is used to
 // determine expectation values of the predictions.
-// Q = K(X,X) + nugget , invqt = Q^-1 * Y
+// Q = K(X,X), invqt = Q^-1 * Y
 //
 // expectation is an array of length nxstar where the predictions' expectation
 // values are written
@@ -233,7 +233,7 @@ kernel void variance(
 //
 // invqt is an array of length nx calculated during training which is used to
 // determine expectation values of the predictions.
-// Q = K(X,X) + nugget , invqt = Q^-1 * Y
+// Q = K(X,X), invqt = Q^-1 * Y
 //
 // scale is a (dim) array or scaling parameters. The difference between
 // dimension i, for each pair of x and y vectors are divided by scale[i]
