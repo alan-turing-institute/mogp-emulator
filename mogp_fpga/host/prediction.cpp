@@ -3,8 +3,6 @@
 
 #include "CL/cl2.hpp"
 #include "CL/cl.h"
-#include <algorithm>
-#include <cmath>
 #include <iostream>
 #include <vector>
 
