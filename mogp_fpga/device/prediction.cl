@@ -174,7 +174,7 @@ kernel void variance(
         // Cholesky solve for one column of k
         //
         // Forward substitution
-        float x[MAX_NX];
+        float y[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             float temp;
             temp = k_cache[i];
@@ -186,7 +186,7 @@ kernel void variance(
         }
 
         // Back substitution
-        float y[MAX_NX];
+        float x[MAX_NX];
         for (unsigned i=nx-1; i>=0; i--){
             float temp;
             temp = y[i];
