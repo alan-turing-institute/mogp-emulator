@@ -207,7 +207,7 @@ kernel void variance(
             float temp;
             temp = y[i];
             #pragma unroll
-            for (unsigned j=0; i<MAX_NX; i++){
+            for (unsigned j=0; j<MAX_NX; j++){
                 // printf("\t\tj=%d\n", j);
                 temp -= chol_cache[j*MAX_NX+i] * x[j];
             }
