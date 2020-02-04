@@ -5,6 +5,7 @@
 #include "CL/cl.h"
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 #define MAX_NX 128
 #define MAX_NXSTAR 128
