@@ -177,12 +177,13 @@ kernel void variance(
         float y[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             float temp;
+            int offset = i*MAX_NX;
             temp = k_cache[i];
             #pragma unroll
             for (unsigned j=MAX_NX-1; j>=0; j--){
-                temp -= chol_cache[i*MAX_NX+j]*y[j];
+                temp -= chol_cache[offset+j] * y[j];
             }
-            y[i] = temp / chol_cache[i*MAX_NX+i];
+            y[i] = temp / chol_cache[offset+i];
         }
 
         // Back substitution
@@ -192,7 +193,7 @@ kernel void variance(
             temp = y[i];
             #pragma unroll
             for (unsigned j=0; i<MAX_NX; i++){
-                temp -= chol_cache[j*MAX_NX+i]*x[j];
+                temp -= chol_cache[j*MAX_NX+i] * x[j];
             }
             x[i] = temp / chol_cache[i*MAX_NX+i];
         }
