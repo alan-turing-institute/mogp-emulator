@@ -180,9 +180,9 @@ kernel void variance(
             temp = k_cache[i];
             #pragma unroll
             for (unsigned j=MAX_NX-1; j>=0; j--){
-                temp -= chol_cache[i, j]*y[j];
+                temp -= chol_cache[i*MAX_NX+j]*y[j];
             }
-            y[i] = temp / chol_cache[i, i];
+            y[i] = temp / chol_cache[i*MAX_NX+i];
         }
 
         // Back substitution
@@ -192,9 +192,9 @@ kernel void variance(
             temp = y[i];
             #pragma unroll
             for (unsigned j=0; i<MAX_NX; i++){
-                temp -= chol_cache[j, i]*x[j];
+                temp -= chol_cache[j*MAX_NX+i]*x[j];
             }
-            x[i] = temp / chol_cache[i, i];
+            x[i] = temp / chol_cache[i*MAX_NX+i];
         }
 
         // Multiply solution elementwise with column of k and sum
