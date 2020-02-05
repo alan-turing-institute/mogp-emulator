@@ -151,7 +151,6 @@ kernel void variance(
     global float* restrict variance,
     global float* restrict cholesky_factor, float sigma, int nx, int nxstar
     ){
-    //printf("start\n");
     local float chol_cache[MAX_NX*MAX_NX];
     for (unsigned i=0; i<nx; i++){
         int offset1 = i*nx;
@@ -160,30 +159,27 @@ kernel void variance(
             chol_cache[offset2+j] = cholesky_factor[offset1+j];
         }
     }
-    //printf("chol copied\n");
     // Take exponential of sigma
     local float exp_sigma;
     exp_sigma = exp(sigma);
-    //printf("sigma\n");
 
     // Calculate variance for one prediction per iteration
-    // printf("columns: %d\n", nxstar);
     for (unsigned col=0; col<nxstar; col++){
-        //printf("column %d\n", col);
         // Cache column of k
         float k_cache[MAX_NX];
         for (unsigned i=0; i<nx; i++){
             read_pipe(k2, &k_cache[i]);
         }
-        // printf("k copied\n");
 
         // Cholesky solve for one column of k
         //
         // Forward substitution
-        // printf("forward sub\n");
         float y[MAX_NX];
+        #pragma unroll
+        for (unsigned i=0; i<MAX_NX; i++){
+            y[i] = 0.0;
+        }
         for (unsigned i=0; i<nx; i++){
-            // printf("\ti=%d\n", i);
             float temp;
             int offset = i*MAX_NX;
             temp = k_cache[i];
@@ -191,24 +187,24 @@ kernel void variance(
             // for (unsigned j=MAX_NX-1; j>=0; j--){
             for (unsigned t=0; t<MAX_NX; t++){
                 int j = MAX_NX-t-1;
-                // printf("\t\tj=%d\n", j);
                 temp -= chol_cache[offset+j] * y[j];
             }
             y[i] = temp / chol_cache[offset+i];
         }
 
         // Back substitution
-        // printf("back sub\n");
         float x[MAX_NX];
+        #pragma unroll
+        for (unsigned i=0; i<MAX_NX; i++){
+            x[i] = 0.0;
+        }
         // for (unsigned i=nx-1; i>=0; i--){
         for (unsigned t=0; t<nx; t++){
             int i = nx-t-1;
-            // printf("\ti=%d\n", i);
             float temp;
             temp = y[i];
             #pragma unroll
             for (unsigned j=0; j<MAX_NX; j++){
-                // printf("\t\tj=%d\n", j);
                 temp -= chol_cache[j*MAX_NX+i] * x[j];
             }
             x[i] = temp / chol_cache[i*MAX_NX+i];
