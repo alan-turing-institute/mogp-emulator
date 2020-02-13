@@ -2,10 +2,50 @@ import numpy as np
 from functools import partial
 
 class MeanFunction(object):
-    "base class for mean function, implements sum, product, and composition methods"
+    """
+    Base mean function class
+
+    The base class for the mean function implementation includes code for checking inputs and
+    implements sum, product, and composition methods to allow more complicated functions to be
+    built up from fixed functions and fitting coefficients. Subclasses need to implement the
+    following methods:
+
+    * ``get_n_params`` which returns the number of parameters for a given input size. This is
+      usually a constant, but can be more complicated (such as the provided ``PolynomialMean``
+      class)
+    * ``mean_f`` computes the mean function for the provided inputs and parameters
+    * ``mean_deriv`` computes the derivative with respect to the parameters
+    * ``mean_hessian`` computes the hessian with respect to the parameters
+    * ``mean_inputderiv`` computes the derivate with respect to the inputs
+
+    The base class does not have any attributes, but subclasses will usually have some
+    attributes that must be set and so are likely to need a ``__init__`` method.
+    """
 
     def _check_inputs(self, x, params):
-        "check the shape of the inputs and reshape if needed"
+        """
+        Check the shape of the inputs and reshape if needed
+
+        This method checks that the inputs and parameters are consistent for the provided
+        mean function. In particular, the following must be met:
+
+        * The inputs ``x`` must be a 2D numpy array, though if it is 1D it is reshaped to add
+          a second dimenion of length 1.
+        * ``params`` must be a 1D numpy array. If a multi-dimensional array is provided, it
+          will be flattened.
+        * ``params`` must have a length that is the same as the return value of ``get_n_params``
+          when called with the inputs. Note that some mean functions may have different
+          numbers of parameters depending on the inputs, so this may not be known in advance.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: tuple containing the reshaped ``x`` and ``params`` arrays
+        :rtype: tuple containing two ndarrays
+        """
 
         x = np.array(x)
         params = np.array(params).flatten()
@@ -21,32 +61,127 @@ class MeanFunction(object):
         return x, params
 
     def get_n_params(self, x):
-        "determine the number of parameters, possibly which is dependent on x"
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
 
         raise NotImplementedError("base mean function does not implement a particular function")
 
     def mean_f(self, x, params):
-        "returns value of mean function"
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. Returns a numpy array of shape ``(x.shape[0],)`` holding
+        the value of the mean function for each input point.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
 
         raise NotImplementedError("base mean function does not implement a particular function")
 
     def mean_deriv(self, x, params):
-        "returns derivative of mean function wrt params"
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, x.shape[0])`` holding the value of the mean
+        function derivative with respect to each parameter (first axis) for each input point
+        (second axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         raise NotImplementedError("base mean function does not implement a particular function")
 
     def mean_hessian(self, x, params):
-        "returns hessian of mean function wrt params"
+        """
+        Returns value of mean function hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, n_params, x.shape[0])`` holding the value
+        of the mean function second derivaties with respect to each parameter pair (first twp axes)
+        for each input point (last axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         raise NotImplementedError("base mean function does not implement a particular function")
 
     def mean_inputderiv(self, x, params):
-        "returns derivative of mean function wrt inputs"
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(x.shape[1], x.shape[0])`` holding the value of the mean
+        function derivative with respect to each input (first axis) for each input point
+        (second axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
 
         raise NotImplementedError("base mean function does not implement a particular function")
 
     def __add__(self, other):
-        "combines two mean functions"
+        """
+        Adds two mean functions
+
+        This method adds two mean functions, returning a ``MeanSum`` object. If the second
+        argument is a float or integer, it is converted to a ``ConstantMean`` object. If
+        the second argument is neither a subclass of ``MeanFunction`` nor a float/int,
+        an exception is raised.
+
+        :param other: Second ``MeanFunction`` (or float/integer) to be added
+        :type other: subclass of MeanFunction or float or int
+        :returns: ``MeanSum`` instance
+        :rtype: MeanSum
+        """
 
         if issubclass(type(other), MeanFunction):
             return MeanSum(self, other)
@@ -56,7 +191,19 @@ class MeanFunction(object):
             raise TypeError("other function cannot be added with a MeanFunction")
 
     def __radd__(self, other):
-        "combines two mean functions"
+        """
+        Right adds two mean functions
+
+        This method adds two mean functions, returning a ``MeanSum`` object. If the second
+        argument is a float or integer, it is converted to a ``ConstantMean`` object. If
+        the second argument is neither a subclass of ``MeanFunction`` nor a float/int,
+        an exception is raised.
+
+        :param other: Second ``MeanFunction`` (or float/integer) to be added
+        :type other: subclass of MeanFunction or float or int
+        :returns: ``MeanSum`` instance
+        :rtype: MeanSum
+        """
 
         if issubclass(type(other), MeanFunction):
             return MeanSum(other, self)
@@ -66,27 +213,62 @@ class MeanFunction(object):
             raise TypeError("other function cannot be added with a MeanFunction")
 
     def __mul__(self, other):
-        "multiplies two mean functions"
+        """
+        Multiplies two mean functions
+
+        This method multiples two mean functions, returning a ``MeanProduct`` object. If
+        the second argument is a float or integer, it is converted to a ``ConstantMean``
+        object. If the second argument is neither a subclass of ``MeanFunction`` nor a
+        float/int, an exception is raised.
+
+        :param other: Second ``MeanFunction`` (or float/integer) to be multiplied
+        :type other: subclass of MeanFunction or float or int
+        :returns: ``MeanProduct`` instance
+        :rtype: MeanProduct
+        """
 
         if issubclass(type(other), MeanFunction):
             return MeanProduct(self, other)
         elif isinstance(other, (float, int)):
             return MeanProduct(self, ConstantMean(other))
         else:
-            raise TypeError("other function cannot be added with a MeanFunction")
+            raise TypeError("other function cannot be multiplied with a MeanFunction")
 
     def __rmul__(self, other):
-        "multiplies two mean functions"
+        """
+        Right multiplies two mean functions
+
+        This method multiples two mean functions, returning a ``MeanProduct`` object. If
+        the second argument is a float or integer, it is converted to a ``ConstantMean``
+        object. If the second argument is neither a subclass of ``MeanFunction`` nor a
+        float/int, an exception is raised.
+
+        :param other: Second ``MeanFunction`` (or float/integer) to be multiplied
+        :type other: subclass of MeanFunction or float or int
+        :returns: ``MeanProduct`` instance
+        :rtype: MeanProduct
+        """
 
         if issubclass(type(other), MeanFunction):
             return MeanProduct(other, self)
         elif isinstance(other, (float, int)):
             return MeanProduct(ConstantMean(other), self)
         else:
-            raise TypeError("other function cannot be added with a MeanFunction")
+            raise TypeError("other function cannot be multipled with a MeanFunction")
 
     def __call__(self, other):
-        "composes two mean functions"
+        """
+        Composes two mean functions
+
+        This method multiples two mean functions, returning a ``MeanComposite`` object.
+        If the second argument is not a subclass of ``MeanFunction``, an exception is
+        raised.
+
+        :param other: Second ``MeanFunction`` to be composed
+        :type other: subclass of MeanFunction
+        :returns: ``MeanComposite`` instance
+        :rtype: MeanComposite
+        """
 
         if issubclass(type(other), MeanFunction):
             return MeanComposite(self, other)
