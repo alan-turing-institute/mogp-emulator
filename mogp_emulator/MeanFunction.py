@@ -1136,29 +1136,134 @@ class LinearMean(FixedMean):
         self.deriv = partial(fixed_inputderiv, index=index, deriv=one)
 
 class Coefficient(MeanFunction):
-    "class representing a single parameter fitting coefficient"
+    """
+    Class representing a single fitting parameter in a mean function
+
+    Class representing a mean function with single free fitting parameter. Does not require any
+    internal state as the parameter value is stored/set externally through fitting routines.
+    """
     def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+        For a ``Coefficient`` class, this is always 1.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
         return 1
 
     def mean_f(self, x, params):
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. For ``Coefficient`` classes, the inputs are ignored and the
+        function returns the value of the parameter broadcasting it appropriately given the
+        shape of the inputs. Thus, the ``params`` argument should always be an array of length
+        one. Returns a numpy array of shape ``(x.shape[0],)`` holding the value of the
+        parameter for each input point.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input (one in this case)
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
-        return np.broadcast_to([params[0]], x.shape[0])
+        return np.broadcast_to(params, x.shape[0])
 
     def mean_deriv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``Coefficient`` classes, the inputs are ignored and the derivative function
+        returns one, broadcasting it appropriately given the shape of the inputs.
+        Returns a numpy array of ones with shape ``(1, x.shape[0])`` holding the value
+        of the mean function derivative with respect to each parameter (first axis) for
+        each input point (second axis). Since coefficients are single parameters, this
+        will just be an array of ones.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
         return np.ones((self.get_n_params(x), x.shape[0]))
 
     def mean_hessian(self, x, params):
+        """
+        Returns value of mean function Hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``Coefficient`` classes, there is only a single parameter so the ``params``
+        argument should be an array of length one. Returns a numpy array of shape
+        ``(n_params, n_params, x.shape[0])`` holding the value of the mean function
+        second derivaties with respect to each parameter pair (first twp axes) for each
+        input point (last axis). Since coefficients depend linearly on a single parameter,
+        this will always be an array of zeros.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
         return np.zeros((self.get_n_params(x), self.get_n_params(x), x.shape[0]))
 
     def mean_inputderiv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``Coefficient`` classes, there is a single parameters so the ``params`` argument
+        should be an array of length one. Returns a numpy array of shape
+        ``(x.shape[1], x.shape[0])`` holding the value of the mean function derivative
+        with respect to each input (first axis) for each input point (second axis).
+        Since coefficients do not depend on the inputs, this is just an array of zeros.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
