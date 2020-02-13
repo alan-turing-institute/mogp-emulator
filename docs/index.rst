@@ -13,6 +13,7 @@ Welcome to Multi-Output GP Emulator's documentation!
    GaussianProcess
    DimensionReduction
    MultiOutputGP
+   MeanFunction
    Kernel
    ExperimentalDesign
    SequentialDesign
