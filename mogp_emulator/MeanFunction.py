@@ -454,6 +454,21 @@ class MeanSum(MeanFunction):
 
 class MeanProduct(MeanFunction):
     def __init__(self, f1, f2):
+        """
+        Class representing the product of two mean functions
+
+        This derived class represents the product of two mean functions, and does the necessary
+        bookkeeping needed to compute the required function and derivatives. The code does
+        not do any checks to confirm that it makes sense to multiply these particular mean functions --
+        in particular, multiplying two ``Coefficient`` classes is the same as having a single
+        one, but the code will not attempt to simplify this so it is up to the user to get it
+        right.
+
+        :iparam f1: first ``MeanFunction`` to be multiplied
+        :type f1: subclass of MeanFunction
+        :iparam f2: second ``MeanFunction`` to be multiplied
+        :type f2: subclass of MeanFunction
+        """
 
         if not issubclass(type(f1), MeanFunction):
             raise TypeError("inputs to MeanProduct must be subclasses of MeanFunction")
@@ -464,10 +479,40 @@ class MeanProduct(MeanFunction):
         self.f2 = f2
 
     def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
         return self.f1.get_n_params(x) + self.f2.get_n_params(x)
 
     def mean_f(self, x, params):
-        "returns value of mean function"
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. Returns a numpy array of shape ``(x.shape[0],)`` holding
+        the value of the mean function for each input point.
+
+        For ``MeanProduct``, this method applies the product rule to the results of computing
+        the mean for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
@@ -475,7 +520,29 @@ class MeanProduct(MeanFunction):
                 self.f2.mean_f(x, params[switch:]))
 
     def mean_deriv(self, x, params):
-        "returns derivative of mean function wrt params"
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, x.shape[0])`` holding the value of the mean
+        function derivative with respect to each parameter (first axis) for each input point
+        (second axis).
+
+        For ``MeanProduct``, this method applies the product rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
@@ -490,7 +557,29 @@ class MeanProduct(MeanFunction):
         return deriv
 
     def mean_hessian(self, x, params):
-        "returns hessian of mean function wrt params"
+        """
+        Returns value of mean function Hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, n_params, x.shape[0])`` holding the value
+        of the mean function second derivaties with respect to each parameter pair (first twp axes)
+        for each input point (last axis).
+
+        For ``MeanProduct``, this method applies the product rule to the results of computing
+        the Hessian for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
@@ -508,7 +597,29 @@ class MeanProduct(MeanFunction):
 
 
     def mean_inputderiv(self, x, params):
-        "returns derivative of mean function wrt inputs"
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(x.shape[1], x.shape[0])`` holding the value of the mean
+        function derivative with respect to each input (first axis) for each input point
+        (second axis).
+
+        For ``MeanProduct``, this method applies the product rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
