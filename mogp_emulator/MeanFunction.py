@@ -1270,16 +1270,68 @@ class Coefficient(MeanFunction):
         return np.zeros((x.shape[1], x.shape[0]))
 
 class PolynomialMean(MeanFunction):
-    "mean function where every input dimension is fit to a fixed degree polynomial"
+    """
+    Polynomial mean function class
+
+    A ``PolynomialMean`` is a mean function where every input dimension is fit to a fixed
+    degree polynomial. The degree must be provided when creating the class instance. The
+    number of parameters depends on the degree and the shape of the inputs, since a separate
+    set of parameters are used for each input dimension.
+
+    :iparam degree: Polynomial degree, must be a positive integer
+    :type degree: int
+    """
     def __init__(self, degree):
-        assert int(degree) >= 0., "degree must be a positive integer"
+        """
+        Create a new polynomial mean function instance
+
+        A ``PolynomialMean`` is a mean function where every input dimension is fit to a fixed
+        degree polynomial. The degree must be provided when creating the class instance. The
+        number of parameters depends on the degree and the shape of the inputs, since a separate
+        set of parameters are used for each input dimension. Must provide the degree when
+        initializing.
+
+        :param degree: Polynomial degree, must be a positive integer
+        :type degree: int
+        :returns: new ``PolynomialMean`` instance
+        :rtype: PolynomialMean
+        """
+        assert int(degree) > 0, "degree must be a positive integer"
 
         self.degree = int(degree)
 
     def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which depends on x.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
         return x.shape[1]*self.degree + 1
 
     def mean_f(self, x, params):
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. Returns a numpy array of shape ``(x.shape[0],)`` holding
+        the value of the mean function for each input point.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
         x, params = self._check_inputs(x, params)
 
         n_params = self.get_n_params(x)
@@ -1292,6 +1344,26 @@ class PolynomialMean(MeanFunction):
         return output
 
     def mean_deriv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, x.shape[0])`` holding the value of the mean
+        function derivative with respect to each parameter (first axis) for each input point
+        (second axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
@@ -1308,6 +1380,27 @@ class PolynomialMean(MeanFunction):
         return deriv
 
     def mean_hessian(self, x, params):
+        """
+        Returns value of mean function Hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, n_params, x.shape[0])`` holding the
+        value of the mean function second derivaties with respect to each parameter pair
+        (first twp axes) for each input point (last axis). Since polynomial means depend
+        linearly on all input parameters, this will always be an array of zeros.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
@@ -1318,6 +1411,27 @@ class PolynomialMean(MeanFunction):
         return hess
 
     def mean_inputderiv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(x.shape[1], x.shape[0])`` holding the value of the mean
+        function derivative with respect to each input (first axis) for each input point
+        (second axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
+
         x, params = self._check_inputs(x, params)
 
         expon = np.reshape(np.arange(0, x.shape[0]*x.shape[1]*self.degree)//x.shape[1]//self.degree,
