@@ -796,9 +796,37 @@ class MeanComposite(MeanFunction):
                 self.f2.mean_inputderiv(x, params[switch:]))
 
 class FixedMean(MeanFunction):
-    "a mean function with a fixed function/derivative and no fitting parameters"
-    def __init__(self, f, deriv=None):
+    """
+    Class representing a fixed mean function with no parameters
 
+    Class representing a mean function with a fixed function (and optional derivative)
+    and no fitting parameters. The user must provide these functions when initializing
+    the instance.
+
+    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :type f: function
+    :iparam deriv: fixed derivative function (optional if no derivatives are needed), must
+                   be callable and take a single argument (the inputs)
+    :type deriv: function or None
+    """
+    def __init__(self, f, deriv=None):
+        """
+        Initialize a class instance representing a fixed mean function with no parameters
+
+        Create a class instance representing a mean function with a fixed function
+        (and optional derivative) and no fitting parameters. The user must provide these
+        functions, though the derivative is optional. The code will check that the provided
+        arguments are callable, but will not confirm that the inputs and outputs are the
+        correct type/shape.
+
+        :param f: fixed mean function, must be callable and take a single argument (the inputs)
+        :type f: function
+        :param deriv: fixed derivative function (optional if no derivatives are needed), must
+                       be callable and take a single argument (the inputs)
+        :type deriv: function or None
+        :returns: new ``FixedMean`` instance
+        :rtype: FixedMean
+        """
         assert callable(f), "fixed mean function must be a callable function"
         if not deriv is None:
             assert callable(deriv), "mean function derivative must be a callable function"
@@ -807,27 +835,123 @@ class FixedMean(MeanFunction):
         self.deriv = deriv
 
     def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+        For a ``FixedMean`` class, this is zero.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
         return 0
 
     def mean_f(self, x, params):
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. For ``FixedMean`` classes, there are no parameters so the
+        ``params`` argument should be an array of length zero. Returns a numpy array of shape
+        ``(x.shape[0],)`` holding the value of the mean function for each input point.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input (zero in this case)
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
         return self.f(x)
 
     def mean_deriv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``FixedMean`` classes, there are no parameters so the ``params`` argument
+        should be an array of length zero. Returns a numpy array of shape
+        ``(n_params, x.shape[0])`` holding the value of the mean function derivative with
+        respect to each parameter (first axis) for each input point (second axis). Since
+        fixed means have no parameters, this will just be an array of zeros.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
         return np.zeros((self.get_n_params(x), x.shape[0]))
 
     def mean_hessian(self, x, params):
+        """
+        Returns value of mean function Hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``FixedMean`` classes, there are no parameters so the ``params`` argument
+        should be an array of length zero. Returns a numpy array of shape
+        ``(n_params, n_params, x.shape[0])`` holding the value of the mean function
+        second derivaties with respect to each parameter pair (first twp axes) for each
+        input point (last axis). Since fixed means have no parameters, this will just
+        be an array of zeros.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
         return np.zeros((self.get_n_params(x), self.get_n_params(x), x.shape[0]))
 
     def mean_inputderiv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        For ``FixedMean`` classes, there are no parameters so the ``params`` argument
+        should be an array of length zero. Returns a numpy array of shape
+        ``(x.shape[1], x.shape[0])`` holding the value of the mean function derivative
+        with respect to each input (first axis) for each input point (second axis).
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
 
         x, params = self._check_inputs(x, params)
 
