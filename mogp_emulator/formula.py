@@ -1,6 +1,6 @@
 from .MeanFunction import MeanFunction, ConstantMean, LinearMean, Coefficient
 try:
-    import patsy
+    from patsy import ModelDesc, Term, EvalFactor
 except ImportError:
     raise ImportError("you must install patsy to convert formulas to mean functions")
 
@@ -11,8 +11,8 @@ def mean_from_formula(formula, inputdict={}):
         return ConstantMean(0.)
 
     if isinstance(formula, str):
-        model = patsy.ModelDesc.from_formula(formula)
-    elif isinstance(formula, patsy.ModelDesc):
+        model = ModelDesc.from_formula(formula)
+    elif isinstance(formula, ModelDesc):
         model = formula
 
     model_terms = []
@@ -34,7 +34,7 @@ def mean_from_formula(formula, inputdict={}):
 def term_to_mean(term, inputdict={}):
     "convert a patsy Term object into a MeanFunction object"
 
-    assert isinstance(term, patsy.Term)
+    assert isinstance(term, Term)
 
     # add leading coefficient and multiply by all factors
 
@@ -50,7 +50,7 @@ def term_to_mean(term, inputdict={}):
 def factor_to_mean(factor, inputdict={}):
     "convert a patsy Factor object into a MeanFunction object"
 
-    assert isinstance(factor, patsy.EvalFactor)
+    assert isinstance(factor, EvalFactor)
 
     tokens = parse_factor_code(factor.code, inputdict)
 
@@ -72,11 +72,7 @@ def parse_factor_code(code, inputdict={}):
     if code[:6] == "inputs":
         newcode = "x"+code[6:]
     elif code in inputdict:
-        try:
-            index = int(inputdict[code])
-        except ValueError:
-            raise ValueError("provided dictionary does not map string to an integer index")
-        newcode = "x["+str(index)+"]"
+        newcode = "x[{}]".format(inputdict[code])
     else:
         newcode = code
 
@@ -112,3 +108,29 @@ def inputstr_to_mean(inputstr):
     assert index >= 0, "index in formula parsing must be non-negative"
 
     return LinearMean(index)
+
+def tokenize_string(string):
+
+    assert isinstance(string, str)
+
+    token_list = []
+    accumulated = ""
+
+    for char in string:
+        if char in ["(", ")", "+", "*", "^", " "]:
+            if not accumulated == "":
+                token_list.append(accumulated)
+            token_list.append(char)
+            accumulated = ""
+        else:
+            accumulated += char
+
+    if not accumulated == "":
+        token_list.append(accumulated)
+
+    outlist = [item for item in token_list if not item == " "]
+
+    return outlist
+
+
+
