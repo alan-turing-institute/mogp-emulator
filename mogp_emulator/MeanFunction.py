@@ -296,7 +296,7 @@ class MeanSum(MeanFunction):
         Create a new instance of two added mean functions
 
         Creates an instance of to added mean functions. Inputs are the two functions
-        to be added, which must be a subclass of the base ``MeanFunction`` class.
+        to be added, which must be subclasses of the base ``MeanFunction`` class.
 
         :param f1: first ``MeanFunction`` to be added
         :type f1: subclass of MeanFunction
@@ -453,21 +453,34 @@ class MeanSum(MeanFunction):
                 self.f2.mean_inputderiv(x, params[switch:]))
 
 class MeanProduct(MeanFunction):
+    """
+    Class representing the product of two mean functions
+
+    This derived class represents the product of two mean functions, and does the necessary
+    bookkeeping needed to compute the required function and derivatives. The code does
+    not do any checks to confirm that it makes sense to multiply these particular mean functions --
+    in particular, multiplying two ``Coefficient`` classes is the same as having a single
+    one, but the code will not attempt to simplify this so it is up to the user to get it
+    right.
+
+    :iparam f1: first ``MeanFunction`` to be multiplied
+    :type f1: subclass of MeanFunction
+    :iparam f2: second ``MeanFunction`` to be multiplied
+    :type f2: subclass of MeanFunction
+    """
     def __init__(self, f1, f2):
         """
-        Class representing the product of two mean functions
+        Create a new instance of two mulitplied mean functions
 
-        This derived class represents the product of two mean functions, and does the necessary
-        bookkeeping needed to compute the required function and derivatives. The code does
-        not do any checks to confirm that it makes sense to multiply these particular mean functions --
-        in particular, multiplying two ``Coefficient`` classes is the same as having a single
-        one, but the code will not attempt to simplify this so it is up to the user to get it
-        right.
+        Creates an instance of to multiplied mean functions. Inputs are the two functions
+        to be multiplied, which must be subclasses of the base ``MeanFunction`` class.
 
-        :iparam f1: first ``MeanFunction`` to be multiplied
+        :param f1: first ``MeanFunction`` to be multiplied
         :type f1: subclass of MeanFunction
-        :iparam f2: second ``MeanFunction`` to be multiplied
+        :param f2: second ``MeanFunction`` to be multiplied
         :type f2: subclass of MeanFunction
+        :returns: new ``MeanProduct`` instance
+        :rtype: MeanProduct
         """
 
         if not issubclass(type(f1), MeanFunction):
@@ -629,8 +642,41 @@ class MeanProduct(MeanFunction):
                 self.f2.mean_inputderiv(x, params[switch:]))
 
 class MeanComposite(MeanFunction):
-    "composes two mean functions"
+    """
+    Class representing the composition of two mean functions
+
+    This derived class represents the composition of two mean functions, and does the necessary
+    bookkeeping needed to compute the required function and derivatives. The code does
+    not do any checks to confirm that it makes sense to compose these particular mean
+    functions -- in particular, applying a ``Coefficient`` class to another function will
+    simply wipe out the second function. This will not raise an error, but the code will not
+    attempt to alert the user to this so it is up to the user to get it right.
+
+    Because the Hessian computation requires mixed partials that are not normally implemented
+    in the ``MeanFunction`` class, the Hessian computation is not currently implemented.
+    If you require Hessian computation for a composite mean function, you must implement
+    it yourself.
+
+    :iparam f1: first ``MeanFunction`` to be applied to the second
+    :type f1: subclass of MeanFunction
+    :iparam f2: second ``MeanFunction`` to be composed as the input to the first
+    :type f2: subclass of MeanFunction
+    """
     def __init__(self, f1, f2):
+        """
+        Create a new instance of two composed mean functions
+
+        Creates an instance of to composed mean functions. Inputs are the two functions
+        to be composed (``f1(f2)``), which must be subclasses of the base ``MeanFunction``
+        class.
+
+        :param f1: first ``MeanFunction`` to be applied to the second
+        :type f1: subclass of MeanFunction
+        :param f2: second ``MeanFunction`` to be composed as the input to the first
+        :type f2: subclass of MeanFunction
+        :returns: new ``MeanComposite`` instance
+        :rtype: MeanComposite
+        """
         if not issubclass(type(f1), MeanFunction):
             raise TypeError("inputs to MeanComposite must be subclasses of MeanFunction")
         if not issubclass(type(f2), MeanFunction):
@@ -640,10 +686,40 @@ class MeanComposite(MeanFunction):
         self.f2 = f2
 
     def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
         return self.f1.get_n_params(np.zeros((x.shape[0], 1))) + self.f2.get_n_params(x)
 
     def mean_f(self, x, params):
-        "returns value of mean function"
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. Returns a numpy array of shape ``(x.shape[0],)`` holding
+        the value of the mean function for each input point.
+
+        For ``MeanComposite``, this method applies the output of the second function as
+        input to the first function.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
@@ -651,7 +727,29 @@ class MeanComposite(MeanFunction):
                               params[:switch])
 
     def mean_deriv(self, x, params):
-        "returns derivative of mean function wrt params"
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, x.shape[0])`` holding the value of the mean
+        function derivative with respect to each parameter (first axis) for each input point
+        (second axis).
+
+        For ``MeanComposite``, this method applies the chain rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
@@ -667,7 +765,29 @@ class MeanComposite(MeanFunction):
         return deriv
 
     def mean_inputderiv(self, x, params):
-        "returns derivative of mean function wrt inputs"
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(x.shape[1], x.shape[0])`` holding the value of the mean
+        function derivative with respect to each input (first axis) for each input point
+        (second axis).
+
+        For ``MeanComposite``, this method applies the chain rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
 
         switch = self.f1.get_n_params(x)
 
