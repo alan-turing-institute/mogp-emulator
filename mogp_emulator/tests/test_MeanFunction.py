@@ -162,6 +162,12 @@ def test_ConstantMean(x, zeroparams, val):
     assert_allclose(constant_mean.mean_hessian(x, zeroparams), np.zeros((0, 0, x.shape[0])))
     assert_allclose(constant_mean.mean_inputderiv(x, zeroparams), np.zeros((x.shape[1], x.shape[0])))
 
+def test_ConstantMean_failures():
+    "test situation where ConstantMean should fail"
+
+    with pytest.raises(TypeError):
+        ConstantMean("a")
+
 @pytest.mark.parametrize("index", [0, 1])
 def test_LinearMean(x, zeroparams, dx, index):
     "test the linear mean function"

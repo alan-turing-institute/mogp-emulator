@@ -962,11 +962,23 @@ class FixedMean(MeanFunction):
 
 def fixed_f(x, index, f):
     """
-    dummy function to index into x and apply a function
+    Dummy function to index into x and apply a function
 
-    usage is intended to be with a fixed mean function, where an index and specific mean
-    function are meant to be bound using partial before setting it as the f attribute of
-    FixedMean
+    Usage is intended to be with a fixed mean function, where an index and specific mean
+    function are meant to be bound using partial before setting it as the ``f`` attribute of
+    ``FixedMean``
+
+    :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+    :type x: ndarray
+    :param index: integer index to be applied to the second axis of ``x``, used to select
+                  a particular input variable. Must be non-negative and less than the
+                  length of the second axis of the inputs.
+    :type index: int
+    :param f: fixed mean function, must be callable and take a single argument (the inputs)
+    :type f: function
+    :returns: Value of mean function evaluated at all input points, numpy array of shape
+              ``(x.shape[0],)``
+    :rtype: ndarray
     """
     assert callable(f), "fixed mean function must be callable"
     assert index >= 0, "provided index cannot be negative"
@@ -981,11 +993,23 @@ def fixed_f(x, index, f):
 
 def fixed_inputderiv(x, index, deriv):
     """
-    dummy function to index into x and apply a derivative function
+    Dummy function to index into x and apply a derivative function
 
-    usage is intended to be with a fixed mean derivative function, where an index and
-    specific derivative function are meant to be bound using partial before setting it
-    as the deriv attribute of FixedMean
+    Usage is intended to be with a fixed mean function, where an index and specific derivative
+    function are meant to be bound using partial before setting it as the ``deriv`` attribute of
+    ``FixedMean``
+
+    :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+    :type x: ndarray
+    :param index: integer index to be applied to the second axis of ``x``, used to select
+                  a particular input variable. Must be non-negative and less than the
+                  length of the second axis of the inputs.
+    :type index: int
+    :param deriv: fixed derivative function, must be callable and take a single argument (the inputs)
+    :type deriv: function
+    :returns: Value of mean derivative evaluated at all input points, numpy array of shape
+              ``(x.shape[1], x.shape[0])``
+    :rtype: ndarray
     """
     assert callable(deriv), "fixed mean function derivative must be callable"
     assert index >= 0, "provided index cannot be negative"
@@ -1000,21 +1024,114 @@ def fixed_inputderiv(x, index, deriv):
     return out
 
 def one(x):
+    """
+    Function to return an array of ones with the same shape as the input
+
+    Function to return a numpy array of ones with the same shape as the input. Used in
+    linear mean functions to evaluate derivatives.
+
+    :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+    :type x: ndarray
+    :returns: Numpy array of ones with the same shape as x
+    :rtype: ndarray
+    """
     return np.ones(x.shape)
 
 def const_f(x, val):
+    """
+    Function to return an array of a constant value
+
+    Function to return a numpy array of a constant value with the correct shape for a given
+    input. Used in constant mean functions to evaluate the function.
+
+    :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+    :type x: ndarray
+    :param val: value of output, must be a float
+    :type val: float
+    :returns: Numpy array of ``val`` with shape ``(x.shape[0],)``
+    :rtype: ndarray
+    """
+    assert x.ndim == 2, "x must have 2 dimensions"
+
     return np.broadcast_to(val, x.shape[0])
 
 def const_deriv(x):
+    """
+    Function to return an array of zeros with the transposed shape of the inputs
+
+    Function to return a numpy array of zeros with the shape that is transpose of the
+    shape of the input. Used in constant mean functions to evaluate the derivative.
+
+    :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+    :type x: ndarray
+    :returns: Numpy array of zeros with shape ``(x.shape[1], x.shape[0])``
+    :rtype: ndarray
+    """
+    assert x.ndim == 2, "x must have 2 dimensions"
+
     return np.zeros((x.shape[1], x.shape[0]))
 
 class ConstantMean(FixedMean):
+    """
+    Class representing a constant fixed mean function
+
+    Subclass of ``FixedMean`` where the function is a constant, with the value
+    provided when ``ConstantMean`` is initialized. Uses utility functions to bind the
+    value to the ``fixed_f`` function and sets that as the ``f`` attribute.
+
+    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :type f: function
+    :iparam deriv: fixed derivative function (optional if no derivatives are needed), must
+                   be callable and take a single argument (the inputs)
+    :type deriv: function
+    """
     def __init__(self, val):
+        """
+        Initialize a new ConstantMean
+
+        Create a new ``ConstantMean`` instance with the given constant value.
+
+        :param val: Constant mean function value, must be a float or an integer
+        :type val: float or int
+        :returns: new ``ConstantMean`` instance
+        :rtype: ConstantMean
+        """
+        if not isinstance(val, (float, int)):
+            raise TypeError("val must be a float or an integer")
         self.f = partial(const_f, val=val)
         self.deriv = const_deriv
 
 class LinearMean(FixedMean):
+    """
+    Class representing a linear fixed mean function
+
+    Subclass of ``FixedMean`` where the function is a linear function. By default the
+    function is linear in the first input dimension, though any non-negative integer index
+    can be provided to control which input is used in the linear function. Uses utility
+    functions to bind the correct function to the ``fixed_f`` function and sets that as
+    the ``f`` attribute and similar with the ``fixed_deriv`` utility function and the
+    ``deriv`` attribute.
+
+    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :type f: function
+    :iparam deriv: fixed derivative function, must be callable and take a single argument
+                   (the inputs)
+    :type deriv: function
+    """
     def __init__(self, index=0):
+        """
+        Initialize a new LinearMean
+
+        Create a new ``LinearMean`` instance with the given index value. This index is used
+        to select the dimension of the input for evaluating the function.
+
+        :param index: integer index to be applied to the second axis of ``x``, used to select
+                      a particular input variable. Must be non-negative and less than the
+                      length of the second axis of the inputs.
+        :type index: int
+        :returns: new ``LinearMean`` instance
+        :rtype: LinearMean
+        """
         self.f = partial(fixed_f, index=index, f=np.array)
         self.deriv = partial(fixed_inputderiv, index=index, deriv=one)
 
