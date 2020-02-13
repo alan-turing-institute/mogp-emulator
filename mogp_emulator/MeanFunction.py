@@ -1,3 +1,41 @@
+"""
+**MeanFunction Module**
+
+The MeanFunction submodule contains classes used for constructing mean functions for GP emulators.
+A base ``MeanFunction`` class is provided, which implements basic operations to combine fixed
+functions and fitting parameters. The basic operations ``f1 + f2``, ``f1*f2``, and ``f1(f2)``
+are available, though not all possible combinations will make sense (particularly when
+using classes that represent free fitting parameters). These operations will create new
+derived classes ``MeanSum``, ``MeanProduct``, and ``MeanComposite``, from which more complex
+regression functions can be formed. The derived sum, product, and composite mean classes
+call the necessary methods to compute the function and derivatives from the more basic
+classes and then combine them using sum, product, and chain rules for function evaluation
+and derivatives.
+
+The basic building blocks are fixed mean functions, derived from ``FixedMean``, and free
+parameters, represented by the ``Coefficient`` class. Incuded fixed functions include
+``ConstantMean`` and ``LinearMean``. Additional derived ``FixedMean`` functions can be
+created by initializing a new ``FixedMean`` instance where the user provides a fixed
+function and its derivative, and these can be combined to form arbitrarily complex mean functions.
+
+One implementation note: ``CompositeMean`` does not implement the Hessian, as computing this
+requires mixed partials involving inputs and parameters that are not normally implemented.
+If a composite mean is required with a Hessian Computation, the user must implement this.
+
+Additionally, note that given mean function may have a number of parameters that depends on
+the shape of the input. Since the mean function does not store input, but rather provides
+a way to collate functions and derivatives together in a single object, the number of parameters
+can vary based on the inputs. This is particularly true for the provided ``PolynomialMean``
+class, which fits a polynomial function of a fixed degree to each input parameter. Thus,
+the number of parameters depends on the input shape.
+
+Example: ::
+
+    >>> from mogp_emulator.MeanFunction import Coefficient, LinearMean
+    >>> mf1 = Coefficient() + Coefficient()*LinearMean() # y = a + b*x[0]
+    >>> mf2 = LinearMean(1)*LinearMean(2)
+    >>> mf3 = mf1(mf2) # y = a + b*x[1]*x[2]
+"""
 import numpy as np
 from functools import partial
 
@@ -286,9 +324,9 @@ class MeanSum(MeanFunction):
     one, but the code will not attempt to simplify this so it is up to the user to get it
     right.
 
-    :iparam f1: first ``MeanFunction`` to be added
+    :ivar f1: first ``MeanFunction`` to be added
     :type f1: subclass of MeanFunction
-    :iparam f2: second ``MeanFunction`` to be added
+    :ivar f2: second ``MeanFunction`` to be added
     :type f2: subclass of MeanFunction
     """
     def __init__(self, f1, f2):
@@ -463,9 +501,9 @@ class MeanProduct(MeanFunction):
     one, but the code will not attempt to simplify this so it is up to the user to get it
     right.
 
-    :iparam f1: first ``MeanFunction`` to be multiplied
+    :ivar f1: first ``MeanFunction`` to be multiplied
     :type f1: subclass of MeanFunction
-    :iparam f2: second ``MeanFunction`` to be multiplied
+    :ivar f2: second ``MeanFunction`` to be multiplied
     :type f2: subclass of MeanFunction
     """
     def __init__(self, f1, f2):
@@ -657,9 +695,15 @@ class MeanComposite(MeanFunction):
     If you require Hessian computation for a composite mean function, you must implement
     it yourself.
 
-    :iparam f1: first ``MeanFunction`` to be applied to the second
+    Note that since the outer function takes as its input the output of the second function,
+    the outer function can only ever have an index of 0 due to the fixed output shape of
+    a mean function. This will produce an error when attempting to evaluate the function
+    or its derivatives, but will not cause an error when initializing a ``MeanComposite``
+    object.
+
+    :ivar f1: first ``MeanFunction`` to be applied to the second
     :type f1: subclass of MeanFunction
-    :iparam f2: second ``MeanFunction`` to be composed as the input to the first
+    :ivar f2: second ``MeanFunction`` to be composed as the input to the first
     :type f2: subclass of MeanFunction
     """
     def __init__(self, f1, f2):
@@ -803,9 +847,9 @@ class FixedMean(MeanFunction):
     and no fitting parameters. The user must provide these functions when initializing
     the instance.
 
-    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :ivar f: fixed mean function, must be callable and take a single argument (the inputs)
     :type f: function
-    :iparam deriv: fixed derivative function (optional if no derivatives are needed), must
+    :ivar deriv: fixed derivative function (optional if no derivatives are needed), must
                    be callable and take a single argument (the inputs)
     :type deriv: function or None
     """
@@ -1079,9 +1123,9 @@ class ConstantMean(FixedMean):
     provided when ``ConstantMean`` is initialized. Uses utility functions to bind the
     value to the ``fixed_f`` function and sets that as the ``f`` attribute.
 
-    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :ivar f: fixed mean function, must be callable and take a single argument (the inputs)
     :type f: function
-    :iparam deriv: fixed derivative function (optional if no derivatives are needed), must
+    :ivar deriv: fixed derivative function (optional if no derivatives are needed), must
                    be callable and take a single argument (the inputs)
     :type deriv: function
     """
@@ -1112,9 +1156,9 @@ class LinearMean(FixedMean):
     the ``f`` attribute and similar with the ``fixed_deriv`` utility function and the
     ``deriv`` attribute.
 
-    :iparam f: fixed mean function, must be callable and take a single argument (the inputs)
+    :ivar f: fixed mean function, must be callable and take a single argument (the inputs)
     :type f: function
-    :iparam deriv: fixed derivative function, must be callable and take a single argument
+    :ivar deriv: fixed derivative function, must be callable and take a single argument
                    (the inputs)
     :type deriv: function
     """
@@ -1278,7 +1322,7 @@ class PolynomialMean(MeanFunction):
     number of parameters depends on the degree and the shape of the inputs, since a separate
     set of parameters are used for each input dimension.
 
-    :iparam degree: Polynomial degree, must be a positive integer
+    :ivar degree: Polynomial degree, must be a positive integer
     :type degree: int
     """
     def __init__(self, degree):

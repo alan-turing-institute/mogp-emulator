@@ -399,6 +399,18 @@ def test_CompositeMean(x, params, dx):
     with pytest.raises(NotImplementedError):
         mf.mean_hessian(x, params)
 
+    mf3 = Coefficient() + Coefficient()*LinearMean(1) + Coefficient()*LinearMean(0)
+    mf4 = mf3(mf1)
+
+    with pytest.raises(IndexError):
+        mf4.mean_f(x, params)
+
+    with pytest.raises(IndexError):
+        mf4.mean_deriv(x, params)
+
+    with pytest.raises(IndexError):
+        mf4.mean_inputderiv(x, params)
+
 def test_PolynomialMean(x, dx):
     "test the polynomial mean function"
 
