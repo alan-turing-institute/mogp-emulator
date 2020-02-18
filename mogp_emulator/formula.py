@@ -52,9 +52,10 @@ def factor_to_mean(factor, inputdict={}):
 
     assert isinstance(factor, EvalFactor)
 
-    tokens = parse_factor_code(factor.code, inputdict)
+    tokens = tokenize_string(factor.code)
+    eval_stack = parse_tokens(tokens)
 
-    mf = tokens_to_mean(tokens)
+    mf = eval_parsed_tokens(eval_stack, inputdict)
 
     assert issubclass(type(mf), MeanFunction)
 
@@ -62,9 +63,7 @@ def factor_to_mean(factor, inputdict={}):
 
 def parse_factor_code(code, inputdict={}):
     """
-    turn code into tokens to be evaluated, making replacements from inputdict as appropriate
-
-    Currently does not do any complex parsing, only replaces terms found in inputdict
+    replaces given string with aliases from inputdict and converts inputs -> x
     """
 
     assert isinstance(code, str), "formula input to mean function is not a string"
@@ -76,15 +75,34 @@ def parse_factor_code(code, inputdict={}):
     else:
         newcode = code
 
-    if not (newcode[:2] == "x[" and newcode[-1] == "]"):
-        raise ValueError("bad formula input in mean function")
+    return newcode
 
-    return [newcode]
+def _is_float(val):
+    "checks if a token can be converted into a float"
+    try:
+        float(val)
+    except ValueError:
+        return False
+    return True
 
-def inputstr_to_mean(inputstr):
-    "convert a string containing a single input of the form x[<index>] to a mean function"
+def inputstr_to_mean(inputstr, inputdict={}):
+    """
+    convert a string to a mean function
+
+    makes substitutions found in inputdict to map variable names to indices
+    converts numeric tokens to constant means
+    any other strings not in inputdict are assumed to represent coefficients
+    """
 
     assert isinstance(inputstr, str), "formula input to mean function is not a string"
+
+    if _is_float(inputstr):
+        return ConstantMean(float(inputstr))
+
+    inputstr = parse_factor_code(inputstr, inputdict)
+
+    if not inputstr[0] == "x":
+        return Coefficient()
 
     if not (inputstr[:2] == "x[" and inputstr[-1] == "]"):
         raise ValueError("bad formula input in mean function")
@@ -133,14 +151,6 @@ def tokenize_string(string):
     outlist = [item for item in token_list if not item == " "]
 
     return outlist
-
-def _is_float(val):
-    "checks if a token can be converted into a float"
-    try:
-        float(val)
-    except ValueError:
-        return False
-    return True
 
 def parse_tokens(token_list):
     "parses a list of tokens into an RPN sequence of operations"
@@ -193,7 +203,7 @@ def parse_tokens(token_list):
 
     return output_list
 
-def eval_parsed_tokens(token_list):
+def eval_parsed_tokens(token_list, inputdict={}):
     "evaluate parsed tokens into a mean function"
 
     assert isinstance(token_list, list), "input must be a list of strings"
@@ -203,18 +213,28 @@ def eval_parsed_tokens(token_list):
     stack = []
 
     for token in token_list:
+        assert isinstance(token, str), "tokens must be strings"
         if token not in op_list:
-            if not issubclass(type(token), MeanFunction):
-                mf = inputstr_to_mean(token)
+            if token == "I":
+                mf = "I"
+            else:
+                mf = inputstr_to_mean(token, inputdict)
             stack.append(mf)
         else:
             if len(stack) < 2:
                 raise SyntaxError("string expression is not a valid mathematical expression")
 
             op_2 = stack.pop()
+            if op_2 == "I":
+                raise SyntaxError("identity operator can only be called as a function")
             assert issubclass(type(op_2), MeanFunction)
             op_1 = stack.pop()
-            assert issubclass(type(op_1), MeanFunction)
+            if token == "call":
+                assert op_1 == "I" or issubclass(type(op_1), MeanFunction)
+            else:
+                if op_2 == "I":
+                    raise SyntaxError("identity operator can only be called as a function")
+                assert issubclass(type(op_1), MeanFunction), "expression was not c"
 
             if token == "+":
                 stack.append(op_1.__add__(op_2))
@@ -223,7 +243,10 @@ def eval_parsed_tokens(token_list):
             elif token == "^":
                 stack.append(op_1.__pow__(op_2))
             elif token == "call":
-                stack.append(op_1.__call__(op_2))
+                if op_1 == "I":
+                    stack.append(op_2)
+                else:
+                    stack.append(op_1.__call__(op_2))
             else:
                 raise SyntaxError("string expression is not a valid mathematical expression")
 
