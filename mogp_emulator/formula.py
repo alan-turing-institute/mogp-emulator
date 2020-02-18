@@ -110,6 +110,7 @@ def inputstr_to_mean(inputstr):
     return LinearMean(index)
 
 def tokenize_string(string):
+    "converts a string into a series of tokens for evaluation"
 
     assert isinstance(string, str)
 
@@ -117,12 +118,24 @@ def tokenize_string(string):
     accumulated = ""
 
     for char in string:
-        if char in ["(", ")", "+", "*", "^", " "]:
+        if char in ["(", ")", "+", "^", " "]:
             if not accumulated == "":
                 token_list.append(accumulated)
             token_list.append(char)
             accumulated = ""
+        elif char == "*":
+            if accumulated == "*":
+                token_list.append("^")
+                accumulated = ""
+            elif not accumulated == "":
+                token_list.append(accumulated)
+                accumulated = "*"
+            else:
+                accumulated = "*"
         else:
+            if accumulated == "*":
+                token_list.append(accumulated)
+                accumulated = ""
             accumulated += char
 
     if not accumulated == "":
@@ -132,5 +145,63 @@ def tokenize_string(string):
 
     return outlist
 
+def _is_float(val):
+    "checks if a token can be converted into a float"
+    try:
+        float(val)
+    except ValueError:
+        return False
+    return True
+
+def parse_tokens(token_list):
+    "parses a list of tokens into an RPN sequence of operations"
+
+    assert isinstance(token_list, list), "input must be a list of strings"
+
+    prev_op = True
+
+    operator_stack = []
+    output_list = []
+
+    precedence = {"+": 2, "*": 3, "^": 4}
+    l_assoc = {"+": True, "*": True, "^": False}
+
+    for token in token_list:
+        assert isinstance(token, str), "input must be a list of strings"
+        if not token in ["(", ")", "+", "*", "^"]:
+            output_list.append(token)
+            prev_op = False
+        if token == "(" and not prev_op:
+            # function call, put call on the stack
+            operator_stack.append("call")
+            prev_op = True
+        if token in ["+", "*", "^"]:
+            while (len(operator_stack) >= 1 and
+                   (not operator_stack[-1] == "(") and
+                   (operator_stack[-1] == "call" or
+                    precedence[operator_stack[-1]] > precedence[token] or
+                    (precedence[operator_stack[-1]] == precedence[token] and l_assoc[token]))):
+                    output_list.append(operator_stack.pop())
+            operator_stack.append(token)
+            prev_op = True
+        if token == "(":
+            operator_stack.append(token)
+            prev_op = True
+        if token == ")":
+            while not operator_stack[-1] == "(":
+                output_list.append(operator_stack.pop())
+                if len(operator_stack) == 0:
+                    raise SyntaxError("string expression has mismatched parentheses")
+            if operator_stack[-1] == "(":
+                operator_stack.pop()
+            prev_op = True
+
+    while len(operator_stack) > 0:
+        operator = operator_stack.pop()
+        if operator == ")" or operator == "(":
+            raise SyntaxError("string expression has mismatched parentheses")
+        output_list.append(operator)
+
+    return output_list
 
 
