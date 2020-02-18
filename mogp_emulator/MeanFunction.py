@@ -3,13 +3,15 @@
 
 The MeanFunction submodule contains classes used for constructing mean functions for GP emulators.
 A base ``MeanFunction`` class is provided, which implements basic operations to combine fixed
-functions and fitting parameters. The basic operations ``f1 + f2``, ``f1*f2``, and ``f1(f2)``
-are available, though not all possible combinations will make sense (particularly when
-using classes that represent free fitting parameters). These operations will create new
-derived classes ``MeanSum``, ``MeanProduct``, and ``MeanComposite``, from which more complex
-regression functions can be formed. The derived sum, product, and composite mean classes
+functions and fitting parameters. The basic operations ``f1 + f2``, ``f1*f2``, ``f1**f2``
+and ``f1(f2)`` are available, though not all possible combinations will make sense.
+Particular cases where combinations do not make sense often use classes that represent free
+fitting parameters, or if you attempt to raise a mean function to a power that is not
+independent of the inputs. These operations will create new derived classes ``MeanSum``,
+``MeanProduct``, ``MeanPower``, and ``MeanComposite``, from which more complex
+regression functions can be formed. The derived sum, product, power, and composite mean classes
 call the necessary methods to compute the function and derivatives from the more basic
-classes and then combine them using sum, product, and chain rules for function evaluation
+classes and then combine them using sum, product, power, and chain rules for function evaluation
 and derivatives.
 
 The basic building blocks are fixed mean functions, derived from ``FixedMean``, and free
@@ -17,6 +19,7 @@ parameters, represented by the ``Coefficient`` class. Incuded fixed functions in
 ``ConstantMean`` and ``LinearMean``. Additional derived ``FixedMean`` functions can be
 created by initializing a new ``FixedMean`` instance where the user provides a fixed
 function and its derivative, and these can be combined to form arbitrarily complex mean functions.
+Future improvements will extend the number of pre-defined function options.
 
 One implementation note: ``CompositeMean`` does not implement the Hessian, as computing this
 requires mixed partials involving inputs and parameters that are not normally implemented.
@@ -35,6 +38,7 @@ Example: ::
     >>> mf1 = Coefficient() + Coefficient()*LinearMean() # y = a + b*x[0]
     >>> mf2 = LinearMean(1)*LinearMean(2)
     >>> mf3 = mf1(mf2) # y = a + b*x[1]*x[2]
+    >>> mf4 = Coefficient()*LinearMean()**2 # y = a*x[0]**2
 """
 import numpy as np
 from functools import partial
@@ -44,9 +48,9 @@ class MeanFunction(object):
     Base mean function class
 
     The base class for the mean function implementation includes code for checking inputs and
-    implements sum, product, and composition methods to allow more complicated functions to be
-    built up from fixed functions and fitting coefficients. Subclasses need to implement the
-    following methods:
+    implements sum, product, power, and composition methods to allow more complicated functions
+    to be built up from fixed functions and fitting coefficients. Subclasses need to implement
+    the following methods:
 
     * ``get_n_params`` which returns the number of parameters for a given input size. This is
       usually a constant, but can be more complicated (such as the provided ``PolynomialMean``
@@ -293,6 +297,59 @@ class MeanFunction(object):
             return MeanProduct(ConstantMean(other), self)
         else:
             raise TypeError("other function cannot be multipled with a MeanFunction")
+
+    def __pow__(self, exp):
+        """
+        Raises a mean function to a power
+
+        This method raises a mean function to a power, returning a ``MeanPower`` object.
+        The second argument can only be a mean function that returns a value that is
+        independent of its input, in particular a ``Coefficient`` or a ``ConstantMean``
+        (or a float or integer, from which a new ``ConstantMean`` will be created)
+        are the only acceptable types for the ``exp`` argument.
+
+        :param exp: Mean function exponent, must be a ``Coefficient`` or a ``ConstantMean``
+                    object, or a float/int from which a new ``ConstantMean`` will be
+                    created.
+        :type exp: Coefficient, ConstantMean, float, or int
+        :returns: ``MeanPower``instance
+        :rtype: MeanPower
+        """
+        if isinstance(exp, (float, int)):
+            return MeanPower(self, ConstantMean(exp))
+        elif isinstance(exp, (Coefficient, ConstantMean)):
+            return MeanPower(self, exp)
+        else:
+            raise TypeError("MeanFunction can only be raised to a power that is a ConstantMean, " +
+                            "Coefficient, or float/int")
+
+    def __rpow__(self, base):
+        """
+        Right raises a mean function to a power
+
+        This method right raises a mean function to a power, meaning that the base
+        is potentially not a mean function. Returns a ``MeanPower`` object. The  ``self``
+        argument can only be a mean function that returns a value that is
+        independent of its input, in particular a ``Coefficient`` or a ``ConstantMean``.
+        The base can be any ``MeanFunction`` instance, or a float or integer, from which a new
+        ``ConstantMean`` will be created.
+
+        :param base: Mean function base, must be a ``MeanFunction`` subclass
+                     object, or a float/int from which a new ``ConstantMean`` will be
+                     created.
+        :type base: MeanFunction subclass, float, or int
+        :returns: ``MeanPower``instance
+        :rtype: MeanPower
+        """
+        if not isinstance(self, (Coefficient, ConstantMean)):
+            raise TypeError("arbitrary mean functions cannot serve as the exponent when " +
+                            "raising a mean function to a power")
+        if isinstance(base, (float, int)):
+            return MeanPower(ConstantMean(base), self)
+        elif issubclass(type(base), MeanFunction):
+            return MeanPower(base, self)
+        else:
+            raise TypeError("base in a MeanPower must be a MeanFunction or a float/int")
 
     def __call__(self, other):
         """
@@ -678,6 +735,228 @@ class MeanProduct(MeanFunction):
                 self.f2.mean_f(x, params[switch:]) +
                 self.f1.mean_f(x, params[:switch])*
                 self.f2.mean_inputderiv(x, params[switch:]))
+
+class MeanPower(MeanFunction):
+    """
+    Class representing a mean function raised to a power
+
+    This derived class represents a mean function raised to a power, and does the necessary
+    bookkeeping needed to compute the required function and derivatives. The code requires
+    that the exponent be either a ``Coefficient``, ``ConstantMean``, ``float``, or ``int``
+    as the output of the exponent mean function must be independent of the inputs to make
+    sense. If input is a float or int, a ``ConstantMean`` instance will be created.
+
+    :ivar f1: first ``MeanFunction`` to be raised to the given exponent
+    :type f1: subclass of MeanFunction
+    :ivar f2: second ``MeanFunction`` indicating the exponent. Must be a ``Coefficient``,
+              ``ConstantMean``, or float/int (from which a ``ConstantMean`` object will
+              be created)
+    :type f2: Coefficient, ConstantMean, float, or int
+    """
+    def __init__(self, f1, f2):
+        """
+        Create a new instance of a mean function raised to a power
+
+        Creates an instance of a mean function raised to a power. Inputs are the two
+        functions (base, exponent), the first of which must be subclass of the base
+        ``MeanFunction`` class, and the second must be a ``Coefficient`` or a
+        ``ConstantMean`` (or a float or int, from which a ``ConstantMean`` will
+        be created).
+
+        :param f1: first ``MeanFunction`` serving as the base
+        :type f1: subclass of MeanFunction
+        :param f2: second ``MeanFunction`` serving as the exponent, must be a ``Coefficient``,
+                   ``ConstantMean``, ``float``, or ``int``
+        :type f2: Coefficient, ConstantMean, float, or int
+        :returns: new ``MeanPower`` instance
+        :rtype: MeanPower
+        """
+
+        if not issubclass(type(f1), MeanFunction):
+            raise TypeError("first input to MeanPower must be a subclass of MeanFunction")
+        if isinstance(f2, (float, int)):
+            f2 = ConstantMean(f2)
+        if not isinstance(f2, (ConstantMean, Coefficient)):
+            raise TypeError("second input to MeanPower must be a Coefficient, ConstantMean, "
+                            "float, or int")
+
+        self.f1 = f1
+        self.f2 = f2
+
+    def get_n_params(self, x):
+        """
+        Determine the number of parameters
+
+        Returns the number of parameters for the mean function, which possibly depends on x.
+
+        :param x: Input array
+        :type x: ndarray
+        :returns: number of parameters
+        :rtype: int
+        """
+        return self.f1.get_n_params(x) + self.f2.get_n_params(x)
+
+    def mean_f(self, x, params):
+        """
+        Returns value of mean function
+
+        Method to compute the value of the mean function for the inputs and parameters provided.
+        Shapes of ``x`` and ``params`` must be consistent based on the return value of the
+        ``get_n_params`` method. Returns a numpy array of shape ``(x.shape[0],)`` holding
+        the value of the mean function for each input point.
+
+        For ``MeanProduct``, this method applies the product rule to the results of computing
+        the mean for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function evaluated at all input points, numpy array of shape
+                  ``(x.shape[0],)``
+        :rtype: ndarray
+        """
+
+        switch = self.f1.get_n_params(x)
+
+        return (self.f1.mean_f(x, params[:switch])**
+                self.f2.mean_f(x, params[switch:]))
+
+    def mean_deriv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the parameters
+
+        Method to compute the value of the mean function derivative with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, x.shape[0])`` holding the value of the mean
+        function derivative with respect to each parameter (first axis) for each input point
+        (second axis).
+
+        For ``MeanPpwer``, this method applies the power rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_params, x.shape[0])``
+        :rtype: ndarray
+        """
+
+        switch = self.f1.get_n_params(x)
+
+        exp = self.f2.mean_f(x, params[switch:])
+        if np.allclose(exp, 0.):
+            exp = 0
+
+        deriv = np.zeros((self.get_n_params(x), x.shape[0]))
+
+        if not exp == 0:
+            deriv[:switch] = (exp*self.f1.mean(x, params[:switch])**(exp - 1.)*
+                              self.f1.mean_deriv(x, params[:switch]))
+
+            deriv[switch:] = (exp*self.f1.mean(x, params[:switch])**(exp - 1.)*
+                              self.f2.mean_deriv(x, params[:switch]))
+
+        return deriv
+
+    def mean_hessian(self, x, params):
+        """
+        Returns value of mean function Hessian wrt the parameters
+
+        Method to compute the value of the mean function Hessian with respect to the
+        parameters for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(n_params, n_params, x.shape[0])`` holding the value
+        of the mean function second derivaties with respect to each parameter pair (first twp axes)
+        for each input point (last axis).
+
+        For ``MeanPower``, this method applies the power rule to the results of computing
+        the Hessian for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function Hessian with respect to the parameters evaluated
+                  at all input points, numpy array of shape ``(n_parmas, n_params, x.shape[0])``
+        :rtype: ndarray
+        """
+
+        switch = self.f1.get_n_params(x)
+
+        exp = self.f2.mean_f(x, params[switch:])
+        if np.allclose(exp, 0.):
+            exp = 0
+        if np.allclose(exp, 1.):
+            exp = 1
+
+        hess = np.zeros((self.get_n_params(x), self.get_n_params(x), x.shape[0]))
+
+        if (not exp == 0) or (not exp == 1):
+
+            hess[:switch, :switch] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
+                                      self.f1.mean_hessian(x, params[switch:]))
+
+        if not (exp == 0):
+            hess[:switch, switch:, :] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
+                                         self.f1.mean_deriv(x, params[:switch])[:,np.newaxis,:]*
+                                         self.f2.mean_deriv(x, params[switch:])[np.newaxis,:,:])
+            hess[switch:, :switch, :] = np.transpose(hess[:switch, switch:, :], (1, 0, 2))
+
+        if (not exp == 0) or (not exp == 1):
+            hess[switch:, switch:] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
+                                      self.f2.mean_hessian(x, params[switch:]))
+
+        return hess
+
+
+    def mean_inputderiv(self, x, params):
+        """
+        Returns value of mean function derivative wrt the inputs
+
+        Method to compute the value of the mean function derivative with respect to the
+        inputs for the inputs and parameters provided. Shapes of ``x`` and ``params``
+        must be consistent based on the return value of the ``get_n_params`` method.
+        Returns a numpy array of shape ``(x.shape[1], x.shape[0])`` holding the value of the mean
+        function derivative with respect to each input (first axis) for each input point
+        (second axis).
+
+        For ``MeanPower``, this method applies the power rule to the results of computing
+        the derivative for the individual functions.
+
+        :param x: Inputs, must be a 1D or 2D numpy array (if 1D a second dimension will be added)
+        :type x: ndarray
+        :param params: Parameters, must be a 1D numpy array (of more than 1D will be flattened)
+                       and have the same length as the number of parameters required for the
+                       provided input
+        :type params: ndarray
+        :returns: Value of mean function derivative with respect to the inputs evaluated
+                  at all input points, numpy array of shape ``(x.shape[1], x.shape[0])``
+        :rtype: ndarray
+        """
+
+        switch = self.f1.get_n_params(x)
+
+        exp = self.f2.mean_f(x, params[switch:])
+        if np.allclose(exp, 0.):
+            exp = 0
+
+        inputderiv = np.zeros((x.shape[1], x.shape[0]))
+
+        if not exp == 0:
+            inputderiv = (exp*self.f1.mean_f(x, params[:switch])**(exp - 1.)*
+                          self.f1.mean_inputderiv(x, params[:switch]))
+
+        return inputderiv
 
 class MeanComposite(MeanFunction):
     """
