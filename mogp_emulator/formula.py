@@ -81,17 +81,6 @@ def parse_factor_code(code, inputdict={}):
 
     return [newcode]
 
-def tokens_to_mean(tokenlist):
-    """
-    convert a list of tokens into a mean function
-
-    presently only works with single tokens representing linear terms in the input parameters
-    """
-
-    assert isinstance(tokenlist, list)
-
-    return inputstr_to_mean(tokenlist[0])
-
 def inputstr_to_mean(inputstr):
     "convert a string containing a single input of the form x[<index>] to a mean function"
 
@@ -204,4 +193,42 @@ def parse_tokens(token_list):
 
     return output_list
 
+def eval_parsed_tokens(token_list):
+    "evaluate parsed tokens into a mean function"
+
+    assert isinstance(token_list, list), "input must be a list of strings"
+
+    op_list = ["+", "*", "^", "call"]
+
+    stack = []
+
+    for token in token_list:
+        if token not in op_list:
+            if not issubclass(type(token), MeanFunction):
+                mf = inputstr_to_mean(token)
+            stack.append(mf)
+        else:
+            if len(stack) < 2:
+                raise SyntaxError("string expression is not a valid mathematical expression")
+
+            op_2 = stack.pop()
+            assert issubclass(type(op_2), MeanFunction)
+            op_1 = stack.pop()
+            assert issubclass(type(op_1), MeanFunction)
+
+            if token == "+":
+                stack.append(op_1.__add__(op_2))
+            elif token == "*":
+                stack.append(op_1.__mul__(op_2))
+            elif token == "^":
+                stack.append(op_1.__pow__(op_2))
+            elif token == "call":
+                stack.append(op_1.__call__(op_2))
+            else:
+                raise SyntaxError("string expression is not a valid mathematical expression")
+
+    if not len(stack) == 1:
+        raise SyntaxError("string expression is not a valid mathematical expression")
+
+    return stack[0]
 
