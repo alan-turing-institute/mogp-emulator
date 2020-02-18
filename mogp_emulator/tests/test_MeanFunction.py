@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..MeanFunction import MeanFunction, MeanSum, MeanProduct, FixedMean, ConstantMean, LinearMean
-from ..MeanFunction import Coefficient, PolynomialMean, MeanComposite
+from ..MeanFunction import Coefficient, PolynomialMean, MeanComposite, MeanPower
 from ..MeanFunction import fixed_f, fixed_inputderiv, one, const_f, const_deriv
 
 @pytest.fixture
@@ -60,9 +60,23 @@ def test_MeanFunction(mf, x, params):
     assert isinstance(mf7, MeanProduct)
     assert isinstance(mf7.f2, ConstantMean)
 
-    mf8 = mf(mf)
+    mf8 = mf**2
 
-    assert isinstance(mf8, MeanComposite)
+    assert isinstance(mf8, MeanPower)
+    assert isinstance(mf8.f2, ConstantMean)
+
+    mf9 = mf**Coefficient()
+
+    assert isinstance(mf9, MeanPower)
+
+    mf10 = 2.**Coefficient()
+
+    assert isinstance(mf10, MeanPower)
+    assert isinstance(mf10.f1, ConstantMean)
+
+    mf11 = mf(mf)
+
+    assert isinstance(mf11, MeanComposite)
 
 def test_MeanFunction_failures(mf, x, params):
     "test situations of MeanFunction where an exception should be raised"
@@ -93,6 +107,18 @@ def test_MeanFunction_failures(mf, x, params):
 
     with pytest.raises(TypeError):
         "3"*mf
+
+    with pytest.raises(TypeError):
+        mf**mf
+
+    with pytest.raises(TypeError):
+        2.**mf
+
+    with pytest.raises(TypeError):
+        mf**"2"
+
+    with pytest.raises(TypeError):
+        "2"**mf
 
     with pytest.raises(TypeError):
         mf(3.)
@@ -370,7 +396,139 @@ def test_MeanSum_MeanProduct_combination(x, params, dx):
 
     assert_allclose(mf.mean_inputderiv(x, params), inputderiv_fd)
 
-def test_CompositeMean(x, params, dx):
+def test_MeanPower(x, zeroparams, oneparams, dx):
+    "test the power mean function"
+
+    mf = LinearMean(0)**2
+
+    assert mf.get_n_params(x) == 0
+
+    inputderiv_exp = np.zeros((x.shape[1], x.shape[0]))
+    inputderiv_exp[0,:] = 2.*x[:,0]
+
+    assert_allclose(mf.mean_f(x, zeroparams), x[:,0]**2)
+    assert_allclose(mf.mean_deriv(x, zeroparams), np.zeros((0, x.shape[0])))
+    assert_allclose(mf.mean_hessian(x, zeroparams), np.zeros((0, 0, x.shape[0])))
+    assert_allclose(mf.mean_inputderiv(x, zeroparams), inputderiv_exp)
+
+    D = x.shape[1]
+
+    inputderiv_fd = np.zeros((D, x.shape[0]))
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        inputderiv_fd[i] = (mf.mean_f(x, zeroparams) - mf.mean_f(x - dx_array, zeroparams))/dx
+
+    assert_allclose(mf.mean_inputderiv(x, zeroparams), inputderiv_fd, atol=1.e-6, rtol=1.e-6)
+
+    mf2 = LinearMean(0)**1
+
+    inputderiv_exp = np.zeros((x.shape[1], x.shape[0]))
+    inputderiv_exp[0,:] = np.ones(x.shape[0])
+
+    assert_allclose(mf2.mean_f(x, zeroparams), x[:,0])
+    assert_allclose(mf2.mean_deriv(x, zeroparams), np.zeros((0, x.shape[0])))
+    assert_allclose(mf2.mean_hessian(x, zeroparams), np.zeros((0, 0, x.shape[0])))
+    assert_allclose(mf2.mean_inputderiv(x, zeroparams), inputderiv_exp)
+
+    inputderiv_fd = np.zeros((D, x.shape[0]))
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        inputderiv_fd[i] = (mf2.mean_f(x, zeroparams) - mf2.mean_f(x - dx_array, zeroparams))/dx
+
+    assert_allclose(mf2.mean_inputderiv(x, zeroparams), inputderiv_fd, atol=1.e-6, rtol=1.e-6)
+
+    mf3 = LinearMean(0)**0
+
+    assert_allclose(mf3.mean_f(x, zeroparams), np.ones(x.shape[0]))
+    assert_allclose(mf3.mean_deriv(x, zeroparams), np.zeros((0, x.shape[0])))
+    assert_allclose(mf3.mean_hessian(x, zeroparams), np.zeros((0, 0, x.shape[0])))
+    assert_allclose(mf3.mean_inputderiv(x, zeroparams), np.zeros((x.shape[1], x.shape[0])))
+
+    inputderiv_fd = np.zeros((D, x.shape[0]))
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        inputderiv_fd[i] = (mf3.mean_f(x, zeroparams) - mf3.mean_f(x - dx_array, zeroparams))/dx
+
+    assert_allclose(mf3.mean_inputderiv(x, zeroparams), inputderiv_fd, atol=1.e-6, rtol=1.e-6)
+
+    params = np.array([2.1])
+    n_params = 1
+
+    mf4 = LinearMean(0)**Coefficient()
+
+    assert mf4.get_n_params(x) == n_params
+
+    deriv_exp_1 = np.zeros((n_params, x.shape[0]))
+    deriv_exp_1[0] = np.log(x[:,0])*x[:,0]**oneparams[0]
+    deriv_exp_2 = np.zeros((n_params, x.shape[0]))
+    deriv_exp_2[0] = np.log(x[:,0])*x[:,0]**params[0]
+    inputderiv_exp_1 = np.zeros((x.shape[1], x.shape[0]))
+    inputderiv_exp_1[0] = oneparams[0]*x[:,0]**(oneparams[0] - 1.)
+    inputderiv_exp_2 = np.zeros((x.shape[1], x.shape[0]))
+    inputderiv_exp_2[0] = params[0]*x[:,0]**(params[0] - 1.)
+
+    assert_allclose(mf4.mean_f(x, oneparams), x[:,0]**oneparams[0])
+    assert_allclose(mf4.mean_f(x, params), x[:,0]**params[0])
+    assert_allclose(mf4.mean_deriv(x, oneparams), deriv_exp_1)
+    assert_allclose(mf4.mean_deriv(x, params), deriv_exp_2)
+    assert_allclose(mf4.mean_hessian(x, oneparams), np.zeros((n_params, n_params, x.shape[0])))
+    assert_allclose(mf4.mean_hessian(x, params), np.zeros((n_params, n_params, x.shape[0])))
+    assert_allclose(mf4.mean_inputderiv(x, oneparams), inputderiv_exp_1)
+    assert_allclose(mf4.mean_inputderiv(x, params), inputderiv_exp_2)
+
+    deriv_fd = np.zeros((n_params, x.shape[0]))
+    for i in range(n_params):
+        dx_array = np.zeros(n_params)
+        dx_array[i] = dx
+        deriv_fd[i] = (mf4.mean_f(x, oneparams) - mf4.mean_f(x, oneparams - dx_array))/dx
+
+    assert_allclose(mf4.mean_deriv(x, oneparams), deriv_fd, atol=1.e-5, rtol=1.e-5)
+
+    deriv_fd = np.zeros((n_params, x.shape[0]))
+    for i in range(n_params):
+        dx_array = np.zeros(n_params)
+        dx_array[i] = dx
+        deriv_fd[i] = (mf4.mean_f(x, params) - mf4.mean_f(x, params - dx_array))/dx
+
+    assert_allclose(mf4.mean_deriv(x, params), deriv_fd, atol=1.e-5, rtol=1.e-5)
+
+    inputderiv_fd = np.zeros((D, x.shape[0]))
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        inputderiv_fd[i] = (mf4.mean_f(x, oneparams) - mf4.mean_f(x - dx_array, oneparams))/dx
+
+    assert_allclose(mf4.mean_inputderiv(x, oneparams), inputderiv_fd, atol=1.e-6, rtol=1.e-6)
+
+    inputderiv_fd = np.zeros((D, x.shape[0]))
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        inputderiv_fd[i] = (mf4.mean_f(x, params) - mf4.mean_f(x - dx_array, params))/dx
+
+    assert_allclose(mf4.mean_inputderiv(x, params), inputderiv_fd, atol=1.e-6, rtol=1.e-6)
+
+    mf5 = Coefficient()**2
+
+    assert mf5.get_n_params(x) == n_params
+
+    assert_allclose(mf5.mean_f(x, params), params[0]**2)
+    assert_allclose(mf5.mean_deriv(x, params), np.broadcast_to(2.*params[0], (n_params, x.shape[0])))
+    assert_allclose(mf5.mean_hessian(x, params), np.zeros((n_params, n_params, x.shape[0])))
+    assert_allclose(mf5.mean_inputderiv(x, params), np.zeros((x.shape[1], x.shape[0])))
+
+    deriv_fd = np.zeros((n_params, x.shape[0]))
+    for i in range(n_params):
+        dx_array = np.zeros(n_params)
+        dx_array[i] = dx
+        deriv_fd[i] = (mf5.mean_f(x, params) - mf5.mean_f(x, params - dx_array))/dx
+
+    assert_allclose(mf5.mean_deriv(x, params), deriv_fd, atol=1.e-5, rtol=1.e-5)
+
+def test_MeanComposite(x, params, dx):
     "test the composite mean function"
 
     mf1 = LinearMean(0)*LinearMean(1)
