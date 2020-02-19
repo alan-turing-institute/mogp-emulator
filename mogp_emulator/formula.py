@@ -1,14 +1,29 @@
 from .MeanFunction import MeanFunction, ConstantMean, LinearMean, Coefficient
 try:
     from patsy import ModelDesc, Term, EvalFactor
+    no_patsy = False
 except ImportError:
-    raise ImportError("you must install patsy to convert formulas to mean functions")
+    no_patsy = True
 
-def mean_from_formula(formula, inputdict={}):
-    "function to create a mean function from a formula or patsy ModelDesc"
+def mean_from_formula(formula, inputdict={}, use_patsy=True):
+    "function to create a mean function from a formula"
 
     if formula is None or (isinstance(formula, str) and formula.strip() == ""):
         return ConstantMean(0.)
+
+    if no_patsy or (not use_patsy):
+        if not isinstance(formula, str):
+            raise ValueError("input formula must be a string")
+        mf = code_to_mean(formula, inputdict)
+    else:
+        mf = mean_from_patsy_formula(formula, inputdict)
+
+    return mf
+
+def mean_from_patsy_formula(formula, inputdict={}):
+    "use patsy to parse formula before evaluating terms"
+
+    assert not no_patsy
 
     if isinstance(formula, str):
         model = ModelDesc.from_formula(formula)
@@ -41,18 +56,19 @@ def term_to_mean(term, inputdict={}):
     mf = Coefficient()
 
     for factor in term.factors:
-        mf *= factor_to_mean(factor, inputdict)
+        assert isinstance(factor, patsy.EvalFactor)
+        mf *= code_to_mean(factor.code, inputdict)
 
     assert issubclass(type(mf), MeanFunction)
 
     return mf
 
-def factor_to_mean(factor, inputdict={}):
-    "convert a patsy Factor object into a MeanFunction object"
+def code_to_mean(code, inputdict={}):
+    "convert a string formula into a MeanFunction object"
 
-    assert isinstance(factor, EvalFactor)
+    assert isinstance(code, str)
 
-    tokens = tokenize_string(factor.code)
+    tokens = tokenize_string(code)
     eval_stack = parse_tokens(tokens)
 
     mf = eval_parsed_tokens(eval_stack, inputdict)
@@ -125,7 +141,7 @@ def tokenize_string(string):
     accumulated = ""
 
     for char in string:
-        if char in ["(", ")", "+", "^", " "]:
+        if char in ["(", ")", "+", "^", " ", "[", "]"]:
             if not accumulated == "":
                 token_list.append(accumulated)
             token_list.append(char)
@@ -148,7 +164,19 @@ def tokenize_string(string):
     if not accumulated == "":
         token_list.append(accumulated)
 
-    outlist = [item for item in token_list if not item == " "]
+    outlist = []
+
+    for item in token_list:
+        if not item in [" ", "[", "]"]:
+            outlist.append(item)
+        elif item == "[":
+            outlist.append(outlist.pop()+item)
+        elif item == "]":
+            outlist.append(outlist.pop(-2)+outlist.pop()+item)
+
+    for item in outlist:
+        if (not "[" in item and "]" in item) or (not "]" in item and "[" in item):
+            raise SyntaxError("cannot nest operators in square brackets in formula input")
 
     return outlist
 
