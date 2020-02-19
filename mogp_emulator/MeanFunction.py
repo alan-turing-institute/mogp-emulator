@@ -42,6 +42,7 @@ Example: ::
 """
 import numpy as np
 from functools import partial
+from .formula import mean_from_patsy_formula, mean_from_string
 
 class MeanFunction(object):
     """
@@ -63,6 +64,27 @@ class MeanFunction(object):
     The base class does not have any attributes, but subclasses will usually have some
     attributes that must be set and so are likely to need a ``__init__`` method.
     """
+
+    @classmethod
+    def from_formula(cls, formula, inputdict={}, use_patsy=True):
+        """
+        Create a mean function from a formula
+        """
+
+        if formula is None or (isinstance(formula, str) and formula.strip() == ""):
+            return ConstantMean(0.)
+
+        if use_patsy:
+            mf = mean_from_patsy_formula(formula, inputdict)
+        else:
+            if not isinstance(formula, str):
+                raise ValueError("input formula must be a string")
+            mf = code_to_mean(formula, inputdict)
+
+        assert issubclass(type(mf), cls), ("error in from_formula class method: result did not " +
+                                           "produce the desired class")
+
+        return mf
 
     def _check_inputs(self, x, params):
         """

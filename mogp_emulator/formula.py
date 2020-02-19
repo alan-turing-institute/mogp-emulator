@@ -1,29 +1,14 @@
-from .MeanFunction import MeanFunction, ConstantMean, LinearMean, Coefficient
+from . import MeanFunction
 try:
     from patsy import ModelDesc, Term, EvalFactor
     no_patsy = False
 except ImportError:
     no_patsy = True
 
-def mean_from_formula(formula, inputdict={}, use_patsy=True):
-    "function to create a mean function from a formula"
-
-    if formula is None or (isinstance(formula, str) and formula.strip() == ""):
-        return ConstantMean(0.)
-
-    if no_patsy or (not use_patsy):
-        if not isinstance(formula, str):
-            raise ValueError("input formula must be a string")
-        mf = code_to_mean(formula, inputdict)
-    else:
-        mf = mean_from_patsy_formula(formula, inputdict)
-
-    return mf
-
 def mean_from_patsy_formula(formula, inputdict={}):
     "use patsy to parse formula before evaluating terms"
 
-    assert not no_patsy
+    assert not no_patsy, "patsy must be installed to parse formulas using patsy"
 
     if isinstance(formula, str):
         model = ModelDesc.from_formula(formula)
@@ -37,12 +22,26 @@ def mean_from_patsy_formula(formula, inputdict={}):
 
     mf = model_terms.pop(0)
 
-    assert issubclass(type(mf), MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanFunction)
 
     for term in model_terms:
         mf += term
 
-    assert issubclass(type(mf), MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanFunction)
+
+    return mf
+
+def mean_from_string(inputstr, inputdict={}):
+    "convert a string formula into a MeanFunction object"
+
+    assert isinstance(inputstr, str)
+
+    tokens = tokenize_string(inputstr)
+    eval_stack = parse_tokens(tokens)
+
+    mf = eval_parsed_tokens(eval_stack, inputdict)
+
+    assert issubclass(type(mf), MeanFunction.MeanFunction)
 
     return mf
 
@@ -53,27 +52,13 @@ def term_to_mean(term, inputdict={}):
 
     # add leading coefficient and multiply by all factors
 
-    mf = Coefficient()
+    mf = MeanFunction.Coefficient()
 
     for factor in term.factors:
-        assert isinstance(factor, patsy.EvalFactor)
-        mf *= code_to_mean(factor.code, inputdict)
+        assert isinstance(factor, EvalFactor)
+        mf *= mean_from_string(factor.code, inputdict)
 
-    assert issubclass(type(mf), MeanFunction)
-
-    return mf
-
-def code_to_mean(code, inputdict={}):
-    "convert a string formula into a MeanFunction object"
-
-    assert isinstance(code, str)
-
-    tokens = tokenize_string(code)
-    eval_stack = parse_tokens(tokens)
-
-    mf = eval_parsed_tokens(eval_stack, inputdict)
-
-    assert issubclass(type(mf), MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanFunction)
 
     return mf
 
@@ -113,12 +98,12 @@ def inputstr_to_mean(inputstr, inputdict={}):
     assert isinstance(inputstr, str), "formula input to mean function is not a string"
 
     if _is_float(inputstr):
-        return ConstantMean(float(inputstr))
+        return MeanFunction.ConstantMean(float(inputstr))
 
     inputstr = parse_factor_code(inputstr, inputdict)
 
     if not inputstr[0] == "x":
-        return Coefficient()
+        return MeanFunction.Coefficient()
 
     if not (inputstr[:2] == "x[" and inputstr[-1] == "]"):
         raise ValueError("bad formula input in mean function")
@@ -130,7 +115,7 @@ def inputstr_to_mean(inputstr, inputdict={}):
 
     assert index >= 0, "index in formula parsing must be non-negative"
 
-    return LinearMean(index)
+    return MeanFunction.LinearMean(index)
 
 def tokenize_string(string):
     "converts a string into a series of tokens for evaluation"
