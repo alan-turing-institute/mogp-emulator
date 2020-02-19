@@ -123,6 +123,29 @@ def test_MeanFunction_failures(mf, x, params):
     with pytest.raises(TypeError):
         mf(3.)
 
+def test_MeanFunction_from_formula():
+    "test the function to create a mean function from a formula"
+
+    mf = MeanFunction.from_formula(None)
+
+    assert isinstance(mf, ConstantMean)
+    assert_allclose(mf.mean_f(np.ones((2,3)), np.zeros(0)), np.zeros((2)))
+
+    mf2 = MeanFunction.from_formula("x[0]", use_patsy=True)
+
+    assert isinstance(mf2, MeanSum)
+    assert_allclose(mf2.mean_f(np.array([[1., 2., 3.], [4., 5., 6.]]), np.array([1., 2.])),
+                    np.array([3., 9.]))
+
+    mf3 = MeanFunction.from_formula("a + b*c", {"c":0}, use_patsy=False)
+
+    assert isinstance(mf3, MeanSum)
+    assert_allclose(mf3.mean_f(np.array([[1., 2., 3.], [4., 5., 6.]]), np.array([1., 2.])),
+                    np.array([3., 9.]))
+
+    with pytest.raises(ValueError):
+        MeanFunction.from_formula(1)
+
 def test_fixed_functions(x):
     "test utility functions for creating fixed means"
 

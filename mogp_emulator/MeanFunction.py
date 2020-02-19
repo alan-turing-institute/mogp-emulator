@@ -65,8 +65,8 @@ class MeanFunction(object):
     attributes that must be set and so are likely to need a ``__init__`` method.
     """
 
-    @classmethod
-    def from_formula(cls, formula, inputdict={}, use_patsy=True):
+    @staticmethod
+    def from_formula(formula, inputdict={}, use_patsy=True):
         """
         Create a mean function from a formula
         """
@@ -74,15 +74,13 @@ class MeanFunction(object):
         if formula is None or (isinstance(formula, str) and formula.strip() == ""):
             return ConstantMean(0.)
 
+        if not isinstance(formula, str):
+            raise ValueError("input formula must be a string")
+
         if use_patsy:
             mf = mean_from_patsy_formula(formula, inputdict)
         else:
-            if not isinstance(formula, str):
-                raise ValueError("input formula must be a string")
-            mf = code_to_mean(formula, inputdict)
-
-        assert issubclass(type(mf), cls), ("error in from_formula class method: result did not " +
-                                           "produce the desired class")
+            mf = mean_from_string(formula, inputdict)
 
         return mf
 

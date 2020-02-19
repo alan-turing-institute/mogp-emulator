@@ -48,6 +48,8 @@ def mean_from_string(inputstr, inputdict={}):
 def term_to_mean(term, inputdict={}):
     "convert a patsy Term object into a MeanFunction object"
 
+    assert not no_patsy, "patsy must be installed to parse formulas using patsy"
+
     assert isinstance(term, Term)
 
     # add leading coefficient and multiply by all factors
@@ -210,7 +212,7 @@ def parse_tokens(token_list):
                     raise SyntaxError("string expression has mismatched parentheses")
             if operator_stack[-1] == "(":
                 operator_stack.pop()
-            prev_op = True
+            prev_op = False
 
     while len(operator_stack) > 0:
         operator = operator_stack.pop()

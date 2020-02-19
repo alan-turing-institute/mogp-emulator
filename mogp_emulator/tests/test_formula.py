@@ -1,38 +1,127 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-from ..formula import parse_factor_code, _is_float, inputstr_to_mean, tokenize_string
-from ..formula import parse_tokens, eval_parsed_tokens
+from ..formula import mean_from_string, parse_factor_code, _is_float, inputstr_to_mean
+from ..formula import tokenize_string, parse_tokens, eval_parsed_tokens
 from ..MeanFunction import ConstantMean, Coefficient, LinearMean
 from ..MeanFunction import MeanSum, MeanProduct, MeanPower, MeanComposite
 try:
+    import patsy
     no_patsy = False
+    from ..formula import mean_from_patsy_formula, term_to_mean
 except ImportError:
     no_patsy = True
 
 patsy_skip = pytest.mark.skipif(no_patsy, reason="patsy is needed to test formula parsing")
 
 @patsy_skip
-def test_mean_from_patsy_formula():
-    pass
+@pytest.mark.parametrize("code,inputdict,params,resulttype,result",
+                         [("x[0] - 1",
+                           {}     , np.ones(1)                , MeanProduct , np.array([1., 4.])),
+                          ("a - 1",
+                           {}     , np.ones(2)                , MeanProduct , np.array([1., 1.])),
+                          ("a - 1",
+                           {"a":1}, np.ones(1)                , MeanProduct , np.array([2., 5.])),
+                          ("x[0]",
+                           {}     , np.array([1., 2.])        , MeanSum    , np.array([3., 9.])),
+                          ("x[1] - 1",
+                           {}     , np.array([2.])            , MeanProduct, np.array([4., 10.])),
+                          ("I ( inputs[0]^2) - 1",
+                           {}     , np.ones(1)                , MeanProduct, np.array([1., 16.])),
+                          ("x[0]*x[1]",
+                           {}     , np.array([1., 2., 3., 4.]), MeanSum    , np.array([17., 104.])),
+                          (patsy.ModelDesc.from_formula("x[0] - 1"),
+                           {}     , np.ones(1)                , MeanProduct , np.array([1., 4.])),
+                          (patsy.ModelDesc.from_formula("a - 1"),
+                           {}     , np.ones(2)                , MeanProduct , np.array([1., 1.])),
+                          (patsy.ModelDesc.from_formula("a - 1"),
+                           {"a":1}, np.ones(1)                , MeanProduct , np.array([2., 5.])),
+                          (patsy.ModelDesc.from_formula("x[0]"),
+                           {}     , np.array([1., 2.])        , MeanSum    , np.array([3., 9.])),
+                          (patsy.ModelDesc.from_formula("x[1] - 1"),
+                           {}     , np.array([2.])            , MeanProduct, np.array([4., 10.])),
+                          (patsy.ModelDesc.from_formula("I ( inputs[0]^2) - 1"),
+                           {}     , np.ones(1)                , MeanProduct, np.array([1., 16.])),
+                          (patsy.ModelDesc.from_formula("x[0]*x[1]"),
+                           {}     , np.array([1., 2., 3., 4.]), MeanSum    , np.array([17., 104.]))])
+def test_mean_from_patsy_formula(code, inputdict, params, resulttype, result):
+    "test the mean_from_patsy_formula function"
 
-@patsy_skip
-def test_mean_from_patsy_formula_failures():
-    pass
+    x = np.array([[1., 2., 3.], [4., 5., 6.]])
+
+    mf = mean_from_patsy_formula(code, inputdict)
+
+    assert isinstance(mf, resulttype)
+    assert mf.get_n_params(x) == len(params)
+
+    assert_allclose(mf.mean_f(x, params), result)
+
+@pytest.mark.parametrize("code,inputdict,params,resulttype,result",
+                         [("x[0]",
+                           {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
+                          ("a",
+                           {}     , np.ones(1)        , Coefficient, np.array([1., 1.])),
+                          ("a",
+                           {"a":1}, np.zeros(0)       , LinearMean , np.array([2., 5.])),
+                          ("a + b*x[0]",
+                           {}     , np.array([1., 2.]), MeanSum    , np.array([3., 9.])),
+                          ("a*x[1]",
+                           {}     , np.array([2.])    , MeanProduct, np.array([4., 10.])),
+                          ("inputs[0]**2",
+                           {}     , np.zeros(0)       , MeanPower  , np.array([1., 16.])),
+                          ("I ( inputs[0]^2)",
+                           {}     , np.zeros(0)       , MeanPower  , np.array([1., 16.])),
+                          ("(a + b*x[0])(x[0]*x[1])",
+                           {}     , np.array([1., 2.]), MeanComposite, np.array([5., 41.]))])
+def test_mean_from_string(code, inputdict, params, resulttype, result):
+    "test the mean_from_string function"
+
+    x = np.array([[1., 2., 3.], [4., 5., 6.]])
+
+    mf = mean_from_string(code, inputdict)
+
+    assert isinstance(mf, resulttype)
+    assert mf.get_n_params(x) == len(params)
+
+    assert_allclose(mf.mean_f(x, params), result)
+
+def test_mean_from_string_failures():
+    "test that mean_from_string correctly fails"
+
+    with pytest.raises(AssertionError):
+        mean_from_string(1)
 
 @patsy_skip
 def test_term_to_mean():
-    pass
+    "test the term_to_mean function"
+
+    t = patsy.ModelDesc.from_formula("x[0]").rhs_termlist
+
+    x = np.array([[1., 2., 3.], [4., 5., 6.]])
+
+    params = np.array([2.])
+
+    type_expected = [ Coefficient, MeanProduct ]
+    mean_expected = [ np.array([2., 2.]), np.array([2., 8.]) ]
+
+    for term, type_exp, mean_exp in zip(t, type_expected, mean_expected):
+        mf = term_to_mean(term)
+        assert mf.get_n_params(x) == len(params)
+        assert isinstance(mf, type_exp)
+        assert_allclose(mf.mean_f(x, params), mean_exp)
 
 @patsy_skip
 def test_term_to_mean_failures():
-    pass
+    "test situations where term_to_mean should fail"
 
-def test_code_to_mean():
-    pass
+    with pytest.raises(AssertionError):
+        term_to_mean(1)
 
-def test_code_to_mean_failures():
-    pass
+    t = patsy.ModelDesc.from_formula("x").rhs_termlist[0]
+    t.factors = [1, 2]
+
+    with pytest.raises(AssertionError):
+        term_to_mean(t)
 
 @pytest.mark.parametrize("code,inputdict,result", [("x[1]", {}, "x[1]"),
                                                    ("inputs[0]", {}, "x[0]"),
