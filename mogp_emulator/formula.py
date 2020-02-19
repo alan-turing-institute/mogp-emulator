@@ -157,11 +157,15 @@ def tokenize_string(string):
         elif item == "[":
             outlist.append(outlist.pop()+item)
         elif item == "]":
+            if len(outlist) < 2:
+                raise SyntaxError("error in using square brackets in formula input")
             outlist.append(outlist.pop(-2)+outlist.pop()+item)
 
     for item in outlist:
         if (not "[" in item and "]" in item) or (not "]" in item and "[" in item):
             raise SyntaxError("cannot nest operators in square brackets in formula input")
+        if item == "call":
+            raise SyntaxError("'call' cannot be used as a variable name in formula input")
 
     return outlist
 
@@ -240,14 +244,14 @@ def eval_parsed_tokens(token_list, inputdict={}):
             op_2 = stack.pop()
             if op_2 == "I":
                 raise SyntaxError("identity operator can only be called as a function")
-            assert issubclass(type(op_2), MeanFunction)
+            assert issubclass(type(op_2), MeanFunction.MeanFunction)
             op_1 = stack.pop()
             if token == "call":
-                assert op_1 == "I" or issubclass(type(op_1), MeanFunction)
+                assert op_1 == "I" or issubclass(type(op_1), MeanFunction.MeanFunction)
             else:
-                if op_2 == "I":
+                if op_1 == "I":
                     raise SyntaxError("identity operator can only be called as a function")
-                assert issubclass(type(op_1), MeanFunction), "expression was not c"
+                assert issubclass(type(op_1), MeanFunction.MeanFunction)
 
             if token == "+":
                 stack.append(op_1.__add__(op_2))
