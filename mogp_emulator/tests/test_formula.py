@@ -59,6 +59,14 @@ def test_mean_from_patsy_formula(code, inputdict, params, resulttype, result):
 @pytest.mark.parametrize("code,inputdict,params,resulttype,result",
                          [("x[0]",
                            {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
+                          ("y = x[0]",
+                           {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
+                          ("y ~ x[0]",
+                           {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
+                          ("~ x[0]",
+                           {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
+                          ("= x[0]",
+                           {}     , np.zeros(0)       , LinearMean , np.array([1., 4.])),
                           ("a",
                            {}     , np.ones(1)        , Coefficient, np.array([1., 1.])),
                           ("a",
@@ -183,6 +191,10 @@ def test_inputstr_to_mean_failures():
         inputstr_to_mean("x[-19]")
 
 @pytest.mark.parametrize("code,result", [("a", ["a"]),
+                                         ("y = a", ["a"]),
+                                         ("y ~ a", ["a"]),
+                                         ("= a", ["a"]),
+                                         ("~ a", ["a"]),
                                          ("a + b", ["a", "+", "b"]),
                                          ("a*b+ c", ["a", "*", "b", "+", "c"]),
                                          ("x[0]", ["x[0]"]),
@@ -218,6 +230,12 @@ def test_tokenize_string_failures():
     with pytest.raises(SyntaxError):
         tokenize_string("call")
 
+    with pytest.raises(SyntaxError):
+        tokenize_string("a + b = c")
+
+    with pytest.raises(SyntaxError):
+        tokenize_string("a + b ~ c")
+
 @pytest.mark.parametrize("token_list,output_list",
                          [(["a"], ["a"]),
                           (["a", "+", "b"], ["a", "b", "+"]),
@@ -245,6 +263,12 @@ def test_parse_tokens_failures():
 
     with pytest.raises(SyntaxError):
         parse_tokens(["x" "*", "a", "+", "b", ")"])
+
+    with pytest.raises(SyntaxError):
+        parse_tokens(["="])
+
+    with pytest.raises(SyntaxError):
+        parse_tokens(["~"])
 
 @pytest.mark.parametrize("stack,inputdict,params,resulttype,result",
                          [(["x[0]"],
@@ -295,3 +319,9 @@ def test_eval_parsed_tokens_failures():
 
     with pytest.raises(SyntaxError):
         eval_parsed_tokens(["a", "b"])
+
+    with pytest.raises(SyntaxError):
+        eval_parsed_tokens(["="])
+
+    with pytest.raises(SyntaxError):
+        eval_parsed_tokens(["~"])

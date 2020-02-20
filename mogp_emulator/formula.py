@@ -22,12 +22,12 @@ def mean_from_patsy_formula(formula, inputdict={}):
 
     mf = model_terms.pop(0)
 
-    assert issubclass(type(mf), MeanFunction.MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanBase)
 
     for term in model_terms:
         mf += term
 
-    assert issubclass(type(mf), MeanFunction.MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanBase)
 
     return mf
 
@@ -41,7 +41,7 @@ def mean_from_string(inputstr, inputdict={}):
 
     mf = eval_parsed_tokens(eval_stack, inputdict)
 
-    assert issubclass(type(mf), MeanFunction.MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanBase)
 
     return mf
 
@@ -60,7 +60,7 @@ def term_to_mean(term, inputdict={}):
         assert isinstance(factor, EvalFactor)
         mf *= mean_from_string(factor.code, inputdict)
 
-    assert issubclass(type(mf), MeanFunction.MeanFunction)
+    assert issubclass(type(mf), MeanFunction.MeanBase)
 
     return mf
 
@@ -128,7 +128,7 @@ def tokenize_string(string):
     accumulated = ""
 
     for char in string:
-        if char in ["(", ")", "+", "^", " ", "[", "]"]:
+        if char in ["(", ")", "+", "^", " ", "[", "]", "=", "~"]:
             if not accumulated == "":
                 token_list.append(accumulated)
             token_list.append(char)
@@ -163,11 +163,18 @@ def tokenize_string(string):
                 raise SyntaxError("error in using square brackets in formula input")
             outlist.append(outlist.pop(-2)+outlist.pop()+item)
 
+    if outlist[0] == "y":
+        outlist.pop(0)
+    if outlist[0] in ["=", "~"]:
+        outlist.pop(0)
+
     for item in outlist:
         if (not "[" in item and "]" in item) or (not "]" in item and "[" in item):
             raise SyntaxError("cannot nest operators in square brackets in formula input")
         if item == "call":
             raise SyntaxError("'call' cannot be used as a variable name in formula input")
+        if item in ["=", "~"]:
+            raise SyntaxError("LHS in formula is not correctly specified")
 
     return outlist
 
@@ -186,6 +193,8 @@ def parse_tokens(token_list):
 
     for token in token_list:
         assert isinstance(token, str), "input must be a list of strings"
+        if token in ["=", "~"]:
+            raise SyntaxError("LHS in formula is not correctly specified")
         if not token in ["(", ")", "+", "*", "^"]:
             output_list.append(token)
             prev_op = False
@@ -233,6 +242,8 @@ def eval_parsed_tokens(token_list, inputdict={}):
 
     for token in token_list:
         assert isinstance(token, str), "tokens must be strings"
+        if token in ["=", "~"]:
+            raise SyntaxError("LHS in formula is not correctly specified")
         if token not in op_list:
             if token == "I":
                 mf = "I"
@@ -246,14 +257,14 @@ def eval_parsed_tokens(token_list, inputdict={}):
             op_2 = stack.pop()
             if op_2 == "I":
                 raise SyntaxError("identity operator can only be called as a function")
-            assert issubclass(type(op_2), MeanFunction.MeanFunction)
+            assert issubclass(type(op_2), MeanFunction.MeanBase)
             op_1 = stack.pop()
             if token == "call":
-                assert op_1 == "I" or issubclass(type(op_1), MeanFunction.MeanFunction)
+                assert op_1 == "I" or issubclass(type(op_1), MeanFunction.MeanBase)
             else:
                 if op_1 == "I":
                     raise SyntaxError("identity operator can only be called as a function")
-                assert issubclass(type(op_1), MeanFunction.MeanFunction)
+                assert issubclass(type(op_1), MeanFunction.MeanBase)
 
             if token == "+":
                 stack.append(op_1.__add__(op_2))
