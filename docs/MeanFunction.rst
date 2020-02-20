@@ -5,15 +5,19 @@ The ``MeanFunction`` Module
 **********************************
 
 .. automodule:: mogp_emulator.MeanFunction
+    :members: MeanFunction
     :noindex:
 
-.. autoclass:: mogp_emulator.MeanFunction.MeanFunction
+.. autoclass:: mogp_emulator.MeanFunction.MeanBase
     :members:
 
 .. autoclass:: mogp_emulator.MeanFunction.MeanSum
     :members:
 
 .. autoclass:: mogp_emulator.MeanFunction.MeanProduct
+    :members:
+
+.. autoclass:: mogp_emulator.MeanFunction.MeanPower
     :members:
 
 .. autoclass:: mogp_emulator.MeanFunction.MeanComposite

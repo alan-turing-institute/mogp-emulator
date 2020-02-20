@@ -14,6 +14,7 @@ Welcome to Multi-Output GP Emulator's documentation!
    DimensionReduction
    MultiOutputGP
    MeanFunction
+   formula
    Kernel
    ExperimentalDesign
    SequentialDesign
