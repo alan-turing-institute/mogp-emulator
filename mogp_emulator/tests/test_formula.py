@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-from ..formula import mean_from_string, parse_factor_code, _is_float, inputstr_to_mean
+from ..formula import mean_from_string, convert_token, _is_float, token_to_mean
 from ..formula import tokenize_string, parse_tokens, eval_parsed_tokens
 from ..MeanFunction import ConstantMean, Coefficient, LinearMean
 from ..MeanFunction import MeanSum, MeanProduct, MeanPower, MeanComposite
@@ -131,21 +131,21 @@ def test_term_to_mean_failures():
     with pytest.raises(AssertionError):
         term_to_mean(t)
 
-@pytest.mark.parametrize("code,inputdict,result", [("x[1]", {}, "x[1]"),
+@pytest.mark.parametrize("token,inputdict,result", [("x[1]", {}, "x[1]"),
                                                    ("inputs[0]", {}, "x[0]"),
                                                    ("a", {}, "a"),
                                                    ("a", {"a":0}, "x[0]"),
                                                    ("d", {"d":1}, "x[1]")])
-def test_parse_factor_code(code, inputdict, result):
+def test_parse_factor_code(token, inputdict, result):
     "test the function to parse factor code"
 
-    assert parse_factor_code(code, inputdict) == result
+    assert convert_token(token, inputdict) == result
 
-def test_parse_factor_code_failures():
+def test_convert_token_failures():
     "test situations where parse_factor_code should fail"
 
     with pytest.raises(AssertionError):
-        parse_factor_code(1)
+        convert_token(1)
 
 def test_is_float():
     "test the _is_float function"
@@ -154,41 +154,41 @@ def test_is_float():
     assert _is_float("-2.e-4")
     assert not _is_float("a")
 
-@pytest.mark.parametrize("code,inputdict,params,resulttype,result",
+@pytest.mark.parametrize("token,inputdict,params,resulttype,result",
                          [("2."  , {}     , np.zeros(0), ConstantMean, np.array([2., 2.])),
                           ("a"   , {}     , np.ones(1) , Coefficient , np.array([1., 1.])),
                           ("x[0]", {}     , np.zeros(0), LinearMean  , np.array([1., 4.])),
                           ("a"   , {"a":0}, np.zeros(0), LinearMean  , np.array([1., 4.])),
                           ("x[1]", {}     , np.zeros(0), LinearMean  , np.array([2., 5.]))])
-def test_inputstr_to_mean(code, inputdict, params, resulttype, result):
-    "test the inputstr_to_mean function"
+def test_token_to_mean(token, inputdict, params, resulttype, result):
+    "test the token_to_mean function"
 
     x = np.array([[1., 2., 3.], [4., 5., 6.]])
 
-    mf = inputstr_to_mean(code, inputdict)
+    mf = token_to_mean(token, inputdict)
 
     assert isinstance(mf, resulttype)
     assert mf.get_n_params(x) == len(params)
 
     assert_allclose(mf.mean_f(x, params), result)
 
-def test_inputstr_to_mean_failures():
-    "test situation where inputstr_to_mean should fail"
+def test_token_to_mean_failures():
+    "test situation where token_to_mean should fail"
 
     with pytest.raises(AssertionError):
-        inputstr_to_mean(1)
+        token_to_mean(1)
 
     with pytest.raises(ValueError):
-        inputstr_to_mean("x[0")
+        token_to_mean("x[0")
 
     with pytest.raises(ValueError):
-        inputstr_to_mean("x(1]")
+        token_to_mean("x(1]")
 
     with pytest.raises(ValueError):
-        inputstr_to_mean("x[a]")
+        token_to_mean("x[a]")
 
     with pytest.raises(AssertionError):
-        inputstr_to_mean("x[-19]")
+        token_to_mean("x[-19]")
 
 @pytest.mark.parametrize("code,result", [("a", ["a"]),
                                          ("y = a", ["a"]),

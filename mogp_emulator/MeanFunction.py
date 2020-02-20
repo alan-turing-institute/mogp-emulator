@@ -108,14 +108,40 @@ def MeanFunction(formula, inputdict={}, use_patsy=True):
     take care that the provided expression is sensible as a mean function and will not
     cause problems when fitting.
 
+    Additional special cases to be aware of:
+
+    * ``call`` cannot be used as a variable name, if this is parsed as a token an exception
+      will be raised.
+    * ``I`` is the identity operator, it simply returns the given value. It is useful
+      if you wish to use patsy to evaluate a formula but protect a part of the string
+      formula from being expanded based on the rules in patsy. If ``I`` is encountered
+      in any other context, an exception will be raised.
+
     Examples: ::
 
         >>> from mogp_emulator.MeanFunction import MeanFunction
-        >>> mf1 = MeanFunction("x[0]") # uses patsy to parse this to y = a + b*x[0]
-        >>> mf2 = MeanFunction("y = a + b*x[0]", use_patsy=False) # same as previous
-        >>> mf3 = MeanFunction("a*b", {"a": 0, "b": 1}) # y = c1 + c2*x[0] + c3*x[1] + c4*x[0]*x[1]
+        >>> mf1 = MeanFunction("x[0]")
+        >>> print(mf1)
+        c + c*x[0]
+        >>> mf2 = MeanFunction("y = a + b*x[0]", use_patsy=False)
+        >>> print(mf2)
+        c + c*x[0]
+        >>> mf3 = MeanFunction("a*b", {"a": 0, "b": 1})
+        >>> print(mf3)
+        c + c*x[0] + c*x[1] + c*x[0]*x[1]
 
     :param formula: string representing the desired mean function formula
+    :type formula: str
+    :param inputdict: dictionary used to map variables to input indices. Maps
+                      strings to integer indices (must be non-negative). Optional,
+                      default is ``{}``.
+    :type inputdict: dict
+    :param use_patsy: Boolean flag indicating if the string is to be parsed using
+                      patsy library. Optional, default is ``True``. If patsy is not
+                      installed, the basic string parser will be used.
+    :type use_patsy: bool
+    :returns: New subclass of ``MeanBase`` implementing the given formula
+    :rtype: subclass of MeanBase (exact type will depend on the formula that is provided)
     """
 
     if formula is None or (isinstance(formula, str) and formula.strip() == ""):
