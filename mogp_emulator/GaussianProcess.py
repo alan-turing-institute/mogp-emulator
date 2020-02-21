@@ -60,7 +60,7 @@ class GaussianProcess(object):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), nugget=None,
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), nugget="adaptive",
                  inputdict = {}, use_patsy=True):
         """
         Create a new GaussianProcess Emulator
@@ -82,12 +82,14 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
 
-        ``nugget`` is the additional noise added to the emulator targets when fitting. This
-        can take on values ``None`` (meaning noise will be added adaptively to
-        stabilize fitting), a non-negative float (meaning a fixed noise level
-        will be used), or a negative float (meaning that the nugget is considered to be
-        a hyperparameter). If no value is specified for the ``nugget`` parameter, ``None``
-        is the default.
+        ``nugget`` controls how additional noise is added to the emulator targets when fitting.
+        This can be specified in several ways. If a string is provided, it can take the
+        values of ``"adaptive"`` or ``"fit"``, which indicate that the nugget will be
+        chosen in the fitting process. ``"adaptive"`` means that the nugget will be made only
+        as large as necessary to invert the covariance matrix, while ``"fit"`` means that
+        the nugget will be treated as a hyperparameter to be optimized. Alternatively,
+        a non-negative float can be used to specify a fixed noise level. If no value is
+        specified for the ``nugget`` parameter, ``"adaptive"`` is the default.
 
 
         :param inputs: Numpy array holding emulator input parameters. Must be 1D with length
@@ -101,12 +103,11 @@ class GaussianProcess(object):
         :type mean: None or MeanFunction
         :param kernel: Covariance kernel to be used (optional, default is Squared Exponential)
         :type kernel: Kernel
-        :param nugget: Noise to be added to the diagonal or ``None``. A non-negative float
-                       specifies the noise level explicitly, a negative float indicates that
-                       the nugget is considered a hyperparameter, and ``None`` indicates
-                       that the noise will set to be as small as possible to ensure stable
-                       inversion of the covariance matrix. Optional, default is ``None``.
-        :type nugget: float or None
+        :param nugget: Noise to be added to the diagonal, specified as a string or a float.
+                       A non-negative float specifies the noise level explicitly, while a string
+                       indicates that the nugget will be found via fitting, either as ``"adaptive"``
+                       or ``"fit"`` (see above for a description). Default is ``"adaptive"``.
+        :type nugget: float or str
         :returns: New ``GaussianProcess`` instance
         :rtype: GaussianProcess
 
@@ -128,16 +129,8 @@ class GaussianProcess(object):
         if not issubclass(type(kernel), Kernel):
             raise ValueError("provided kernel is not a subclass of Kernel")
 
-        if not nugget is None:
-            try:
-                nugget = float(nugget)
-            except ValueError:
-                raise ValueError("nugget must be None or a float")
-
-        self.inputs = inputs
-        self.targets = targets
-
-        self.n, self.D = self.inputs.shape
+        self._inputs = inputs
+        self._targets = targets
 
         if not issubclass(type(mean), MeanBase):
             self.mean = MeanFunction(mean, inputdict, use_patsy)
@@ -148,9 +141,30 @@ class GaussianProcess(object):
 
         self.nugget = nugget
 
-        self.theta = None
+        self._theta = None
 
-    def get_n(self):
+    @property
+    def inputs(self):
+        """
+        Returns inputs for the emulator as a numpy array
+
+        :returns: Emulator inputs, 2D array with shape ``(n, D)``
+        :rtype: ndarray
+        """
+        return self._inputs
+
+    @property
+    def targets(self):
+        """
+        Returns targets for the emulator as a numpy array
+
+        :returns: Emulator targets, 1D array with shape ``(n,)``
+        :rtype: ndarray
+        """
+        return self._targets
+
+    @property
+    def n(self):
         """
         Returns number of training examples for the emulator
 
@@ -158,9 +172,10 @@ class GaussianProcess(object):
         :rtype: int
         """
 
-        return self.n
+        return self.inputs.shape[0]
 
-    def get_D(self):
+    @property
+    def D(self):
         """
         Returns number of inputs for the emulator
 
@@ -168,9 +183,10 @@ class GaussianProcess(object):
         :rtype: int
         """
 
-        return self.D
+        return self.inputs.shape[1]
 
-    def get_n_params(self):
+    @property
+    def n_params(self):
         """
         Returns number of hyperparameters
 
@@ -184,25 +200,85 @@ class GaussianProcess(object):
 
         return self.mean.get_n_params(self.inputs) + self.D + 2
 
-    def get_inputs(self):
+    @property
+    def nugget_type(self):
         """
-        Returns inputs for the emulator as a numpy array
+        Returns method used to select nugget parameter
 
-        :returns: Emulator inputs, 2D array with shape ``(n, D)``
-        :rtype: ndarray
+        Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
+        ``"fit"``, or ``"fixed"``. Can be modified when setting the ``nugget`` property.
+
+        :returns: Current nugget fitting method
+        :rtype: str
         """
-        return self.inputs
+        return self._nugget_type
 
-    def get_targets(self):
+    @property
+    def nugget(self):
         """
-        Returns targets for the emulator as a numpy array
+        Returns emulator nugget parameter
 
-        :returns: Emulator targets, 1D array with shape ``(n,)``
-        :rtype: ndarray
+        Returns current value of the nugget parameter. If the nugget is to be selected
+        adaptively or by fitting the emulator and the nugget has not been fit,
+        returns ``None``.
+
+        :returns: Current nugget value, either a float or ``None``
+        :rtype: float or None
         """
-        return self.targets
 
-    def get_params(self):
+        return self._nugget
+
+    @nugget.setter
+    def nugget(self, nugget):
+        """
+        Set the nugget parameter for the emulator
+
+        Method for changing the ``nugget`` parameter for the emulator. When a new emulator is
+        initilized, this is set to None.
+
+        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
+        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
+        float, then that particular value is used for the nugget. Note that setting this parameter
+        to be zero enforces that the emulator strictly interpolates between points. Alternatively,
+        a string can be provided. A value of ``"fit"`` means that the nugget is treated as a
+        hyperparameter, and is the last entry in the ``theta`` array. Alternatively, if ``nugget``
+        is set to be ``"adaptive"``, the fitting routine will adaptively make the noise parameter
+        as large as is needed to ensure that the emulator can be fit.
+
+        Internally, this modifies both the way the nugget is chosen (which can be determined
+        via the ``nugget_type`` property) and the value itself (the ``nugget`` property)
+
+        :param nugget: Noise to be added to the diagonal, specified as a string or a float.
+                       A non-negative float specifies the noise level explicitly, while a string
+                       indicates that the nugget will be found via fitting, either as ``"adaptive"``
+                       or ``"fit"`` (see above for a description).
+        :type nugget: float or str
+        :returns: None
+        :rtype: None
+        """
+
+        if not isinstance(nugget, (str, float)):
+            try:
+                nugget = float(nugget)
+            except TypeError:
+                raise TypeError("nugget parameter must be a string or a non-negative float")
+
+        if isinstance(nugget, str):
+            if nugget == "adaptive":
+                self._nugget_type = "adaptive"
+            elif nugget == "fit":
+                self._nugget_type = "fit"
+            else:
+                raise ValueError("bad value of nugget, must be a float or 'adaptive' or 'fit'")
+            self._nugget = None
+        else:
+            if nugget < 0.:
+                raise ValueError("nugget parameter must be non-negative")
+            self._nugget_type = "fixed"
+            self._nugget = float(nugget)
+
+    @property
+    def theta(self):
         """
         Returns emulator hyperparameters
 
@@ -215,57 +291,31 @@ class GaussianProcess(object):
         :rtype: ndarray or None
         """
 
-        return self.theta
+        return self._theta
 
-    def get_nugget(self):
+    @theta.setter
+    def theta(self, theta):
         """
-        Returns emulator nugget parameter
+        Fits the emulator and sets the parameters (property-based setter alias for ``fit``)
 
-        Returns current value of the nugget parameter. If the nugget is selected adaptively,
-        returns ``None``. If the nugget is treated as a variable hyperparameter nugget
-        will be negative.
+        Pre-calculates the matrices needed to compute the log-likelihood and its derivatives
+        and make subsequent predictions. This is called any time the hyperparameter values are
+        changed in order to ensure that all the information is needed to evaluate the
+        log-likelihood and its derivatives, which are needed when fitting the optimal
+        hyperparameters.
 
-        :returns: Current nugget value, either a float or ``None``
-        :rtype: float or None
-        """
+        The method computes the mean function and covariance matrix and inverts the covariance
+        matrix using the method specified by the value of ``nugget``. The factorized matrix
+        and the product of the inverse with the difference between the targets and the mean
+        are cached for later use, and the negative marginal log-likelihood is also cached.
+        This method has no return value, but it does modify the state of the object.
 
-        return self.nugget
-
-    def set_nugget(self, nugget):
-        """
-        Set the nugget parameter for the emulator
-
-        Method for changing the ``nugget`` parameter for the emulator. When a new emulator is
-        initilized, this is set to None.
-
-        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
-        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
-        float, then that particular value is used for the nugget. Note that setting this parameter
-        to be zero enforces that the emulator strictly interpolates between points. A negative
-        float means that the nugget is treated as a hyperparameter, and is the last entry
-        in the ``params`` array. Alternatively, if ``nugget`` is set to be ``None``, the fitting
-        routine will adaptively make the noise parameter as large as is needed to ensure that the
-        emulator can be fit.
-
-        :param nugget: Controls how noise is added to the emulator. If ``nugget`` is a nonnegative
-                       float, then this manually sets the noise parameter (if negative, this will
-                       lead to an error), with ``nugget = 0`` resulting in interpolation with no
-                       smoothing noise added. A negative float means that the nugget is treated
-                       as a hyperparameter. ``nugget = None`` will adaptively select the
-                       smallest value of the noise term that still leads to a stable inversion of
-                       the matrix. Default behavior is ``nugget = None``.
-        :type nugget: None or float
+        :param theta: Values of the hyperparameters to use in fitting. Must be a numpy
+                      array with length ``n_params``
+        :type theta: ndarray
         :returns: None
-        :rtype: None
         """
-
-        if not nugget is None:
-            try:
-                nugget = float(nugget)
-            except ValueError:
-                raise ValueError("nugget must be None or a float")
-
-        self.nugget = nugget
+        self.fit(theta)
 
     def fit(self, theta):
         """
@@ -278,34 +328,35 @@ class GaussianProcess(object):
         hyperparameters.
 
         The method computes the mean function and covariance matrix and inverts the covariance
-        matrix using the method specified by the value of ``nugget``. The factorized matrix
+        matrix using the method specified by the value of ``nugget_type``. The factorized matrix
         and the product of the inverse with the difference between the targets and the mean
         are cached for later use, and the negative marginal log-likelihood is also cached.
-        This method has no inputs and no return value, but it does modify the state of the object.
+        This method has no return value, but it does modify the state of the object.
 
+        :param theta: Values of the hyperparameters to use in fitting. Must be a numpy
+                      array with length ``n_params``
+        :type theta: ndarray
         :returns: None
         """
+
         theta = np.array(theta)
 
-        assert theta.shape == (self.get_n_params(),)
+        assert theta.shape == (self.n_params,), "bad shape for hyperparameters"
 
-        self.theta = theta
+        self._theta = theta
 
         switch = self.mean.get_n_params(self.inputs)
 
         m = self.mean.mean_f(self.inputs, self.theta[:switch])
         Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta[switch:-1])
 
-        if self.nugget == None:
-            self.L, nugget = jit_cholesky(Q)
-            Z = Q + nugget*np.eye(self.n)
+        if self.nugget_type == "adaptive":
+            self.L, self._nugget = jit_cholesky(Q)
         else:
-            if self.nugget < 0.:
-                nugget = np.exp(self.theta[-1])
-            else:
-                nugget = self.nugget
-            Z = Q + nugget*np.eye(self.n)
-            self.L = linalg.cholesky(Z, lower=True)
+            if self.nugget_type == "fit":
+                self._nugget = np.exp(self.theta[-1])
+            Q += self._nugget*np.eye(self.n)
+            self.L = linalg.cholesky(Q, lower=True)
 
         self.invQt = linalg.cho_solve((self.L, True), self.targets - m)
 
@@ -361,12 +412,12 @@ class GaussianProcess(object):
 
         theta = np.array(theta)
 
-        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.n_params,), "bad shape for new parameters"
 
         if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
-        partials = np.zeros(self.get_n_params())
+        partials = np.zeros(self.n_params)
 
         switch = self.mean.get_n_params(self.inputs)
 
@@ -380,7 +431,7 @@ class GaussianProcess(object):
             partials[switch + d] = -0.5*(np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
                                          invQ_dot_dKdtheta_trace)
 
-        if not self.nugget is None and self.nugget < 0.:
+        if self.nugget_type == "fit":
             nugget = np.exp(self.theta[-1])
             partials[-1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n))) -
                                        np.dot(self.invQt, self.invQt))
@@ -413,12 +464,12 @@ class GaussianProcess(object):
         :rtype: ndarray
         """
 
-        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.n_params,), "Parameter vector must have length number of inputs + 1"
 
         if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
-        hessian = np.zeros((self.get_n_params(), self.get_n_params()))
+        hessian = np.zeros((self.n_params, self.n_params))
 
         switch = self.mean.get_n_params(self.inputs)
 
@@ -448,7 +499,7 @@ class GaussianProcess(object):
                 term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
                 hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
 
-        if not self.nugget is None and self.nugget < 0.:
+        if self.nugget_type == "fit":
             nugget = np.exp(self.theta[-1])
             invQinvQt = linalg.cho_solve((self.L, True), self.invQt)
             hessian[:switch, -1] = nugget*np.dot(dmdtheta, invQinvQt)
@@ -542,6 +593,14 @@ class GaussianProcess(object):
             inputderiv = np.transpose(mean_deriv + np.dot(kern_deriv, self.invQt))
 
         return PredictResult(mean=mu, unc=var, deriv=inputderiv)
+
+    def __call__(self, testing):
+        """A Gaussian process object is callable: calling it is the same as
+        calling `predict` without uncertainty and derivative
+        predictions, and extracting the zeroth component for the
+        'mean' prediction.
+        """
+        return (self.predict(testing, unc=False, deriv=False)[0])
 
     def __str__(self):
         """
