@@ -1,8 +1,9 @@
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
-from mogp_emulator.HistoryMatching import HistoryMatching
-from mogp_emulator.GaussianProcess import GaussianProcess
+from ..HistoryMatching import HistoryMatching
+from ..fitting import fit_GP_MLE
+from ..GaussianProcess import GaussianProcess, PredictResult
 
 def get_y_simulated_1D(x):
     n_points = len(x)
@@ -26,9 +27,8 @@ def test_sanity_checks():
 
     y_training = get_y_simulated_1D(x_training)
 
-    gp = GaussianProcess(x_training, y_training)
     np.random.seed(47)
-    gp.learn_hyperparameters()
+    gp = fit_GP_MLE(x_training, y_training)
 
     # Define observation and implausibility threshold
     obs = [-0.8, 0.0004]
@@ -158,7 +158,7 @@ def test_HistoryMatching_init():
     assert hm.gp == gp
     assert_allclose(hm.obs, [1., 0.])
     assert_allclose(hm.coords, coords)
-    assert hm.expectations == None
+    assert hm.expectations is None
     assert hm.ndim == 1
     assert hm.ncoords == len(coords)
     assert_allclose(hm.threshold, 5.)
@@ -168,15 +168,15 @@ def test_HistoryMatching_init():
 
     # with obs, expectations, coords, and threshold
 
-    expectations = (np.array([1.]), np.array([0.2]), np.array([[0.1]]))
+    expectations = PredictResult(mean=np.array([1.]), unc=np.array([0.2]), deriv=np.array([[0.1]]))
     hm = HistoryMatching(gp=None, obs=[1., 0.1], coords=None, expectations=expectations,
                          threshold=5.)
 
     assert hm.gp == None
     assert_allclose(hm.obs, [1., 0.1])
     assert hm.coords == None
-    for a, b in zip(hm.expectations, expectations):
-        assert_allclose(a, b)
+    for a in range(3):
+        assert_allclose(hm.expectations[a], expectations[a])
     assert hm.ndim == None
     assert hm.ncoords == len(expectations[0])
     assert_allclose(hm.threshold, 5.)
@@ -190,17 +190,17 @@ def test_HistoryMatching_select_expectations():
 
     # correct functionality
 
-    expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
+    expectations = PredictResult(mean=np.array([2., 10.]), unc=np.array([0., 0.]),
+                                 deriv=np.array([[1., 2.]]))
     hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
 
     expectations_new = hm._select_expectations()
 
-    for a, b in zip(expectations, expectations_new):
-        assert_allclose(a, b)
+    for a in range(3):
+        assert_allclose(expectations[a], expectations_new[a])
 
-    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     np.random.seed(57483)
-    gp.learn_hyperparameters()
+    gp = fit_GP_MLE(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     coords = np.array([[0.1], [1.]])
     obs = [1., 0.01]
     expectations = gp.predict(coords)
@@ -237,7 +237,7 @@ def test_HistoryMatching_get_implausibility():
 
     # correct functionality
 
-    expectations = (np.array([2., 10.]), np.array([0., 0.]), np.array([[1., 2.]]))
+    expectations = PredictResult(mean=np.array([2., 10.]), unc=np.array([0., 0.]), deriv=np.array([[1., 2.]]))
     hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
     I = hm.get_implausibility()
 
@@ -249,9 +249,8 @@ def test_HistoryMatching_get_implausibility():
     assert_allclose(I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
     assert_allclose(hm.I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
 
-    gp = GaussianProcess(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     np.random.seed(57483)
-    gp.learn_hyperparameters()
+    gp = fit_GP_MLE(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     coords = np.array([[0.1], [1.]])
     obs = [1., 0.01]
     mean, unc, _ = gp.predict(coords)
@@ -282,16 +281,18 @@ def test_HistoryMatching_get_NROY():
 
     # correct functionality
 
-    hm = HistoryMatching(obs=[1., 1.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
-                                                     np.array([[1., 2.]])))
+    hm = HistoryMatching(obs=[1., 1.], expectations=PredictResult(mean=np.array([2., 10.]),
+                                                                  unc=np.array([0., 0.]),
+                                                                  deriv=np.array([[1., 2.]])))
     hm.get_implausibility()
 
     NROY = hm.get_NROY()
 
     assert NROY == [0]
 
-    hm = HistoryMatching(obs=[1., 0.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
-                                                     np.array([[1., 2.]])))
+    hm = HistoryMatching(obs=[1., 0.], expectations=PredictResult(mean=np.array([2., 10.]),
+                                                                  unc=np.array([0., 0.]),
+                                                                  deriv=np.array([[1., 2.]])))
 
     NROY = hm.get_NROY(1.)
 
@@ -302,14 +303,16 @@ def test_HistoryMatching_get_RO():
 
     # correct functionality
 
-    hm = HistoryMatching(obs=[1., 1.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
-                                                     np.array([[1., 2.]])))
+    hm = HistoryMatching(obs=[1., 1.], expectations=PredictResult(mean=np.array([2., 10.]),
+                                                                  unc=np.array([0., 0.]),
+                                                                  deriv=np.array([[1., 2.]])))
     hm.get_implausibility()
 
     RO = hm.get_RO()
 
-    hm = HistoryMatching(obs=[1., 0.], expectations=(np.array([2., 10.]), np.array([0., 0.]),
-                                                     np.array([[1., 2.]])))
+    hm = HistoryMatching(obs=[1., 0.], expectations=PredictResult(mean=np.array([2., 10.]),
+                                                                  unc=np.array([0., 0.]),
+                                                                  deriv=np.array([[1., 2.]])))
 
     RO = hm.get_RO(1.)
 
@@ -393,13 +396,13 @@ def test_HistoryMatching_set_expectations():
 
     # correct functionality
 
-    expectations = (np.array([0.]), np.array([0.1]), np.array([[2.]]))
+    expectations = PredictResult(mean=np.array([0.]), unc=np.array([0.1]), deriv=np.array([[2.]]))
 
     hm = HistoryMatching()
     hm.set_expectations(expectations)
 
-    for a, b in zip(hm.expectations, expectations):
-        assert_allclose(a, b)
+    for a in range(3):
+        assert_allclose(hm.expectations[a], expectations[a])
 
     # confirm ability to reset expectations
 
@@ -408,36 +411,36 @@ def test_HistoryMatching_set_expectations():
 
     # verify derivatives can be None
 
-    expectations = (np.array([0.]), np.array([0.1]), None)
+    expectations = PredictResult(mean=np.array([0.]), unc=np.array([0.1]), deriv=None)
 
     hm = HistoryMatching()
     hm.set_expectations(expectations)
 
-    for a, b in zip(hm.expectations[:-1], expectations[:-1]):
-        assert_allclose(a, b)
+    for a in range(2):
+        assert_allclose(hm.expectations[a], expectations[a])
     assert hm.expectations[2] is None
 
     # negative variance
 
-    expectations = (np.array([0.]), np.array([-0.1]), np.array([[2.]]))
+    expectations = PredictResult(mean=np.array([0.]), unc=np.array([-0.1]), deriv=np.array([[2.]]))
 
     with pytest.raises(AssertionError):
         hm.set_expectations(expectations)
 
     # bad values for expectations
 
-    expectations = (np.array([0.1]), 1., 1.)
+    expectations = PredictResult(mean=np.array([0.1]), unc=1., deriv=1.)
     hm = HistoryMatching()
 
     with pytest.raises(TypeError):
         hm.set_expectations(expectations)
 
-    expectations = (np.array([0.1]), np.array([1., 2.]), 1.)
+    expectations = PredictResult(mean=np.array([0.1]), unc=np.array([1., 2.]), deriv=1.)
 
     with pytest.raises(TypeError):
         hm.set_expectations(expectations)
 
-    expectations = (np.array([1.]), np.array([1., 2.]), None)
+    expectations = PredictResult(mean=np.array([1.]), unc=np.array([1., 2.]), deriv=None)
 
     with pytest.raises(ValueError):
         hm.set_expectations(expectations)
@@ -475,7 +478,7 @@ def test_HistoryMatching_update():
 
     hm = HistoryMatching()
 
-    hm.expectations = (np.array([0.]), np.array([0.1]), np.array([[2.]]))
+    hm.expectations = PredictResult(mean=np.array([0.]), unc=np.array([0.1]), deriv=np.array([[2.]]))
     hm.update()
 
     assert hm.ncoords == 1
