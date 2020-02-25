@@ -44,4 +44,4 @@ setuptools.setup(name='mogp_emulator',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
       license=['MIT'],
-      install_requires=['numpy', 'scipy'])
+      install_requires=['numpy', 'scipy', 'pybind11'])
