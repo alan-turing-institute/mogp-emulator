@@ -70,3 +70,26 @@ class TestPredictSingle():
 
         assert_allclose(predict_actual, predict_expected)
         assert_allclose(unc_actual, unc_expected)
+
+    def test_deriv(self, kernel_path):
+        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+        y = np.array([2., 3., 4.])
+
+        gp = GaussianProcessFPGA(kernel_path, x, y)
+
+        theta = np.zeros(4)
+        gp._set_params(theta)
+
+        x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
+        predict_expected = np.array([1.395386477054048, 1.7311400058360489])
+        unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+        deriv_expected = np.array([0.73471011, -0.0858304,  0.05918638,
+                                   1.14274266,  0.48175876,  1.52580682])
+
+        predict_actual, unc_actual, deriv_actual = gp._predict_single(
+            x_star, True, True
+        )
+
+        assert_allclose(predict_actual, predict_expected)
+        assert_allclose(unc_actual, unc_expected)
+        assert_allclose(deriv_actual, deriv_expected, rtol=1e-06)

@@ -54,6 +54,25 @@ class GaussianProcessFPGA(GaussianProcess):
                 self.cl_container
                 )
             variance = np.array(variance)
+        elif (do_deriv is True) and (do_unc is True):
+            L = VectorFloat(self.L.flatten())
+
+            variance = VectorFloat(np.empty(n_testing))
+            deriv = VectorFloat(np.empty((n_testing, self.D)).flatten())
+
+            predict_single_deriv(
+                inputs, self.n, self.D,
+                testing, n_testing,
+                scale, self.theta[-1],
+                invQt, L,
+                expectation, variance, deriv,
+                self.cl_container
+                )
+            variance = np.array(variance)
+            deriv = np.array(deriv)
+            deriv.reshape((n_testing, self.D))
+        else:
+            raise NotImplementedError
 
         expectation = np.array(expectation)
 
