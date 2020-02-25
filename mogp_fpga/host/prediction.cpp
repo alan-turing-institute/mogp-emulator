@@ -6,12 +6,15 @@
 #include <cmath>
 #include <iostream>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl_bind.h>
 #include <vector>
 
 #define MAX_NX 128
 #define MAX_NXSTAR 128
 
 namespace py = pybind11;
+
+PYBIND11_MAKE_OPAQUE(std::vector<float>);
 
 void compare_results(std::vector<float> expected, std::vector<float> actual,
                      std::string kernel_name){
@@ -78,11 +81,6 @@ CLContainer default_container(const char* path){
 }
 
 
-PYBIND11_MODULE(prediction, m){
-    py::class_<CLContainer>(m, "CLContainer");
-    m.def("default_container", &default_container);
-}
-
 // Conduct a single prediction using the square exponetial kernel
 // X - Training inputs
 // nx - Number of training inputs
@@ -96,12 +94,15 @@ PYBIND11_MODULE(prediction, m){
 // Ystar - Training prediction expectation values
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single(std::vector<float> &X, int nx, int dim,
-                    std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &scale, float sigma,
-                    std::vector<float> &InvQt,
-                    std::vector<float> &Ystar,
-                    cl::Context &context, cl::Program &program){
+void predict_single_expectation(
+        std::vector<float> &X, int nx, int dim,
+        std::vector<float> &Xstar, int nxstar,
+        std::vector<float> &scale, float sigma,
+        std::vector<float> &InvQt,
+        std::vector<float> &Ystar,
+        CLContainer &container){
+    cl::Context context = container.context;
+    cl::Program program = container.program;
 
     // Create queues
     cl::CommandQueue queue1(context);
@@ -137,6 +138,7 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::copy(d_Ystar, Ystar.begin(), Ystar.end());
 }
 
+
 // Conduct a single prediction using the square exponetial kernel
 // X - Training inputs
 // nx - Number of training inputs
@@ -153,12 +155,15 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // Ystarvar - Training prediction variances
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single(std::vector<float> &X, int nx, int dim,
-                    std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &scale, float sigma,
-                    std::vector<float> &InvQt, std::vector<float> &Q_chol,
-                    std::vector<float> &Ystar, std::vector<float> &Ystarvar,
-                    cl::Context &context, cl::Program &program){
+void predict_single_variance(
+        std::vector<float> &X, int nx, int dim,
+        std::vector<float> &Xstar, int nxstar,
+        std::vector<float> &scale, float sigma,
+        std::vector<float> &InvQt, std::vector<float> &Q_chol,
+        std::vector<float> &Ystar, std::vector<float> &Ystarvar,
+        CLContainer &container){
+    cl::Context context = container.context;
+    cl::Program program = container.program;
 
     // Create queues
     cl::CommandQueue queue1(context);
@@ -223,13 +228,16 @@ void predict_single(std::vector<float> &X, int nx, int dim,
 // Ystarderiv - Prediction derivatives
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single(std::vector<float> &X, int nx, int dim,
-                    std::vector<float> &Xstar, int nxstar,
-                    std::vector<float> &scale, float sigma,
-                    std::vector<float> &InvQt, std::vector<float> &Q_chol,
-                    std::vector<float> &Ystar, std::vector<float> &Ystarvar,
-                    std::vector<float> &Ystarderiv,
-                    cl::Context &context, cl::Program &program){
+void predict_single_deriv(
+        std::vector<float> &X, int nx, int dim,
+        std::vector<float> &Xstar, int nxstar,
+        std::vector<float> &scale, float sigma,
+        std::vector<float> &InvQt, std::vector<float> &Q_chol,
+        std::vector<float> &Ystar, std::vector<float> &Ystarvar,
+        std::vector<float> &Ystarderiv,
+        CLContainer &container){
+    cl::Context context = container.context;
+    cl::Program program = container.program;
 
     // Create queues
     cl::CommandQueue queue1(context);
@@ -284,36 +292,20 @@ void predict_single(std::vector<float> &X, int nx, int dim,
     cl::copy(d_Ystarderiv, Ystarderiv.begin(), Ystarderiv.end());
 }
 
+PYBIND11_MODULE(prediction, m){
+    py::class_<CLContainer>(m, "CLContainer");
+    py::bind_vector<std::vector<float>>(m, "VectorFloat");
+    m.def("default_container", &default_container);
+    m.def("predict_single_expectation", &predict_single_expectation);
+    m.def("predict_single_variance", &predict_single_variance);
+    m.def("predict_single_deriv", &predict_single_deriv);
+}
+
+
 int main(){
     try{
-        // Create context using default device
-        cl::Context context(CL_DEVICE_TYPE_DEFAULT);
-
-        // Get devices
-        std::vector<cl::Device> devices;
-        context.getInfo(CL_CONTEXT_DEVICES, &devices);
-
-        // Create queue from binary
         const char* binary_file_name = "../device/prediction.aocx";
-        FILE* fp;
-        fp = fopen(binary_file_name, "rb");
-        if(fp == 0) {
-            throw cl::Error(0, "can't open aocx file");
-        }
-        // Get size of binary
-        fseek(fp, 0, SEEK_END);
-        size_t binary_size = ftell(fp);
-        // Read binary as void*
-        std::vector<unsigned char> binary(binary_size);
-        rewind(fp);
-        if (fread(&(binary[0]), binary_size, 1, fp) == 0) {
-            fclose(fp);
-            throw cl::Error(0, "error while reading kernel binary");
-        }
-        cl::Program::Binaries binaries(1, binary);
-
-        // Create program
-        cl::Program program(context, devices, binaries);
+        auto container = default_container(binary_file_name);
 
         // Test prediction case
         // Based on the Python package test 'test_GaussianProcess_predict_single'
@@ -363,9 +355,9 @@ int main(){
             1.14274266,  0.48175876,  1.52580682
             };
 
-        predict_single(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma, h_InvQt,
-                       h_Q_chol, h_Ystar, h_Ystarvar, h_Ystarderiv, context,
-                       program);
+        predict_single_deriv(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma,
+                             h_InvQt, h_Q_chol, h_Ystar, h_Ystarvar,
+                             h_Ystarderiv, container);
         compare_results(expected_Ystar, h_Ystar, "predict expectation values");
         for (auto const& i : h_Ystar)
             std::cout << i << ' ';
