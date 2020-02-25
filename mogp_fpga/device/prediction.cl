@@ -63,7 +63,7 @@ kernel void sq_exp(global float* restrict x, global float* restrict xstar,
             // Determine the element k[row,col], the squared euclidean
             // distance between x[row] and xstar[col]
             float elem = 0;
-            #pragma unroll
+            // #pragma unroll
             for(unsigned i=0; i<MAX_DIM; i++){
                 float x = x_cache[i];
                 float xstar = xstar_cache[i];
@@ -125,7 +125,7 @@ kernel void expectation(
         }
 
         // Dot product
-        #pragma unroll
+        // #pragma unroll
         for (unsigned i=0; i<MAX_NX; i++){
             sum += k_cache[i] * invqt_cache[i];
         }
@@ -175,7 +175,7 @@ kernel void variance(
         //
         // Forward substitution
         float y[MAX_NX];
-        #pragma unroll
+        // #pragma unroll
         for (unsigned i=0; i<MAX_NX; i++){
             y[i] = 0.0;
         }
@@ -183,7 +183,7 @@ kernel void variance(
             float temp;
             int offset = i*MAX_NX;
             temp = k_cache[i];
-            #pragma unroll
+            // #pragma unroll
             // for (unsigned j=MAX_NX-1; j>=0; j--){
             for (unsigned t=0; t<MAX_NX; t++){
                 int j = MAX_NX-t-1;
@@ -194,7 +194,7 @@ kernel void variance(
 
         // Back substitution
         float x[MAX_NX];
-        #pragma unroll
+        // #pragma unroll
         for (unsigned i=0; i<MAX_NX; i++){
             x[i] = 0.0;
         }
@@ -203,7 +203,7 @@ kernel void variance(
             int i = nx-t-1;
             float temp;
             temp = y[i];
-            #pragma unroll
+            // #pragma unroll
             for (unsigned j=0; j<MAX_NX; j++){
                 temp -= chol_cache[j*MAX_NX+i] * x[j];
             }
@@ -212,7 +212,7 @@ kernel void variance(
 
         // Multiply solution elementwise with column of k and sum
         float var = 0;
-        #pragma unroll
+        // #pragma unroll
         for (unsigned i=0; i<MAX_NX; i++){
             var += k_cache[i] * x[i];
         }
@@ -287,7 +287,7 @@ kernel void derivatives(
 
     // Set 0 values to 1
     // This avoid division by zero in dr/dx calculation
-    #pragma unroll
+    // #pragma unroll
     for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
         if (r_cache[i] == 0.0f){
             r_cache[i] = 1.0f;
@@ -329,7 +329,7 @@ kernel void derivatives(
         // Calculate dK/dx for dimension dim using the chain rule as the
         // elementwise product of dK/dr and dr/dx
         float dKdx[MAX_NX*MAX_NXSTAR];
-        #pragma unroll
+        // #pragma unroll
         for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
             dKdx[i] = exp_sigma * dKdr[i] * drdx[i];
         }
