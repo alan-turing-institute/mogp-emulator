@@ -1,5 +1,6 @@
 from .GaussianProcess import GaussianProcess
 from .prediction import (default_container, predict_single_expectation,
+                         predict_single_variance, predict_single_deriv,
                          VectorFloat)
 import numpy as np
 
@@ -19,17 +20,18 @@ class GaussianProcessFPGA(GaussianProcess):
         n_testing, D = np.shape(testing)
         assert D == self.D
 
-        var = None
+        variance = None
         deriv = None
 
-        if (do_deriv is False) and (do_unc is False):
-            expectation = np.empty(n_testing)
-            expectation = VectorFloat(expectation)
-            testing = VectorFloat(testing.flatten())
-            inputs = VectorFloat(self.inputs.flatten())
-            scale = VectorFloat(self.theta[:-1])
-            invQt = VectorFloat(self.invQt.flatten())
+        testing = VectorFloat(testing.flatten())
+        inputs = VectorFloat(self.inputs.flatten())
+        scale = VectorFloat(self.theta[:-1])
+        invQt = VectorFloat(self.invQt.flatten())
 
+        expectation = np.empty(n_testing)
+        expectation = VectorFloat(expectation)
+
+        if (do_deriv is False) and (do_unc is False):
             predict_single_expectation(
                 inputs, self.n, self.D,
                 testing, n_testing,
@@ -38,7 +40,21 @@ class GaussianProcessFPGA(GaussianProcess):
                 expectation,
                 self.cl_container
                 )
+        elif (do_deriv is False) and (do_unc is True):
+            L = VectorFloat(self.L.flatten())
 
-            expectation = np.array(expectation)
+            variance = VectorFloat(np.empty(n_testing))
 
-        return expectation, var, deriv
+            predict_single_variance(
+                inputs, self.n, self.D,
+                testing, n_testing,
+                scale, self.theta[-1],
+                invQt, L,
+                expectation, variance,
+                self.cl_container
+                )
+            variance = np.array(variance)
+
+        expectation = np.array(expectation)
+
+        return expectation, variance, deriv
