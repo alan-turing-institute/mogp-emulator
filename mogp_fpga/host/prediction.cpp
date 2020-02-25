@@ -3,12 +3,15 @@
 
 #include "CL/cl2.hpp"
 #include "CL/cl.h"
-#include <iostream>
-#include <vector>
 #include <cmath>
+#include <iostream>
+#include <pybind11/pybind11.h>
+#include <vector>
 
 #define MAX_NX 128
 #define MAX_NXSTAR 128
+
+namespace py = pybind11;
 
 void compare_results(std::vector<float> expected, std::vector<float> actual,
                      std::string kernel_name){
@@ -27,6 +30,57 @@ void compare_results(std::vector<float> expected, std::vector<float> actual,
     if (!discrepency){
         std::cout << "Expected and actual results agree" << std::endl;
     }
+}
+
+
+struct CLContainer{
+    cl::Context context;
+    std::vector<cl::Device> devices;
+    cl::Program program;
+};
+
+
+CLContainer default_container(const char* path){
+        // Create context using default device
+        cl::Context context(CL_DEVICE_TYPE_DEFAULT);
+
+        // Get devices
+        std::vector<cl::Device> devices;
+        context.getInfo(CL_CONTEXT_DEVICES, &devices);
+
+        // Create queue from binary
+        FILE* fp;
+        fp = fopen(path, "rb");
+        if(fp == 0) {
+            throw cl::Error(0, "can't open kernel binary file");
+        }
+        // Get size of binary
+        fseek(fp, 0, SEEK_END);
+        size_t binary_size = ftell(fp);
+        // Read binary as void*
+        std::vector<unsigned char> binary(binary_size);
+        rewind(fp);
+        if (fread(&(binary[0]), binary_size, 1, fp) == 0) {
+            fclose(fp);
+            throw cl::Error(0, "error while reading kernel binary");
+        }
+        cl::Program::Binaries binaries(1, binary);
+
+        // Create program
+        cl::Program program(context, devices, binaries);
+
+        auto container = CLContainer();
+        container.context = context;
+        container.devices = devices;
+        container.program = program;
+
+        return container;
+}
+
+
+PYBIND11_MODULE(prediction, m){
+    py::class_<CLContainer>(m, "CLContainer");
+    m.def("default_container", &default_container);
 }
 
 // Conduct a single prediction using the square exponetial kernel
