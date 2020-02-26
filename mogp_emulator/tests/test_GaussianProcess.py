@@ -3,14 +3,26 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..GaussianProcess import GaussianProcess
+from ..GaussianProcessFPGA import GaussianProcessFPGA
 from scipy import linalg
+import pathlib
 
-def test_GaussianProcess_init():
+
+def GaussianProcessFPGA_helper(x, y):
+    path = pathlib.Path(__file__).parent.absolute() / "kernel/prediction.aocx"
+    return GaussianProcessFPGA(str(path), x, y)
+
+
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_init(GPClass):
     "Test function for correct functioning of the init method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 3
@@ -19,7 +31,7 @@ def test_GaussianProcess_init():
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 2
@@ -28,7 +40,7 @@ def test_GaussianProcess_init():
 
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert_allclose(np.array([x]), gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 6
@@ -37,7 +49,7 @@ def test_GaussianProcess_init():
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y, 1.)
+    gp = GPClass(x, y, 1.)
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 3
@@ -46,7 +58,7 @@ def test_GaussianProcess_init():
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y, None)
+    gp = GPClass(x, y, None)
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 3
@@ -58,7 +70,7 @@ def test_GaussianProcess_init():
                                       targets = np.array([2., 4.]),
                                       nugget = None)
         tmp.seek(0)
-        gp = GaussianProcess(tmp)
+        gp = GPClass(tmp)
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
@@ -75,7 +87,7 @@ def test_GaussianProcess_init():
                                       theta = np.array([1., 2., 3., 4.]),
                                       nugget = 1.e-6)
         tmp.seek(0)
-        gp = GaussianProcess(tmp)
+        gp = GPClass(tmp)
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
@@ -88,41 +100,49 @@ def test_GaussianProcess_init():
     assert gp.D == 3
 
 
-def test_GaussianProcess_init_failures():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_init_failures(GPClass):
     "Tests that GaussianProcess fails correctly with bad inputs"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     z = np.array([4.])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y, z, z)
+        gp = GPClass(x, y, z, z)
 
     x = np.array([1., 2., 3., 4., 5., 6.])
     y = np.array([2., 3.])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y)
+        gp = GPClass(x, y)
 
     x = np.array([[1., 2., 3.], [4., 5., 6.]])
     y = np.array([2., 3., 4.])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y)
+        gp = GPClass(x, y)
 
     x = np.array([[1., 2., 3.]])
     y = np.array([[2., 3.], [4., 5]])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y)
+        gp = GPClass(x, y)
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
     with pytest.raises(ValueError):
-        gp = GaussianProcess(x, y, -1.)
+        gp = GPClass(x, y, -1.)
 
-def test_GaussianProcess_save_emulators():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_save_emulators(GPClass):
     "Test function for the save_emulators method"
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (2, 3))
     y = np.array([2., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
 
     with TemporaryFile() as tmp:
         gp.save_emulator(tmp)
@@ -135,7 +155,7 @@ def test_GaussianProcess_save_emulators():
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]), (3, 3))
     y = np.reshape(np.array([2., 4., 6.]), (3,))
-    gp = GaussianProcess(x, y, 1.e-6)
+    gp = GPClass(x, y, 1.e-6)
     theta = np.zeros(4)
     gp._set_params(theta)
 
@@ -148,77 +168,101 @@ def test_GaussianProcess_save_emulators():
         assert_allclose(emulator_file['theta'], theta)
         assert_allclose(emulator_file['nugget'], 1.e-6)
 
-def test_GaussianProcess_get_n():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_get_n(GPClass):
     "Tests the get_n method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert gp.get_n() == 1
 
-def test_GaussianProcess_get_D():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_get_D(GPClass):
     "Tests the get_D method of Gaussian Process"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert gp.get_D() == 3
 
-def test_GaussianProcess_get_params():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_get_params(GPClass):
     "Tests the get_params method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta_expected = np.zeros(4)
     gp.theta = np.zeros(4)
     assert_allclose(gp.get_params(), theta_expected)
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert gp.get_params() == None
 
-def test_GaussianProcess_get_nugget():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_get_nugget(GPClass):
     "Tests the get_nugget method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert gp.get_nugget() == None
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y, 1.e-6)
+    gp = GPClass(x, y, 1.e-6)
     assert_allclose(gp.get_nugget(), 1.e-6)
 
-def test_GaussianProcess_set_nugget():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_set_nugget(GPClass):
     "Tests the set_nugget method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp.set_nugget(None)
     assert gp.nugget == None
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp.set_nugget(1.e-6)
     assert_allclose(gp.nugget, 1.e-6)
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     with pytest.raises(AssertionError):
         gp.set_nugget(-1.e-6)
 
-def test_GaussianProcess_jit_cholesky():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_jit_cholesky(GPClass):
     "Tests the stabilized Cholesky decomposition routine in Gaussian Process"
 
     x = np.reshape(np.array([1., 2., 3., 4., 5., 6.]), (3, 2))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
 
     L_expected = np.array([[2., 0., 0.], [6., 1., 0.], [-8., 5., 3.]])
     input_matrix = np.array([[4., 12., -16.], [12., 37., -43.], [-16., -43., 98.]])
@@ -244,12 +288,16 @@ def test_GaussianProcess_jit_cholesky():
     with pytest.raises(linalg.LinAlgError):
         gp._jit_cholesky(input_matrix)
 
-def test_GaussianProcess_prepare_likelihood():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_prepare_likelihood(GPClass):
     "Tests the _prepare_likelihood method of Gaussian Process"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     L_expected = np.array([[1.                , 0.                , 0.                ],
                            [0.0111089965382423, 0.9999382931940918, 0.                ],
@@ -271,7 +319,7 @@ def test_GaussianProcess_prepare_likelihood():
 
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp.theta = theta
     gp._prepare_likelihood()
@@ -301,12 +349,16 @@ def test_GaussianProcess_prepare_likelihood():
     with pytest.raises(linalg.LinAlgError):
         gp._prepare_likelihood()
 
-def test_GaussianProcess_set_params():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_set_params(GPClass):
     "Tests the _set_params method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     L_expected = np.array([[1.                , 0.                , 0.                ],
                            [0.0111089965382423, 0.9999382931940918, 0.                ],
@@ -321,7 +373,7 @@ def test_GaussianProcess_set_params():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.ones(4)
     L_expected = np.array([[1.6487212707001282e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
                            [8.0304641629920228e-06, 1.6487212706805709e+00, 0.0000000000000000e+00],
@@ -336,7 +388,7 @@ def test_GaussianProcess_set_params():
 
     x = np.reshape(np.array([1., 2., 3., 1., 2., 3., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     L_expected = np.array([[1.0000004999998751e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
                            [9.9999950000037496e-01, 1.4142132088085626e-03, 0.0000000000000000e+00],
@@ -362,17 +414,21 @@ def test_GaussianProcess_set_params():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(5)
     with pytest.raises(AssertionError):
         gp._set_params(theta)
 
-def test_GaussianProcess_loglikelihood():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_loglikelihood(GPClass):
     "Test the loglikelihood method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     expected_loglikelihood = 17.00784177045409
     actual_loglikelihood = gp.loglikelihood(theta)
@@ -381,17 +437,21 @@ def test_GaussianProcess_loglikelihood():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(5)
     with pytest.raises(AssertionError):
         gp.loglikelihood(theta)
 
-def test_GaussianProcess_partial_devs():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_partial_devs(GPClass):
     "Test the partial derivatives of the loglikelihood method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     dtheta = 1.e-6
@@ -406,7 +466,7 @@ def test_GaussianProcess_partial_devs():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.ones(4)
     gp._set_params(theta)
     dtheta = 1.e-6
@@ -421,7 +481,7 @@ def test_GaussianProcess_partial_devs():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     new_theta = np.ones(4)
@@ -429,12 +489,16 @@ def test_GaussianProcess_partial_devs():
     partials_actual = gp.partial_devs(new_theta)
     assert_allclose(partials_actual, partials_expected, rtol = 1.e-5, atol = 1.e-8)
 
-def test_GaussianProcess_hessian_1():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_hessian_1(GPClass):
     "test the hessian method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     dtheta = 1.e-6
@@ -476,12 +540,16 @@ def test_GaussianProcess_hessian_1():
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(hessian_actual, hessian_fd, rtol = 1.e-5, atol = 1.e-8)
 
-def test_GaussianProcess_hessian_2():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_hessian_2(GPClass):
     "test the hessian method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = -1.*np.ones(4)
     gp._set_params(theta)
     dtheta = 2.e-5
@@ -523,12 +591,16 @@ def test_GaussianProcess_hessian_2():
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
     assert_allclose(hessian_actual, hessian_fd, rtol = 2.e-4, atol = 1.e-8)
 
-def test_GaussianProcess_hessian_3():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_hessian_3(GPClass):
     "test the hessian method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     new_theta = np.ones(4)
@@ -552,12 +624,16 @@ def test_GaussianProcess_hessian_3():
     hessian_actual = gp.hessian(new_theta)
     assert_allclose(hessian_actual, hessian_expected, rtol = 1.e-5, atol = 1.e-8)
 
-def test_GaussianProcess_compute_local_covariance():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_compute_local_covariance(GPClass):
     "Test method to compute local covariance"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.array([ -2.770112571305776, -25.559083252151222, -23.37268466647295, 2.035946172810567])
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -573,19 +649,23 @@ def test_GaussianProcess_compute_local_covariance():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp._set_params(np.zeros(4))
     gp.mle_theta = np.zeros(4)
 
     with pytest.raises(linalg.LinAlgError):
         gp.compute_local_covariance()
 
-def test_GaussianProcess_learn():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_learn(GPClass):
     "Test the _learn method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
     min_loglikelihood_expected = 4.457233158665504
@@ -594,12 +674,16 @@ def test_GaussianProcess_learn():
     assert_allclose(min_loglikelihood_expected, min_loglikelihood_actual, atol = 1.e-8, rtol = 1.e-5)
 
 
-def test_GaussianProcess_learn_hyperparameters():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_learn_hyperparameters(GPClass):
     "Test the learn_hyperparameters method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     min_theta_expected = np.array([ -2.770116256891518, -23.448555866578715, -26.827585590412895, 2.035943563707568])
     min_loglikelihood_expected = 4.457233158665504
@@ -610,25 +694,29 @@ def test_GaussianProcess_learn_hyperparameters():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(5)
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(theta0 = theta)
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters(n_tries = -1)
 
 
-def test_GaussianProcess_train_model():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_train_model(GPClass):
     "Test the 'train_model' interface to GaussianProcess"
     X = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     Y = np.array([2., 3., 4.])
 
     np.random.seed(10)
-    gp1 = GaussianProcess(X, Y)
+    gp1 = GPClass(X, Y)
     gp1.learn_hyperparameters()
 
     np.random.seed(10)
@@ -641,14 +729,18 @@ def test_GaussianProcess_train_model():
     assert(np.all(gp1.get_params() == gp2.get_params()))
 
 
-def test_GaussianProcess_learn_hyperparameters_normalapprox():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_learn_hyperparameters_normalapprox(GPClass):
     "test the method to learn hyperparameters via normal approximation around the MLE solution"
 
     np.random.seed(4532)
 
     x = np.reshape(np.linspace(0., 10.), (50, 1))
     y = np.linspace(0., 10.)
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp.learn_hyperparameters_normalapprox(n_samples = 4)
 
     samples_expected = np.array([[-2.1798139941810755,  1.3951266574358445],
@@ -663,14 +755,18 @@ def test_GaussianProcess_learn_hyperparameters_normalapprox():
         gp.learn_hyperparameters_normalapprox(n_samples = -1)
 
 
-def test_GaussianProcess_learn_hyperparameters_MCMC():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_learn_hyperparameters_MCMC(GPClass):
     "test method to fit hyperparameters via MCMC"
 
     np.random.seed(5823)
 
     x = np.reshape(np.linspace(0., 10.), (50, 1))
     y = np.linspace(0., 10.)
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
     gp.mle_theta = mle_theta[:]
     gp._set_params(mle_theta)
@@ -688,7 +784,7 @@ def test_GaussianProcess_learn_hyperparameters_MCMC():
 
     x = np.reshape(np.linspace(0., 10.), (50, 1))
     y = np.linspace(0., 10.)
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
     gp.mle_theta = mle_theta[:]
     gp._set_params(mle_theta)
@@ -704,7 +800,7 @@ def test_GaussianProcess_learn_hyperparameters_MCMC():
 
     x = np.reshape(np.linspace(0., 10.), (50, 1))
     y = np.linspace(0., 10.)
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     mle_theta = np.array([-2.8681732101415904,  1.7203770153824067])
     gp.mle_theta = mle_theta[:]
     gp._set_params(mle_theta)
@@ -721,12 +817,16 @@ def test_GaussianProcess_learn_hyperparameters_MCMC():
     with pytest.raises(AssertionError):
         gp.learn_hyperparameters_MCMC(n_samples = -1)
 
-def test_GaussianProcess_predict_single():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_predict_single(GPClass):
     "Test the _single_predict method of GaussianProcess"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
@@ -753,7 +853,7 @@ def test_GaussianProcess_predict_single():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.ones(4)
     gp._set_params(theta)
     x_star = np.array([4., 0., 2.])
@@ -773,12 +873,16 @@ def test_GaussianProcess_predict_single():
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
 
-def test_GaussianProcess_predict_samples():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_predict_samples(GPClass):
     "test the method to make GP predictions from multiple samples"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp.samples = np.array([np.zeros(4), np.ones(4)])
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([0.7891095269432049, 0.9992423087556475])
@@ -799,7 +903,7 @@ def test_GaussianProcess_predict_samples():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -817,7 +921,11 @@ def test_GaussianProcess_predict_samples():
     assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
 
-def test_GaussianProcess_predict():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_predict(GPClass):
     """
     Tests the predict method of GaussianProcess -- note the test only checks the derivatives
     via finite differences rather than analytical results as I have not dug through references
@@ -826,7 +934,7 @@ def test_GaussianProcess_predict():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -854,7 +962,7 @@ def test_GaussianProcess_predict():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.ones(4)
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -877,7 +985,7 @@ def test_GaussianProcess_predict():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     gp.theta = np.ones(4)
     gp.samples = np.array([np.zeros(4), np.ones(4)])
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
@@ -898,7 +1006,11 @@ def test_GaussianProcess_predict():
     assert unc_actual is None
     assert deriv_actual is None
 
-def test_GaussianProcess_predict_variance():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_predict_variance(GPClass):
     "confirm that caching factorized matrix produces stable variance predictions"
 
     x = np.linspace(0., 5., 21)
@@ -906,7 +1018,7 @@ def test_GaussianProcess_predict_variance():
     x = np.reshape(x, (-1, 1))
     nugget = 1.e-8
 
-    gp = GaussianProcess(x, y, nugget)
+    gp = GPClass(x, y, nugget)
 
     theta = np.array([-7.352408190715323, 15.041447753599755])
     gp._set_params(theta)
@@ -918,12 +1030,16 @@ def test_GaussianProcess_predict_variance():
 
     assert_allclose(np.zeros(101), var, atol = 1.e-3)
 
-def test_GaussianProcess_predict_failures():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_predict_failures(GPClass):
     "Test predict method of GaussianProcess with bad inputs or warnings"
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -935,7 +1051,7 @@ def test_GaussianProcess_predict_failures():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = theta
@@ -947,7 +1063,7 @@ def test_GaussianProcess_predict_failures():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     x_star = np.reshape(np.array([1., 3., 2., 4., 5., 7.]), (3, 2))
     with pytest.raises(AssertionError):
@@ -957,7 +1073,7 @@ def test_GaussianProcess_predict_failures():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     x_star = np.array([4., 0., 2.])
@@ -966,7 +1082,7 @@ def test_GaussianProcess_predict_failures():
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     theta = np.zeros(4)
     gp._set_params(theta)
     gp.mle_theta = np.ones(4)
@@ -974,10 +1090,14 @@ def test_GaussianProcess_predict_failures():
     with pytest.warns(Warning):
         gp.predict(x_star)
 
-def test_GaussianProcess_str():
+@pytest.mark.parametrize("GPClass", [
+    GaussianProcess,
+    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+    ])
+def test_GaussianProcess_str(GPClass):
     "Test function for string method"
 
     x = np.reshape(np.array([1., 2., 3.]), (1, 3))
     y = np.array([2.])
-    gp = GaussianProcess(x, y)
+    gp = GPClass(x, y)
     assert (str(gp) == "Gaussian Process with 1 training examples and 3 input variables")
