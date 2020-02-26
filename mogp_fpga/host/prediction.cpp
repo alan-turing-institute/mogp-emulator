@@ -3,7 +3,6 @@
 
 #include "CL/cl2.hpp"
 #include "CL/cl.h"
-#include <cmath>
 #include <iostream>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl_bind.h>
@@ -16,25 +15,6 @@ namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
 
-void compare_results(std::vector<float> expected, std::vector<float> actual,
-                     std::string kernel_name){
-    float TOL = 1.0e-6;
-    int length = expected.size();
-    bool discrepency = false;
-
-    std::cout << "Comparing expected and actual results for " << kernel_name << std::endl;
-    for (int i=0; i<length; i++){
-        if (std::abs(expected[i] - actual[i]) > TOL){
-            std::cout << "Element " << i << " of expected and actual results do not agree: " << expected[i] << " " << actual[i] << std::endl;
-            discrepency = true;
-        }
-    }
-
-    if (!discrepency){
-        std::cout << "Expected and actual results agree" << std::endl;
-    }
-}
-
 
 struct CLContainer{
     cl::Context context;
@@ -44,6 +24,7 @@ struct CLContainer{
 
 
 CLContainer default_container(const char* path){
+    try{
         // Create context using default device
         cl::Context context(CL_DEVICE_TYPE_DEFAULT);
 
@@ -78,6 +59,11 @@ CLContainer default_container(const char* path){
         container.program = program;
 
         return container;
+    }
+    catch (cl::Error err){
+        std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
+        exit(-1);
+    }
 }
 
 
@@ -211,6 +197,7 @@ void predict_single_variance(
     cl::copy(d_Ystarvar, Ystarvar.begin(), Ystarvar.end());
 }
 
+
 // Conduct a single prediction using the square exponetial kernel
 // X - Training inputs
 // nx - Number of training inputs
@@ -299,82 +286,4 @@ PYBIND11_MODULE(prediction, m){
     m.def("predict_single_expectation", &predict_single_expectation);
     m.def("predict_single_variance", &predict_single_variance);
     m.def("predict_single_deriv", &predict_single_deriv);
-}
-
-
-int main(){
-    try{
-        const char* binary_file_name = "../device/prediction.aocx";
-        auto container = default_container(binary_file_name);
-
-        // Test prediction case
-        // Based on the Python package test 'test_GaussianProcess_predict_single'
-        // X = [[1,2,3],[2,4,1],[4,2,2]]
-        // Y = [2,3,4]
-        // Hyperparameters = [0,0,0,0]
-        //
-        // After training InvQt = [1.9407565,2.93451157,3.95432381]
-        //
-        // X* = [[1,3,2],[3,2,1]]
-        // Expected Y* = [1.39538648,1.73114001]
-
-        // Create host variables
-        // Training inputs X
-        std::vector<float> h_X = {1.0, 2.0, 3.0,
-                                  2.0, 4.0, 1.0,
-                                  4.0, 2.0, 2.0};
-        // Prediction inputs X*
-        std::vector<float> h_Xstar = {1.0, 3.0, 2.0,
-                                      3.0, 2.0, 1.0};
-        // Number of training inputs and prediction inputs
-        int nx = 3; int nxstar = 2;
-        // Dimension of inputs
-        int dim = 3;
-        // InvQt vector, a product of training
-        std::vector<float> h_InvQt = {1.9407565, 2.93451157, 3.95432381};
-        // InvQ matrix, a product of training
-        std::vector<float> h_Q_chol = {1.00000000, 0.00000000, 0.00000000,
-                                       0.01110900, 0.99993829, 0.00000000,
-                                       0.00673795, 0.01103483, 0.99991641};
-        // Hyperparameter used to scale predictions
-        float sigma = 0.0f;
-        // Hyperparameters to set length scale of distances between inputs
-        std::vector<float> h_scale = {0.0, 0.0, 0.0};
-        // Prediction result
-        std::vector<float> h_Ystar(nxstar, 0);
-        // Prediction variance
-        std::vector<float> h_Ystarvar(nxstar, 0);
-        // Prediction derivatives
-        std::vector<float> h_Ystarderiv(nxstar*dim, 0);
-
-        // Expected results
-        std::vector<float> expected_Ystar = {1.39538648, 1.73114001};
-        std::vector<float> expected_Ystarvar = {0.81667540, 0.858355920};
-        std::vector<float> expected_Ystarderiv = {
-            0.73471011, -0.0858304,  0.05918638,
-            1.14274266,  0.48175876,  1.52580682
-            };
-
-        predict_single_deriv(h_X, nx, dim, h_Xstar, nxstar, h_scale, sigma,
-                             h_InvQt, h_Q_chol, h_Ystar, h_Ystarvar,
-                             h_Ystarderiv, container);
-        compare_results(expected_Ystar, h_Ystar, "predict expectation values");
-        for (auto const& i : h_Ystar)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-        compare_results(expected_Ystarvar, h_Ystarvar, "predict variance");
-        for (auto const& i : h_Ystarvar)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-        compare_results(expected_Ystarderiv, h_Ystarderiv, "predict derivatives");
-        for (auto const& i : h_Ystarderiv)
-            std::cout << i << ' ';
-        std::cout << std::endl;
-    }
-    catch (cl::Error err){
-        std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
-        exit(-1);
-    }
-
-    return 0;
 }
