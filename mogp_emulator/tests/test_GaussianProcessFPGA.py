@@ -6,7 +6,7 @@ import pathlib
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def kernel_path():
     """
     Fixture pointing to a compiled FPGA kernel.
@@ -34,33 +34,33 @@ class TestInit():
         assert gpfpga.nugget == gp.nugget is None
 
 
+@pytest.fixture(scope="class")
+def example_gpfpga(kernel_path):
+    x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
+    y = np.array([2., 3., 4.])
+
+    gp = GaussianProcessFPGA(kernel_path, x, y)
+
+    theta = np.zeros(4)
+    gp._set_params(theta)
+
+    return gp
+
+
 @pytest.mark.fpga
 class TestPredictSingle():
-    def test_expectation(self, kernel_path):
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-
-        gp = GaussianProcessFPGA(kernel_path, x, y)
-
-        theta = np.zeros(4)
-        gp._set_params(theta)
+    def test_expectation(self, example_gpfpga):
+        gp = example_gpfpga
 
         x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
         predict_expected = np.array([1.395386477054048, 1.7311400058360489])
-        unc_expected = np.array([0.816675395381421, 0.8583559202639046])
 
         predict_actual, _, _ = gp._predict_single(x_star, False, False)
 
         assert_allclose(predict_actual, predict_expected)
 
-    def test_variance(self, kernel_path):
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-
-        gp = GaussianProcessFPGA(kernel_path, x, y)
-
-        theta = np.zeros(4)
-        gp._set_params(theta)
+    def test_variance(self, example_gpfpga):
+        gp = example_gpfpga
 
         x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
         predict_expected = np.array([1.395386477054048, 1.7311400058360489])
@@ -71,14 +71,8 @@ class TestPredictSingle():
         assert_allclose(predict_actual, predict_expected)
         assert_allclose(unc_actual, unc_expected)
 
-    def test_deriv(self, kernel_path):
-        x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
-        y = np.array([2., 3., 4.])
-
-        gp = GaussianProcessFPGA(kernel_path, x, y)
-
-        theta = np.zeros(4)
-        gp._set_params(theta)
+    def test_deriv(self, example_gpfpga):
+        gp = example_gpfpga
 
         x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
         predict_expected = np.array([1.395386477054048, 1.7311400058360489])
