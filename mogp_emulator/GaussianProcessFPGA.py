@@ -18,60 +18,41 @@ class GaussianProcessFPGA(GaussianProcess):
         n_testing, D = np.shape(testing)
         assert D == self.D
 
-        variance = None
-        deriv = None
-
+        # Convert arguments to VectorFloat objects
         testing = VectorFloat(testing.flatten())
         inputs = VectorFloat(self.inputs.flatten())
         scale = VectorFloat(self.theta[:-1])
         invQt = VectorFloat(self.invQt.flatten())
+        L = VectorFloat(self.L.flatten())
 
-        expectation = np.empty(n_testing)
-        expectation = VectorFloat(expectation)
+        # Initialise results
+        expectation = VectorFloat(np.empty(n_testing))
+        variance = VectorFloat(np.empty(n_testing))
+        deriv = VectorFloat(np.empty((n_testing, self.D)).flatten())
 
-        if (do_deriv is False) and (do_unc is False):
-            predict_single(
-                inputs, self.n, self.D,
-                testing, n_testing,
-                scale, self.theta[-1],
-                invQt,
-                expectation,
-                self.cl_container
-                )
-        elif (do_deriv is False) and (do_unc is True):
-            L = VectorFloat(self.L.flatten())
+        # Call kernel wrapper
+        predict_single(
+            inputs, self.n, self.D,
+            testing, n_testing,
+            scale, self.theta[-1],
+            invQt, L,
+            expectation, variance, deriv,
+            self.cl_container,
+            do_unc, do_deriv
+            )
 
-            variance = VectorFloat(np.empty(n_testing))
+        # Cast results to np.arrays
+        expectation = np.array(expectation)
 
-            predict_single(
-                inputs, self.n, self.D,
-                testing, n_testing,
-                scale, self.theta[-1],
-                invQt, L,
-                expectation, variance,
-                self.cl_container
-                )
+        if do_unc:
             variance = np.array(variance)
-        elif (do_deriv is True) and (do_unc is True):
-            L = VectorFloat(self.L.flatten())
+        else:
+            variance = None
 
-            variance = VectorFloat(np.empty(n_testing))
-            deriv = VectorFloat(np.empty((n_testing, self.D)).flatten())
-
-            predict_single(
-                inputs, self.n, self.D,
-                testing, n_testing,
-                scale, self.theta[-1],
-                invQt, L,
-                expectation, variance, deriv,
-                self.cl_container
-                )
-            variance = np.array(variance)
+        if do_deriv:
             deriv = np.array(deriv)
             deriv.reshape((n_testing, self.D))
         else:
-            raise NotImplementedError
-
-        expectation = np.array(expectation)
+            deriv = None
 
         return expectation, variance, deriv

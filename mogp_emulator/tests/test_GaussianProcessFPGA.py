@@ -71,7 +71,7 @@ class TestPredictSingle():
                         rtol=1.e-5)
         assert_allclose(unc_actual, self.unc_expected, atol=1.e-8, rtol=1.e-5)
 
-    def test_deriv(self, example_gpfpga):
+    def test_variance_deriv(self, example_gpfpga):
         gp = example_gpfpga
         predict_actual, unc_actual, deriv_actual = gp._predict_single(
             self.x_star, True, True
@@ -80,6 +80,17 @@ class TestPredictSingle():
         assert_allclose(predict_actual, self.predict_expected, atol=1.e-8,
                         rtol=1.e-5)
         assert_allclose(unc_actual, self.unc_expected, atol=1.e-8, rtol=1.e-5)
+        assert_allclose(deriv_actual, self.deriv_expected, atol=1.e-8,
+                        rtol=1.e-5)
+
+    def test_deriv(self, example_gpfpga):
+        gp = example_gpfpga
+        predict_actual, unc_actual, deriv_actual = gp._predict_single(
+            self.x_star, True, False
+        )
+
+        assert_allclose(predict_actual, self.predict_expected, atol=1.e-8,
+                        rtol=1.e-5)
         assert_allclose(deriv_actual, self.deriv_expected, atol=1.e-8,
                         rtol=1.e-5)
 
@@ -122,7 +133,7 @@ class TestPredictSingle2():
                         rtol=1.e-5)
         assert_allclose(unc_actual, self.unc_expected, atol=1.e-8, rtol=1.e-5)
 
-    def test_deriv(self, example_gpfpga2):
+    def test_variance_deriv(self, example_gpfpga2):
         gp = example_gpfpga2
         predict_actual, unc_actual, deriv_actual = gp._predict_single(
             self.x_star, True, True
@@ -131,5 +142,16 @@ class TestPredictSingle2():
         assert_allclose(predict_actual, self.predict_expected, atol=1.e-8,
                         rtol=1.e-5)
         assert_allclose(unc_actual, self.unc_expected, atol=1.e-8, rtol=1.e-5)
+        assert_allclose(deriv_actual, self.deriv_expected, atol=1.e-8,
+                        rtol=1.e-5)
+
+    def test_deriv(self, example_gpfpga2):
+        gp = example_gpfpga2
+        predict_actual, unc_actual, deriv_actual = gp._predict_single(
+            self.x_star, True, False
+        )
+
+        assert_allclose(predict_actual, self.predict_expected, atol=1.e-8,
+                        rtol=1.e-5)
         assert_allclose(deriv_actual, self.deriv_expected, atol=1.e-8,
                         rtol=1.e-5)
