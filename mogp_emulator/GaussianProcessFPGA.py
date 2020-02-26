@@ -1,5 +1,5 @@
 from .GaussianProcess import GaussianProcess
-from .prediction import (default_container, predict_single_expectation,
+from .prediction import (create_cl_container, predict_single_expectation,
                          predict_single_variance, predict_single_deriv,
                          VectorFloat)
 import numpy as np
@@ -9,7 +9,7 @@ class GaussianProcessFPGA(GaussianProcess):
     def __init__(self, kernel_path, *args):
         super().__init__(*args)
 
-        self.cl_container = default_container(kernel_path)
+        self.cl_container = create_cl_container(kernel_path)
 
     def _predict_single(self, testing, do_deriv=True, do_unc=True):
         testing = np.array(testing)

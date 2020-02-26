@@ -23,7 +23,7 @@ struct CLContainer{
 };
 
 
-CLContainer default_container(const char* path){
+CLContainer create_cl_container(const char* path){
     try{
         // Create context using default device
         cl::Context context(CL_DEVICE_TYPE_DEFAULT);
@@ -282,7 +282,7 @@ void predict_single_deriv(
 PYBIND11_MODULE(prediction, m){
     py::class_<CLContainer>(m, "CLContainer");
     py::bind_vector<std::vector<float>>(m, "VectorFloat");
-    m.def("default_container", &default_container);
+    m.def("create_cl_container", &create_cl_container);
     m.def("predict_single_expectation", &predict_single_expectation);
     m.def("predict_single_variance", &predict_single_variance);
     m.def("predict_single_deriv", &predict_single_deriv);
