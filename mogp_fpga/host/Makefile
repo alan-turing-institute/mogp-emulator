@@ -8,7 +8,7 @@ SUFFIX=$(shell python-config --extension-suffix)
 
 OPT=-O2
 DEBUG=-Wall
-CXXFLAGS=-shared -std=c++11 -undefined -fPIC $(PYBIND_INCLUDES) $(OPT) $(DEBUG)
+CXXFLAGS=-shared -std=c++14 -undefined -fPIC $(PYBIND_INCLUDES) $(OPT) $(DEBUG)
 
 OBJECT=prediction$(SUFFIX)
 TARGET=prediction.cpp

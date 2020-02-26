@@ -1,7 +1,5 @@
 from .GaussianProcess import GaussianProcess
-from .prediction import (create_cl_container, predict_single_expectation,
-                         predict_single_variance, predict_single_deriv,
-                         VectorFloat)
+from .prediction import create_cl_container, predict_single, VectorFloat
 import numpy as np
 
 
@@ -32,7 +30,7 @@ class GaussianProcessFPGA(GaussianProcess):
         expectation = VectorFloat(expectation)
 
         if (do_deriv is False) and (do_unc is False):
-            predict_single_expectation(
+            predict_single(
                 inputs, self.n, self.D,
                 testing, n_testing,
                 scale, self.theta[-1],
@@ -45,7 +43,7 @@ class GaussianProcessFPGA(GaussianProcess):
 
             variance = VectorFloat(np.empty(n_testing))
 
-            predict_single_variance(
+            predict_single(
                 inputs, self.n, self.D,
                 testing, n_testing,
                 scale, self.theta[-1],
@@ -60,7 +58,7 @@ class GaussianProcessFPGA(GaussianProcess):
             variance = VectorFloat(np.empty(n_testing))
             deriv = VectorFloat(np.empty((n_testing, self.D)).flatten())
 
-            predict_single_deriv(
+            predict_single(
                 inputs, self.n, self.D,
                 testing, n_testing,
                 scale, self.theta[-1],

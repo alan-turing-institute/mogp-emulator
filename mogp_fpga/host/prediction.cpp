@@ -11,11 +11,6 @@
 #define MAX_NX 128
 #define MAX_NXSTAR 128
 
-namespace py = pybind11;
-
-PYBIND11_MAKE_OPAQUE(std::vector<float>);
-
-
 struct CLContainer{
     cl::Context context;
     std::vector<cl::Device> devices;
@@ -80,7 +75,7 @@ CLContainer create_cl_container(const char* path){
 // Ystar - Training prediction expectation values
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single_expectation(
+void predict_single(
         std::vector<float> &X, int nx, int dim,
         std::vector<float> &Xstar, int nxstar,
         std::vector<float> &scale, float sigma,
@@ -141,7 +136,7 @@ void predict_single_expectation(
 // Ystarvar - Training prediction variances
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single_variance(
+void predict_single(
         std::vector<float> &X, int nx, int dim,
         std::vector<float> &Xstar, int nxstar,
         std::vector<float> &scale, float sigma,
@@ -215,7 +210,7 @@ void predict_single_variance(
 // Ystarderiv - Prediction derivatives
 // context - The OpenCL Context
 // program - The OpenCL Program
-void predict_single_deriv(
+void predict_single(
         std::vector<float> &X, int nx, int dim,
         std::vector<float> &Xstar, int nxstar,
         std::vector<float> &scale, float sigma,
@@ -279,11 +274,31 @@ void predict_single_deriv(
     cl::copy(d_Ystarderiv, Ystarderiv.begin(), Ystarderiv.end());
 }
 
+
+namespace py = pybind11;
+PYBIND11_MAKE_OPAQUE(std::vector<float>);
+
+
 PYBIND11_MODULE(prediction, m){
     py::class_<CLContainer>(m, "CLContainer");
     py::bind_vector<std::vector<float>>(m, "VectorFloat");
     m.def("create_cl_container", &create_cl_container);
-    m.def("predict_single_expectation", &predict_single_expectation);
-    m.def("predict_single_variance", &predict_single_variance);
-    m.def("predict_single_deriv", &predict_single_deriv);
+    m.def("predict_single",
+          py::overload_cast<std::vector<float> &, int, int,
+                            std::vector<float> &, int, std::vector<float> &,
+                            float, std::vector<float> &, std::vector<float> &,
+                            CLContainer &>(&predict_single));
+    m.def("predict_single",
+          py::overload_cast<std::vector<float> &, int, int,
+                            std::vector<float> &, int, std::vector<float> &,
+                            float, std::vector<float> &, std::vector<float> &,
+                            std::vector<float> &, std::vector<float> &,
+                            CLContainer &>(&predict_single));
+    m.def("predict_single",
+          py::overload_cast<std::vector<float> &, int, int,
+                            std::vector<float> &, int, std::vector<float> &,
+                            float, std::vector<float> &, std::vector<float> &,
+                            std::vector<float> &, std::vector<float> &,
+                            std::vector<float> &,
+                            CLContainer &>(&predict_single));
 }
