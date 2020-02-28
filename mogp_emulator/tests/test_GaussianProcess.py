@@ -12,6 +12,10 @@ def GaussianProcessFPGA_helper(*args):
     path = pathlib.Path(__file__).parent.absolute() / "kernel/prediction.aocx"
     return GaussianProcessFPGA(str(path), *args)
 
+def GaussianProcessFPGA_train_model_helper(*args):
+    path = pathlib.Path(__file__).parent.absolute() / "kernel/prediction.aocx"
+    return GaussianProcessFPGA.train_model(str(path), *args)
+
 
 @pytest.mark.parametrize("GPClass", [
     GaussianProcess,
@@ -706,11 +710,11 @@ def test_GaussianProcess_learn_hyperparameters(GPClass):
         gp.learn_hyperparameters(n_tries = -1)
 
 
-@pytest.mark.parametrize("GPClass", [
-    GaussianProcess,
-    pytest.param(GaussianProcessFPGA_helper, marks=pytest.mark.fpga)
+@pytest.mark.parametrize("GPClass,GP_train_model", [
+    (GaussianProcess, GaussianProcess.train_model),
+    (pytest.param(GaussianProcessFPGA_helper, GaussianProcessFPGA_train_model_helper, marks=pytest.mark.fpga))
     ])
-def test_GaussianProcess_train_model(GPClass):
+def test_GaussianProcess_train_model(GPClass, GP_train_model):
     "Test the 'train_model' interface to GaussianProcess"
     X = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     Y = np.array([2., 3., 4.])
@@ -720,7 +724,7 @@ def test_GaussianProcess_train_model(GPClass):
     gp1.learn_hyperparameters()
 
     np.random.seed(10)
-    gp2 = GaussianProcess.train_model(X, Y)
+    gp2 = GP_train_model(X, Y)
 
     ## Check that the models produce identical predictions.  Depends
     ## on each having the same random seed.
