@@ -1,6 +1,7 @@
 import numpy as np
 from .MeanFunction import MeanFunction, MeanBase
 from .Kernel import Kernel, SquaredExponential
+from .Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from .linalg.cholesky import jit_cholesky
@@ -60,8 +61,8 @@ class GaussianProcess(object):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), nugget="adaptive",
-                 inputdict = {}, use_patsy=True):
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=[],
+                 nugget="adaptive", inputdict = {}, use_patsy=True):
         """
         Create a new GaussianProcess Emulator
 
@@ -71,7 +72,8 @@ class GaussianProcess(object):
         Required arguments are numpy arrays ``inputs`` and ``targets``, described below.
         Additional arguments are ``mean`` to specify the mean function (default is
         ``None`` for zero mean), ``kernel`` to specify the covariance kernel (default
-        is the squared exponential kernel), and ``nugget`` to specify how the nugget
+        is the squared exponential kernel), ``priors`` to indicate prior distributions
+        on the hyperparameters, and ``nugget`` to specify how the nugget
         parameter is handled (see below; default is to fit the nugget adaptively).
 
         ``inputs`` is a 2D array-like object holding the input data, whose shape is
@@ -81,6 +83,10 @@ class GaussianProcess(object):
 
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
+
+        ``prior`` must be either (1) an empty list, indicating uninformative prior information,
+        or (2) a list of length ``n_params`` containing either ``None`` (for uninformative prior)
+        or a ``Prior``-derived object.
 
         ``nugget`` controls how additional noise is added to the emulator targets when fitting.
         This can be specified in several ways. If a string is provided, it can take the
@@ -103,6 +109,12 @@ class GaussianProcess(object):
         :type mean: None or MeanFunction
         :param kernel: Covariance kernel to be used (optional, default is Squared Exponential)
         :type kernel: Kernel
+        :param priors: List of priors to be used. Must be an empty list (default, indicates
+                       uninformative priors) or list of length ``n_params``. Any parameter
+                       for which you wish to specify an uninformative prior, pass ``None``.
+                       Number of parameters is the number of parameters in the mean function
+                       plus ``D + 2``.
+        :type priors: list
         :param nugget: Noise to be added to the diagonal, specified as a string or a float.
                        A non-negative float specifies the noise level explicitly, while a string
                        indicates that the nugget will be found via fitting, either as ``"adaptive"``
@@ -138,6 +150,8 @@ class GaussianProcess(object):
             self.mean = mean
 
         self.kernel = kernel
+
+        self.priors = priors
 
         self.nugget = nugget
 
@@ -317,6 +331,34 @@ class GaussianProcess(object):
         """
         self.fit(theta)
 
+    @property
+    def priors(self):
+        """
+        Returns the priors
+        """
+        return self._priors
+
+    @priors.setter
+    def priors(self, priors):
+        """
+        Sets the priors, empty list means all uninformative priors
+        """
+
+        if not isinstance(priors, list):
+            raise TypeError("priors must be a list of Prior-derived objects")
+
+        if len(priors) == 0:
+            priors = self.n_params*[None]
+
+        if not len(priors) == self.n_params:
+            raise ValueError("bad length for priors; must have length n_params")
+
+        for p in priors:
+            if not p is None and not issubclass(type(p), Prior):
+                raise TypeError("priors must be a list of Prior-derived objects")
+
+        self._priors = list(priors)
+
     def fit(self, theta):
         """
         Fits the emulator and sets the parameters
@@ -360,52 +402,56 @@ class GaussianProcess(object):
 
         self.invQt = linalg.cho_solve((self.L, True), self.targets - m)
 
-        self.current_loglike = 0.5*(2.0*np.sum(np.log(np.diag(self.L))) +
+        self.current_logpost = 0.5*(2.0*np.sum(np.log(np.diag(self.L))) +
                                     np.dot(self.targets - m, self.invQt) +
                                     self.n*np.log(2. * np.pi))
 
+        for i in range(self.n_params):
+            if not self._priors[i] is None:
+                self.current_logpost -= self._priors[i].logp(self.theta[i])
 
-    def loglikelihood(self, theta):
+
+    def logposterior(self, theta):
         """
-        Calculate the negative log-likelihood at a particular value of the hyperparameters
+        Calculate the negative log-posterior at a particular value of the hyperparameters
 
-        Calculate the negative log-likelihood for the given set of parameters. Calling this
+        Calculate the negative log-posterior for the given set of parameters. Calling this
         method sets the parameter values and computes the needed inverse matrices in order
-        to evaluate the log-likelihood and its derivatives. In addition to returning the
-        log-likelihood value, it stores the current value of the hyperparameters and
-        log-likelihood in attributes of the object.
+        to evaluate the log-posterior and its derivatives. In addition to returning the
+        log-posterior value, it stores the current value of the hyperparameters and
+        log-posterior in attributes of the object.
 
         :param theta: Value of the hyperparameters. Must be array-like with shape ``(n_params,)``
         :type theta: ndarray
-        :returns: negative log-likelihood
+        :returns: negative log-posterior
         :rtype: float
         """
 
         if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
-        return self.current_loglike
+        return self.current_logpost
 
-    def loglike_deriv(self, theta):
+    def logpost_deriv(self, theta):
         """
-        Calculate the partial derivatives of the negative log-likelihood
+        Calculate the partial derivatives of the negative log-posterior
 
-        Calculate the partial derivatives of the negative log-likelihood with respect to
+        Calculate the partial derivatives of the negative log-posterior with respect to
         the hyperparameters. Note that this function is normally used only when fitting
         the hyperparameters, and it is not needed to make predictions.
 
         During normal use, the ``loglike_deriv`` method is called after evaluating the
-        ``loglikelihood`` method. The implementation takes advantage of this by reusing
+        ``logposterior`` method. The implementation takes advantage of this by reusing
         cached results, as the factorized covariance matrix is expensive to compute and is
-        used by the ``loglikelihood``, ``loglike_deriv``, and ``loglike_hessian`` methods.
+        used by the ``logposterior``, ``logpost_deriv``, and ``logpost_hessian`` methods.
         If the function is evaluated with a different set of parameters than was previously
-        used to set the log-likelihood, the method calls ``fit`` (and subsequently resets
+        used to set the log-posterior, the method calls ``fit`` (and subsequently resets
         the cached information).
 
         :param theta: Value of the hyperparameters. Must be array-like with shape
                       ``(n_params,)``
         :type theta: ndarray
-        :returns: partial derivatives of the negative log-likelihood with respect to the
+        :returns: partial derivatives of the negative log-posterior with respect to the
                   hyperparameters (array with shape ``(n_params,)``)
         :rtype: ndarray
         """
@@ -436,30 +482,34 @@ class GaussianProcess(object):
             partials[-1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n))) -
                                        np.dot(self.invQt, self.invQt))
 
+        for i in range(self.n_params):
+            if not self._priors[i] is None:
+                partials[i] -= self._priors[i].dlogpdtheta(self.theta[i])
+
         return partials
 
-    def loglike_hessian(self, theta):
+    def logpost_hessian(self, theta):
         """
-        Calculate the Hessian of the negative log-likelihood
+        Calculate the Hessian of the negative log-posterior
 
-        Calculate the Hessian of the negative log-likelihood with respect to
+        Calculate the Hessian of the negative log-posterior with respect to
         the hyperparameters. Note that this function is normally used only when fitting
         the hyperparameters, and it is not needed to make predictions. It is also used
         to estimate an appropriate step size when fitting hyperparameters using
         the lognormal approximation or MCMC sampling.
 
-        When used in an optimization routine, the ``loglike_hessian`` method is called after
-        evaluating the ``loglikelihood`` method. The implementation takes advantage of
+        When used in an optimization routine, the ``logpost_hessian`` method is called after
+        evaluating the ``logposterior`` method. The implementation takes advantage of
         this by storing the inverse of the covariance matrix, which is expensive to
-        compute and is used by the ``loglikelihood`` and ``loglike_deriv`` methods as well.
+        compute and is used by the ``logposterior`` and ``logpost_deriv`` methods as well.
         If the function is evaluated with a different set of parameters than was previously
-        used to set the log-likelihood, the method calls ``fit`` to compute the needed
+        used to set the log-posterior, the method calls ``fit`` to compute the needed
         information and changes the cached values.
 
         :param theta: Value of the hyperparameters. Must be array-like with shape
                       ``(n_params,)``
         :type theta: ndarray
-        :returns: Hessian of the negative log-likelihood (array with shape
+        :returns: Hessian of the negative log-posterior (array with shape
                   ``(n_params, n_params)``)
         :rtype: ndarray
         """
@@ -518,6 +568,10 @@ class GaussianProcess(object):
                                                                                          np.eye(self.n)))))
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
+
+        for i in range(self.n_params):
+            if not self._priors[i] is None:
+                hessian[i, i] -= self._priors[i].d2logpdtheta2(self.theta[i])
 
         return hessian
 
