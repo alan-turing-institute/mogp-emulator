@@ -1,7 +1,8 @@
 from .version import version as __version__
 
 from .GaussianProcess import GaussianProcess
-from .fitting import fit_GP_MLE
+from .MultiOutputGP import MultiOutputGP
+from .fitting import fit_GP_MAP
 from .MeanFunction import MeanFunction
 from .ExperimentalDesign import MonteCarloDesign, LatinHypercubeDesign
 from .SequentialDesign import MICEDesign

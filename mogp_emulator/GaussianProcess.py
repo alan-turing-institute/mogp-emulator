@@ -359,6 +359,15 @@ class GaussianProcess(object):
 
         self._priors = list(priors)
 
+
+    def get_K_matrix(self):
+        """
+        Returns current value of the covariance matrix as a numpy array
+        """
+        switch = self.mean.get_n_params(self.inputs)
+
+        return self.kernel.kernel_f(self.inputs, self.inputs, self.theta[switch:-1])
+
     def fit(self, theta):
         """
         Fits the emulator and sets the parameters

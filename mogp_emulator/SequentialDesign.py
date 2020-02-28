@@ -3,7 +3,7 @@ from scipy.spatial.distance import cdist
 from inspect import signature
 from .ExperimentalDesign import ExperimentalDesign
 from .GaussianProcess import GaussianProcess
-from .fitting import fit_GP_MLE
+from .fitting import fit_GP_MAP
 from numpy.linalg import LinAlgError
 
 class SequentialDesign(object):
@@ -940,7 +940,7 @@ class MICEDesign(SequentialDesign):
         for i in range(numtries):
             try:
                 self.gp = GaussianProcess(self.inputs, self.targets, nugget=self.nugget)
-                self.gp = fit_GP_MLE(self.gp)
+                self.gp = fit_GP_MAP(self.gp)
 
                 self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), nugget=np.exp(self.gp.theta[-2])*self.nugget_s)
                 self.gp_fast.theta = self.gp.theta

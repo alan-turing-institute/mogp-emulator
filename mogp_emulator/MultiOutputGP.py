@@ -129,6 +129,11 @@ class MultiOutputGP(object):
 
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
+    def __call__(self, testing):
+        "Interface to predict means like the base GP class"
+
+        return self.predict(testing, unc=False, deriv=False, processes=None)[0]
+
     def __str__(self):
         """
         Returns a string representation of the model
