@@ -836,19 +836,13 @@ def test_GaussianProcess_predict_single(GPClass):
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+    deriv_expected = np.array([[0.73471011, -0.0858304,  0.05918638],
+                               [1.14274266,  0.48175876,  1.52580682]])
     predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star)
-
-    delta = 1.e-8
-    predict_1, _, _ = gp._predict_single(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
-    predict_2, _, _ = gp._predict_single(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
-    predict_3, _, _ = gp._predict_single(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
-
-    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
-                         (predict_actual - predict_3)/delta]))
 
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
     predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
@@ -863,19 +857,14 @@ def test_GaussianProcess_predict_single(GPClass):
     x_star = np.array([4., 0., 2.])
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
+    deriv_expected = np.array(
+        [[-8.88648350e-08, 9.46919992e-02, 2.96161460e-08]]
+    )
     predict_actual, unc_actual, deriv_actual = gp._predict_single(x_star)
-
-    delta = 1.e-8
-    predict_1, _, _ = gp._predict_single(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
-    predict_2, _, _ = gp._predict_single(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
-    predict_3, _, _ = gp._predict_single(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
-
-    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
-                                      (predict_actual - predict_3)/delta]))
 
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
 @pytest.mark.parametrize("GPClass", [
     GaussianProcess,
@@ -945,19 +934,13 @@ def test_GaussianProcess_predict(GPClass):
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
+    deriv_expected = np.array([[0.73471011, -0.0858304,  0.05918638],
+                               [1.14274266,  0.48175876,  1.52580682]])
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
-
-    delta = 1.e-8
-    predict_1, _, _ = gp.predict(np.array([[1. - delta, 3., 2.], [3. - delta, 2., 1.]]), do_deriv=False, do_unc=False)
-    predict_2, _, _ = gp.predict(np.array([[1., 3. - delta, 2.], [3., 2. - delta, 1.]]), do_deriv=False, do_unc=False)
-    predict_3, _, _ = gp.predict(np.array([[1., 3., 2. - delta], [3., 2., 1. - delta]]), do_deriv=False, do_unc=False)
-
-    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
-                         (predict_actual - predict_3)/delta]))
 
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star, do_deriv = False, do_unc = False)
     assert_allclose(predict_actual, predict_expected)
@@ -973,19 +956,14 @@ def test_GaussianProcess_predict(GPClass):
     x_star = np.array([4., 0., 2.])
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
+    deriv_expected = np.array(
+        [[-8.88648350e-08, 9.46919992e-02, 2.96161460e-08]]
+    )
     predict_actual, unc_actual, deriv_actual = gp.predict(x_star)
-
-    delta = 1.e-8
-    predict_1, _, _ = gp.predict(np.array([4. - delta, 0., 2.]), do_deriv = False, do_unc = False)
-    predict_2, _, _ = gp.predict(np.array([4., 0. - delta, 2.]), do_deriv = False, do_unc = False)
-    predict_3, _, _ = gp.predict(np.array([4., 0., 2. - delta]), do_deriv = False, do_unc = False)
-
-    deriv_fd = np.transpose(np.array([(predict_actual - predict_1)/delta, (predict_actual - predict_2)/delta,
-                                      (predict_actual - predict_3)/delta]))
 
     assert_allclose(predict_actual, predict_expected, atol = 1.e-8, rtol = 1.e-5)
     assert_allclose(unc_actual, unc_expected, atol = 1.e-8, rtol = 1.e-5)
-    assert_allclose(deriv_actual, deriv_fd, atol = 1.e-8, rtol = 1.e-5)
+    assert_allclose(deriv_actual, deriv_expected, atol = 1.e-8, rtol = 1.e-5)
 
     x = np.reshape(np.array([1., 2., 3., 2., 4., 1., 4., 2., 2.]), (3, 3))
     y = np.array([2., 3., 4.])
