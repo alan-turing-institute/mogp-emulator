@@ -77,8 +77,9 @@ CLContainer create_cl_container(const char* path){
 // Ystar - Training prediction expectation values
 // Ystarvar - Training prediction variances
 // Ystarderiv - Prediction derivatives
-// context - The OpenCL Context
-// program - The OpenCL Program
+// container - The CLContainer object carrying the OpenCL context and program
+// calc_variance - If true the variance is also calcuated
+// calc_derivatives - If true the derivatives are also calculated
 void predict_single(
         std::vector<float> &X, int nx, int dim,
         std::vector<float> &Xstar, int nxstar,
