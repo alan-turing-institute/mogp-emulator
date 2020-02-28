@@ -125,71 +125,62 @@ kernel void variance(
     global float* restrict variance,
     global float* restrict cholesky_factor, float sigma, int nx, int nxstar
     ){
-    local float chol_cache[MAX_NX*MAX_NX];
+// Take exponential of sigma
+local float exp_sigma;
+exp_sigma = exp(sigma);
+
+local float chol_cache[MAX_NX*MAX_NX];
+
+for (unsigned i=0; i<nx*nx; i++){
+    chol_cache[i] = cholesky_factor[i];
+}
+
+// Calculate variance for one prediction per iteration
+#pragma max_concurrency 1
+for (unsigned col=0; col<nxstar; col++){
+    // Cache column of k
+    // Forward substitution variables x,y
+    float k_cache[MAX_NX];
+    float y[MAX_NX];
+    float x[MAX_NX]; 
+    
     for (unsigned i=0; i<nx; i++){
-        int offset1 = i*nx;
-        int offset2 = i*MAX_NX;
-        for (unsigned j=0; j<nx; j++){
-            chol_cache[offset2+j] = cholesky_factor[offset1+j];
-        }
+        read_pipe(k2, &k_cache[i]);
+        y[i] = 0.0;
+        x[i] = 0.0;
     }
-    // Take exponential of sigma
-    local float exp_sigma;
-    exp_sigma = exp(sigma);
 
-    // Calculate variance for one prediction per iteration
-    for (unsigned col=0; col<nxstar; col++){
-        // Cache column of k
-        float k_cache[MAX_NX];
+    // Cholesky solve for one column of k
+    // Forward substitution
+
+    for (unsigned i=0; i<nx; i++){
+        int offset = i*nx;
         float temp;
-        for (unsigned i=0; i<nx; i++){
-            read_pipe(k2, &k_cache[i]);
+        temp = 0.0;
+        for (int t=nx-1; t > -1; t--){
+            temp += chol_cache[offset+t] * y[t];
         }
-
-        // Cholesky solve for one column of k
-        //
-        // Forward substitution
-        float y[MAX_NX];
-        float x[MAX_NX]; 
-        float var = 0;        
-        //#pragma unroll // Use of #pragma unroll, results in excessive use of the on-chip resources which prohibits the compile to finish
-        for (unsigned i=0; i<MAX_NX; i++){
-            y[i] = 0.0;
-            x[i] = 0.0;
+        temp = k_cache[i] - temp;
+        y[i] = temp / chol_cache[offset+i];
+    }    
+    for (int t=nx-1; t > -1; t--){
+        float temp;
+        temp = 0.0;
+        for (unsigned j=0; j<nx; j++){
+            temp += chol_cache[j*nx+t] * x[j];
+        //printf("j*nx+t = %d\n", j*nx+t);            
         }
-        for (unsigned i=0; i<nx; i++){
-            int offset = i*MAX_NX;
-            //temp = k_cache[i]; //  the initialization cannot take place within the DSP block, therefore the register is placed outside, which results in a longer latency  
-            // Solution
-            float temp;
-            temp = 0.0;
-            for (unsigned t=0; t<MAX_NX; t++){
-                int j = MAX_NX-t-1;
-                //temp -= chol_cache[offset+j] * y[j];
-                temp += chol_cache[offset+j] * y[j];
-            }
-            temp = k_cache[i] - temp;
-            y[i] = temp / chol_cache[offset+i];
-        }
-        for (unsigned t=0; t<nx; t++){
-            int i = nx-t-1;
-            //temp = y[i];
-            float temp;
-            temp = 0.0;
-            //#pragma unroll
-            for (unsigned j=0; j<MAX_NX; j++){
-                temp += chol_cache[j*MAX_NX+i] * x[j];
-            }
-            temp = y[i] - temp;
-            x[i] = temp / chol_cache[i*MAX_NX+i];
-        }
-
-        for (unsigned i=0; i<MAX_NX; i++){
-            var += k_cache[i] * x[i];
-        }
-        // Subtract from hyperparameter
-        var = exp_sigma - var;
-        variance[col] = max(var, 0.0f);
+        temp = y[t] - temp;
+        x[t] = temp / chol_cache[t*nx+t];
+    }
+    
+    float var = 0;        
+    for (unsigned i=0; i<nx; i++){
+        var += k_cache[i] * x[i];
+    }
+    // Subtract from hyperparameter
+    var = exp_sigma - var;
+    variance[col] = max(var, 0.0f);
     }
 }
 
