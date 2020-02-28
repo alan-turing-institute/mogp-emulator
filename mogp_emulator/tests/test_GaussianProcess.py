@@ -8,9 +8,9 @@ from scipy import linalg
 import pathlib
 
 
-def GaussianProcessFPGA_helper(x, y):
+def GaussianProcessFPGA_helper(*args):
     path = pathlib.Path(__file__).parent.absolute() / "kernel/prediction.aocx"
-    return GaussianProcessFPGA(str(path), x, y)
+    return GaussianProcessFPGA(str(path), *args)
 
 
 @pytest.mark.parametrize("GPClass", [
