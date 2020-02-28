@@ -56,7 +56,8 @@ CLContainer create_cl_container(const char* path){
         return container;
     }
     catch (cl::Error err){
-        std::cout << "OpenCL Error: " << err.what() << " code " << err.err() << std::endl;
+        std::cout << "OpenCL Error: " << err.what() << " code " << err.err()
+        << std::endl;
         exit(-1);
     }
 }
@@ -139,9 +140,9 @@ void predict_single(
     cl::Buffer d_Ystarderiv(Ystarderiv.begin(), Ystarderiv.end(), false);
 
     // Prediction
-    square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X,
-                       d_Xstar, k, k2, r, d_scale, sigma, nx, nxstar, dim,
-                       calc_variance, calc_derivatives);
+    square_exponential(cl::EnqueueArgs(queue1, cl::NDRange(1)), d_X, d_Xstar, k,
+                       k2, r, d_scale, sigma, nx, nxstar, dim, calc_variance,
+                       calc_derivatives);
     expectation(cl::EnqueueArgs(queue2, cl::NDRange(1)), k, d_InvQt, d_Ystar,
                 nx, nxstar);
     if (calc_variance){
