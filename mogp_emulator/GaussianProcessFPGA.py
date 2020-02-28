@@ -51,7 +51,7 @@ class GaussianProcessFPGA(GaussianProcess):
 
         if do_deriv:
             deriv = np.array(deriv)
-            deriv.reshape((n_testing, self.D))
+            deriv = deriv.reshape((n_testing, self.D))
         else:
             deriv = None
 

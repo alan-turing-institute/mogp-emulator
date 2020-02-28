@@ -52,8 +52,8 @@ class TestPredictSingle():
     x_star = np.array([[1., 3., 2.], [3., 2., 1.]])
     predict_expected = np.array([1.395386477054048, 1.7311400058360489])
     unc_expected = np.array([0.816675395381421, 0.8583559202639046])
-    deriv_expected = np.array([0.73471011, -0.0858304,  0.05918638,
-                               1.14274266,  0.48175876,  1.52580682])
+    deriv_expected = np.array([[0.73471011, -0.0858304,  0.05918638],
+                               [1.14274266,  0.48175876,  1.52580682]])
 
     def test_expectation(self, example_gpfpga):
         gp = example_gpfpga
@@ -114,7 +114,7 @@ class TestPredictSingle2():
     predict_expected = 0.0174176198731851
     unc_expected = 2.7182302871685224
     deriv_expected = np.array(
-        [-8.88648350e-08, 9.46919992e-02, 2.96161460e-08]
+        [[-8.88648350e-08, 9.46919992e-02, 2.96161460e-08]]
     )
 
     def test_expectation(self, example_gpfpga2):
