@@ -31,16 +31,17 @@ class GammaPrior(Prior):
         assert shape > 0., "shape parameter must be positive"
         self.shape = shape
         assert scale > 0., "scale parameter must be positive"
+        self.scale = scale
 
     def logp(self, x):
-        return (self.shape*np.log(self.scale) - np.log(gamma(self.shape)) +
-                (self.shape - 1.)*x - self.scale*np.exp(x))
+        return (-self.shape*np.log(self.scale) - np.log(gamma(self.shape)) +
+                (self.shape - 1.)*x - np.exp(x)/self.scale)
 
     def dlogpdtheta(self, x):
-        return (self.shape - 1.) - self.scale*np.exp(x)
+        return (self.shape - 1.) - np.exp(x)/self.scale
 
     def d2logpdtheta2(self, x):
-        return -self.scale*np.exp(x)
+        return -np.exp(x)/self.scale
 
 class InvGammaPrior(Prior):
     def __init__(self, shape, scale):
