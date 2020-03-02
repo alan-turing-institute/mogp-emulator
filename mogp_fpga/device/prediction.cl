@@ -29,56 +29,38 @@ kernel void sq_exp(global float* restrict x, global float* restrict xstar,
                    write_only pipe float __attribute__((blocking)) r,
                    global float* restrict scale, float sigma,
                    int nx, int nxstar, int dim, int var, int deriv){
-    // Cache the scaling factors
-    local float l_cache[MAX_DIM];
-    for(unsigned i=0; i<MAX_DIM; i++){
-        l_cache[i] = 1;
-    }
-    for(unsigned i=0; i<dim; i++){
-        l_cache[i] = exp(-1.0f * scale[i]);
-    }
 
     // Determine exponential of sigma
-    local float exp_sigma;
-    exp_sigma = exp(sigma);
-
+    //local float exp_sigma;
+    //exp_sigma = exp(sigma);
+      
     // Calculate one column of k at a time
     for(unsigned col=0; col<nxstar; col++){
-        int col_stride = col*dim;
-        // Cache the corresponing vector from xstar
-        float xstar_cache[MAX_DIM];
-        for(unsigned i=0; i<dim; i++){
-            xstar_cache[i] = xstar[col_stride+i];
-        }
-
+        int col_stride = col*dim;   
         // Declare local array for column of r
         for(unsigned row=0; row<nx; row++){
             int row_stride = row*dim;
-            // Cache the corresponding vector from x
-            float x_cache[MAX_DIM];
-            for(unsigned i=0; i<dim; i++){
-                x_cache[i] = x[row_stride+i];
-            }
-
             // Determine the element k[row,col], the squared euclidean
             // distance between x[row] and xstar[col]
             float elem = 0;
-            #pragma unroll
-            for(unsigned i=0; i<MAX_DIM; i++){
-                float x = x_cache[i];
-                float xstar = xstar_cache[i];
-                float difference = x - xstar;
-                elem += (difference * difference) / l_cache[i];
+            float x_;
+            float xstar_;
+            for(unsigned i=0; i<dim; i++){
+                x_ = x[row_stride+i];
+                xstar_ = xstar[col_stride+i];
+                float difference = x_ - xstar_;
+                elem += (difference * difference) * exp(scale[i]);
             }
 
             // Calculate pairwise distance if needed for derivatives
             if (deriv){
-                float dist = sqrt(elem);
+                //float dist = sqrt(elem);
+                float dist = elem;
                 write_pipe(r, &dist);
             }
 
             // Calculate the element k[row,col] of the square exponential kernel
-            elem = exp_sigma*exp(-0.5f * elem);
+            elem = exp(-0.5f * elem + sigma);
             // Push the element to the pipe
             write_pipe(k1, &elem);
             if (var){
@@ -107,27 +89,19 @@ kernel void expectation(
     global float* restrict expectation,
     int nx, int nxstar
     ){
-    // Copy invqt to local memory
-    local float invqt_cache[MAX_NX];
-    for (unsigned i=0; i<nx; i++){
-        invqt_cache[i] = invqt[i];
-    }
-
     // Calculate one predictions expectation value at time by finding the 'dot
     // product' of one column of k with invqt
     for (unsigned col=0; col<nxstar; col++){
         float sum = 0;
-
-        // Cache column of k
-        float k_cache[MAX_NX];
-        for (unsigned i=0; i<nx; i++){
-            read_pipe(k1, &k_cache[i]);
-        }
-
-        // Dot product
-        #pragma unroll
-        for (unsigned i=0; i<MAX_NX; i++){
-            sum += k_cache[i] * invqt_cache[i];
+        for (unsigned i=0; i<nx; i++){ 
+            float temp;
+            read_pipe(k1, &temp); /*k_cache is only initialized for the first nx values. 
+                                Assuming that MAX_NX is larger than nx, it means that the remaining addresses have no value. 
+                                Also we don't need to have a separate array for k (no need for k_cache, because we use the values as soon as we read them and we don't need them later on.
+                                So we reduced the number of for loops to 2 and got rid of the separate array. 
+                                But the compiler is smart enough to see that k_cache was not used after so it wasn't occupying extra resources
+                                in the final hardware.*/
+            sum += temp * invqt[i];
         }
         expectation[col] = sum;
     }
@@ -151,75 +125,62 @@ kernel void variance(
     global float* restrict variance,
     global float* restrict cholesky_factor, float sigma, int nx, int nxstar
     ){
-    local float chol_cache[MAX_NX*MAX_NX];
+// Take exponential of sigma
+local float exp_sigma;
+exp_sigma = exp(sigma);
+
+local float chol_cache[MAX_NX*MAX_NX];
+
+for (unsigned i=0; i<nx*nx; i++){
+    chol_cache[i] = cholesky_factor[i];
+}
+
+// Calculate variance for one prediction per iteration
+#pragma max_concurrency 1
+for (unsigned col=0; col<nxstar; col++){
+    // Cache column of k
+    // Forward substitution variables x,y
+    float k_cache[MAX_NX];
+    float y[MAX_NX];
+    float x[MAX_NX]; 
+    
     for (unsigned i=0; i<nx; i++){
-        int offset1 = i*nx;
-        int offset2 = i*MAX_NX;
-        for (unsigned j=0; j<nx; j++){
-            chol_cache[offset2+j] = cholesky_factor[offset1+j];
-        }
+        read_pipe(k2, &k_cache[i]);
+        y[i] = 0.0;
+        x[i] = 0.0;
     }
-    // Take exponential of sigma
-    local float exp_sigma;
-    exp_sigma = exp(sigma);
 
-    // Calculate variance for one prediction per iteration
-    for (unsigned col=0; col<nxstar; col++){
-        // Cache column of k
-        float k_cache[MAX_NX];
-        for (unsigned i=0; i<nx; i++){
-            read_pipe(k2, &k_cache[i]);
-        }
+    // Cholesky solve for one column of k
+    // Forward substitution
 
-        // Cholesky solve for one column of k
-        //
-        // Forward substitution
-        float y[MAX_NX];
-        #pragma unroll
-        for (unsigned i=0; i<MAX_NX; i++){
-            y[i] = 0.0;
+    for (unsigned i=0; i<nx; i++){
+        int offset = i*nx;
+        float temp;
+        temp = 0.0;
+        for (int t=nx-1; t > -1; t--){
+            temp += chol_cache[offset+t] * y[t];
         }
-        for (unsigned i=0; i<nx; i++){
-            float temp;
-            int offset = i*MAX_NX;
-            temp = k_cache[i];
-            #pragma unroll
-            // for (unsigned j=MAX_NX-1; j>=0; j--){
-            for (unsigned t=0; t<MAX_NX; t++){
-                int j = MAX_NX-t-1;
-                temp -= chol_cache[offset+j] * y[j];
-            }
-            y[i] = temp / chol_cache[offset+i];
+        temp = k_cache[i] - temp;
+        y[i] = temp / chol_cache[offset+i];
+    }    
+    for (int t=nx-1; t > -1; t--){
+        float temp;
+        temp = 0.0;
+        for (unsigned j=0; j<nx; j++){
+            temp += chol_cache[j*nx+t] * x[j];
+        //printf("j*nx+t = %d\n", j*nx+t);            
         }
-
-        // Back substitution
-        float x[MAX_NX];
-        #pragma unroll
-        for (unsigned i=0; i<MAX_NX; i++){
-            x[i] = 0.0;
-        }
-        // for (unsigned i=nx-1; i>=0; i--){
-        for (unsigned t=0; t<nx; t++){
-            int i = nx-t-1;
-            float temp;
-            temp = y[i];
-            #pragma unroll
-            for (unsigned j=0; j<MAX_NX; j++){
-                temp -= chol_cache[j*MAX_NX+i] * x[j];
-            }
-            x[i] = temp / chol_cache[i*MAX_NX+i];
-        }
-
-        // Multiply solution elementwise with column of k and sum
-        float var = 0;
-        #pragma unroll
-        for (unsigned i=0; i<MAX_NX; i++){
-            var += k_cache[i] * x[i];
-        }
-
-        // Subtract from hyperparameter
-        var = exp_sigma - var;
-        variance[col] = max(var, 0.0f);
+        temp = y[t] - temp;
+        x[t] = temp / chol_cache[t*nx+t];
+    }
+    
+    float var = 0;        
+    for (unsigned i=0; i<nx; i++){
+        var += k_cache[i] * x[i];
+    }
+    // Subtract from hyperparameter
+    var = exp_sigma - var;
+    variance[col] = max(var, 0.0f);
     }
 }
 
@@ -263,75 +224,39 @@ kernel void derivatives(
         global float* restrict invqt, global float* restrict scale,
         float sigma, int nx, int nxstar, int dim){
 
-    // Copy invqt to local memory
-    local float invqt_cache[MAX_NX];
-    for (unsigned i=0; i<nx; i++){
-        invqt_cache[i] = invqt[i];
-    }
-
     // Determine exponential of sigma
-    local float exp_sigma;
-    exp_sigma = exp(sigma);
+    //local float exp_sigma;
+    //exp_sigma = exp(sigma);
 
     // Cache entire r matrix and calculate dK/dr
-    local float r_cache[MAX_NX*MAX_NXSTAR];
-    local float dKdr[MAX_NX*MAX_NXSTAR];
-    local float dist;
+    local float r_cache[MAX_NX*MAX_NXSTAR];  
     for (int i=0; i<nx*nxstar; i++){
-        read_pipe(r, &r_cache[i]);
-        dist = r_cache[i];
-        dKdr[i] = -1.0 * dist * exp(-0.5 * dist * dist);
+        read_pipe(r, &r_cache[i]);     
     }
     // At this point the exp_sq kernel has finished and determined all pairwise
     // distances
-
-    // Set 0 values to 1
-    // This avoid division by zero in dr/dx calculation
-    #pragma unroll
-    for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
-        if (r_cache[i] == 0.0f){
-            r_cache[i] = 1.0f;
-        }
-    }
-
     // For each dimension...
+    
+    #pragma max_concurrency 1  //used to limit the concurrency of the loop to 1, in order to reduce the amount of RAMs used. The max_concurrency pragma enables you to control the on-chip memory resources required to pipeline your loop. 
     for (int d=0; d<dim; d++){
-        // Cache scaling parameter
         float scale_d = exp(scale[d]);
-
-        // Cache dimension dim of all testing inputs x_star
-        float xstar_cache[MAX_NXSTAR];
-        for (int i=0; i<nxstar; i++){
-            xstar_cache[i] = xstar[i*dim+d];
-        }
-        // Cache dimension dim of all training inputs x
-        float x_cache[MAX_NX];
-        for (int i=0; i<nx; i++){
-            x_cache[i] = x[i*dim+d];
-        }
-
         // Calculate dr/dx for dimension dim
         float drdx[MAX_NX*MAX_NXSTAR];
         for (int row=0; row<nxstar; row++){
             int row_stride = row*nx;
-
             for (int col=0; col<nx; col++){
                 int index = row_stride + col;
                 float value;
+                float x_;
+                float xstar_;
+                x_ = x[col*dim+d];
+                xstar_= xstar[row*dim+d];
                 // xstar - x in dimension dim only
-                value = xstar_cache[row] - x_cache[col];
+                value = xstar_ - x_;
                 value *= scale_d;
-                value /= r_cache[index];
+                value *= rsqrt(r_cache[index]);
                 drdx[index] = value;
             }
-        }
-
-        // Calculate dK/dx for dimension dim using the chain rule as the
-        // elementwise product of dK/dr and dr/dx
-        float dKdx[MAX_NX*MAX_NXSTAR];
-        #pragma unroll
-        for (int i=0; i<MAX_NX*MAX_NXSTAR; i++){
-            dKdx[i] = exp_sigma * dKdr[i] * drdx[i];
         }
 
         // Calculate d(expectation)/dx for each expectation value for dimension
@@ -339,9 +264,15 @@ kernel void derivatives(
         // These vectors are the columns of deriv
         for (int row=0; row<nxstar; row++){
             float sum = 0;
+            float dKdx;
+            float dKdr;
+            float dist;
             int row_stride = row*nx;
             for (int col=0; col<nx; col++){
-                sum += dKdx[row_stride+col] * invqt_cache[col];
+                dist = r_cache[row_stride+col];
+                dKdr = -1.0 * sqrt(dist) * exp(-0.5 * dist + sigma);
+                dKdx = dKdr * drdx[row_stride+col];
+                sum += dKdx * invqt[col];
             }
             deriv[row_stride+d] = sum;
         }
