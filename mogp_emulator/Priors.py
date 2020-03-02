@@ -9,12 +9,12 @@ class Prior(object):
         raise NotImplementedError
 
     def d2logpdtheta2(self, x):
-        return 0.
+        raise NotImplementedError
 
 class NormalPrior(Prior):
     def __init__(self, mean, std):
         self.mean = mean
-        assert std > 0., "scale must be positive"
+        assert std > 0., "std parameter must be positive"
         self.std = std
 
     def logp(self, x):
@@ -23,11 +23,30 @@ class NormalPrior(Prior):
     def dlogpdtheta(self, x):
         return -(x - self.mean)/self.std**2
 
+    def d2logpdtheta2(self, x):
+        return -self.std**(-2)
+
+class GammaPrior(Prior):
+    def __init__(self, shape, scale):
+        assert shape > 0., "shape parameter must be positive"
+        self.shape = shape
+        assert scale > 0., "scale parameter must be positive"
+
+    def logp(self, x):
+        return (self.shape*np.log(self.scale) - np.log(gamma(self.shape)) +
+                (self.shape - 1.)*x - self.scale*np.exp(x))
+
+    def dlogpdtheta(self, x):
+        return (self.shape - 1.) - self.scale*np.exp(x)
+
+    def d2logpdtheta2(self, x):
+        return -self.scale*np.exp(x)
+
 class InvGammaPrior(Prior):
     def __init__(self, shape, scale):
-        assert shape > 0., "shape parameter a must be positive"
+        assert shape > 0., "shape parameter must be positive"
         self.shape = shape
-        assert scale > 0., "scale must be positive"
+        assert scale > 0., "scale parameter must be positive"
         self.scale = scale
 
     def logp(self, x):
@@ -36,3 +55,6 @@ class InvGammaPrior(Prior):
 
     def dlogpdtheta(self, x):
         return -(self.shape + 1.) + self.scale*np.exp(-x)
+
+    def d2logpdtheta2(self, x):
+        return -self.scale*np.exp(-x)
