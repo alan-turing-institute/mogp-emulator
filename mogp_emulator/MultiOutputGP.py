@@ -4,7 +4,6 @@ from .GaussianProcess import GaussianProcess, PredictResult
 from .MeanFunction import MeanBase
 from .Kernel import Kernel, SquaredExponential
 from .Priors import Prior
-from functools import partial
 
 class MultiOutputGP(object):
     """
@@ -30,7 +29,7 @@ class MultiOutputGP(object):
         elif not (len(targets.shape) == 2):
             raise ValueError("targets must be either a 1D or 2D array")
         if not (len(inputs.shape) == 2):
-            raise ValueError("inputs must be 2D array")
+            raise ValueError("inputs must be either a 1D or 2D array")
         if not (inputs.shape[0] == targets.shape[1]):
             raise ValueError("the first dimension of inputs must be the same length as the second dimension of targets (or first if targets is 1D))")
 
@@ -60,7 +59,7 @@ class MultiOutputGP(object):
                            for (single_target, m, k, p) in zip(targets, mean, kernel, priors)]
 
 
-    def predict(self, testing, unc = True, deriv = True, processes = None):
+    def predict(self, testing, unc=True, deriv=True, processes=None):
         """
         Make a prediction for a set of input vectors
 
@@ -116,7 +115,7 @@ class MultiOutputGP(object):
             assert processes > 0, "number of processes must be a positive integer"
 
         with Pool(processes) as p:
-            predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing) for gp in self.emulators])
+            predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv) for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 
@@ -144,7 +143,7 @@ class MultiOutputGP(object):
         """
 
         return ("Multi-Output Gaussian Process with:\n"+
-                 str(self.get_n_emulators())+" emulators\n"+
-                 str(self.get_n())+" training examples\n"+
-                 str(self.get_D())+" input variables")
+                 str(self.n_emulators)+" emulators\n"+
+                 str(self.n)+" training examples\n"+
+                 str(self.D)+" input variables")
 
