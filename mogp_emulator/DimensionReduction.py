@@ -23,7 +23,7 @@ regression on the reduced input space:
 ::
 
   >>> import numpy as np
-  >>> from mogp_emulator import gKDR, GaussianProcess
+  >>> from mogp_emulator import gKDR, GaussianProcess, fit_GP_MAP
 
   ### generate some training data (from the function f)
 
@@ -55,7 +55,7 @@ regression on the reduced input space:
 
   ### train a Gaussian Process with reduced inputs
   >>> gp = GaussianProcess(dr(X), Y)
-  >>> gp.learn_hyperparameters()
+  >>> gp = fit_GP_MAP(gp)
 
   ### make a prediction (given an input in the reduced space)
   >>> Xnew = np.array([0.12, 0.37])

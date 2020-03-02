@@ -37,7 +37,7 @@ def test_DimensionReduction_tune_parameters():
     X = np.random.random((20,20))
     Y = np.apply_along_axis(fn3, 1, X)
 
-    dr, loss = gKDR.tune_parameters(X, Y, fitting.fit_GP_MLE,
+    dr, loss = gKDR.tune_parameters(X, Y, fitting.fit_GP_MAP,
                                     cXs=[5.0], cYs=[5.0], maxK = 3)
 
     # These are somewhat conservative bounds: the random seed makes
@@ -58,9 +58,9 @@ def test_DimensionReduction_GP():
     dr = gKDR(X,Y,1)
 
     np.random.seed(10)
-    gp = fitting.fit_GP_MLE(X, Y)
+    gp = fitting.fit_GP_MAP(X, Y)
 
-    gp_red = fitting.fit_GP_MLE(dr(X), Y)
+    gp_red = fitting.fit_GP_MAP(dr(X), Y)
 
     ## some points offset w.r.t the initial grid
     Xnew = (np.mgrid[0:9,0:9].T.reshape(-1,2) + 0.5)/10.0

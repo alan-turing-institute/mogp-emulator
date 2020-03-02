@@ -127,18 +127,18 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, ym)
-    loglike_expect = 0.5*(np.log(np.linalg.det(Q)) +
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
                           np.dot(ym, invQt_expect) +
                           gp.n*np.log(2.*np.pi))
 
     assert_allclose(L_expect, gp.L)
     assert_allclose(invQt_expect, gp.invQt)
-    assert_allclose(loglike_expect, gp.current_loglike)
+    assert_allclose(logpost_expect, gp.current_logpost)
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
                                             (MeanFunction("x[0]"), "fit", np.log(1.e-6))])
-def test_GaussianProcess_fit_loglikelihood(x, y, mean, nugget, sn):
-    "test the fit and loglikelihood methods of GaussianProcess"
+def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
+    "test the fit and logposterior methods of GaussianProcess"
 
     # zero mean, zero nugget
 
@@ -162,19 +162,19 @@ def test_GaussianProcess_fit_loglikelihood(x, y, mean, nugget, sn):
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, ym)
-    loglike_expect = 0.5*(np.log(np.linalg.det(Q)) +
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
                           np.dot(ym, invQt_expect) +
                           gp.n*np.log(2.*np.pi))
 
     assert_allclose(L_expect, gp.L)
     assert_allclose(invQt_expect, gp.invQt)
-    assert_allclose(loglike_expect, gp.current_loglike)
-    assert_allclose(loglike_expect, gp.loglikelihood(theta))
+    assert_allclose(logpost_expect, gp.current_logpost)
+    assert_allclose(logpost_expect, gp.logposterior(theta))
 
-def test_GaussianProcess_loglikelihood(x, y):
-    "test loglikelihood method of GaussianProcess"
+def test_GaussianProcess_logposterior(x, y):
+    "test logposterior method of GaussianProcess"
 
-    # loglikelihood already tested, but check that parameters are re-fit if changed
+    # logposterior already tested, but check that parameters are re-fit if changed
 
     gp = GaussianProcess(x, y, nugget = 0.)
 
@@ -187,14 +187,14 @@ def test_GaussianProcess_loglikelihood(x, y):
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, y)
-    loglike_expect = 0.5*(np.log(np.linalg.det(Q)) +
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
                           np.dot(y, invQt_expect) +
                           gp.n*np.log(2.*np.pi))
 
-    assert_allclose(loglike_expect, gp.loglikelihood(theta))
+    assert_allclose(logpost_expect, gp.logposterior(theta))
     assert_allclose(gp.L, L_expect)
     assert_allclose(invQt_expect, gp.invQt)
-    assert_allclose(loglike_expect, gp.current_loglike)
+    assert_allclose(logpost_expect, gp.current_logpost)
 
 @pytest.fixture
 def dx():
@@ -202,8 +202,8 @@ def dx():
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 1.),
                                             ("x[0]", "fit", np.log(1.e-6))])
-def test_GaussianProcess_loglike_deriv(x, y, dx, mean, nugget, sn):
-    "test loglikelihood derivatives for GaussianProcess via finite differences"
+def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
+    "test logposterior derivatives for GaussianProcess via finite differences"
 
     gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
 
@@ -216,12 +216,12 @@ def test_GaussianProcess_loglike_deriv(x, y, dx, mean, nugget, sn):
     for i in range(n):
         dx_array = np.zeros(n)
         dx_array[i] = dx
-        deriv[i] = (gp.loglikelihood(theta) - gp.loglikelihood(theta - dx_array))/dx
+        deriv[i] = (gp.logposterior(theta) - gp.logposterior(theta - dx_array))/dx
 
-    assert_allclose(deriv, gp.loglike_deriv(theta), atol=1.e-7, rtol=1.e-5)
+    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-7, rtol=1.e-5)
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), ("x[0]", "fit", np.log(1.e-6))])
-def test_GaussianProcess_loglike_hessian(x, y, dx, mean, nugget, sn):
+def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
     "test the hessian method of GaussianProcess with finite differences"
 
     # zero mean, no nugget
@@ -238,9 +238,9 @@ def test_GaussianProcess_loglike_hessian(x, y, dx, mean, nugget, sn):
         for j in range(n):
             dx_array = np.zeros(n)
             dx_array[j] = dx
-            hess[i, j] = (gp.loglike_deriv(theta)[i] - gp.loglike_deriv(theta - dx_array)[i])/dx
+            hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
 
-    assert_allclose(hess, gp.loglike_hessian(theta), rtol=1.e-5, atol=1.e-7)
+    assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-7)
 
 def test_GaussianProcess_predict(x, y, dx):
     "test the predict method of GaussianProcess"

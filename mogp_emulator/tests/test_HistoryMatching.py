@@ -2,7 +2,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 from ..HistoryMatching import HistoryMatching
-from ..fitting import fit_GP_MLE
+from ..fitting import fit_GP_MAP
 from ..GaussianProcess import GaussianProcess, PredictResult
 
 def get_y_simulated_1D(x):
@@ -28,7 +28,7 @@ def test_sanity_checks():
     y_training = get_y_simulated_1D(x_training)
 
     np.random.seed(47)
-    gp = fit_GP_MLE(x_training, y_training)
+    gp = fit_GP_MAP(x_training, y_training)
 
     # Define observation and implausibility threshold
     obs = [-0.8, 0.0004]
@@ -200,7 +200,7 @@ def test_HistoryMatching_select_expectations():
         assert_allclose(expectations[a], expectations_new[a])
 
     np.random.seed(57483)
-    gp = fit_GP_MLE(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    gp = fit_GP_MAP(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     coords = np.array([[0.1], [1.]])
     obs = [1., 0.01]
     expectations = gp.predict(coords)
@@ -250,7 +250,7 @@ def test_HistoryMatching_get_implausibility():
     assert_allclose(hm.I, [1./np.sqrt(2.), 9./np.sqrt(2.)])
 
     np.random.seed(57483)
-    gp = fit_GP_MLE(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
+    gp = fit_GP_MAP(np.reshape(np.linspace(0., 1.), (-1, 1)), np.linspace(0., 1.))
     coords = np.array([[0.1], [1.]])
     obs = [1., 0.01]
     mean, unc, _ = gp.predict(coords)

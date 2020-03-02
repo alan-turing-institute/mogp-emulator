@@ -6,7 +6,7 @@ import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..GaussianProcess import GaussianProcess
-from ..fitting import fit_GP_MLE
+from ..fitting import fit_GP_MAP
 from tempfile import TemporaryFile
 
 def test_SequentialDesign_init():
@@ -875,7 +875,7 @@ def test_MICEDesign_MICE_criterion():
     md._generate_candidates()
 
     md.gp = GaussianProcess(md.get_inputs(), md.get_targets())
-    md.gp = fit_GP_MLE(md.gp)
+    md.gp = fit_GP_MAP(md.gp)
 
     md.gp_fast = MICEFastGP(md.candidates, np.ones(4), nugget=1.)
     md.gp_fast.theta = md.gp.theta
