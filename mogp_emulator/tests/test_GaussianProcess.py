@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from ..GaussianProcess import GaussianProcess, PredictResult
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import Matern52
+from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy import linalg
 
 @pytest.fixture
@@ -107,7 +108,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
 
     # zero mean, zero nugget
 
-    gp = GaussianProcess(x, y, nugget=nugget)
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
 
     theta = np.ones(gp.n_params)
     theta[-1] = sn
@@ -142,7 +143,7 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
 
     # zero mean, zero nugget
 
-    gp = GaussianProcess(x, y, nugget=nugget)
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
 
     theta = np.ones(gp.n_params)
     theta[-1] = sn
@@ -241,6 +242,62 @@ def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
             hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
 
     assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-7)
+
+@pytest.mark.parametrize("priors,nugget,sn", [([ NormalPrior(0.9, 0.5), None, NormalPrior(0.5, 2.),
+                                              InvGammaPrior(2., 1.), None], 0., 0.),
+                                           ([ None, NormalPrior(1.2, 0.2), None,
+                                              GammaPrior(2., 1.), InvGammaPrior(2., 1.)], "fit", np.log(1.e-6))])
+def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
+    "test that prior distributions are properly accounted for in posterior"
+
+    gp = GaussianProcess(x, y, priors=priors, nugget=nugget)
+
+    theta = np.ones(gp.n_params)
+    theta[-1] = sn
+
+    gp.fit(theta)
+
+    if nugget == 0.:
+        noise = 0.
+    else:
+        assert_allclose(gp.nugget, np.exp(sn))
+        noise = np.exp(sn)*np.eye(x.shape[0])
+    Q = gp.get_K_matrix() + noise
+
+    L_expect = np.linalg.cholesky(Q)
+    invQt_expect = np.linalg.solve(Q, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
+                          np.dot(y, invQt_expect) +
+                          gp.n*np.log(2.*np.pi))
+
+    for p, t in zip(priors, theta):
+        if not p is None:
+            logpost_expect -= p.logp(t)
+
+    assert_allclose(L_expect, gp.L)
+    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(logpost_expect, gp.current_logpost)
+    assert_allclose(logpost_expect, gp.logposterior(theta))
+
+    n = gp.n_params
+    deriv = np.zeros(n)
+
+    for i in range(n):
+        dx_array = np.zeros(n)
+        dx_array[i] = dx
+        deriv[i] = (gp.logposterior(theta) - gp.logposterior(theta - dx_array))/dx
+
+    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-5, rtol=1.e-4)
+
+    hess = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            dx_array = np.zeros(n)
+            dx_array[j] = dx
+            hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
+
+    assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-5)
 
 def test_GaussianProcess_predict(x, y, dx):
     "test the predict method of GaussianProcess"

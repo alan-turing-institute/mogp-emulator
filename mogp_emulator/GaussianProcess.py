@@ -151,9 +151,9 @@ class GaussianProcess(object):
 
         self.kernel = kernel
 
-        self.priors = priors
-
         self.nugget = nugget
+
+        self.priors = priors
 
         self._theta = None
 
@@ -350,8 +350,16 @@ class GaussianProcess(object):
         if len(priors) == 0:
             priors = self.n_params*[None]
 
+        if self.nugget_type in ["adaptive", "fixed"]:
+            if len(priors) == self.n_params - 1:
+                priors.append(None)
+
         if not len(priors) == self.n_params:
             raise ValueError("bad length for priors; must have length n_params")
+
+        if self.nugget_type in ["adaptive", "fixed"]:
+            if not priors[-1] is None:
+                priors[-1] = None
 
         for p in priors:
             if not p is None and not issubclass(type(p), Prior):
