@@ -11,6 +11,19 @@ class MultiOutputGP(object):
 
     Essentially a parallelized wrapper for the predict method. To fit in parallel, use the fit_GP_MAP
     routine
+
+    Required arguments are ``inputs`` and ``targets``, both of which must be numpy arrays. ``inputs``
+    can be 1D or 2D (if 1D, assumes second axis has length 1). ``targets`` can be 1D or 2D (if 2D,
+    assumes a single emulator and the first axis has length 1).
+
+    Optional arguments specify how each individual emulator is constructed, including the mean
+    function, kernel, priors, and how to handle the nugget. Each argument can take values allowed
+    by the base ``GaussianProcess`` class, in which case all emulators are assumed to use the
+    same value. Any of these arguments can alternatively be a list of values with length matching
+    the number of emulators to set those values individually.
+
+    Additional keyword arguments include ``inputdict``, and ``use_patsy``, which control how strings
+    are parsed to mean functions, if using.
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=[],
@@ -55,8 +68,14 @@ class MultiOutputGP(object):
         assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
         assert len(priors) == self.n_emulators
 
-        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, nugget, inputdict, use_patsy)
-                           for (single_target, m, k, p) in zip(targets, mean, kernel, priors)]
+        if isinstance(nugget, (str, float)):
+            nugget = self.n_emulators*[nugget]
+
+        assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
+        assert len(nugget) == self.n_emulators
+
+        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n, inputdict, use_patsy)
+                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
     def predict(self, testing, unc=True, deriv=True, processes=None):
@@ -129,7 +148,13 @@ class MultiOutputGP(object):
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
     def __call__(self, testing):
-        "Interface to predict means like the base GP class"
+        """
+        Interface to predict means by calling the object
+
+        A MultiOutputGP object is callable, which makes predictions of the mean only
+        for a given set of inputs. Works similarly to the same method of the base GP
+        class. Predictions are made in parallel using the number of available processors.
+        """
 
         return self.predict(testing, unc=False, deriv=False, processes=None)[0]
 
