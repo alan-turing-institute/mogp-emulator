@@ -12,10 +12,10 @@ class GaussianProcess(object):
 
     This class provides a representation of a Gaussian Process Emulator. It contains
     methods for fitting the GP to a given set of hyperparameters, computing the
-    negative log marginal likelihood and its derivatives, and making predictions on
-    unseen data. Note that routines to estimate hyperparameters are not included in the
-    class definition, and are instead provided externally to facilitate implementation
-    of high performance versions.
+    negative log marginal likelihood plus prior (so negative log posterior) and its
+    derivatives, and making predictions on unseen data. Note that routines to
+    estimate hyperparameters are not included in the class definition, and are instead
+    provided externally to facilitate implementation of high performance versions.
 
     The required arguments to initialize a GP is a set of training data consisting
     of the inputs and targets for each of those inputs. These must be numpy arrays
@@ -25,18 +25,20 @@ class GaussianProcess(object):
 
     Optional arguments are the particular mean function to use (default is zero mean),
     the covariance kernel to use (default is the squared exponential covariance),
-    and the method for handling the nugget parameter. The nugget is additional
-    "noise" that is added to the diagonal of the covariance kernel as a variance.
-    This nugget can represent uncertainty in the target values themselves, or simply be
-    used to stabilize the numerical inversion of the covariance matrix. The nugget
-    can be fixed (a non-negative float), can be found adaptively (make the noise only
-    as large as necessary to successfully invert the covariance matrix), or can be
-    fit as a hyperparameter (negative float).
+    a list of prior distributions for each hyperparameter (default is no prior information
+    on any hyperparameters) and the method for handling the nugget parameter.
+    The nugget is additional "noise" that is added to the diagonal of the covariance
+    kernel as a variance. This nugget can represent uncertainty in the target values
+    themselves, or simply be used to stabilize the numerical inversion of the covariance
+    matrix. The nugget can be fixed (a non-negative float), can be found adaptively
+    (by passing the string ``"adaptive"`` to make the noise only as large as necessary
+    to successfully invert the covariance matrix), or can be fit as a hyperparameter
+    (by passing the string ``"fit"``).
 
     The internal emulator structure involves arrays for the inputs, targets, and hyperparameters.
     Other useful information are the number of training examples ``n``, the number of input
     parameters ``D``, and the number of hyperparameters ``n_params``. These parameters can
-    be obtained externally through provided methods
+    be obtained externally by accessing these attributes
 
     Example: ::
 
@@ -47,13 +49,13 @@ class GaussianProcess(object):
         >>> gp = GaussianProcess(x, y)
         >>> print(gp)
         Gaussian Process with 2 training examples and 3 input variables
-        >>> gp.get_n()
+        >>> gp.n
         2
-        >>> gp.get_D()
+        >>> gp.D
         3
-        >>> gp.get_n_params()
+        >>> gp.n_params
         5
-        >>> gp.fit(np.zeros(gp.get_n_params()))
+        >>> gp.fit(np.zeros(gp.n_params))
         >>> x_predict = np.array([[2., 3., 4.], [7., 8., 9.]])
         >>> gp.predict(x_predict)
         (array([4.74687618, 6.84934016]), array([0.01639298, 1.05374973]),
@@ -113,7 +115,8 @@ class GaussianProcess(object):
                        uninformative priors) or list of length ``n_params``. Any parameter
                        for which you wish to specify an uninformative prior, pass ``None``.
                        Number of parameters is the number of parameters in the mean function
-                       plus ``D + 2``.
+                       plus ``D + 2`` (one correlation length per input plus a covariance
+                       scale and a nugget).
         :type priors: list
         :param nugget: Noise to be added to the diagonal, specified as a string or a float.
                        A non-negative float specifies the noise level explicitly, while a string
@@ -334,14 +337,23 @@ class GaussianProcess(object):
     @property
     def priors(self):
         """
-        Returns the priors
+        Returns the current list priors used in computing the log posterior
         """
         return self._priors
 
     @priors.setter
     def priors(self, priors):
         """
-        Sets the priors, empty list means all uninformative priors
+        Sets the priors to a list of prior objects/None
+
+        Sets the priors, must be a list. Entries can be ``None`` or a subclass of ``Prior``.
+        ``None`` indicates weak prior information. An empty list means all uninformative priors.
+        Otherwise list should have the same length as the number of hyperparameters,
+        or alternatively can be one shorter than the number of hyperparameters
+        if ``nugget_type`` is ``"adaptive"`` or ``"fixed"`` meaning that the nugget hyperparameter
+        is not fit but is instead fixed or found adaptively. If the nugget hyperparameter is not fit,
+        the prior for the nugget will automatically be set to ``None`` even if a distribution is
+        provided.
         """
 
         if not isinstance(priors, list):
@@ -370,7 +382,8 @@ class GaussianProcess(object):
 
     def get_K_matrix(self):
         """
-        Returns current value of the covariance matrix as a numpy array
+        Returns current value of the covariance matrix as a numpy array. Does not include the nugget
+        parameter, as this is dependent on how the nugget is fit.
         """
         switch = self.mean.get_n_params(self.inputs)
 
