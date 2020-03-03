@@ -58,7 +58,7 @@ class NormalPrior(Prior):
         return -self.std**(-2)
 
 class GammaPrior(Prior):
-    """
+    r"""
     Gamma Distribution Prior object
 
     Admits input values from -inf/+inf assumed on a logarithmic scale, and transforms by taking the
@@ -96,7 +96,7 @@ class GammaPrior(Prior):
         return -np.exp(x)/self.scale
 
 class InvGammaPrior(Prior):
-    """
+    r"""
     Inverse Gamma Distribution Prior object
 
     Admits input values from -inf/+inf assumed on a logarithmic scale, and transforms by taking the
