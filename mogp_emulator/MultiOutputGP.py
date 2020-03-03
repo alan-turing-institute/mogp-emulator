@@ -62,10 +62,14 @@ class MultiOutputGP(object):
         assert isinstance(kernel, list), "kernel must be a Kernal subclass or a list of Kernel subclasses"
         assert len(kernel) == self.n_emulators
 
+        assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
+
         if len(priors) == 0:
             priors = self.n_emulators*[[]]
 
-        assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
+        if not isinstance(priors[0], list):
+            priors = self.n_emulators*[priors]
+
         assert len(priors) == self.n_emulators
 
         if isinstance(nugget, (str, float)):
