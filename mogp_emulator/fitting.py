@@ -90,6 +90,9 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """
     Fit hyperparameters using MAP for a single GP
+
+    Returns a single GP object that has its hyperparameters fit to the MAP value.
+    Accepts keyword arguments passed to scipy's minimization routine.
     """
 
     assert isinstance(gp, GaussianProcess)
@@ -136,6 +139,13 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
 def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """
     Fit hyperparameters using MAP for multiple GPs in parallel
+
+    Uses Python Multiprocessing to fit GPs in parallel by calling the above routine for a single
+    GP for each of the emulators in the MOGP class. Returns a MultiOutputGP object where all
+    emulators have been fit to the MAP value.
+
+    Accepts a ``processes`` argument (integer or None) as a keyword to control the number of
+    subprocesses used to fit the individual GPs in parallel. Must be positive. Default is ``None``.
     """
 
     assert isinstance(gp, MultiOutputGP)
