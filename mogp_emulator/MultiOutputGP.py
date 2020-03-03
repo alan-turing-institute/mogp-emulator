@@ -37,10 +37,10 @@ class MultiOutputGP(object):
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
 
-        if mean is None or issubclass(type(mean), MeanBase):
+        if mean is None or isinstance(mean, str) or issubclass(type(mean), MeanBase):
             mean = self.n_emulators*[mean]
 
-        assert isinstance(mean, list), "mean must be None, a mean function, or a list of None/mean functions"
+        assert isinstance(mean, list), "mean must be None, a string, a mean function, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
 
         if issubclass(type(kernel), Kernel):
