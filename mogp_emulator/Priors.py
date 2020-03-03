@@ -65,9 +65,10 @@ class GammaPrior(Prior):
     exponential of the input. Thus, this is assumed to be appropriate for covariance hyperparameters
     where such transformations are assumed when computing the covariance function.
 
-    Take two parameters: shape and scale. Both must be positive, and they are defined such that
+    Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
+    and they are defined such that
 
-    p(x) = scale**(-shape)/Gamma(shape)*x**(shape - 1)*exp(-x/scale)
+    :math:`{p(x) = \frac{\beta^{-\alpha}x^{\beta - 1}}{\Gamma(/alpha)} \exp(-x/\beta)}`
     """
     def __init__(self, shape, scale):
         assert shape > 0., "shape parameter must be positive"
@@ -102,9 +103,10 @@ class InvGammaPrior(Prior):
     exponential of the input. Thus, this is assumed to be appropriate for covariance hyperparameters
     where such transformations are assumed when computing the covariance function.
 
-    Take two parameters: shape and scale. Both must be positive, and they are defined such that
+    Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
+    and they are defined such that
 
-    p(x) = scale**shape/Gamma(shape)*x**(-shape - 1)*exp(-scale/x)
+    :math:`{p(x) = \frac{\beta^{\alpha}x^{-\beta - 1}}{\Gamma(/alpha)} \exp(-\beta/x)}`
     """
     def __init__(self, shape, scale):
         assert shape > 0., "shape parameter must be positive"
