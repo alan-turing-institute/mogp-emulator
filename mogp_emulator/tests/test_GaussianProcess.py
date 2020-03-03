@@ -136,6 +136,39 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
 
+def test_GaussianProcess_priors(x, y):
+    "test that priors are set properly"
+
+    priors = [None, None, None, None, None]
+    gp = GausianProcess(x, y)
+
+    assert gp.priors == priors
+
+    priors = [None, NormalPrior(2., 2.), None, None, NormalPrior(3., 1.)]
+    gp = GausianProcess(x, y, priors=priors)
+
+    assert gp.priors[:-1] == priors[:-1]
+    assert gp.priors[-1] is None
+
+    priors = [None, NormalPrior(2., 2.), None, None]
+    gp = GausianProcess(x, y, priors=priors)
+
+    assert gp.priors[:-1] == priors
+    assert gp.priors[-1] is None
+
+    priors = [None, None, None]
+
+    with pytest.raises(AssertionError):
+        GausianProcess(x, y, priors=priors)
+
+    with pytest.raises(TypeError):
+        GaussianProcess(x, y, priors=1.)
+
+    priors = [1., 2., 3., 4., 5.]
+
+    with pytest.raises(TypeError):
+        GaussianProcess(x, y, priors=priors)
+
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
                                             (MeanFunction("x[0]"), "fit", np.log(1.e-6))])
 def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
