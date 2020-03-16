@@ -1,6 +1,7 @@
 """
 **MeanFunction Module**
 
+
 The MeanFunction module contains classes used for constructing mean functions for GP emulators.
 A base ``MeanBase`` class is provided, which implements basic operations to combine fixed
 functions and fitting parameters. The basic operations ``f1 + f2``, ``f1*f2``, ``f1**f2``
