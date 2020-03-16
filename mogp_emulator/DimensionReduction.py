@@ -23,7 +23,7 @@ regression on the reduced input space:
 ::
 
   >>> import numpy as np
-  >>> from mogp_emulator import gKDR, GaussianProcess
+  >>> from mogp_emulator import gKDR, GaussianProcess, fit_GP_MAP
 
   ### generate some training data (from the function f)
 
@@ -55,7 +55,7 @@ regression on the reduced input space:
 
   ### train a Gaussian Process with reduced inputs
   >>> gp = GaussianProcess(dr(X), Y)
-  >>> gp.learn_hyperparameters()
+  >>> gp = fit_GP_MAP(gp)
 
   ### make a prediction (given an input in the reduced space)
   >>> Xnew = np.array([0.12, 0.37])
@@ -248,8 +248,8 @@ class gKDR(object):
         return X @ self.B[:,0:self.K]
 
 
-    @classmethod
-    def _compute_loss(cls, X, Y, train_model, cross_validation_folds, *params, **kwparams):
+    @staticmethod
+    def _compute_loss( X, Y, train_model, cross_validation_folds, *params, **kwparams):
         """Compute the L1 loss of a model (produced by calling train_model), via
         cross validation.  The model is trained on input parameters `x` that
         are first reduced via the dimension reduction procedure produced by
@@ -278,9 +278,9 @@ class gKDR(object):
         :type params: tuple
         :param params: parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
 
-        :type params: dict
-        :param params: keyword parameters to pass to
-                       :meth:`mogp_emulator.gKDR.__init__`
+        :type kwparams: dict
+        :param kwparams: keyword parameters to pass to
+                         :meth:`mogp_emulator.gKDR.__init__`
         """
 
         ## combine input and output arrays, such that if

@@ -11,11 +11,13 @@ Welcome to Multi-Output GP Emulator's documentation!
    :caption: Contents:
 
    GaussianProcess
-   DimensionReduction
    MultiOutputGP
+   fitting
    MeanFunction
    formula
    Kernel
+   Priors
+   DimensionReduction
    ExperimentalDesign
    SequentialDesign
    HistoryMatching

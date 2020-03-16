@@ -71,7 +71,7 @@ def mean_from_patsy_formula(formula, inputdict={}):
     model_terms = []
 
     for term in model.rhs_termlist:
-        model_terms.append(term_to_mean(term, inputdict))
+        model_terms.append(_term_to_mean(term, inputdict))
 
     mf = model_terms.pop(0)
 
@@ -138,16 +138,16 @@ def mean_from_string(formula, inputdict={}):
 
     assert isinstance(formula, str)
 
-    tokens = tokenize_string(formula)
-    eval_stack = parse_tokens(tokens)
+    tokens = _tokenize_string(formula)
+    eval_stack = _parse_tokens(tokens)
 
-    mf = eval_parsed_tokens(eval_stack, inputdict)
+    mf = _eval_parsed_tokens(eval_stack, inputdict)
 
     assert issubclass(type(mf), MeanFunction.MeanBase)
 
     return mf
 
-def term_to_mean(term, inputdict={}):
+def _term_to_mean(term, inputdict={}):
     """
     Convert a patsy Term object into a mean function object
 
@@ -185,7 +185,7 @@ def term_to_mean(term, inputdict={}):
 
     return mf
 
-def convert_token(token, inputdict={}):
+def _convert_token(token, inputdict={}):
     """
     Converts an individual token into inputs
 
@@ -233,7 +233,7 @@ def _is_float(val):
         return False
     return True
 
-def token_to_mean(token, inputdict={}):
+def _token_to_mean(token, inputdict={}):
     """
     Convert an individual token to a mean function
 
@@ -259,7 +259,7 @@ def token_to_mean(token, inputdict={}):
     if _is_float(token):
         return MeanFunction.ConstantMean(float(token))
 
-    token = convert_token(token, inputdict)
+    token = _convert_token(token, inputdict)
 
     if not token[0] == "x":
         return MeanFunction.Coefficient()
@@ -276,7 +276,7 @@ def token_to_mean(token, inputdict={}):
 
     return MeanFunction.LinearMean(index)
 
-def tokenize_string(formula):
+def _tokenize_string(formula):
     """
     Converts a string formula into a series of tokens for evaluation
 
@@ -351,7 +351,7 @@ def tokenize_string(formula):
 
     return outlist
 
-def parse_tokens(token_list):
+def _parse_tokens(token_list):
     """
     Parses a list of tokens, converting into an RPN sequence of operations
 
@@ -417,7 +417,7 @@ def parse_tokens(token_list):
 
     return output_list
 
-def eval_parsed_tokens(token_list, inputdict={}):
+def _eval_parsed_tokens(token_list, inputdict={}):
     """
     Evaluate parsed tokens into a mean function
 
@@ -456,7 +456,7 @@ def eval_parsed_tokens(token_list, inputdict={}):
             if token == "I":
                 mf = "I"
             else:
-                mf = token_to_mean(token, inputdict)
+                mf = _token_to_mean(token, inputdict)
             stack.append(mf)
         else:
             if len(stack) < 2:

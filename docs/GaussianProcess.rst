@@ -9,5 +9,13 @@ The ``GaussianProcess`` Class
 
 .. autoclass:: mogp_emulator.GaussianProcess.GaussianProcess
     :members:
-    
+
     .. automethod:: __init__
+
+
+**********************************
+The ``PredictResult`` Class
+**********************************
+
+.. autoclass:: mogp_emulator.GaussianProcess.PredictResult
+    :members:

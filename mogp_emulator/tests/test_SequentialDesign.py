@@ -6,6 +6,7 @@ import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..GaussianProcess import GaussianProcess
+from ..fitting import fit_GP_MAP
 from tempfile import TemporaryFile
 
 def test_SequentialDesign_init():
@@ -789,7 +790,7 @@ def test_MICEDesign_init():
     assert md.inputs == None
     assert md.targets == None
     assert md.candidates == None
-    assert md.nugget == None
+    assert md.nugget == "adaptive"
     assert_allclose(md.nugget_s, 1.)
 
     def f(x):
@@ -829,7 +830,7 @@ def test_MICEDesign_get_nugget():
 
     md = MICEDesign(ed)
 
-    assert md.get_nugget() == None
+    assert md.get_nugget() == "adaptive"
 
     md = MICEDesign(ed, nugget = 1.)
 
@@ -851,8 +852,7 @@ def test_MICEDesign_estimate_next_target():
     md = MICEDesign(ed)
 
     md.gp = GaussianProcess(np.array([[1., 2., 3.], [4., 5., 6]]), np.array([2., 4.]))
-    md.gp.mle_theta = np.zeros(4)
-    md.gp._set_params(np.zeros(4))
+    md.gp.theta = np.zeros(md.gp.n_params)
 
     assert_allclose(np.array([0.0018237589305011]), md._estimate_next_target(np.zeros(3)))
 
@@ -875,10 +875,10 @@ def test_MICEDesign_MICE_criterion():
     md._generate_candidates()
 
     md.gp = GaussianProcess(md.get_inputs(), md.get_targets())
-    md.gp.learn_hyperparameters()
+    md.gp = fit_GP_MAP(md.gp)
 
-    md.gp_fast = MICEFastGP(md.candidates, np.ones(4), 1.)
-    md.gp_fast._set_params(md.gp.theta)
+    md.gp_fast = MICEFastGP(md.candidates, np.ones(4), nugget=1.)
+    md.gp_fast.theta = md.gp.theta
 
     metric = md._MICE_criterion(0)
 
@@ -917,7 +917,7 @@ def test_MICEFastGP():
     "test the correction formula for the modified GP for Fast MICE"
 
     gp = MICEFastGP(np.reshape([1., 2., 3., 4], (4, 1)), [1., 1., 1., 1.])
-    gp._set_params([0., -1.])
+    gp.theta = np.array([0., -1., 0.])
     result = gp.fast_predict(3)
     result_expected = 0.191061906777163
 

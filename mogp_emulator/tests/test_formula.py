@@ -1,14 +1,14 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-from ..formula import mean_from_string, convert_token, _is_float, token_to_mean
-from ..formula import tokenize_string, parse_tokens, eval_parsed_tokens
+from ..formula import mean_from_string, _convert_token, _is_float, _token_to_mean
+from ..formula import _tokenize_string, _parse_tokens, _eval_parsed_tokens
 from ..MeanFunction import ConstantMean, Coefficient, LinearMean
 from ..MeanFunction import MeanSum, MeanProduct, MeanPower, MeanComposite
 try:
     import patsy
     no_patsy = False
-    from ..formula import mean_from_patsy_formula, term_to_mean
+    from ..formula import mean_from_patsy_formula, _term_to_mean
 except ImportError:
     no_patsy = True
 
@@ -101,7 +101,7 @@ def test_mean_from_string_failures():
 
 @patsy_skip
 def test_term_to_mean():
-    "test the term_to_mean function"
+    "test the _term_to_mean function"
 
     t = patsy.ModelDesc.from_formula("x[0]").rhs_termlist
 
@@ -113,7 +113,7 @@ def test_term_to_mean():
     mean_expected = [ np.array([2., 2.]), np.array([2., 8.]) ]
 
     for term, type_exp, mean_exp in zip(t, type_expected, mean_expected):
-        mf = term_to_mean(term)
+        mf = _term_to_mean(term)
         assert mf.get_n_params(x) == len(params)
         assert isinstance(mf, type_exp)
         assert_allclose(mf.mean_f(x, params), mean_exp)
@@ -123,29 +123,29 @@ def test_term_to_mean_failures():
     "test situations where term_to_mean should fail"
 
     with pytest.raises(AssertionError):
-        term_to_mean(1)
+        _term_to_mean(1)
 
     t = patsy.ModelDesc.from_formula("x").rhs_termlist[0]
     t.factors = [1, 2]
 
     with pytest.raises(AssertionError):
-        term_to_mean(t)
+        _term_to_mean(t)
 
 @pytest.mark.parametrize("token,inputdict,result", [("x[1]", {}, "x[1]"),
                                                    ("inputs[0]", {}, "x[0]"),
                                                    ("a", {}, "a"),
                                                    ("a", {"a":0}, "x[0]"),
                                                    ("d", {"d":1}, "x[1]")])
-def test_parse_factor_code(token, inputdict, result):
-    "test the function to parse factor code"
+def test_convert_token(token, inputdict, result):
+    "test the function to convert tokens"
 
-    assert convert_token(token, inputdict) == result
+    assert _convert_token(token, inputdict) == result
 
 def test_convert_token_failures():
-    "test situations where parse_factor_code should fail"
+    "test situations where _convert_token should fail"
 
     with pytest.raises(AssertionError):
-        convert_token(1)
+        _convert_token(1)
 
 def test_is_float():
     "test the _is_float function"
@@ -161,11 +161,11 @@ def test_is_float():
                           ("a"   , {"a":0}, np.zeros(0), LinearMean  , np.array([1., 4.])),
                           ("x[1]", {}     , np.zeros(0), LinearMean  , np.array([2., 5.]))])
 def test_token_to_mean(token, inputdict, params, resulttype, result):
-    "test the token_to_mean function"
+    "test the _token_to_mean function"
 
     x = np.array([[1., 2., 3.], [4., 5., 6.]])
 
-    mf = token_to_mean(token, inputdict)
+    mf = _token_to_mean(token, inputdict)
 
     assert isinstance(mf, resulttype)
     assert mf.get_n_params(x) == len(params)
@@ -176,19 +176,19 @@ def test_token_to_mean_failures():
     "test situation where token_to_mean should fail"
 
     with pytest.raises(AssertionError):
-        token_to_mean(1)
+        _token_to_mean(1)
 
     with pytest.raises(ValueError):
-        token_to_mean("x[0")
+        _token_to_mean("x[0")
 
     with pytest.raises(ValueError):
-        token_to_mean("x(1]")
+        _token_to_mean("x(1]")
 
     with pytest.raises(ValueError):
-        token_to_mean("x[a]")
+        _token_to_mean("x[a]")
 
     with pytest.raises(AssertionError):
-        token_to_mean("x[-19]")
+        _token_to_mean("x[-19]")
 
 @pytest.mark.parametrize("code,result", [("a", ["a"]),
                                          ("y = a", ["a"]),
@@ -205,36 +205,36 @@ def test_token_to_mean_failures():
                                          ("a*(b + c)**3 + x[a]", ["a", "*", "(", "b", "+", "c", ")",
                                                                   "^", "3", "+", "x[a]"])])
 def test_tokenize_string(code, result):
-    "test the tokenize_string function"
+    "test the _tokenize_string function"
 
-    assert tokenize_string(code) == result
+    assert _tokenize_string(code) == result
 
 def test_tokenize_string_failures():
-    "test situations where tokenize_string should fail"
+    "test situations where _tokenize_string should fail"
 
     with pytest.raises(AssertionError):
-        tokenize_string(1)
+        _tokenize_string(1)
 
     with pytest.raises(SyntaxError):
-        tokenize_string("x[")
+        _tokenize_string("x[")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("x]")
+        _tokenize_string("x]")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("x[1] + x]")
+        _tokenize_string("x[1] + x]")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("x[(0)]")
+        _tokenize_string("x[(0)]")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("call")
+        _tokenize_string("call")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("a + b = c")
+        _tokenize_string("a + b = c")
 
     with pytest.raises(SyntaxError):
-        tokenize_string("a + b ~ c")
+        _tokenize_string("a + b ~ c")
 
 @pytest.mark.parametrize("token_list,output_list",
                          [(["a"], ["a"]),
@@ -247,28 +247,28 @@ def test_tokenize_string_failures():
 def test_parse_tokens(token_list, output_list):
     "test the parse_tokens function"
 
-    assert parse_tokens(token_list) == output_list
+    assert _parse_tokens(token_list) == output_list
 
 def test_parse_tokens_failures():
     "test situation where parse_tokens fails"
 
     with pytest.raises(AssertionError):
-        parse_tokens("a")
+        _parse_tokens("a")
 
     with pytest.raises(AssertionError):
-        parse_tokens([1])
+        _parse_tokens([1])
 
     with pytest.raises(SyntaxError):
-        parse_tokens(["x" "+", "(", "a", "+", "b"])
+        _parse_tokens(["x" "+", "(", "a", "+", "b"])
 
     with pytest.raises(SyntaxError):
-        parse_tokens(["x" "*", "a", "+", "b", ")"])
+        _parse_tokens(["x" "*", "a", "+", "b", ")"])
 
     with pytest.raises(SyntaxError):
-        parse_tokens(["="])
+        _parse_tokens(["="])
 
     with pytest.raises(SyntaxError):
-        parse_tokens(["~"])
+        _parse_tokens(["~"])
 
 @pytest.mark.parametrize("stack,inputdict,params,resulttype,result",
                          [(["x[0]"],
@@ -292,7 +292,7 @@ def test_eval_parsed_tokens(stack, inputdict, params, resulttype, result):
 
     x = np.array([[1., 2., 3.], [4., 5., 6.]])
 
-    mf = eval_parsed_tokens(stack, inputdict)
+    mf = _eval_parsed_tokens(stack, inputdict)
 
     assert isinstance(mf, resulttype)
     assert mf.get_n_params(x) == len(params)
@@ -303,25 +303,25 @@ def test_eval_parsed_tokens_failures():
     "test situations where eval_parsed_tokens should fail"
 
     with pytest.raises(AssertionError):
-        eval_parsed_tokens(1)
+        _eval_parsed_tokens(1)
 
     with pytest.raises(AssertionError):
-        eval_parsed_tokens([1])
+        _eval_parsed_tokens([1])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["a", "+"])
+        _eval_parsed_tokens(["a", "+"])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["a", "I", "+"])
+        _eval_parsed_tokens(["a", "I", "+"])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["I", "a", "+"])
+        _eval_parsed_tokens(["I", "a", "+"])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["a", "b"])
+        _eval_parsed_tokens(["a", "b"])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["="])
+        _eval_parsed_tokens(["="])
 
     with pytest.raises(SyntaxError):
-        eval_parsed_tokens(["~"])
+        _eval_parsed_tokens(["~"])
