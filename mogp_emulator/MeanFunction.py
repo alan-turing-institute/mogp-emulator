@@ -1,8 +1,9 @@
 """
 **MeanFunction Module**
 
-The MeanFunction submodule contains classes used for constructing mean functions for GP emulators.
-A base ``MeanFunction`` class is provided, which implements basic operations to combine fixed
+
+The MeanFunction module contains classes used for constructing mean functions for GP emulators.
+A base ``MeanBase`` class is provided, which implements basic operations to combine fixed
 functions and fitting parameters. The basic operations ``f1 + f2``, ``f1*f2``, ``f1**f2``
 and ``f1(f2)`` are available, though not all possible combinations will make sense.
 Particular cases where combinations do not make sense often use classes that represent free
@@ -32,18 +33,132 @@ can vary based on the inputs. This is particularly true for the provided ``Polyn
 class, which fits a polynomial function of a fixed degree to each input parameter. Thus,
 the number of parameters depends on the input shape.
 
+In addition to manually creating a mean function by composing fixed functions and fitting parameters,
+a ``MeanBase`` subclass can be created by using the ``MeanFunction`` function. ``MeanFunction``
+is a functional interface for creating ``MeanBase`` subclasses from a string formula.
+The formula langauge supports the operations described above as expected (see below for some
+examples), with the option to first parse the formula using the Python library ``patsy``
+before converting the terms to the respective subclasses of ``MeanBase``. Formulas specify
+input variables using either ``x[i]`` or ``inputs[i]`` to represent the dependent variables,
+and can explicitly include a leading ``"y ="`` or ``"y ~"`` (which will be ignored). Optionally,
+named variables can be mapped to input dimensions by providing a dictionary mapping strings
+to integer indices. Any other variables in the formula will be assumed to be fitting
+coefficients. Note that the formula parser does not make any effort to simplify expressions
+(such as having identical terms or a term with redundant fitting parameters), so it is up
+to the user to get things correct. Converting a mean function instance to a string can
+be very helpful in determining if the parsing led to any problems, see below.
+
 Example: ::
 
-    >>> from mogp_emulator.MeanFunction import Coefficient, LinearMean
-    >>> mf1 = Coefficient() + Coefficient()*LinearMean() # y = a + b*x[0]
+    >>> from mogp_emulator.MeanFunction import Coefficient, LinearMean, MeanFunction
+    >>> mf1 = Coefficient() + Coefficient()*LinearMean()
+    >>> print(mf1)
+    c + c*x[0]
     >>> mf2 = LinearMean(1)*LinearMean(2)
-    >>> mf3 = mf1(mf2) # y = a + b*x[1]*x[2]
-    >>> mf4 = Coefficient()*LinearMean()**2 # y = a*x[0]**2
+    >>> print(mf2)
+    x[1]*x[2]
+    >>> mf3 = mf1(mf2)
+    >>> print(mf3)
+    c + c*x[1]*x[2]
+    >>> mf4 = Coefficient()*LinearMean()**2
+    >>> print(mf4)
+    c*x[0]^2
+    >>> mf5 = MeanFunction("x[0]")
+    >>> print(mf5)
+    c + c*x[0]
+    >>> mf6 = MeanFunction("y = a + b*x[0]", use_patsy=False)
+    >>> print(mf6)
+    c + c*x[0]
+    >>> mf7 = MeanFunction("a*b", {"a": 0, "b": 1})
+    >>> print(mf7)
+    c + c*x[0] + c*x[1] + c*x[0]*x[1]
 """
 import numpy as np
 from functools import partial
+from inspect import signature
+from .formula import mean_from_patsy_formula, mean_from_string
 
-class MeanFunction(object):
+def MeanFunction(formula, inputdict={}, use_patsy=True):
+    """
+    Create a mean function from a formula
+
+    This is the functional interface to creating a mean function from a string formula.
+    This method takes a string as an input, an optional dictionary that map strings to
+    integer indices in the input data, and an optional boolean flag that indicates if
+    the user would like to have the formula parsed with patsy before being converted
+    to a mean function.
+
+    The string formulas can be specified in several ways. The formula LHS is implicitly
+    always ``"y = "`` or ``"y ~ "``, though these can be explicitly provided as well.
+    The RHS may contain a set of terms containing the add, multiply, power, and
+    call operations much in the same way that the operations would be entered as
+    regular python code. Parentheses are used to indicated prececence as well as
+    the call operation, and square brackets indicate an indexing operation on the
+    inputs. Inputs may be specified as either a string such as ``"x[0]"``,
+    ``"inputs[0]"``, or a string that can be mapped to an integer index with the
+    optional dictionary passed to the function. Any strings not representing operations
+    or inputs as described above are interpreted as follows: if the string can
+    be converted into a number, then it is interpreted as a ``ConstantMean`` fixed
+    mean function object; otherwise it is assumed to represent a fitting coefficient.
+    Note that this means many characters that do not represent operations within this
+    mean function language but would not normally be considered as python variables
+    will nonetheless be converted into fitting coefficients -- it is up to the user
+    to get this right.
+
+    Expressions that are repeated or redundant will not be simplified, so the user should
+    take care that the provided expression is sensible as a mean function and will not
+    cause problems when fitting.
+
+    Additional special cases to be aware of:
+
+    * ``call`` cannot be used as a variable name, if this is parsed as a token an exception
+      will be raised.
+    * ``I`` is the identity operator, it simply returns the given value. It is useful
+      if you wish to use patsy to evaluate a formula but protect a part of the string
+      formula from being expanded based on the rules in patsy. If ``I`` is encountered
+      in any other context, an exception will be raised.
+
+    Examples: ::
+
+        >>> from mogp_emulator.MeanFunction import MeanFunction
+        >>> mf1 = MeanFunction("x[0]")
+        >>> print(mf1)
+        c + c*x[0]
+        >>> mf2 = MeanFunction("y = a + b*x[0]", use_patsy=False)
+        >>> print(mf2)
+        c + c*x[0]
+        >>> mf3 = MeanFunction("a*b", {"a": 0, "b": 1})
+        >>> print(mf3)
+        c + c*x[0] + c*x[1] + c*x[0]*x[1]
+
+    :param formula: string representing the desired mean function formula
+    :type formula: str
+    :param inputdict: dictionary used to map variables to input indices. Maps
+                      strings to integer indices (must be non-negative). Optional,
+                      default is ``{}``.
+    :type inputdict: dict
+    :param use_patsy: Boolean flag indicating if the string is to be parsed using
+                      patsy library. Optional, default is ``True``. If patsy is not
+                      installed, the basic string parser will be used.
+    :type use_patsy: bool
+    :returns: New subclass of ``MeanBase`` implementing the given formula
+    :rtype: subclass of MeanBase (exact type will depend on the formula that is provided)
+    """
+
+    if formula is None or (isinstance(formula, str) and formula.strip() == ""):
+        return ConstantMean(0.)
+
+    if not isinstance(formula, str):
+        raise ValueError("input formula must be a string")
+
+    if use_patsy:
+        mf = mean_from_patsy_formula(formula, inputdict)
+    else:
+        mf = mean_from_string(formula, inputdict)
+
+    return mf
+
+class MeanBase(object):
     """
     Base mean function class
 
@@ -63,7 +178,6 @@ class MeanFunction(object):
     The base class does not have any attributes, but subclasses will usually have some
     attributes that must be set and so are likely to need a ``__init__`` method.
     """
-
     def _check_inputs(self, x, params):
         """
         Check the shape of the inputs and reshape if needed
@@ -216,21 +330,21 @@ class MeanFunction(object):
 
         This method adds two mean functions, returning a ``MeanSum`` object. If the second
         argument is a float or integer, it is converted to a ``ConstantMean`` object. If
-        the second argument is neither a subclass of ``MeanFunction`` nor a float/int,
+        the second argument is neither a subclass of ``MeanBase`` nor a float/int,
         an exception is raised.
 
-        :param other: Second ``MeanFunction`` (or float/integer) to be added
-        :type other: subclass of MeanFunction or float or int
+        :param other: Second ``MeanBase`` (or float/integer) to be added
+        :type other: subclass of MeanBase or float or int
         :returns: ``MeanSum`` instance
         :rtype: MeanSum
         """
 
-        if issubclass(type(other), MeanFunction):
+        if issubclass(type(other), MeanBase):
             return MeanSum(self, other)
         elif isinstance(other, (float, int)):
             return MeanSum(self, ConstantMean(other))
         else:
-            raise TypeError("other function cannot be added with a MeanFunction")
+            raise TypeError("other function cannot be added with a MeanBase")
 
     def __radd__(self, other):
         """
@@ -238,21 +352,21 @@ class MeanFunction(object):
 
         This method adds two mean functions, returning a ``MeanSum`` object. If the second
         argument is a float or integer, it is converted to a ``ConstantMean`` object. If
-        the second argument is neither a subclass of ``MeanFunction`` nor a float/int,
+        the second argument is neither a subclass of ``MeanBase`` nor a float/int,
         an exception is raised.
 
-        :param other: Second ``MeanFunction`` (or float/integer) to be added
-        :type other: subclass of MeanFunction or float or int
+        :param other: Second ``MeanBase`` (or float/integer) to be added
+        :type other: subclass of MeanBase or float or int
         :returns: ``MeanSum`` instance
         :rtype: MeanSum
         """
 
-        if issubclass(type(other), MeanFunction):
+        if issubclass(type(other), MeanBase):
             return MeanSum(other, self)
         elif isinstance(other, (float, int)):
             return MeanSum(ConstantMean(other), self)
         else:
-            raise TypeError("other function cannot be added with a MeanFunction")
+            raise TypeError("other function cannot be added with a MeanBase")
 
     def __mul__(self, other):
         """
@@ -260,21 +374,21 @@ class MeanFunction(object):
 
         This method multiples two mean functions, returning a ``MeanProduct`` object. If
         the second argument is a float or integer, it is converted to a ``ConstantMean``
-        object. If the second argument is neither a subclass of ``MeanFunction`` nor a
+        object. If the second argument is neither a subclass of ``MeanBase`` nor a
         float/int, an exception is raised.
 
-        :param other: Second ``MeanFunction`` (or float/integer) to be multiplied
-        :type other: subclass of MeanFunction or float or int
+        :param other: Second ``MeanBase`` (or float/integer) to be multiplied
+        :type other: subclass of MeanBase or float or int
         :returns: ``MeanProduct`` instance
         :rtype: MeanProduct
         """
 
-        if issubclass(type(other), MeanFunction):
+        if issubclass(type(other), MeanBase):
             return MeanProduct(self, other)
         elif isinstance(other, (float, int)):
             return MeanProduct(self, ConstantMean(other))
         else:
-            raise TypeError("other function cannot be multiplied with a MeanFunction")
+            raise TypeError("other function cannot be multiplied with a MeanBase")
 
     def __rmul__(self, other):
         """
@@ -282,21 +396,21 @@ class MeanFunction(object):
 
         This method multiples two mean functions, returning a ``MeanProduct`` object. If
         the second argument is a float or integer, it is converted to a ``ConstantMean``
-        object. If the second argument is neither a subclass of ``MeanFunction`` nor a
+        object. If the second argument is neither a subclass of ``MeanBase`` nor a
         float/int, an exception is raised.
 
-        :param other: Second ``MeanFunction`` (or float/integer) to be multiplied
-        :type other: subclass of MeanFunction or float or int
+        :param other: Second ``MeanBase`` (or float/integer) to be multiplied
+        :type other: subclass of MeanBase or float or int
         :returns: ``MeanProduct`` instance
         :rtype: MeanProduct
         """
 
-        if issubclass(type(other), MeanFunction):
+        if issubclass(type(other), MeanBase):
             return MeanProduct(other, self)
         elif isinstance(other, (float, int)):
             return MeanProduct(ConstantMean(other), self)
         else:
-            raise TypeError("other function cannot be multipled with a MeanFunction")
+            raise TypeError("other function cannot be multipled with a MeanBase")
 
     def __pow__(self, exp):
         """
@@ -320,7 +434,7 @@ class MeanFunction(object):
         elif isinstance(exp, (Coefficient, ConstantMean)):
             return MeanPower(self, exp)
         else:
-            raise TypeError("MeanFunction can only be raised to a power that is a ConstantMean, " +
+            raise TypeError("MeanBase can only be raised to a power that is a ConstantMean, " +
                             "Coefficient, or float/int")
 
     def __rpow__(self, base):
@@ -331,13 +445,13 @@ class MeanFunction(object):
         is potentially not a mean function. Returns a ``MeanPower`` object. The  ``self``
         argument can only be a mean function that returns a value that is
         independent of its input, in particular a ``Coefficient`` or a ``ConstantMean``.
-        The base can be any ``MeanFunction`` instance, or a float or integer, from which a new
+        The base can be any ``MeanBase`` instance, or a float or integer, from which a new
         ``ConstantMean`` will be created.
 
-        :param base: Mean function base, must be a ``MeanFunction`` subclass
+        :param base: Mean function base, must be a ``MeanBase`` subclass
                      object, or a float/int from which a new ``ConstantMean`` will be
                      created.
-        :type base: MeanFunction subclass, float, or int
+        :type base: MeanBase subclass, float, or int
         :returns: ``MeanPower``instance
         :rtype: MeanPower
         """
@@ -346,31 +460,31 @@ class MeanFunction(object):
                             "raising a mean function to a power")
         if isinstance(base, (float, int)):
             return MeanPower(ConstantMean(base), self)
-        elif issubclass(type(base), MeanFunction):
+        elif issubclass(type(base), MeanBase):
             return MeanPower(base, self)
         else:
-            raise TypeError("base in a MeanPower must be a MeanFunction or a float/int")
+            raise TypeError("base in a MeanPower must be a MeanBase or a float/int")
 
     def __call__(self, other):
         """
         Composes two mean functions
 
         This method multiples two mean functions, returning a ``MeanComposite`` object.
-        If the second argument is not a subclass of ``MeanFunction``, an exception is
+        If the second argument is not a subclass of ``MeanBase``, an exception is
         raised.
 
-        :param other: Second ``MeanFunction`` to be composed
-        :type other: subclass of MeanFunction
+        :param other: Second ``MeanBase`` to be composed
+        :type other: subclass of MeanBase
         :returns: ``MeanComposite`` instance
         :rtype: MeanComposite
         """
 
-        if issubclass(type(other), MeanFunction):
+        if issubclass(type(other), MeanBase):
             return MeanComposite(self, other)
         else:
-            raise TypeError("other function cannot be composed with a MeanFunction")
+            raise TypeError("other function cannot be composed with a MeanBase")
 
-class MeanSum(MeanFunction):
+class MeanSum(MeanBase):
     """
     Class representing the sum of two mean functions
 
@@ -381,29 +495,29 @@ class MeanSum(MeanFunction):
     one, but the code will not attempt to simplify this so it is up to the user to get it
     right.
 
-    :ivar f1: first ``MeanFunction`` to be added
-    :type f1: subclass of MeanFunction
-    :ivar f2: second ``MeanFunction`` to be added
-    :type f2: subclass of MeanFunction
+    :ivar f1: first ``MeanBase`` to be added
+    :type f1: subclass of MeanBase
+    :ivar f2: second ``MeanBase`` to be added
+    :type f2: subclass of MeanBase
     """
     def __init__(self, f1, f2):
         """
         Create a new instance of two added mean functions
 
         Creates an instance of to added mean functions. Inputs are the two functions
-        to be added, which must be subclasses of the base ``MeanFunction`` class.
+        to be added, which must be subclasses of the base ``MeanBase`` class.
 
-        :param f1: first ``MeanFunction`` to be added
-        :type f1: subclass of MeanFunction
-        :param f2: second ``MeanFunction`` to be added
-        :type f2: subclass of MeanFunction
+        :param f1: first ``MeanBase`` to be added
+        :type f1: subclass of MeanBase
+        :param f2: second ``MeanBase`` to be added
+        :type f2: subclass of MeanBase
         :returns: new ``MeanSum`` instance
         :rtype: MeanSum
         """
-        if not issubclass(type(f1), MeanFunction):
-            raise TypeError("inputs to MeanSum must be subclasses of MeanFunction")
-        if not issubclass(type(f2), MeanFunction):
-            raise TypeError("inputs to MeanSum must be subclasses of MeanFunction")
+        if not issubclass(type(f1), MeanBase):
+            raise TypeError("inputs to MeanSum must be subclasses of MeanBase")
+        if not issubclass(type(f2), MeanBase):
+            raise TypeError("inputs to MeanSum must be subclasses of MeanBase")
 
         self.f1 = f1
         self.f2 = f2
@@ -547,7 +661,17 @@ class MeanSum(MeanFunction):
         return (self.f1.mean_inputderiv(x, params[:switch]) +
                 self.f2.mean_inputderiv(x, params[switch:]))
 
-class MeanProduct(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        return "{} + {}".format(self.f1, self.f2)
+
+class MeanProduct(MeanBase):
     """
     Class representing the product of two mean functions
 
@@ -558,30 +682,30 @@ class MeanProduct(MeanFunction):
     one, but the code will not attempt to simplify this so it is up to the user to get it
     right.
 
-    :ivar f1: first ``MeanFunction`` to be multiplied
-    :type f1: subclass of MeanFunction
-    :ivar f2: second ``MeanFunction`` to be multiplied
-    :type f2: subclass of MeanFunction
+    :ivar f1: first ``MeanBase`` to be multiplied
+    :type f1: subclass of MeanBase
+    :ivar f2: second ``MeanBase`` to be multiplied
+    :type f2: subclass of MeanBase
     """
     def __init__(self, f1, f2):
         """
         Create a new instance of two mulitplied mean functions
 
         Creates an instance of to multiplied mean functions. Inputs are the two functions
-        to be multiplied, which must be subclasses of the base ``MeanFunction`` class.
+        to be multiplied, which must be subclasses of the base ``MeanBase`` class.
 
-        :param f1: first ``MeanFunction`` to be multiplied
-        :type f1: subclass of MeanFunction
-        :param f2: second ``MeanFunction`` to be multiplied
-        :type f2: subclass of MeanFunction
+        :param f1: first ``MeanBase`` to be multiplied
+        :type f1: subclass of MeanBase
+        :param f2: second ``MeanBase`` to be multiplied
+        :type f2: subclass of MeanBase
         :returns: new ``MeanProduct`` instance
         :rtype: MeanProduct
         """
 
-        if not issubclass(type(f1), MeanFunction):
-            raise TypeError("inputs to MeanProduct must be subclasses of MeanFunction")
-        if not issubclass(type(f2), MeanFunction):
-            raise TypeError("inputs to MeanProduct must be subclasses of MeanFunction")
+        if not issubclass(type(f1), MeanBase):
+            raise TypeError("inputs to MeanProduct must be subclasses of MeanBase")
+        if not issubclass(type(f2), MeanBase):
+            raise TypeError("inputs to MeanProduct must be subclasses of MeanBase")
 
         self.f1 = f1
         self.f2 = f2
@@ -736,7 +860,17 @@ class MeanProduct(MeanFunction):
                 self.f1.mean_f(x, params[:switch])*
                 self.f2.mean_inputderiv(x, params[switch:]))
 
-class MeanPower(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        return "{}*{}".format(self.f1, self.f2)
+
+class MeanPower(MeanBase):
     """
     Class representing a mean function raised to a power
 
@@ -746,9 +880,9 @@ class MeanPower(MeanFunction):
     as the output of the exponent mean function must be independent of the inputs to make
     sense. If input is a float or int, a ``ConstantMean`` instance will be created.
 
-    :ivar f1: first ``MeanFunction`` to be raised to the given exponent
-    :type f1: subclass of MeanFunction
-    :ivar f2: second ``MeanFunction`` indicating the exponent. Must be a ``Coefficient``,
+    :ivar f1: first ``MeanBase`` to be raised to the given exponent
+    :type f1: subclass of MeanBase
+    :ivar f2: second ``MeanBase`` indicating the exponent. Must be a ``Coefficient``,
               ``ConstantMean``, or float/int (from which a ``ConstantMean`` object will
               be created)
     :type f2: Coefficient, ConstantMean, float, or int
@@ -759,21 +893,21 @@ class MeanPower(MeanFunction):
 
         Creates an instance of a mean function raised to a power. Inputs are the two
         functions (base, exponent), the first of which must be subclass of the base
-        ``MeanFunction`` class, and the second must be a ``Coefficient`` or a
+        ``MeanBase`` class, and the second must be a ``Coefficient`` or a
         ``ConstantMean`` (or a float or int, from which a ``ConstantMean`` will
         be created).
 
-        :param f1: first ``MeanFunction`` serving as the base
-        :type f1: subclass of MeanFunction
-        :param f2: second ``MeanFunction`` serving as the exponent, must be a ``Coefficient``,
+        :param f1: first ``MeanBase`` serving as the base
+        :type f1: subclass of MeanBase
+        :param f2: second ``MeanBase`` serving as the exponent, must be a ``Coefficient``,
                    ``ConstantMean``, ``float``, or ``int``
         :type f2: Coefficient, ConstantMean, float, or int
         :returns: new ``MeanPower`` instance
         :rtype: MeanPower
         """
 
-        if not issubclass(type(f1), MeanFunction):
-            raise TypeError("first input to MeanPower must be a subclass of MeanFunction")
+        if not issubclass(type(f1), MeanBase):
+            raise TypeError("first input to MeanPower must be a subclass of MeanBase")
         if isinstance(f2, (float, int)):
             f2 = ConstantMean(f2)
         if not isinstance(f2, (ConstantMean, Coefficient)):
@@ -963,7 +1097,17 @@ class MeanPower(MeanFunction):
 
         return inputderiv
 
-class MeanComposite(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        return "{}^{}".format(self.f1, self.f2)
+
+class MeanComposite(MeanBase):
     """
     Class representing the composition of two mean functions
 
@@ -975,7 +1119,7 @@ class MeanComposite(MeanFunction):
     attempt to alert the user to this so it is up to the user to get it right.
 
     Because the Hessian computation requires mixed partials that are not normally implemented
-    in the ``MeanFunction`` class, the Hessian computation is not currently implemented.
+    in the ``MeanBase`` class, the Hessian computation is not currently implemented.
     If you require Hessian computation for a composite mean function, you must implement
     it yourself.
 
@@ -985,30 +1129,30 @@ class MeanComposite(MeanFunction):
     or its derivatives, but will not cause an error when initializing a ``MeanComposite``
     object.
 
-    :ivar f1: first ``MeanFunction`` to be applied to the second
-    :type f1: subclass of MeanFunction
-    :ivar f2: second ``MeanFunction`` to be composed as the input to the first
-    :type f2: subclass of MeanFunction
+    :ivar f1: first ``MeanBase`` to be applied to the second
+    :type f1: subclass of MeanBase
+    :ivar f2: second ``MeanBase`` to be composed as the input to the first
+    :type f2: subclass of MeanBase
     """
     def __init__(self, f1, f2):
         """
         Create a new instance of two composed mean functions
 
         Creates an instance of to composed mean functions. Inputs are the two functions
-        to be composed (``f1(f2)``), which must be subclasses of the base ``MeanFunction``
+        to be composed (``f1(f2)``), which must be subclasses of the base ``MeanBase``
         class.
 
-        :param f1: first ``MeanFunction`` to be applied to the second
-        :type f1: subclass of MeanFunction
-        :param f2: second ``MeanFunction`` to be composed as the input to the first
-        :type f2: subclass of MeanFunction
+        :param f1: first ``MeanBase`` to be applied to the second
+        :type f1: subclass of MeanBase
+        :param f2: second ``MeanBase`` to be composed as the input to the first
+        :type f2: subclass of MeanBase
         :returns: new ``MeanComposite`` instance
         :rtype: MeanComposite
         """
-        if not issubclass(type(f1), MeanFunction):
-            raise TypeError("inputs to MeanComposite must be subclasses of MeanFunction")
-        if not issubclass(type(f2), MeanFunction):
-            raise TypeError("inputs to MeanComposite must be subclasses of MeanFunction")
+        if not issubclass(type(f1), MeanBase):
+            raise TypeError("inputs to MeanComposite must be subclasses of MeanBase")
+        if not issubclass(type(f2), MeanBase):
+            raise TypeError("inputs to MeanComposite must be subclasses of MeanBase")
 
         self.f1 = f1
         self.f2 = f2
@@ -1123,7 +1267,17 @@ class MeanComposite(MeanFunction):
                                         params[:switch])*
                 self.f2.mean_inputderiv(x, params[switch:]))
 
-class FixedMean(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        return "{}({})".format(self.f1, self.f2)
+
+class FixedMean(MeanBase):
     """
     Class representing a fixed mean function with no parameters
 
@@ -1288,6 +1442,16 @@ class FixedMean(MeanFunction):
         else:
             return self.deriv(x)
 
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        return "f"
+
 def fixed_f(x, index, f):
     """
     Dummy function to index into x and apply a function
@@ -1429,6 +1593,16 @@ class ConstantMean(FixedMean):
         self.f = partial(const_f, val=val)
         self.deriv = const_deriv
 
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+        val = signature(self.f).parameters['val'].default
+        return "{}".format(val)
+
 class LinearMean(FixedMean):
     """
     Class representing a linear fixed mean function
@@ -1463,7 +1637,19 @@ class LinearMean(FixedMean):
         self.f = partial(fixed_f, index=index, f=np.array)
         self.deriv = partial(fixed_inputderiv, index=index, deriv=one)
 
-class Coefficient(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+
+        index = signature(self.f).parameters["index"].default
+
+        return "x[{}]".format(index)
+
+class Coefficient(MeanBase):
     """
     Class representing a single fitting parameter in a mean function
 
@@ -1597,7 +1783,16 @@ class Coefficient(MeanFunction):
 
         return np.zeros((x.shape[1], x.shape[0]))
 
-class PolynomialMean(MeanFunction):
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a formula-like representation of the Mean Function. Useful for confirming
+        that a formula was correctly parsed.
+        """
+        return "c"
+
+class PolynomialMean(MeanBase):
     """
     Polynomial mean function class
 
@@ -1773,3 +1968,12 @@ class PolynomialMean(MeanFunction):
         output = np.sum((expon + 1.)*params[1:][param_indices]*x.flatten()[x_indices]**expon, axis=0)
 
         return np.transpose(np.reshape(output, (x.shape[0], x.shape[1])))
+
+    def __str__(self):
+        """
+        Returns a string representation
+
+        Return a string representation of the polynomial mean
+        """
+
+        return "Polynomial mean of degree {}".format(self.degree)

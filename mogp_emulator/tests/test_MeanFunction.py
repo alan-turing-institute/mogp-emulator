@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..MeanFunction import MeanFunction, MeanSum, MeanProduct, FixedMean, ConstantMean, LinearMean
-from ..MeanFunction import Coefficient, PolynomialMean, MeanComposite, MeanPower
+from ..MeanFunction import MeanFunction, MeanBase, MeanSum, MeanProduct, FixedMean, ConstantMean
+from ..MeanFunction import LinearMean, Coefficient, PolynomialMean, MeanComposite, MeanPower
 from ..MeanFunction import fixed_f, fixed_inputderiv, one, const_f, const_deriv
 
 @pytest.fixture
 def mf():
-    return MeanFunction()
+    return MeanBase()
 
 @pytest.fixture
 def x():
@@ -29,7 +29,7 @@ def oneparams():
 def dx():
     return 1.e-6
 
-def test_MeanFunction(mf, x, params):
+def test_MeanBase(mf, x, params):
     "test composition of mean functions"
 
     mf2 = mf + mf
@@ -78,8 +78,8 @@ def test_MeanFunction(mf, x, params):
 
     assert isinstance(mf11, MeanComposite)
 
-def test_MeanFunction_failures(mf, x, params):
-    "test situations of MeanFunction where an exception should be raised"
+def test_MeanBase_failures(mf, x, params):
+    "test situations of MeanBase where an exception should be raised"
 
     with pytest.raises(NotImplementedError):
         mf.get_n_params(x)
@@ -122,6 +122,29 @@ def test_MeanFunction_failures(mf, x, params):
 
     with pytest.raises(TypeError):
         mf(3.)
+
+def test_MeanFunction():
+    "test the function to create a mean function from a formula"
+
+    mf = MeanFunction(None)
+
+    assert isinstance(mf, ConstantMean)
+    assert_allclose(mf.mean_f(np.ones((2,3)), np.zeros(0)), np.zeros((2)))
+
+    mf2 = MeanFunction("x[0]", use_patsy=True)
+
+    assert isinstance(mf2, MeanSum)
+    assert_allclose(mf2.mean_f(np.array([[1., 2., 3.], [4., 5., 6.]]), np.array([1., 2.])),
+                    np.array([3., 9.]))
+
+    mf3 = MeanFunction("a + b*c", {"c":0}, use_patsy=False)
+
+    assert isinstance(mf3, MeanSum)
+    assert_allclose(mf3.mean_f(np.array([[1., 2., 3.], [4., 5., 6.]]), np.array([1., 2.])),
+                    np.array([3., 9.]))
+
+    with pytest.raises(ValueError):
+        MeanFunction(1)
 
 def test_fixed_functions(x):
     "test utility functions for creating fixed means"
