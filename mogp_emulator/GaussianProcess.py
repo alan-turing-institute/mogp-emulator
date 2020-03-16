@@ -133,7 +133,7 @@ class GaussianProcess(object):
 
         self.nugget = nugget
 
-        self.kernel =  SquaredExponential()
+        self.kernel = SquaredExponential()
 
         if not (emulator_file is None or theta is None):
             self._set_params(theta)
@@ -237,6 +237,20 @@ class GaussianProcess(object):
         """
 
         return self.D
+
+    def get_n_params(self):
+        """
+        Returns number of hyperparameters
+
+        Returns the number of hyperparameters for the emulator. The number depends on the
+        choice of mean function, covariance function, and nugget strategy, and possibly the
+        number of inputs for certain choices of the mean function.
+
+        :returns: Number of hyperparameters
+        :rtype: int
+        """
+
+        return self.D + 1
 
     def get_params(self):
         """
@@ -395,7 +409,7 @@ class GaussianProcess(object):
         """
 
         theta = np.array(theta)
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         self.theta = theta
         self._prepare_likelihood()
@@ -448,12 +462,12 @@ class GaussianProcess(object):
         :rtype: ndarray
         """
 
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
 
-        partials = np.zeros(self.D + 1)
+        partials = np.zeros(self.get_n_params())
 
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
 
@@ -490,26 +504,26 @@ class GaussianProcess(object):
         :rtype: ndarray
         """
 
-        assert theta.shape == (self.D + 1,), "Parameter vector must have length number of inputs + 1"
+        assert theta.shape == (self.get_n_params(),), "Parameter vector must have length number of inputs + 1"
 
         if not np.allclose(np.array(theta), self.theta):
             self._set_params(theta)
 
-        hessian = np.zeros((self.D + 1, self.D + 1))
-
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta)
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta)
+
+        hessian = np.zeros((self.get_n_params(), self.get_n_params()))
 
         for d1 in range(self.D + 1):
             invQ_dot_d1 = linalg.cho_solve((self.L, True), dKdtheta[d1])
             for d2 in range(self.D + 1):
                 invQ_dot_d2 = linalg.cho_solve((self.L, True), dKdtheta[d2])
                 invQ_dot_d1d2 = linalg.cho_solve((self.L, True), d2Kdtheta2[d1, d2])
-                hessian[d1, d2] = 0.5*(np.linalg.multi_dot([self.invQt,
-                                                            2.*np.dot(dKdtheta[d1], invQ_dot_d2) -
-                                                            d2Kdtheta2[d1, d2],
-                                                            self.invQt]) -
-                                        np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2))
+                term_1 = np.linalg.multi_dot([self.invQt,
+                                              2.*np.dot(dKdtheta[d1], invQ_dot_d2) - d2Kdtheta2[d1, d2],
+                                              self.invQt])
+                term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
+                hessian[d1, d2] = 0.5*(term_1 - term_2)
 
         return hessian
 
@@ -606,10 +620,10 @@ class GaussianProcess(object):
         loglikelihood_values = []
         theta_values = []
 
-        theta_startvals = 5.*(np.random.rand(n_tries, self.D + 1) - 0.5)
+        theta_startvals = 5.*(np.random.rand(n_tries, self.get_n_params()) - 0.5)
         if not theta0 is None:
             theta0 = np.array(theta0)
-            assert theta0.shape == (self.D + 1,), "theta0 must be a 1D array with length D + 1"
+            assert theta0.shape == (self.get_n_params(),), "theta0 must be a 1D array with length D + 1"
             theta_startvals[0,:] = theta0
 
         for theta in theta_startvals:
@@ -659,7 +673,7 @@ class GaussianProcess(object):
 
         try:
             L = np.linalg.cholesky(hess)
-            cov = linalg.cho_solve((L, True), np.eye(self.D + 1))
+            cov = linalg.cho_solve((L, True), np.eye(self.get_n_params()))
         except linalg.LinAlgError:
             raise linalg.LinAlgError("Hessian matrix is not symmetric positive definite, optimization may not have converged")
 
@@ -884,8 +898,7 @@ class GaussianProcess(object):
         if do_deriv:
             deriv = np.zeros((n_testing, self.D))
             kern_deriv = self.kernel.kernel_inputderiv(testing, self.inputs, self.theta)
-            for d in range(self.D):
-                deriv[:, d] = np.dot(kern_deriv[d], self.invQt)
+            deriv = np.transpose(np.dot(kern_deriv, self.invQt))
 
         return mu, var, deriv
 
@@ -971,7 +984,7 @@ class GaussianProcess(object):
 
         mu_mean = np.mean(mu, axis = 0)
         if do_unc:
-            var_mean = np.mean(var, axis = 0)+np.var(mu, axis = 0)
+            var_mean = np.mean(var, axis = 0) + np.var(mu, axis = 0)
         else:
             var_mean = None
         if do_deriv:
