@@ -995,9 +995,14 @@ class MeanPower(MeanBase):
             deriv[:switch] = (exp*self.f1.mean_f(x, params[:switch])**(exp - 1.)*
                               self.f1.mean_deriv(x, params[:switch]))
 
-        deriv[switch:] = (np.log(self.f1.mean_f(x, params[:switch]))*
-                          self.f1.mean_f(x, params[:switch])**exp*
-                          self.f2.mean_deriv(x, params[switch:]))
+        # only evaluate if f2 has parameters, as f1 could be negative and taking the log will
+        # raise an error even though this calculation is ultimately ignored in this case
+
+        if not self.f2.get_n_params(x) == 0:
+
+            deriv[switch:] = (np.log(self.f1.mean_f(x, params[:switch]))*
+                              self.f1.mean_f(x, params[:switch])**exp*
+                              self.f2.mean_deriv(x, params[switch:]))
 
         return deriv
 
@@ -1038,20 +1043,33 @@ class MeanPower(MeanBase):
 
         hess = np.zeros((self.get_n_params(x), self.get_n_params(x), x.shape[0]))
 
-        if nonzeroexp or nononeexp:
+        if nonzeroexp and nononeexp:
 
-            hess[:switch, :switch] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
+            hess[:switch, :switch] = (exp*self.f1.mean_f(x, params[:switch])**(exp - 1.)*
+                                      self.f1.mean_hessian(x, params[:switch]) +
+                                      exp*(exp - 1.)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
+                                      self.f1.mean_deriv(x, params[:switch]))
+
+        elif nonzeroexp:
+
+            hess[:switch, :switch] = (exp*self.f1.mean_f(x, params[:switch])**(exp - 1.)*
                                       self.f1.mean_hessian(x, params[:switch]))
 
-        if nonzeroexp:
-            hess[:switch, switch:, :] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
-                                         self.f1.mean_deriv(x, params[:switch])[:,np.newaxis,:]*
-                                         self.f2.mean_deriv(x, params[switch:])[np.newaxis,:,:])
-            hess[switch:, :switch, :] = np.transpose(hess[:switch, switch:, :], (1, 0, 2))
 
-        if nonzeroexp or nononeexp:
-            hess[switch:, switch:] = (exp*(exp - 1)*self.f1.mean_f(x, params[:switch])**(exp - 2.)*
-                                      self.f2.mean_hessian(x, params[switch:]))
+        if not self.f2.get_n_params(x) == 0:
+
+            if nonzeroexp:
+                hess[:switch, switch:, :] = (self.f1.mean_f(x, params[:switch])**(exp - 1.)*
+                                             (exp*np.log(self.f1.mean_f(x, params[:switch])) + 1.)*
+                                             self.f1.mean_deriv(x, params[:switch])[:,np.newaxis,:]*
+                                             self.f2.mean_deriv(x, params[switch:])[np.newaxis,:,:])
+                hess[switch:, :switch, :] = np.transpose(hess[:switch, switch:, :], (1, 0, 2))
+
+            hess[switch:, switch:] = (self.f1.mean_f(x, params[:switch])**exp*
+                                      (np.log(self.f1.mean_f(x, params[:switch]))**2*
+                                       self.f2.mean_deriv(x, params[switch:])**2 +
+                                       np.log(self.f1.mean_f(x, params[:switch]))*
+                                       self.f2.mean_hessian(x, params[switch:])))
 
         return hess
 
