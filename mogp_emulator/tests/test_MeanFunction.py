@@ -484,10 +484,18 @@ def test_MeanPower(x, zeroparams, oneparams, dx):
 
     assert mf4.get_n_params(x) == n_params
 
+    deriv_exp_0 = np.zeros((n_params, x.shape[0]))
+    deriv_exp_0[0] = np.log(x[:,0])*x[:,0]**0
     deriv_exp_1 = np.zeros((n_params, x.shape[0]))
     deriv_exp_1[0] = np.log(x[:,0])*x[:,0]**oneparams[0]
     deriv_exp_2 = np.zeros((n_params, x.shape[0]))
     deriv_exp_2[0] = np.log(x[:,0])*x[:,0]**params[0]
+    hess_exp_0 = np.zeros((n_params, n_params, x.shape[0]))
+    hess_exp_0[0, 0] = (np.log(x[:,0])**2)*x[:,0]**0
+    hess_exp_1 = np.zeros((n_params, n_params, x.shape[0]))
+    hess_exp_1[0, 0] = (np.log(x[:,0])**2)*x[:,0]**oneparams[0]
+    hess_exp_2 = np.zeros((n_params, n_params, x.shape[0]))
+    hess_exp_2[0, 0] = (np.log(x[:,0])**2)*x[:,0]**params[0]
     inputderiv_exp_1 = np.zeros((x.shape[1], x.shape[0]))
     inputderiv_exp_1[0] = oneparams[0]*x[:,0]**(oneparams[0] - 1.)
     inputderiv_exp_2 = np.zeros((x.shape[1], x.shape[0]))
@@ -495,10 +503,12 @@ def test_MeanPower(x, zeroparams, oneparams, dx):
 
     assert_allclose(mf4.mean_f(x, oneparams), x[:,0]**oneparams[0])
     assert_allclose(mf4.mean_f(x, params), x[:,0]**params[0])
+    assert_allclose(mf4.mean_deriv(x, np.zeros(1)), deriv_exp_0)
     assert_allclose(mf4.mean_deriv(x, oneparams), deriv_exp_1)
     assert_allclose(mf4.mean_deriv(x, params), deriv_exp_2)
-    assert_allclose(mf4.mean_hessian(x, oneparams), np.zeros((n_params, n_params, x.shape[0])))
-    assert_allclose(mf4.mean_hessian(x, params), np.zeros((n_params, n_params, x.shape[0])))
+    assert_allclose(mf4.mean_hessian(x, np.zeros(1)), hess_exp_0)
+    assert_allclose(mf4.mean_hessian(x, oneparams), hess_exp_1)
+    assert_allclose(mf4.mean_hessian(x, params), hess_exp_2)
     assert_allclose(mf4.mean_inputderiv(x, oneparams), inputderiv_exp_1)
     assert_allclose(mf4.mean_inputderiv(x, params), inputderiv_exp_2)
 
@@ -517,6 +527,24 @@ def test_MeanPower(x, zeroparams, oneparams, dx):
         deriv_fd[i] = (mf4.mean_f(x, params) - mf4.mean_f(x, params - dx_array))/dx
 
     assert_allclose(mf4.mean_deriv(x, params), deriv_fd, atol=1.e-5, rtol=1.e-5)
+
+    hess_fd = np.zeros((n_params, n_params, x.shape[0]))
+    for i in range(n_params):
+        for j in range(n_params):
+            dx_array = np.zeros(n_params)
+            dx_array[i] = dx
+            hess_fd[i, j] = (mf4.mean_deriv(x, oneparams)[j] - mf4.mean_deriv(x, oneparams - dx_array)[j])/dx
+
+    assert_allclose(mf4.mean_hessian(x, oneparams), hess_fd, atol=1.e-5, rtol=1.e-5)
+
+    hess_fd = np.zeros((n_params, n_params, x.shape[0]))
+    for i in range(n_params):
+        for j in range(n_params):
+            dx_array = np.zeros(n_params)
+            dx_array[i] = dx
+            hess_fd[i, j] = (mf4.mean_deriv(x, params)[j] - mf4.mean_deriv(x, params - dx_array)[j])/dx
+
+    assert_allclose(mf4.mean_hessian(x, params), hess_fd, atol=1.e-5, rtol=1.e-5)
 
     inputderiv_fd = np.zeros((D, x.shape[0]))
     for i in range(D):
@@ -540,7 +568,7 @@ def test_MeanPower(x, zeroparams, oneparams, dx):
 
     assert_allclose(mf5.mean_f(x, params), params[0]**2)
     assert_allclose(mf5.mean_deriv(x, params), np.broadcast_to(2.*params[0], (n_params, x.shape[0])))
-    assert_allclose(mf5.mean_hessian(x, params), np.zeros((n_params, n_params, x.shape[0])))
+    assert_allclose(mf5.mean_hessian(x, params), np.broadcast_to(2., (n_params, n_params, x.shape[0])))
     assert_allclose(mf5.mean_inputderiv(x, params), np.zeros((x.shape[1], x.shape[0])))
 
     deriv_fd = np.zeros((n_params, x.shape[0]))
@@ -550,6 +578,29 @@ def test_MeanPower(x, zeroparams, oneparams, dx):
         deriv_fd[i] = (mf5.mean_f(x, params) - mf5.mean_f(x, params - dx_array))/dx
 
     assert_allclose(mf5.mean_deriv(x, params), deriv_fd, atol=1.e-5, rtol=1.e-5)
+
+def test_MeanPower_specialcases():
+    "test situations where MeanPower is badly behaved (complex, etc.) or could behave badly if not well implemented"
+
+    # mean function should raise an error if not real
+
+    mf = LinearMean(0)**2.1
+
+    with pytest.raises(FloatingPointError):
+        mf.mean_f(np.array([-2.]), np.zeros(0))
+
+    # verify that if exponent has no parameters and x is negative still get correct functioning
+
+    mf = LinearMean(0)**2.
+
+    assert_allclose(mf.mean_deriv(np.array([-2.]), np.zeros(0)), -4.)
+
+    # check that error raised for badly behaved derivative
+
+    mf = LinearMean(0)**Coefficient()
+
+    with pytest.raises(FloatingPointError):
+        mf.mean_deriv(np.array([-2.]), np.array([2.]))
 
 def test_MeanComposite(x, params, dx):
     "test the composite mean function"
