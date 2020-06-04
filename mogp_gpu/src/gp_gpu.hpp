@@ -348,16 +348,6 @@ public:
         check_cusolver_status(status, info_h);
 
         // logdetQ
-        // strided_range<thrust::device_vector<double>::iterator> diag(
-        //         work_mat_d.begin(), work_mat_d.begin() + N * N, N + 1);
-
-        // std::cout << "begin\n";
-        // logdetC = 2.0 * thrust::transform_reduce(diag.begin(), diag.end(),
-        //                                          Log<double>(),
-        //                                          0,
-        //                                          Add<double>());
-        // std::cout << "end, result: " << logdetC << "\n";
-
         thrust::device_vector<double> logdetC_d(1);
 
         sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
@@ -381,9 +371,21 @@ public:
 
     void dloglik_dtheta(double *result_h)
     {
-        // Dcov(dev_ptr(invC_d), N, Ninput, dev_ptr(xs_d), dev_ptr(theta_d));
+            // dK{jk}_dtheta{i}
+            cov_deriv_batch_gpu(/* result_d */,
+                                Ninput, N, N,
+                                xs_d, xs_d,
+                                theta_d);
+
+            // compute intermediate matrix "C" (can overlap)
+            // ...
+
+            // gemm (treat the matrix indices as a single 1-d index)
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, N * N, Ninput, &one,
+                        dev_ptr("C"), N * N, dev_ptr(work_d),
+                        Ninput, &zero, dev_ptr(invCk_d), 1);
     }
-    
+
     DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,
                 const double *xs_, const double *ts_)
         : N(N_)
