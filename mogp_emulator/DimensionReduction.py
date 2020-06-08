@@ -70,7 +70,7 @@ regression on the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
-from .utils import k_fold_cross_validation, integer_bisect
+from mogp_emulator.utils import k_fold_cross_validation, integer_bisect
 
 def gram_matrix(X, k):
     """Computes the Gram matrix of `X`

@@ -75,7 +75,7 @@ Example: ::
 import numpy as np
 from functools import partial
 from inspect import signature
-from .formula import mean_from_patsy_formula, mean_from_string
+from mogp_emulator.formula import mean_from_patsy_formula, mean_from_string
 
 def MeanFunction(formula, inputdict={}, use_patsy=True):
     """

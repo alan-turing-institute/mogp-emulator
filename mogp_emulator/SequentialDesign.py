@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 from inspect import signature
-from .ExperimentalDesign import ExperimentalDesign
-from .GaussianProcess import GaussianProcess
-from .fitting import fit_GP_MAP
+from mogp_emulator.ExperimentalDesign import ExperimentalDesign
+from mogp_emulator.GaussianProcess import GaussianProcess
+from mogp_emulator.fitting import fit_GP_MAP
 from numpy.linalg import LinAlgError
 
 class SequentialDesign(object):

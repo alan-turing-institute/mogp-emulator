@@ -1,4 +1,4 @@
-from . import MeanFunction
+from mogp_emulator import MeanFunction
 try:
     from patsy import ModelDesc, Term, EvalFactor
     no_patsy = False
