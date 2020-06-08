@@ -2,8 +2,8 @@ import numpy as np
 import scipy.stats
 from scipy.linalg import LinAlgError
 from scipy.optimize import minimize
-from .GaussianProcess import GaussianProcess
-from .MultiOutputGP import MultiOutputGP
+from mogp_emulator.GaussianProcess import GaussianProcess
+from mogp_emulator.MultiOutputGP import MultiOutputGP
 from multiprocessing import Pool
 from functools import partial
 

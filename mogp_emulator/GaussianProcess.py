@@ -1,10 +1,10 @@
 import numpy as np
-from .MeanFunction import MeanFunction, MeanBase
-from .Kernel import Kernel, SquaredExponential
-from .Priors import Prior
+from mogp_emulator.MeanFunction import MeanFunction, MeanBase
+from mogp_emulator.Kernel import Kernel, SquaredExponential
+from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from .linalg.cholesky import jit_cholesky
+from mogp_emulator.linalg.cholesky import jit_cholesky
 
 class GaussianProcess(object):
     """

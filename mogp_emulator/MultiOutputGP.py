@@ -1,9 +1,9 @@
 from multiprocessing import Pool
 import numpy as np
-from .GaussianProcess import GaussianProcess, PredictResult
-from .MeanFunction import MeanBase
-from .Kernel import Kernel, SquaredExponential
-from .Priors import Prior
+from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
+from mogp_emulator.MeanFunction import MeanBase
+from mogp_emulator.Kernel import Kernel, SquaredExponential
+from mogp_emulator.Priors import Prior
 
 class MultiOutputGP(object):
     """

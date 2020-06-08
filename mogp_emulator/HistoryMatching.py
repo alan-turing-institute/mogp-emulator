@@ -1,5 +1,5 @@
 import numpy as np
-from .GaussianProcess import GaussianProcess, PredictResult
+from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 
 class HistoryMatching(object):
     r"""
