@@ -51,9 +51,9 @@ averaging these a global approximation is obtained. The steps are:
    input variable:
 
    .. math::
-      \mu_i &=& \sum_{r=1} ^{R} \frac{EE_i(x_r)}{R}, \\
-      \mu^{*}_i &=& \sum_{r=1} ^{R} \left|\frac{EE_i(x_r)}{R}\right|, \\
-      \sigma_i &=& \sqrt{\sum_{r=1}^{R} \frac{(EE_i(x_r) - \mu_i)^2}{R}}.
+      \mu_i &= \sum_{r=1} ^{R} \frac{EE_i(x_r)}{R}, \\
+      \mu^{*}_i &= \sum_{r=1} ^{R} \left|\frac{EE_i(x_r)}{R}\right|, \\
+      \sigma_i &= \sqrt{\sum_{r=1}^{R} \frac{(EE_i(x_r) - \mu_i)^2}{R}}.
 
 The sample moment :math:`\mu_i` is an average effect measure, and a
 high value suggests a dominant contribution of the :math:`i^{th}`

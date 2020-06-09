@@ -35,11 +35,11 @@ Inputs
    as
 
    .. math::
-      \theta_1(t) &=& 1, \\
-      \theta_2(t) &=& \cos(2 \pi t), \\
-      \theta_3(t) &=& \sin(2 \pi t), \\
-      \theta_{2i}(t) &=& \cos(2\pi it), \\
-      \theta_{2i+1}(t) &=& \sin(2\pi it), i=1, 2, \ldots \frac{M-1}{2}.
+      \theta_1(t) &= 1, \\
+      \theta_2(t) &= \cos(2 \pi t), \\
+      \theta_3(t) &= \sin(2 \pi t), \\
+      \theta_{2i}(t) &= \cos(2\pi it), \\
+      \theta_{2i+1}(t) &= \sin(2\pi it), i=1, 2, \ldots \frac{M-1}{2}.
 
 Output
 ------

@@ -16,8 +16,8 @@ The approximation procedure for iterating the single step emulator
 recursively defines
 
 .. math::
-   \mu_{t+1} &=& \mathrm{E}[ m^*(w_t,a_{t+1},\phi)|f(D)], \\
-   V_{t+1} &=& \mathrm{E}[
+   \mu_{t+1} &= \mathrm{E}[ m^*(w_t,a_{t+1},\phi)|f(D)], \\
+   V_{t+1} &= \mathrm{E}[
    v^*\{(w_t,a_{t+1},\phi),(w_t,a_{t+1},\phi)\}|f(D)] +
    \mathrm{Var}[m^*(w_t,a_{t+1},\phi)|f(D)],
 

@@ -69,9 +69,9 @@ of Monte Carlo iterations. For notational convenience, we suppose that
    |f(D)]` and :math:`\textrm{Var}[W_t|f(D)]` by
 
    .. math::
-      \hat{\textrm{E}}[W_t |f(D)] &=& \frac{1}{N}\sum_{i=1}^N
+      \hat{\textrm{E}}[W_t |f(D)] &= \frac{1}{N}\sum_{i=1}^N
       \textrm{E}[W_t |f(D),X_i,\theta^{(i)}] \\
-      \widehat{\textrm{Var}}[W_t \|f(D)] &=& \frac{1}{N}\sum_{i=1}^N
+      \widehat{\textrm{Var}}[W_t \|f(D)] &= \frac{1}{N}\sum_{i=1}^N
       \textrm{Var}[W_t |f(D),X_i,\theta^{(i)}] + \frac{1}{N-1}\sum_{i=1}^N
       \left\{\textrm{E}[W_t |f(D),X_i,\theta^{(i)}] - \hat{\textrm{E}}[W_t
       |f(D)] \right\}^2
