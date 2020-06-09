@@ -77,8 +77,8 @@ Take the primitive polynomial :math:`p_3(x)=x^3+x+1`, and thus :math:`d=3` and
 direction numbers is
 
 .. math::
-   \begin{array}{rcl}m_j&=&2a_1m_{j-1}\oplus 4a_2m_{j-2}\oplus
-   8a_3m_{j-3}\oplus m_{j-3}\\&=&4m_{j-2}\oplus 8m_{j-3}\oplus m_{j-3} \\
+   \begin{array}{rcl}m_j&=2a_1m_{j-1}\oplus 4a_2m_{j-2}\oplus
+   8a_3m_{j-3}\oplus m_{j-3}\\&=4m_{j-2}\oplus 8m_{j-3}\oplus m_{j-3} \\
    \end{array}
 
 Using a different primitive polynomial will give a different recurrence
@@ -88,8 +88,8 @@ relation. To iterate the recurrence relation, initial odd values
 Now we compute a few extra numbers :math:`m_j`. We have
 
 .. math::
-   \begin{array}{rcl}m_4&=&4(3)\oplus 8(1)\oplus 1=12\oplus 8\oplus
-   1 \\ &=&1100_{\textbf{2}}\oplus 1000_{\textbf{2}}\oplus
+   \begin{array}{rcl}m_4&=4(3)\oplus 8(1)\oplus 1=12\oplus 8\oplus
+   1 \\ &=1100_{\textbf{2}}\oplus 1000_{\textbf{2}}\oplus
    1_{\textbf{2}}=101_{\textbf{2}}=5 \end{array}
 
 and
@@ -100,10 +100,10 @@ and
 The direction numbers are computed by shifting the values obtained, e.g.
 
 .. math::
-   v_1 &=& \frac{1}{2}=0.1_{\textbf{2}} \\
-   v_2 &=& \frac{3}{4}=0.11_{\textbf{2}} \\
-   v_3 &=& \frac{7}{8}=0.111_{\textbf{2}} \\
-   v_4 &=& \frac{5}{16}=0.0101_{\textbf{2}}
+   v_1 &= \frac{1}{2}=0.1_{\textbf{2}} \\
+   v_2 &= \frac{3}{4}=0.11_{\textbf{2}} \\
+   v_3 &= \frac{7}{8}=0.111_{\textbf{2}} \\
+   v_4 &= \frac{5}{16}=0.0101_{\textbf{2}}
 
 and
 

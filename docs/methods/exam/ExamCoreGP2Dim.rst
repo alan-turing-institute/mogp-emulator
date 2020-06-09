@@ -220,8 +220,8 @@ find :math:`\hat{\tau} = [-1.2187,-4.6840]`, which corresponds to
 and by substitution we find
 
 .. math::
-   \widehat\sigma^2 &=& 0.9354 \\
-   \hat{\beta} &=& [33.5981, 4.8570,-39.6695]^{\mathrm{T}}
+   \widehat\sigma^2 &= 0.9354 \\
+   \hat{\beta} &= [33.5981, 4.8570,-39.6695]^{\mathrm{T}}
 
 These parameter values will be used for the uncertainty and sensitivity
 analysis.
@@ -338,9 +338,9 @@ according to the formulae given at the top of
 :ref:`ProcUAGP<ProcUAGP>`. The results we got are
 
 .. math::
-   \textrm{E}^*[\textrm{E}[f(X)]] &=& 16.9857 \\
-   \textrm{Var}^*[\textrm{E}[f(X)]] &=& 0.0015 \\
-   \textrm{E}^*[\textrm{Var}[f(X)]] &=& 29.9588
+   \textrm{E}^*[\textrm{E}[f(X)]] &= 16.9857 \\
+   \textrm{Var}^*[\textrm{E}[f(X)]] &= 0.0015 \\
+   \textrm{E}^*[\textrm{Var}[f(X)]] &= 29.9588
 
 The above results say that the mean output of our model, due to the
 uncertainty in its inputs is :math:`\sim 16.99`, with a :math:`95:math:`%
@@ -440,8 +440,8 @@ the albedo, compared to the value of the solar constant.
 The values we calculated for the sensitivity indices are
 
 .. math::
-   \textrm{E}^*[V_1] &=& 0.54 \\
-   \textrm{E}^*[V_2] &=& 29.40
+   \textrm{E}^*[V_1] &= 0.54 \\
+   \textrm{E}^*[V_2] &= 29.40
 
 The results show that when we know the value of :math:`X_1`, the
 uncertainty (variance) in the output decreases by 0.54, while when we

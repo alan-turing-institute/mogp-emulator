@@ -148,7 +148,7 @@ down into three cases:
    .. math::
       {\rm Corr}\{\tilde{f}(x_i,d_j),\tilde{f}(x_j,d_j)\} = \frac{\partial^2
       c(x_i,x_j)}{\partial x_i^{(d_i)} \partial x_j^{(d_j)}}, {\rm for}\;
-      d_i,d_j\ne0\.
+      d_i,d_j\ne0.
 
    -  Case 3a. If :math:`d_i,d_j\ne 0` and :math:`d_i=d_j` we have a special
       version of Case 3 which gives:
@@ -242,7 +242,7 @@ and posterior covariance function
    v^*(x_i,x_j) = \widehat\sigma^2\{c(x_i,x_j) -
    \tilde{t}(x_i)^{\rm T} \tilde{A}^{-1} \tilde{t}(x_j) + \left(
    h(x_i)^{\rm T} - \tilde{t}(x_i)^{\rm T} \tilde{A}^{-1}\tilde{H}
-   \right) \left( \tilde{H}^{\rm T} \\tilde{A}^{-1}
+   \right) \left( \tilde{H}^{\rm T} \tilde{A}^{-1}
    \tilde{H}\right)^{-1} \left( h(x_j)^{\rm T} - \tilde{t}(x_j)^{\rm T}
    \tilde{A}^{-1}\tilde{H} \right)^{\rm T} \}.
 

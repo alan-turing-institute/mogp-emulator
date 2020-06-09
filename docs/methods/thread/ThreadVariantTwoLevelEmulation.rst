@@ -232,11 +232,11 @@ two models. This equates to the belief that the expected value of
 
 The simplest specification for the variance and covariance of the
 :math:`\rho_j` is to parametrise the variance matrix by two constants
-:math:`\sigma^2_\rho \` and :math:`\alpha` such that
+:math:`\sigma^2_\rho` and :math:`\alpha` such that
 
 .. math::
-   \textrm{Var}[\rho_j]&=&\sigma^2_\rho \\
-   \textrm{Corr}[\rho_j,\rho_k]&=&\alpha, i\neq j
+   \textrm{Var}[\rho_j]&=\sigma^2_\rho \\
+   \textrm{Corr}[\rho_j,\rho_k]&=\alpha, i\neq j
 
 where :math:`\sigma^2_\rho\geq 0` and :math:`\alpha\in[-1,1]`. This belief
 specification is relatively simple. However by adjusting the value of
@@ -280,9 +280,9 @@ regression multiplier method (2) of linking the simulators, these
 beliefs are as follows:
 
 .. math::
-   \textrm{E}[f^a(x)] &=& \sum_j \textrm{E}[\rho_j \beta^c_j]
+   \textrm{E}[f^a(x)] &= \sum_j \textrm{E}[\rho_j \beta^c_j]
    h_j(x) + \textrm{E}[\rho_w w^c(x)] + \textrm{E}[{w^a}'(x)] \\
-   \textrm{Var}[f^a(x)] &=& \sum_j\sum_k h_j(x)h_k(x)
+   \textrm{Var}[f^a(x)] &= \sum_j\sum_k h_j(x)h_k(x)
    \textrm{Cov}[\rho_j \beta^c_j,\rho_k \beta^c_k] +
    \textrm{Var}[\rho_w w^c(x)] + \textrm{Var}[{w^a}'(x)] +
    2\sum_j h_j(x)\textrm{Cov}[\rho_j \beta^c_j,\rho_w w^c(x)]
@@ -292,15 +292,15 @@ our beliefs about :math:`\rho_j` and :math:`{w^a}'(x)`, or are obtained from
 the expressions below:
 
 .. math::
-   \textrm{E}[\rho_j \beta^c_j] &=& \textrm{E}[\rho_j] \textrm{E}[\beta^c_j] \\
-   \textrm{E}[\rho_w w^c(x)]    &=& \textrm{E}[\rho_w] \textrm{E}[w^c(x)] \\
-   \textrm{Var}[\rho_w w^c(x)]  &=& \textrm{Var}[\rho_w]\textrm{Var}[w^c(x)] +
+   \textrm{E}[\rho_j \beta^c_j] &= \textrm{E}[\rho_j] \textrm{E}[\beta^c_j] \\
+   \textrm{E}[\rho_w w^c(x)]    &= \textrm{E}[\rho_w] \textrm{E}[w^c(x)] \\
+   \textrm{Var}[\rho_w w^c(x)]  &= \textrm{Var}[\rho_w]\textrm{Var}[w^c(x)] +
                                     \textrm{Var}[\rho_w]\textrm{E}[w^c(x)]^2 +
                                     \textrm{E}[\rho_w]^2\textrm{Var}[w^c(x)] \\
-   \textrm{Cov}[\rho_j \beta^c_j,\rho_k \beta^c_k] &=& \textrm{Cov}[\rho_j,\rho_k] \textrm{Cov}[\beta^c_j,\beta^c_k] +
+   \textrm{Cov}[\rho_j \beta^c_j,\rho_k \beta^c_k] &= \textrm{Cov}[\rho_j,\rho_k] \textrm{Cov}[\beta^c_j,\beta^c_k] +
                                                        \textrm{Cov}[\rho_j,\rho_k]\textrm{E}[\beta^c_j]\textrm{E}[\beta^c_k] +
                                                        \textrm{Cov}[\beta^c_j,\beta^c_k]\textrm{E}[\rho_j]\textrm{E}[\rho_k] \\
-   \textrm{Cov}[\rho_j \beta^c_j,\rho_w w^c(x)]    &=& \textrm{Cov}[\rho_j,\rho_w] \textrm{Cov}[\beta^c_j,w^c(x)] +
+   \textrm{Cov}[\rho_j \beta^c_j,\rho_w w^c(x)]    &= \textrm{Cov}[\rho_j,\rho_w] \textrm{Cov}[\beta^c_j,w^c(x)] +
                                                        \textrm{Cov}[\rho_j,\rho_w]\textrm{E}[\beta^c_j]\textrm{E}[w^c(x)] +
                                                        \textrm{Cov}[\beta^c_j,w^c(x)]\textrm{E}[\rho_j]\textrm{E}[\rho_w]
 
@@ -321,10 +321,10 @@ are known and thus substantially simplify the expressions for
 :math:`\textrm{E}[f^a(x)]` and :math:`\textrm{Var}[f^a(x)]` as follows:
 
 .. math::
-   \textrm{E}[f^a(x)] &=& \sum_j \textrm{E}[\rho_j] g_j(x) +
+   \textrm{E}[f^a(x)] &= \sum_j \textrm{E}[\rho_j] g_j(x) +
                           \textrm{E}[\rho_w] w^c(x) +
                           \textrm{E}[{w^a}'(x)] \\
-   \textrm{Var}[f^a(x)] &=& \sum_j\sum_k g_j(x)g_k(x)\textrm{Cov}[\rho_j ,\rho_k] +
+   \textrm{Var}[f^a(x)] &= \sum_j\sum_k g_j(x)g_k(x)\textrm{Cov}[\rho_j ,\rho_k] +
                             w^c(x)^2 \textrm{Var}[\rho_w] +
                             \textrm{Var}[{w^a}'(x)] + 2\sum_j g_j(x)w^c(x)\textrm{Cov}[\rho_j,\rho_w ]
 

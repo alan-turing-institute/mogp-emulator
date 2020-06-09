@@ -50,14 +50,14 @@ distribution :math:`N_r(\mu_t,V_t)`
 We have
 
 .. math::
-   \mu_1 &=& m^*(w_0,a_1,\phi), \\
-   V_1 &=& v^*\{(w_0,a_1,\phi),(w_0,a_1,\phi)\}.
+   \mu_1 &= m^*(w_0,a_1,\phi), \\
+   V_1 &= v^*\{(w_0,a_1,\phi),(w_0,a_1,\phi)\}.
 
 The mean and variance are defined recursively:
 
 .. math::
-   \mu_{t+1} &=& \textrm{E}[m^*(w_t,a_{t+1},\phi)|f(D),\theta], \\
-   V_{t+1} &=& \textrm{E}[v^*\{(w_t,a_{t+1},\phi),(w_t,a_{t+1},\phi)\}|f(D),\theta] +
+   \mu_{t+1} &= \textrm{E}[m^*(w_t,a_{t+1},\phi)|f(D),\theta], \\
+   V_{t+1} &= \textrm{E}[v^*\{(w_t,a_{t+1},\phi),(w_t,a_{t+1},\phi)\}|f(D),\theta] +
    \textrm{Var}[m^*(w_t,a_{t+1},\phi)|f(D),\theta],
 
 where the expectations and variances are taken with respect to :math:`w_{t}`,

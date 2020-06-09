@@ -153,7 +153,7 @@ regression function :math:`h(\cdot)`. In the following section, we give
 expressions for the above integral forms for the general and two special
 cases.
 
-Calculation of :math:`\phantom{E}\textrm{E}^*[M_w(x_w)]`
+Calculation of :math:`\textrm{E}^*[M_w(x_w)]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
@@ -173,7 +173,7 @@ It is important to note here that both :math:`R_w` and :math:`T_w` are
 functions of :math:`x_w`. The dependence on :math:`x_w` has been suppressed
 here for notational simplicity.
 
-Calculation of :math:`\phantom{E}\textrm{E}^*[I_{\{i,j\}}(x_i,x_j)]`
+Calculation of :math:`\textrm{E}^*[I_{\{i,j\}}(x_i,x_j)]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
@@ -187,7 +187,7 @@ elements :math:`w=\{i,j\}` or the single element :math:`w=\{i\}`. Remember
 also that these will be functions of :math:`x_{\{i,j\}}=(x_i,x_j)` and
 :math:`x_{\{i\}}=x_i` respectively.
 
-Calculation of :math:`\phantom{E}\textrm{E}^*[V_w]`
+Calculation of :math:`\textrm{E}^*[V_w]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We write the posterior mean of :math:`V_w` as
@@ -220,7 +220,7 @@ The second term is
 
 with :math:`W = (H^{\mathrm{T}}A^{-1}H)^{-1}`.
 
-Calculation of :math:`\phantom{E} \textrm{E}^*[V_{Tw}]`
+Calculation of :math:`\textrm{E}^*[V_{Tw}]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :math:`\textrm{E}^*[V_{Tw}]` can be calculated via the sensitivity variance
@@ -489,7 +489,8 @@ with
 :math:`Q` is a special case of :math:`Q_w` when :math:`w` is the empty set, and
 reduces to
 
-:math:`Q=R^T R`
+.. math::
+   Q=R^T R
 
 --------------
 
@@ -517,17 +518,17 @@ is
 with
 
 .. math::
-   F^{'} &=& (x_w-m_w - (F^{-1}g)_w)^T \\
-   &&\big[2C_{ww}+B_{w\bar{w}}B_{\bar{w}\bar{w}}^{-1}B_{\bar{w}w} -
+   F^{'} &= (x_w-m_w - (F^{-1}g)_w)^T \\
+   & \big[2C_{ww}+B_{w\bar{w}}B_{\bar{w}\bar{w}}^{-1}B_{\bar{w}w} -
    (2C_{w\bar{w}} +B_{w\bar{w}})(2C_{\bar{w}\bar{w}}
-   +B_{\bar{w}\bar{w}})^{-1}(2C_{\bar{w}w} +B_{\bar{w}w})\big] \\ &&(x_w-m_w
+   +B_{\bar{w}\bar{w}})^{-1}(2C_{\bar{w}w} +B_{\bar{w}w})\big] \\ & (x_w-m_w
    - (F^{-1}g)_w) \\
-   F &=& \left[ \begin{array}{cc} 2C_{ww} +
+   F &= \left[ \begin{array}{cc} 2C_{ww} +
    B_{w\bar{w}}B_{\bar{w}\bar{w}}^{-1}B_{\bar{w}w}& 2C_{w\bar{w}} +
    B_{w\bar{w}} \\ 2C_{\bar{w}w} + B_{\bar{w}w}&2C_{\bar{w}\bar{w}} +
    B_{\bar{w}\bar{w}} \end{array} \right] \\
-   g &=& 2C(x_k-m) \\
-   r &=& (x_k-m)^T 2C(x_k-m)
+   g &= 2C(x_k-m) \\
+   r &= (x_k-m)^T 2C(x_k-m)
 
 :math:`(F^{-1}g)_w` is the part of the :math:`F^{-1}g` vector that corresponds
 to the indices :math:`w`. According to the above formulation, these are the

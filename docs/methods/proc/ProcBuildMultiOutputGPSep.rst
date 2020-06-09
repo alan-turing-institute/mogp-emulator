@@ -128,8 +128,9 @@ and posterior covariance function
 where
 
 .. math::
-   \widehat\Sigma &=& (n-q)^{-1} (f(D)-H\widehat\beta)^{\rm T} A^{-1}
-   (f(D)-H\widehat\beta)\\ &=& (n-q)^{-1} f(D)^{\rm T}\left\{A^{-1} - A^{-1}
+   \widehat\Sigma &= (n-q)^{-1} (f(D)-H\widehat\beta)^{\rm T} A^{-1}
+   (f(D)-H\widehat\beta) \\
+   &= (n-q)^{-1} f(D)^{\rm T}\left\{A^{-1} - A^{-1}
    H\left( H^{\rm T} A^{-1} H\right)^{-1}H^{\rm T}A^{-1}\right\} f(D).
 
 This is the first part of the emulator as discussed in

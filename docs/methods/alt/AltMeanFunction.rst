@@ -123,7 +123,7 @@ For example,
 
 .. math::
 
-   m(x) = \beta_1 / (1+\beta_2 x_1) + \exp\left(\beta_3 x_2\left)
+   m(x) = \beta_1 / (1+\beta_2 x_1) + \exp\left(\beta_3 x_2\right)
 
 expresses a belief that as the first input, :math:`x_1` increases the
 simulator output will flatten out in the way specified in the first

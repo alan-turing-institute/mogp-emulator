@@ -189,11 +189,11 @@ We then evaluate our adjusted expectation and variance of the population
 variance to be
 
 .. math::
-   \text{E}_{\bar{V}_n}[\mathcal{M}(V)] &=&
+   \text{E}_{\bar{V}_n}[\mathcal{M}(V)] &=
    \frac{\omega_\mathcal{M}\bar{V}_n +
    \frac{1}{n}\omega_\mathcal{R}\omega_Y}{\omega_\mathcal{M}+
    \frac{1}{n}\omega_\mathcal{R}}, \\
-   \text{Var}_{\bar{V}_n}[\mathcal{M}(V)] &=&
+   \text{Var}_{\bar{V}_n}[\mathcal{M}(V)] &=
    \frac{\frac{1}{n}\omega_\mathcal{M}\omega_\mathcal{R}}
    {\omega_\mathcal{M}+\frac{1}{n}\omega_\mathcal{R}},
 
@@ -243,9 +243,9 @@ assumptions and specifications, the adjusted expectation and variance of
 the population variance given :math:`s^2` are given by
 
 .. math::
-   \text{E}_{s^2}[\mathcal{M}(V)] &=&
+   \text{E}_{s^2}[\mathcal{M}(V)] &=
    \frac{\omega_\mathcal{M}s^2+\omega_T\omega_Y}{\omega_\mathcal{M}+\omega_T}, \\
-   \text{Var}_{s^2}[\mathcal{M}(V)] &=&
+   \text{Var}_{s^2}[\mathcal{M}(V)] &=
    \frac{\omega_\mathcal{M}\omega_T}{\omega_\mathcal{M}+\omega_T}
 
 Choice of prior values

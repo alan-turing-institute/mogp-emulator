@@ -65,8 +65,8 @@ length<DefCorrelationLength>` vector :math:`\delta` are
 respectively :math:`x_i`, :math:`x'_i` and :math:`\delta_i`, we can write
 
 .. math::
-   c(x,x')&=&\exp\left\{-\sum_{i=1}^p 0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\} \\
-          &=&\prod_{i=1}^p\exp\left\{-0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\}.
+   c(x,x')&= \exp\left\{-\sum_{i=1}^p 0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\} \\
+          &= \prod_{i=1}^p\exp\left\{-0.5\left[(x_i - x'_i)/\delta_i\right]^2\right\}.
 
 This formula shows the role of the correlation length hyperparameter
 :math:`\delta_i`. The smaller its value, the closer together :math:`x_i` and

@@ -91,9 +91,9 @@ is
 The matrices :math:`P, R` are defined as follows
 
 .. math::
-   \displaystyle P &\equiv& A^{-1} - A^{-1}H(H^{\rm T}A^{-1}H)^{-1}H^{\rm
+   \displaystyle P &\equiv A^{-1} - A^{-1}H(H^{\rm T}A^{-1}H)^{-1}H^{\rm
    T}A^{-1} \\
-   \displaystyle R &\equiv& P - Pf(D)(f(D)^{\rm T}Pf(D))^{-1}f(D)^{\rm
+   \displaystyle R &\equiv P - Pf(D)(f(D)^{\rm T}Pf(D))^{-1}f(D)^{\rm
    T}P
 
 The derivatives of the matrix :math:`A` w.r.t :math:`\tau` are

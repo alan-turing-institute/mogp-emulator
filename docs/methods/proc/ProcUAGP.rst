@@ -24,8 +24,8 @@ discussed in the definition page of Uncertainty Analysis
 particular, we consider the uncertainty mean and variance:
 
 .. math::
-   \textrm{E}[f(X)] &=& \int_{{\cal X}} f(x) \omega(x) \mathrm{d} x \\
-   \textrm{Var}[f(X)] &=& \int_{{\cal X}} (f(x) - \textrm{E}[f(x)])^2
+   \textrm{E}[f(X)] &= \int_{{\cal X}} f(x) \omega(x) \mathrm{d} x \\
+   \textrm{Var}[f(X)] &= \int_{{\cal X}} (f(x) - \textrm{E}[f(x)])^2
    \omega(x) \mathrm{d} x
 
 Notice that it is necessary to specify the uncertainty about the inputs
@@ -90,7 +90,7 @@ distribution of the inputs :math:`\omega(X)`, correlation function
 :math:`c(X,X')` and regression function :math:`h(X)` are made. Finally we give
 their forms for two special cases.
 
-Calculation of :math:`\phantom{E}\textrm{E}^*[\textrm{E}[f(X)]]`
+Calculation of :math:`\textrm{E}^*[\textrm{E}[f(X)]]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
@@ -101,7 +101,7 @@ where
 .. math::
    e =A^{-1}(f(D)-H\hat{\beta})
 
-Calculation of :math:`\phantom{E}\textrm{Var}^*[\textrm{E}[f(X)]]`
+Calculation of :math:`\textrm{Var}^*[\textrm{E}[f(X)]]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
@@ -113,7 +113,7 @@ where
 .. math::
    W = (H^{\mathrm{T}}A^{-1}H)^{-1}
 
-Calculation of :math:`\phantom{E}\textrm{E}^*[\textrm{Var}[f(X)]]`
+Calculation of :math:`\textrm{E}^*[\textrm{Var}[f(X)]]`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. math::
@@ -173,10 +173,10 @@ correlation and the regression functions we have general expressions for
 the :math:`U_p, P_p, S_p, Q_p, U, R, T` terms. These are
 
 .. math::
-   U_p &=& \int_{{\cal X}} c(x,x)\omega(x) \mathrm{d} x \\
-   P_p &=& \int_{{\cal X}} t(x)t(x)^{\mathrm{T}} \omega(x) \mathrm{d} x \\
-   S_p &=& \int_{{\cal X}} h(x)t(x)^{\mathrm{T}} \omega(x) \mathrm{d} x \\
-   Q_p &=& \int_{{\cal X}} h(x)h(x)^{\mathrm{T}} \omega(x) \mathrm{d} x
+   U_p &= \int_{{\cal X}} c(x,x)\omega(x) \mathrm{d} x \\
+   P_p &= \int_{{\cal X}} t(x)t(x)^{\mathrm{T}} \omega(x) \mathrm{d} x \\
+   S_p &= \int_{{\cal X}} h(x)t(x)^{\mathrm{T}} \omega(x) \mathrm{d} x \\
+   Q_p &= \int_{{\cal X}} h(x)h(x)^{\mathrm{T}} \omega(x) \mathrm{d} x
 
 :math:`h(x)` is described in the alternatives page on emulator prior mean
 function (:ref:`AltMeanFunction<AltMeanFunction>`). :math:`c(\cdot,\cdot)` is
@@ -192,10 +192,10 @@ Finally, :math:`\omega(x)` is the joint distribution of the :math:`x` inputs.
 For the :math:`U,R,T` we have
 
 .. math::
-   U &=& \int_{{\cal X}}\int_{{\cal X}} c(x,x')\omega(x)\omega(x')
+   U &= \int_{{\cal X}}\int_{{\cal X}} c(x,x')\omega(x)\omega(x')
    \mathrm{d} x \mathrm{d} x' \\
-   R &=& \int_{{\cal X}} h(x)^{\mathrm{T}}\omega(x) \mathrm{d} x \\
-   T &=& \int_{{\cal X}} t(x)^{\mathrm{T}}\omega(x) \mathrm{d} x
+   R &= \int_{{\cal X}} h(x)^{\mathrm{T}}\omega(x) \mathrm{d} x \\
+   T &= \int_{{\cal X}} t(x)^{\mathrm{T}}\omega(x) \mathrm{d} x
 
 where :math:`x` and :math:`x'` are two different realisations of :math:`x`.
 
