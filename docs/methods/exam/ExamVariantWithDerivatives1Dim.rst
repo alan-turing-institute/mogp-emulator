@@ -53,8 +53,8 @@ denotes the derivative w.r.t to the first input at point :math:`x`.
 This results in the following design:
 
 .. math::
-   \tilde{D} &=& [(x_1,d_1),(x_2,d_2),\cdots,(x_{10},d_{10})] \\
-             &=& [(0,0), (0.25,0), (0.5,0), (0.75,0), (1,0), (0,1),
+   \tilde{D} &= [(x_1,d_1),(x_2,d_2),\cdots,(x_{10},d_{10})] \\
+             &= [(0,0), (0.25,0), (0.5,0), (0.75,0), (1,0), (0,1),
                  (0.25,1), (0.5,1), (0.75,1), (1,1)]
 
 The output of the adjoint at these points, which make up our training
@@ -325,9 +325,9 @@ investigate the effect of the derivatives and compare the results.
 We obtain the following estimates for the parameters:
 
 .. math::
-   \hat\delta &=& 2.537 \\
-   \hat{\beta} &=& [ 82.06, 54.34]^{\rm T} \\
-   \widehat\sigma^2 &=& 49615.
+   \hat\delta &= 2.537 \\
+   \hat{\beta} &= [ 82.06, 54.34]^{\rm T} \\
+   \widehat\sigma^2 &= 49615.
 
 Figure 4 shows the predictions of this emulator for 100 points uniformly
 spaced on the original scale. The solid, black line is the output of the
