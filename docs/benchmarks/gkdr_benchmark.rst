@@ -4,4 +4,4 @@
 Dimension Reduction Benchmark
 **********************************
 
-.. automodule:: mogp_emulator.benchmark.benchmark_kdr_GP
+.. automodule:: mogp_emulator.benchmarks.benchmark_kdr_GP

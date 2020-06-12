@@ -1,7 +1,7 @@
 .. _benchmarks:
 
 **********************************
-``mogp_emulator`` Benchmarks
+Benchmarks
 **********************************
 
 .. toctree::
@@ -13,9 +13,6 @@
    gkdr_benchmark
    histmatch_benchmark
 
-Benchmarks
-----------
-
 The code includes a series of benchmarks that illustrate various pieces of the implementation. Benchmarks
 can be run from the ``mogp_emulator/tests`` directory by entering ``make all`` or ``make benchmarks`` to
 run all benchmarks, or ``make rosenbrock``, ``make branin``, ``make tsunami``, ``make mcmc``, ``make mice``, ``make gKDR``, or ``make histmatch`` to run the individual benchmarks.
@@ -24,7 +21,7 @@ Single Emulator Convergence Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The first benchmark examines the convergence of a single emulator applied to the Rosenbrock function in
-several different dimensions (more details can be found `here <https://www.sfu.ca/~ssurjano/rosen.html>`_).
+several different dimensions (more details can be found `here <https://www.sfu.ca/~ssurjano/rosen.html>`__).
 This illustrates how the emulator predictions improve as the number of training points is increased
 for different numbers of input parameters. The benchmark evaluates the Rosenbrock function in 4, 6, and
 8 dimensions and shows that the mean squared prediction error and the mean variance improve with the
@@ -34,7 +31,7 @@ Multi-Output Convergence Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The second benchmark examines the convergence of multiple emulators derived from the same input values.
-This benchmark is based on the 2D Branin function (more details on this function can be found `here <https://www.sfu.ca/~ssurjano/branin.html>`_)
+This benchmark is based on the 2D Branin function (more details on this function can be found `here <https://www.sfu.ca/~ssurjano/branin.html>`__)
 . The code uses 8 different realizations of the Branin
 function using different parameter values, and then examines the convergence of the 8 different
 emulators fit using different number of parameter values based on the prediction errors and
