@@ -6,29 +6,38 @@
 Welcome to Multi-Output GP Emulator's documentation!
 ====================================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-   GaussianProcess
-   MultiOutputGP
-   fitting
-   MeanFunction
-   formula
-   Kernel
-   Priors
-   DimensionReduction
-   ExperimentalDesign
-   SequentialDesign
-   HistoryMatching
-   MCMC
-   benchmarks/benchmarks
+For a more detailed description of some of the Uncertainty Quantification methods used in this
+package, see the MUCM toolkit pages:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Uncertainty Quantification Methods
+   :caption: The MUCM Toolkit:
 
    methods/methods
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Class Implementation Details:
+
+   implementation/GaussianProcess
+   implementation/MultiOutputGP
+   implementation/fitting
+   implementation/MeanFunction
+   implementation/formula
+   implementation/Kernel
+   implementation/Priors
+   implementation/DimensionReduction
+   implementation/ExperimentalDesign
+   implementation/SequentialDesign
+   implementation/HistoryMatching
+   implementation/MCMC
+
+.. toctree::
+   :maxdepth: 1
+   :caption:
+   Code benchmark examples:
+
+   benchmarks/benchmarks
 
 
 
