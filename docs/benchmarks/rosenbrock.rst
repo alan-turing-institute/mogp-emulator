@@ -4,4 +4,4 @@
 Rosenbrock Function Benchmark
 **********************************
 
-.. automodule:: mogp_emulator.tests.benchmark_rosenbrock
+.. automodule:: mogp_emulator.benchmarks.benchmark_rosenbrock
