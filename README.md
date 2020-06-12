@@ -21,7 +21,7 @@ pip install mogp_emulator
 
 (NOTE: the project is not yet on PyPI, but we expect that the current version of the `devel` branch will
 be the first one available to be installed that way so are accounting for this in the rewrite of this
-README. Until that is completed, please see the [docs/installation.rst](docs/installation.rst)
+README. Until that is completed, please see the [docs/installation.rst](docs/intro/installation.rst)
 page for details on how to install the software manually. Thank you for your patience as we are hard
 at work on improvements to the software!)
 
