@@ -71,13 +71,13 @@ def test_fit_GP_MAP_MOGP():
 
     theta_exp = np.zeros((2, 3))
     theta_exp[0] = np.array([ 1.6030532031342832, -2.090511425471982 , -0.7803960307137198])
-    theta_exp[1] = np.array([ 1.2807839212942222, -0.5095550757153631, -2.009987161484929 ])
+    theta_exp[1] = np.array([ 1.414112951818647 , -0.5974688573393576,  0.6857536842773265])
     logpost_exp = np.zeros(2)
     logpost_exp[0] = -296.0297245831661
-    logpost_exp[1] = -249.82550942156362
+    logpost_exp[1] = -250.06025683867367
     np.random.seed(4335)
 
-    gp = fit_GP_MAP(gp)
+    gp = fit_GP_MAP(gp, processes=1)
 
     assert isinstance(gp, MultiOutputGP)
     for i in range(2):
@@ -88,7 +88,7 @@ def test_fit_GP_MAP_MOGP():
 
     np.random.seed(4335)
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B")
+    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
     for i in range(2):
         assert_allclose(gp.emulators[i].theta, theta_exp[i])
@@ -176,13 +176,13 @@ def test_fit_MOGP_MAP_MOGP():
 
     theta_exp = np.zeros((2, 3))
     theta_exp[0] = np.array([ 1.6030532031342832, -2.090511425471982 , -0.7803960307137198])
-    theta_exp[1] = np.array([ 1.2807839212942222, -0.5095550757153631, -2.009987161484929 ])
+    theta_exp[1] = np.array([ 1.414112951818647 , -0.5974688573393576,  0.6857536842773265])
     logpost_exp = np.zeros(2)
     logpost_exp[0] = -296.0297245831661
-    logpost_exp[1] = -249.82550942156362
+    logpost_exp[1] = -250.06025683867367
     np.random.seed(4335)
 
-    gp = _fit_MOGP_MAP(gp)
+    gp = _fit_MOGP_MAP(gp, processes=1)
 
     assert isinstance(gp, MultiOutputGP)
     for i in range(2):
