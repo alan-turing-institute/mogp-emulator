@@ -22,6 +22,7 @@ tutorial describing a Uncertainty Quantification workflow using ``mogp_emulator`
    intro/overview
    intro/installation
    intro/tutorial
+   intro/methoddetails
 
 Some more specific demos and tutorial illustrating how the various package components can be used are:
 
