@@ -6,6 +6,7 @@ from mogp_emulator.GaussianProcess import GaussianProcess
 from mogp_emulator.MultiOutputGP import MultiOutputGP
 from multiprocessing import Pool
 from functools import partial
+import platform
 
 def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
     """
@@ -165,9 +166,13 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
 
     n_tries = int(n_tries)
 
-    with Pool(processes) as p:
-        fit_MOGP = p.starmap(partial(fit_GP_MAP, n_tries=n_tries, theta0=theta0, method=method, **kwargs),
-                            [(emulator,) for emulator in gp.emulators])
+    if platform.system() == "Windows":
+        fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
+                    for emulator in gp.emulators]
+    else:
+        with Pool(processes) as p:
+            fit_MOGP = p.starmap(partial(fit_GP_MAP, n_tries=n_tries, theta0=theta0, method=method, **kwargs),
+                                 [(emulator,) for emulator in gp.emulators])
 
     gp.emulators = fit_MOGP
 
