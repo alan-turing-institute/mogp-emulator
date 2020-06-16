@@ -2,7 +2,7 @@
 
 We value the participation of every member of our community and want to ensure
 that every contributer has an enjoyable and fulfilling experience. Accordingly,
-everyone who participates in the `repro-catalogue` project is expected to show respect and
+everyone who participates in the `mogp_emulator` project is expected to show respect and
 courtesy to other community members at all time.
 
 In the interest of fostering an open and welcoming environment, we as

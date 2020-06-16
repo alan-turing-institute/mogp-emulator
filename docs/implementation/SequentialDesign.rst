@@ -9,13 +9,15 @@ The ``SequentialDesign`` Class
 
 .. autoclass:: mogp_emulator.SequentialDesign.SequentialDesign
     :members:
-    
+
     .. automethod:: __init__
-    
-    
+
+
 **********************************
 The ``MICEDesign`` Class
 **********************************
+
+.. _MICEDesign:
 
 .. automodule:: mogp_emulator.SequentialDesign.MICEDesign
     :noindex:
@@ -23,7 +25,7 @@ The ``MICEDesign`` Class
 .. autoclass:: mogp_emulator.SequentialDesign.MICEDesign
     :members:
     :inherited-members:
-    
+
     .. automethod:: __init__
 
 
