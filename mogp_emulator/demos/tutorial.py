@@ -58,7 +58,7 @@ print("Validation included {} within 2 std out of {}".format(correct, n_valid))
 n_predict = 10000
 prediction_points = lhd.sample(n_predict)
 
-hm = mogp_emulator.HistoryMatching(gp=gp, coords=prediction_points, obs=[2000., 50.])
+hm = mogp_emulator.HistoryMatching(gp=gp, coords=prediction_points, obs=[2000., 400.])
 
 nroy_points = hm.get_NROY()
 
