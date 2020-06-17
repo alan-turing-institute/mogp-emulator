@@ -1,4 +1,5 @@
 from multiprocessing import Pool
+import platform
 import numpy as np
 from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 from mogp_emulator.MeanFunction import MeanBase
@@ -137,8 +138,11 @@ class MultiOutputGP(object):
             processes = int(processes)
             assert processes > 0, "number of processes must be a positive integer"
 
-        with Pool(processes) as p:
-            predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv) for gp in self.emulators])
+        if platform.system() == "Windows":
+            predict_vals = [GaussianProcess.predict(gp, testing, unc, deriv) for gp in self.emulators]
+        else:
+            with Pool(processes) as p:
+                predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv) for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 
