@@ -3,6 +3,8 @@
 Tutorial
 ========
 
+*Note: This tutorial requires Scipy version 1.4 or later to run the simulator.*
+
 This page includes an end-to-end example of using ``mogp_emulator`` to perform model calibration.
 We define a simulator describing projectile motion with nonlinear drag, and then illustrate
 how to sample from the simulator, fit a surrogate model, and explore the parameter space
@@ -253,6 +255,6 @@ samples would take nearly 2 weeks. Thus, the surrogate becomes necessary very qu
 exhaustively explore the input space to the point of being confident in our sampling.
 
 More details about these steps can be found in the :ref:`methods` section, or on the following page
-that goes into :ref:`more details <moredetails>` on the options available in this software library.
+that goes into :ref:`more details <methoddetails>` on the options available in this software library.
 For more on the specific implementation detials, see the various
 :ref:`implementation pages <implementation>` describing the software components.
