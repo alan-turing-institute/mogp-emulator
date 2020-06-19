@@ -3,7 +3,7 @@
 Tutorial
 ========
 
-This page includes and end-to-end example of using ``mogp_emulator`` to perform model calibration.
+This page includes an end-to-end example of using ``mogp_emulator`` to perform model calibration.
 We define a simulator describing projectile motion with nonlinear drag, and then illustrate
 how to sample from the simulator, fit a surrogate model, and explore the parameter space
 using history matching to obtain a plausible subset of the input space.
@@ -169,3 +169,89 @@ are within 2 standard deviations of the true value. Usually for this example thi
 about 8/10, so not quite as we would expect if it were perfectly recreating the
 function. However, we will see that this still is good enough in most cases
 for the task at hand.
+
+History Matching
+~~~~~~~~~~~~~~~~
+
+The final step in the analysis is to perform calibration, where we draw a large number
+of samples from the model input and compare the output of the surrogate model to the
+observations to determine what inputs are plausible given the data. There are many ways
+to perform model calibration, but we think that History Matching is a robust technique
+well-suited for most problems. It has the particular advantage in that even in the
+situation where the surrogate model is not particularly accurate, the results from
+History Matching are still valid. This is in contrast to full Bayesian Calibration,
+where the surrogate model must be accurate over the entire input space to obtain good
+results.
+
+History matching involves computing an **implausibility metric**, which determines how
+likely a particular set of inputs describes the given observations. There are many
+choices for how to compute this metric, but we default to the simplest version
+where we compute the number of standard deviations between the surrogate model mean
+and the observations. The variance is determined by summing the observation error,
+the surrogate model error, and a final error known as **model discrepancy**. Model
+discrepancy is meant to account for the fact that our simulations do not completely
+describe reality, and is an important consideration in studying most complex physical
+models. In this example, however, we assume that our model is perfect and the model
+discrepancy is zero, though we will still consider the other two sources of error.
+
+To compute the implausibility metric, we need to draw a much larger number of samples
+from the experimental design to ensure that we have good coverage of the input parameter
+space (it is not uncommon to make millions of predictions when doing history matching
+in research problems). We draw from our Latin Hypercube Design again, though at this
+sampling density there is probably not a significant difference between the Latin Hypercube
+and Monte Carlo sampling (especially in only 2 dimensions). Then, we create a
+:ref:`HistoryMatching <HistoryMatching>` object and compute which points are "Not Ruled Out
+Yet" (NROY). This is done as follows:
+
+.. literalinclude:: ../../mogp_emulator/demos/tutorial.py
+   :lines: 58-65
+
+First, we set a large number of samples and draw them from the experimental design object. Then,
+We construct the :ref:`HistoryMatching <HistoryMatching>` object by giving the fit GP
+surrogate model (the ``gp`` argument), the prediction points to consider (the ``coords`` argument),
+and the observations (the ``obs`` argument) as an observed value with an uncertainty (as a variance).
+The ``predict`` method of the GP object is used to make predictions inside the history
+matching class. With the constructed :ref:`HistoryMatching <HistoryMatching>` object, we can
+obtain the NROY points by calling the ``get_NROY`` method. This returns a list of integer
+indices that can be used to index into the ``prediction_points`` array and learn about the
+points that are not ruled out by our analysis. We finally print out the fraction of points that
+*were* ruled out. In most cases, this should be a large fraction of the space, usually around
+98% of the sampled points. Those that are *not* ruled out are plausible inputs given the data.
+
+We can visualize this quite easily due to the fact that our parameter space is only 2D by making
+a scatter plot of the NROY points. We also include the sample points used to construct the
+surrogate model for reference. This plotting command is only executed if ``matplotlib`` is
+installed:
+
+.. literalinclude:: ../../mogp_emulator/demos/tutorial.py
+   :lines: 5-10,69-
+
+which should make a plot that looks something like this:
+
+.. image:: tutorial_nroy.png
+
+If the original emulator makes accurate predictions, you should get something that looks similar
+to the above plot. As you can see, most of the space can be ruled out, and only a small fraction
+of the points remain as plausible options. For launch velocities below around 200 m/s the projectile
+cannot reach the observed distance regardless of the drag coefficient. Above this value,
+a narrow range of :math:`(C,v_0)` pairs are allowed (presumably a line plus some error due to
+the observation error if our emulator could exactly reproduce the simulator solution). Above a drag
+coefficient of around :math:`10^{-3}` kg/m, none of the launch velocities that we sampled
+can produce the observations as the drag is presumably too high for the projectile to travel
+that distance. There are some points at the edges of the simulation that we cannot rule out, though
+they are likely due to errors in our emulator in those regions.
+
+More Details
+------------
+
+This simple analysis illustrates the basic approach to running a model calibration example. In
+practice, this simulator is not particularly expensive to run, and so we could imagine doing this
+analysis without the surrogate model. However, if the simulation takes even 1 second, drawing the
+10,000 samples needed to explore the parameter space would take 3 hours, and a million
+samples would take nearly 2 weeks. Thus, the surrogate becomes necessary very quickly if we wish to
+exhaustively explore the input space to the point of being confident in our sampling.
+
+More details about these steps can be found in the :ref:`methods` section, or on the following page
+that goes into :ref:`more details <moredetails>` on the options available in this software library.
+For more on the specific implementation detials, see the various
+:ref:`implementation pages <implementation>` describing the software components.
