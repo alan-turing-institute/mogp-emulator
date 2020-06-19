@@ -3,7 +3,7 @@ import platform
 import numpy as np
 from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 from mogp_emulator.MeanFunction import MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential
+from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 
 class MultiOutputGP(object):
@@ -27,7 +27,7 @@ class MultiOutputGP(object):
     are parsed to mean functions, if using.
     """
 
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=[],
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
@@ -57,12 +57,21 @@ class MultiOutputGP(object):
         assert isinstance(mean, list), "mean must be None, a string, a mean function, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
 
+        if isinstance(kernel, str):
+            if kernel == "SquaredExponential":
+                kernel = SquaredExponential()
+            elif kernel == "Matern52":
+                kernel = Matern52()
+            else:
+                raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
         if issubclass(type(kernel), Kernel):
             kernel = self.n_emulators*[kernel]
 
         assert isinstance(kernel, list), "kernel must be a Kernal subclass or a list of Kernel subclasses"
         assert len(kernel) == self.n_emulators
 
+        if priors is None:
+            priors = []
         assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
 
         if len(priors) == 0:
