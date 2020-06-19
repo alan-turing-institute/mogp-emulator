@@ -1,6 +1,6 @@
 import numpy as np
 from mogp_emulator.MeanFunction import MeanFunction, MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential
+from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
@@ -63,7 +63,7 @@ class GaussianProcess(object):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=[],
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
         """
         Create a new GaussianProcess Emulator
@@ -141,6 +141,13 @@ class GaussianProcess(object):
                 raise ValueError("provided mean function must be a subclass of MeanFunction,"+
                                  " a string formula, or None")
 
+        if isinstance(kernel, str):
+            if kernel == "SquaredExponential":
+                kernel = SquaredExponential()
+            elif kernel == "Matern52":
+                kernel = Matern52()
+            else:
+                raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
         if not issubclass(type(kernel), Kernel):
             raise ValueError("provided kernel is not a subclass of Kernel")
 
@@ -355,6 +362,9 @@ class GaussianProcess(object):
         the prior for the nugget will automatically be set to ``None`` even if a distribution is
         provided.
         """
+
+        if priors is None:
+            priors = []
 
         if not isinstance(priors, list):
             raise TypeError("priors must be a list of Prior-derived objects")
