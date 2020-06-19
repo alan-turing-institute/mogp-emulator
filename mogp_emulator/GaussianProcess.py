@@ -86,9 +86,9 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
 
-        ``prior`` must be either (1) an empty list, indicating uninformative prior information,
-        or (2) a list of length ``n_params`` containing either ``None`` (for uninformative prior)
-        or a ``Prior``-derived object.
+        ``prior`` must be either (1) ``None`` or (2) an empty list, indicating uninformative prior
+        information, or (3) a list of length ``n_params`` containing either ``None``
+        (for uninformative prior) or a ``Prior``-derived object.
 
         ``nugget`` controls how additional noise is added to the emulator targets when fitting.
         This can be specified in several ways. If a string is provided, it can take the
@@ -110,7 +110,9 @@ class GaussianProcess(object):
         :param mean: Mean function to be used (optional, default is ``None`` for a zero mean)
         :type mean: None or MeanFunction
         :param kernel: Covariance kernel to be used (optional, default is Squared Exponential)
-        :type kernel: Kernel
+                       Can provide either a ``Kernel`` object or a string matching the
+                       kernel type to be used.
+        :type kernel: Kernel or str
         :param priors: List of priors to be used. Must be an empty list (default, indicates
                        uninformative priors) or list of length ``n_params``. Any parameter
                        for which you wish to specify an uninformative prior, pass ``None``.
@@ -353,9 +355,9 @@ class GaussianProcess(object):
         """
         Sets the priors to a list of prior objects/None
 
-        Sets the priors, must be a list. Entries can be ``None`` or a subclass of ``Prior``.
-        ``None`` indicates weak prior information. An empty list means all uninformative priors.
-        Otherwise list should have the same length as the number of hyperparameters,
+        Sets the priors, must be a list or ``None``. Entries can be ``None`` or a subclass of ``Prior``.
+        ``None`` indicates weak prior information. An empty list or ``None`` means all uninformative
+        priors. Otherwise list should have the same length as the number of hyperparameters,
         or alternatively can be one shorter than the number of hyperparameters
         if ``nugget_type`` is ``"adaptive"`` or ``"fixed"`` meaning that the nugget hyperparameter
         is not fit but is instead fixed or found adaptively. If the nugget hyperparameter is not fit,
