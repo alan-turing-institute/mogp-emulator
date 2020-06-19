@@ -139,10 +139,10 @@ Following fitting, we print out some of the hyperparameters that are estimated.
 First, we print out the correlation lengths estimated for each of the input
 parameters. These determine how far we have to move in that coordinate direction
 to see a significant change in the output. If you run this example, if you get
-a decent fit you should see correlation lengths of :math:`\sim`1.3 and
-:math:`/sim`500 (your values may differ a bit, but note that the fit is not highly
+a decent fit you should see correlation lengths of :math:`\sim 1.3` and
+:math:`\sim 500` (your values may differ a bit, but note that the fit is not highly
 sensitive to these values). The overall variation in the function is captured by
-the variance scale :math:`\sigma`, which should be around :math:`\sim`20,000 for
+the variance scale :math:`\sigma`, which should be around :math:`\sim 20,000` for
 this example.
 
 If your values are very different from these, there is a good chance
@@ -239,7 +239,8 @@ the observation error if our emulator could exactly reproduce the simulator solu
 coefficient of around :math:`10^{-3}` kg/m, none of the launch velocities that we sampled
 can produce the observations as the drag is presumably too high for the projectile to travel
 that distance. There are some points at the edges of the simulation that we cannot rule out, though
-they are likely due to errors in our emulator in those regions.
+the fact that they occur in gaps in the input simulation sampling suggests that they are likely due
+to errors in our emulator in those regions.
 
 More Details
 ------------
