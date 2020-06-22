@@ -1,6 +1,6 @@
 import numpy as np
 from mogp_emulator.MeanFunction import MeanFunction, MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential
+from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
@@ -63,7 +63,7 @@ class GaussianProcess(object):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=[],
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
         """
         Create a new GaussianProcess Emulator
@@ -86,9 +86,11 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
 
-        ``prior`` must be either (1) an empty list, indicating uninformative prior information,
-        or (2) a list of length ``n_params`` containing either ``None`` (for uninformative prior)
-        or a ``Prior``-derived object.
+        ``prior`` must be a list of length ``n_params`` whose elements are either ``Prior``-derived
+        objects or ``None``.  Each element is used as the prior for the corresponding parameter (with
+        ``None`` indicating an uninformative prior).  Passing the empty list or ``None`` as this
+        argument (in its entirety) may be used as an abbreviation for a list of ``n_params`` where
+        all list elements are ``None``.
 
         ``nugget`` controls how additional noise is added to the emulator targets when fitting.
         This can be specified in several ways. If a string is provided, it can take the
@@ -110,14 +112,17 @@ class GaussianProcess(object):
         :param mean: Mean function to be used (optional, default is ``None`` for a zero mean)
         :type mean: None or MeanFunction
         :param kernel: Covariance kernel to be used (optional, default is Squared Exponential)
-        :type kernel: Kernel
-        :param priors: List of priors to be used. Must be an empty list (default, indicates
-                       uninformative priors) or list of length ``n_params``. Any parameter
-                       for which you wish to specify an uninformative prior, pass ``None``.
-                       Number of parameters is the number of parameters in the mean function
-                       plus ``D + 2`` (one correlation length per input plus a covariance
-                       scale and a nugget).
-        :type priors: list
+                       Can provide either a ``Kernel`` object or a string matching the
+                       kernel type to be used.
+        :type kernel: Kernel or str
+        :param priors: List of priors to be used. Must be None (default) or an empty list
+                       (indicates uninformative priors) or list of length ``n_params``.
+                       Any parameter for which you wish to specify an uninformative prior,
+                       pass ``None``. Number of parameters is the number of parameters in
+                       the mean function plus ``D + 2`` (one correlation length per input
+                       plus a covariance scale and a nugget). If the nugget will not be fit,
+                       the list can have length ``n_params - 1``.
+        :type priors: list or None
         :param nugget: Noise to be added to the diagonal, specified as a string or a float.
                        A non-negative float specifies the noise level explicitly, while a string
                        indicates that the nugget will be found via fitting, either as ``"adaptive"``
@@ -141,6 +146,13 @@ class GaussianProcess(object):
                 raise ValueError("provided mean function must be a subclass of MeanFunction,"+
                                  " a string formula, or None")
 
+        if isinstance(kernel, str):
+            if kernel == "SquaredExponential":
+                kernel = SquaredExponential()
+            elif kernel == "Matern52":
+                kernel = Matern52()
+            else:
+                raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
         if not issubclass(type(kernel), Kernel):
             raise ValueError("provided kernel is not a subclass of Kernel")
 
@@ -223,7 +235,8 @@ class GaussianProcess(object):
         Returns method used to select nugget parameter
 
         Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
-        ``"fit"``, or ``"fixed"``. Can be modified when setting the ``nugget`` property.
+        ``"fit"``, or ``"fixed"``. This is automatically set when changing the ``nugget``
+        property.
 
         :returns: Current nugget fitting method
         :rtype: str
@@ -241,6 +254,26 @@ class GaussianProcess(object):
 
         :returns: Current nugget value, either a float or ``None``
         :rtype: float or None
+
+        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
+        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
+        float, then that particular value is used for the nugget. Note that setting this parameter
+        to be zero enforces that the emulator strictly interpolates between points. Alternatively,
+        a string can be provided. A value of ``"fit"`` means that the nugget is treated as a
+        hyperparameter, and is the last entry in the ``theta`` array. Alternatively, if ``nugget``
+        is set to be ``"adaptive"``, the fitting routine will adaptively make the noise parameter
+        as large as is needed to ensure that the emulator can be fit.
+
+        Internally, this modifies both the way the nugget is chosen (which can be determined
+        via the ``nugget_type`` property) and the value itself (the ``nugget`` property)
+
+        :param nugget: Noise to be added to the diagonal, specified as a string or a float.
+                       A non-negative float specifies the noise level explicitly, while a string
+                       indicates that the nugget will be found via fitting, either as ``"adaptive"``
+                       or ``"fit"`` (see above for a description).
+        :type nugget: float or str
+        :returns: None
+        :rtype: None
         """
 
         return self._nugget
@@ -306,6 +339,22 @@ class GaussianProcess(object):
         :returns: Current parameter values (numpy array of length ``n_params``), or ``None`` if the
                   parameters have not been fit.
         :rtype: ndarray or None
+
+        When set, pre-calculates the matrices needed to compute the log-likelihood and its derivatives
+        and make subsequent predictions. This is called any time the hyperparameter values are
+        changed in order to ensure that all the information is needed to evaluate the
+        log-likelihood and its derivatives, which are needed when fitting the optimal
+        hyperparameters.
+
+        The method computes the mean function and covariance matrix and inverts the covariance
+        matrix using the method specified by the value of ``nugget``. The factorized matrix
+        and the product of the inverse with the difference between the targets and the mean
+        are cached for later use, and the negative marginal log-likelihood is also cached.
+        This method has no return value, but it does modify the state of the object.
+
+        :param theta: Values of the hyperparameters to use in fitting. Must be a numpy
+                      array with length ``n_params``
+        :type theta: ndarray
         """
 
         return self._theta
@@ -337,7 +386,16 @@ class GaussianProcess(object):
     @property
     def priors(self):
         """
-        Returns the current list priors used in computing the log posterior
+        The current list priors used in computing the log posterior
+
+        To set the priors, must be a list or ``None``. Entries can be ``None`` or a subclass of ``Prior``.
+        ``None`` indicates weak prior information. An empty list or ``None`` means all uninformative
+        priors. Otherwise list should have the same length as the number of hyperparameters,
+        or alternatively can be one shorter than the number of hyperparameters
+        if ``nugget_type`` is ``"adaptive"`` or ``"fixed"`` meaning that the nugget hyperparameter
+        is not fit but is instead fixed or found adaptively. If the nugget hyperparameter is not fit,
+        the prior for the nugget will automatically be set to ``None`` even if a distribution is
+        provided.
         """
         return self._priors
 
@@ -346,15 +404,18 @@ class GaussianProcess(object):
         """
         Sets the priors to a list of prior objects/None
 
-        Sets the priors, must be a list. Entries can be ``None`` or a subclass of ``Prior``.
-        ``None`` indicates weak prior information. An empty list means all uninformative priors.
-        Otherwise list should have the same length as the number of hyperparameters,
+        Sets the priors, must be a list or ``None``. Entries can be ``None`` or a subclass of ``Prior``.
+        ``None`` indicates weak prior information. An empty list or ``None`` means all uninformative
+        priors. Otherwise list should have the same length as the number of hyperparameters,
         or alternatively can be one shorter than the number of hyperparameters
         if ``nugget_type`` is ``"adaptive"`` or ``"fixed"`` meaning that the nugget hyperparameter
         is not fit but is instead fixed or found adaptively. If the nugget hyperparameter is not fit,
         the prior for the nugget will automatically be set to ``None`` even if a distribution is
         provided.
         """
+
+        if priors is None:
+            priors = []
 
         if not isinstance(priors, list):
             raise TypeError("priors must be a list of Prior-derived objects")

@@ -4,7 +4,7 @@ import pytest
 from numpy.testing import assert_allclose
 from ..GaussianProcess import GaussianProcess, PredictResult
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
-from ..Kernel import Matern52
+from ..Kernel import SquaredExponential, Matern52
 from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy import linalg
 
@@ -34,6 +34,12 @@ def test_GaussianProcess_init(x, y):
 
     gp = GaussianProcess(x, y, mean=ConstantMean(1.), kernel=Matern52(), nugget="fit")
 
+    gp = GaussianProcess(x, y, kernel="SquaredExponential")
+    assert isinstance(gp.kernel, SquaredExponential)
+
+    gp = GaussianProcess(x, y, kernel="Matern52")
+    assert isinstance(gp.kernel, Matern52)
+
     gp = GaussianProcess(x, y, mean="a+b*x[0]", use_patsy=False)
 
     assert str(gp.mean) == "c + c*x[0]"
@@ -56,6 +62,9 @@ def test_GP_init_failures(x, y):
 
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, mean=1)
+
+    with pytest.raises(ValueError):
+        gp = GaussianProcess(x, y, kernel="blah")
 
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, kernel=1)
@@ -138,6 +147,19 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
 
 def test_GaussianProcess_priors(x, y):
     "test that priors are set properly"
+
+    gp = GaussianProcess(x, y)
+
+    assert gp.priors == [None, None, None, None, None]
+
+    gp = GaussianProcess(x, y, priors=None)
+
+    assert gp.priors == [None, None, None, None, None]
+
+    priors = []
+    gp = GaussianProcess(x, y, priors=priors)
+
+    assert gp.priors == [None, None, None, None, None]
 
     priors = [None, None, None, None, None]
     gp = GausianProcess(x, y)
