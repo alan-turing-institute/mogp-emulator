@@ -86,9 +86,11 @@ class GaussianProcess(object):
         ``targets`` is the target data to be fit by the emulator, also held in an array-like
         object. This must be a 1D array of length ``n``.
 
-        ``prior`` must be either (1) ``None`` or (2) an empty list, indicating uninformative prior
-        information, or (3) a list of length ``n_params`` containing either ``None``-types
-        (for uninformative prior) or a series of ``Prior``-derived objects.
+        ``prior`` must be a list of length ``n_params`` whose elements are either ``Prior``-derived
+        objects or ``None``.  Each element is used as the prior for the corresponding parameter (with
+        ``None`` indicating an uninformative prior).  Passing the empty list or ``None`` as this
+        argument (in its entirety) may be used as an abbreviation for a list of ``n_params`` where
+        all list elements are ``None``.
 
         ``nugget`` controls how additional noise is added to the emulator targets when fitting.
         This can be specified in several ways. If a string is provided, it can take the
