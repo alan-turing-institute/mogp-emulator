@@ -92,7 +92,7 @@ class MultiOutputGP(object):
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
-    def predict(self, testing, unc=True, deriv=True, processes=None):
+    def predict(self, testing, unc=True, deriv=True, include_nugget=True, processes=None):
         """
         Make a prediction for a set of input vectors
 
@@ -106,11 +106,13 @@ class MultiOutputGP(object):
         from the method.
 
         Optionally, the emulator can also calculate the uncertainties in the predictions
-        and the derivatives with respect to each input parameter. If the uncertainties are
-        computed, they are returned as the second output from the method as an
-        ``(n_emulators, n_predict)`` shaped numpy array. If the derivatives are computed,
-        they are returned as the third output from the method as an
-        ``(n_emulators, n_predict, D)`` shaped numpy array.
+        (as a variance) and the derivatives with respect to each input parameter. If the
+        uncertainties are computed, they are returned as the second output from the method
+        as an ``(n_emulators, n_predict)`` shaped numpy array. If the derivatives are
+        computed, they are returned as the third output from the method as an
+        ``(n_emulators, n_predict, D)`` shaped numpy array. Finally, if uncertainties
+        are computed, the ``include_nugget`` flag determines if the uncertainties should
+        include the nugget. By default, this is set to ``True``.
 
         As with the fitting, this computation can be done independently for each emulator
         and thus can be done in parallel.
@@ -118,14 +120,18 @@ class MultiOutputGP(object):
         :param testing: Array-like object holding the points where predictions will be made.
                         Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
         :type testing: ndarray
-        :param do_deriv: (optional) Flag indicating if the derivatives are to be computed.
-                         If ``False`` the method returns ``None`` in place of the derivative
-                         array. Default value is ``True``.
-        :type do_deriv: bool
-        :param do_unc: (optional) Flag indicating if the uncertainties are to be computed.
-                         If ``False`` the method returns ``None`` in place of the uncertainty
-                         array. Default value is ``True``.
-        :type do_unc: bool
+        :param unc: (optional) Flag indicating if the uncertainties are to be computed.
+                    If ``False`` the method returns ``None`` in place of the uncertainty
+                    array. Default value is ``True``.
+        :type unc: bool
+        :param deriv: (optional) Flag indicating if the derivatives are to be computed.
+                      If ``False`` the method returns ``None`` in place of the derivative
+                      array. Default value is ``True``.
+        :type deriv: bool
+        :param include_nugget: (optional) Flag indicating if the nugget should be included
+                               in the predictive variance. Only relevant if ``unc = True``.
+                               Default is ``True``.
+        :type include_nugget: bool
         :param processes: (optional) Number of processes to use when making the predictions.
                           Must be a positive integer or ``None`` to use the number of
                           processors on the computer (default is ``None``)
@@ -148,10 +154,10 @@ class MultiOutputGP(object):
             assert processes > 0, "number of processes must be a positive integer"
 
         if platform.system() == "Windows":
-            predict_vals = [GaussianProcess.predict(gp, testing, unc, deriv) for gp in self.emulators]
+            predict_vals = [GaussianProcess.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
         else:
             with Pool(processes) as p:
-                predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv) for gp in self.emulators])
+                predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 

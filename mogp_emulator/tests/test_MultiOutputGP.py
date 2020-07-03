@@ -64,3 +64,34 @@ def test_MultiOutputGP_predict(x, y, dx):
         assert_allclose(mu[i], mu_expect)
         assert_allclose(var[i], var_expect)
         assert_allclose(deriv[i], deriv_expect, atol=1.e-6, rtol=1.e-6)
+
+    nugget = 1.
+    gp = MultiOutputGP(x, y, nugget=nugget)
+    theta = np.ones(gp.emulators[0].n_params)
+
+    gp.emulators[0].fit(theta)
+    gp.emulators[1].fit(theta)
+
+    x_test = np.array([[2., 3., 4.]])
+
+    mu, var, deriv = gp.predict(x_test)
+
+    for i in range(2):
+
+        K = gp.emulators[i].kernel.kernel_f(x, x, theta[:-1]) + np.eye(gp.emulators[i].n)*nugget
+        Ktest = gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
+
+        var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
+
+        assert_allclose(var[i], var_expect)
+
+    mu, var, deriv = gp.predict(x_test, include_nugget=False)
+
+    for i in range(2):
+
+        K = gp.emulators[i].kernel.kernel_f(x, x, theta[:-1]) + np.eye(gp.emulators[i].n)*nugget
+        Ktest = gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
+
+        var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
+
+        assert_allclose(var[i], var_expect)
