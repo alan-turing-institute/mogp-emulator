@@ -470,6 +470,30 @@ def test_GaussianProcess_predict(x, y, dx):
 
     assert_allclose(gp(x_test), mu_expect)
 
+def test_GaussianProcess_predict_nugget(x, y):
+    "test that the nugget works correctly when making predictions"
+
+    nugget = 1.e0
+
+    gp = GaussianProcess(x, y, nugget=nugget)
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    preds = gp.predict(x)
+
+    K = gp.kernel.kernel_f(x, x, theta[:-1])
+
+    var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+
+    assert_allclose(preds.unc, var_expect, atol=1.e-7)
+
+    preds = gp.predict(x, include_nugget=False)
+
+    var_expect = np.exp(theta[-2]) - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+
+    assert_allclose(preds.unc, var_expect, atol=1.e-7)
+
 def test_GaussianProcess_predict_variance():
     "confirm that caching factorized matrix produces stable variance predictions"
 
