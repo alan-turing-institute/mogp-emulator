@@ -1,5 +1,5 @@
 import numpy as np
-from projectile import simulator
+from projectile import simulator, print_results
 import mogp_emulator
 
 try:
@@ -47,9 +47,7 @@ validation_output = np.array([simulator(p) for p in validation_points])
 
 predictions = gp.predict(validation_points)
 
-correct = np.sum(np.abs(predictions.mean - validation_output) <= 2.*np.sqrt(predictions.unc))
-
-print("Validation included {} within 2 std out of {}".format(correct, n_valid))
+print_results(validation_points, predictions.mean)
 
 # Finally, perform history matching. Sample densely from the experimental design and
 # determine which points are consistent with the data using the GP predictions
