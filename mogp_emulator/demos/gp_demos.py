@@ -1,12 +1,30 @@
-import mogp_emulator
 import numpy as np
+import mogp_emulator
+from projectile import simulator
 
-# simple GP examples
+# additional GP examples using the projectile demo
 
-# simulator function -- needs to take a single input and output a single number
+# function for printing out results
 
-def f(x):
-    return np.exp(-np.sum((x-2.)**2, axis = -1)/2.)
+def print_results(inputs, predictions):
+    "convenience function for printing out results and computing mean square error"
+
+    print("Target Point                   Predicted mean            Actual Value")
+    print("------------------------------------------------------------------------------")
+
+    error = 0.
+
+    for pp, m in zip(inputs, predictions):
+        trueval = simulator(pp)
+        print("{}      {}       {}".format(pp, m, simulator(pp)))
+        error += (trueval - m)**2
+
+    print("Mean squared error: {}".format(np.sqrt(error)/len(predictions)))
+
+# define some common variables
+
+n_samples = 20
+n_preds = 10
 
 # Experimental design -- requires a list of parameter bounds if you would like to use
 # uniform distributions. If you want to use different distributions, you
@@ -15,15 +33,15 @@ def f(x):
 # Internally, the code creates the design on the unit hypercube and then uses
 # the distribution to map from [0,1] to the real parameter space.
 
-ed = mogp_emulator.LatinHypercubeDesign([(0., 5.), (0., 5.)])
+ed = mogp_emulator.LatinHypercubeDesign([(-5., 1.), (0., 1000.)])
 
 # sample space
 
-inputs = ed.sample(20)
+inputs = ed.sample(n_samples)
 
 # run simulation
 
-targets = np.array([f(p) for p in inputs])
+targets = np.array([simulator(p) for p in inputs])
 
 ###################################################################################
 
@@ -31,71 +49,73 @@ targets = np.array([f(p) for p in inputs])
 
 print("Example 1: Basic GP")
 
-# create GP and fit using MLE
+# create GP and then fit using MLE
 
 gp = mogp_emulator.GaussianProcess(inputs, targets)
 
-gp.learn_hyperparameters()
+gp = mogp_emulator.fit_GP_MAP(gp)
 
 # create 20 target points to predict
 
-predict_points = ed.sample(10)
+predict_points = ed.sample(n_preds)
 
 means, variances, derivs = gp.predict(predict_points)
 
-for pp, m in zip(predict_points, means):
-    print("Target point: {}      Predicted mean: {}".format(pp, m))
+print_results(predict_points, means)
 
 ###################################################################################
 
-# Second Example: How to change the kernel
+# Second Example: How to change the kernel, use a fixed nugget, and create directly using fitting function
 
 print("Example 2: Matern Kernel")
 
-# create GP as before
+# you can simply pass the args to GP to the fitting function
 
-gp_matern = mogp_emulator.GaussianProcess(inputs, targets)
+gp_matern = mogp_emulator.fit_GP_MAP(inputs, targets, kernel='Matern52', nugget=1.e-8)
 
-# manually change to Matern 5/2 kernel
+# return type from predict method is an object with mean, unc, etc defined as attributes
 
-from mogp_emulator.Kernel import Matern52
+pred_res = gp_matern.predict(predict_points)
 
-gp_matern.kernel = Matern52()
-
-# continue as before
-
-gp_matern.learn_hyperparameters()
-
-# create 20 target points to predict
-
-predict_points = ed.sample(10)
-
-means, variances, derivs = gp_matern.predict(predict_points)
-
-for pp, m in zip(predict_points, means):
-    print("Target point: {}      Predicted mean: {}".format(pp, m))
+print_results(predict_points, pred_res.mean)
 
 ###################################################################################
 
-# Third Example: Fit Hyperparameters via MCMC sampling
+# Third Example: Specify a mean function and set priors to Fit Hyperparameters via MAP
 
-print("Example 3: MCMC fitting")
+print("Example 3: Mean Function and MAP fitting")
 
-# create GP as before
+# This example uses a linear mean function and sets priors on the hyperparameters
 
-gp_mcmc = mogp_emulator.GaussianProcess(inputs, targets)
+# Linear mean has 3 hyperparameters (intercept and 2 slopes, one for each input)
+# Kernel has 3 hyperparameters (2 correlation lengths, 1 covariance scale)
+# Nugget is the final hyperparameter (7 in total)
 
-# fit hyperparameters with MCMC
+# Use a normal prior on all mean function values (requires mean, std)
+# Use a normal prior on correlation lengths (which are on a log scale, so becomes a lognormal
+# distribution once raw values on log scale are converted to linear scale)
+# Inverse Gamma distribution on covariance (favors large values)
+# Gamma distribution on nugget (favors negative values)
 
-gp_mcmc.learn_hyperparameters_MCMC(n_samples = 10000)
+priors = [mogp_emulator.Priors.NormalPrior(0., 10),
+          mogp_emulator.Priors.NormalPrior(0., 10.),
+          mogp_emulator.Priors.NormalPrior(0., 10.),
+          mogp_emulator.Priors.NormalPrior(0., 1.),
+          mogp_emulator.Priors.NormalPrior(-10., 1.),
+          mogp_emulator.Priors.InvGammaPrior(1., 1.),
+          mogp_emulator.Priors.GammaPrior(1., 1.)]
 
-# create 20 target points to predict
+# create GP, passing list of priors and a string representing the mean function
+# tell it to estimate the nugget as well
 
-predict_points = ed.sample(10)
+gp_map = mogp_emulator.GaussianProcess(inputs, targets, mean="x[0]+x[1]", priors=priors, nugget="fit")
 
-# predict using MCMC samples
+# fit hyperparameters
 
-means, variances, derivs = gp_mcmc.predict(predict_points, predict_from_samples = True)
+gp_map = mogp_emulator.fit_GP_MAP(gp_map)
 
-for pp, m in zip(predict_points, means):
-    print("Target point: {}      Predicted mean: {}".format(pp, m))
+# gp can be called directly if only the means are desired
+
+pred_means = gp_map(predict_points)
+
+print_results(predict_points, pred_means)
