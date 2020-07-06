@@ -1,25 +1,8 @@
 import numpy as np
 import mogp_emulator
-from projectile import simulator
+from projectile import simulator, print_results
 
 # additional GP examples using the projectile demo
-
-# function for printing out results
-
-def print_results(inputs, predictions):
-    "convenience function for printing out results and computing mean square error"
-
-    print("Target Point                   Predicted mean            Actual Value")
-    print("------------------------------------------------------------------------------")
-
-    error = 0.
-
-    for pp, m in zip(inputs, predictions):
-        trueval = simulator(pp)
-        print("{}      {}       {}".format(pp, m, simulator(pp)))
-        error += (trueval - m)**2
-
-    print("Mean squared error: {}".format(np.sqrt(error)/len(predictions)))
 
 # define some common variables
 
