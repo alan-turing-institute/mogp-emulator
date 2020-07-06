@@ -12,7 +12,7 @@ per emulator dropping by about a factor of 2 when 4 processes were used.
 '''
 
 import numpy as np
-from mogp_emulator import MultiOutputGP
+from mogp_emulator import MultiOutputGP, fit_GP_MAP
 from time import time
 try:
     import matplotlib.pyplot as plt
@@ -22,33 +22,33 @@ except ImportError:
 
 def load_tsunami_data(n_emulators):
     "loads tsunami data from npz archive"
-    
+
     assert(n_emulators > 0)
-    
+
     f = np.load('tsunamidata.npz')
-    
+
     assert('inputs' in f.files)
     assert('targets' in f.files)
     assert(f['inputs'].shape[0] == f['targets'].shape[1])
-    
+
     return f['inputs'], f['targets'][:n_emulators]
- 
+
 def fit_emulators(n_emulators, processes = None):
     "load data and fit emulators for tsunami data, returning the time required to fit the emulators"
-    
+
     inputs, targets = load_tsunami_data(n_emulators)
-    
+
     gp = MultiOutputGP(inputs, targets)
-    
+
     start_time = time()
-    gp.learn_hyperparameters(processes = processes)
+    gp = fit_GP_MAP(gp, processes = processes)
     finish_time = time()
-    
+
     return finish_time - start_time
 
 def make_scaling_plot(n_emulators_list, process_list, execution_times):
     "create scaling plot showing time for fitting tsunami emulators"
-    
+
     fig = plt.figure(figsize=(4,3))
     for n_emulators, exec_times in zip(n_emulators_list, execution_times):
         plt.plot(process_list, exec_times/float(n_emulators), '-o', label = str(n_emulators)+" emulators")
@@ -60,7 +60,7 @@ def make_scaling_plot(n_emulators_list, process_list, execution_times):
 
 def run_all_models(n_emulators_list, process_list):
     "Run all sets of emulators with varying number of processes"
-    
+
     execution_times = []
 
     for n_emulators in n_emulators_list:
@@ -68,13 +68,13 @@ def run_all_models(n_emulators_list, process_list):
         for processes in process_list:
             emulator_execution_times.append(fit_emulators(n_emulators, processes = processes))
         execution_times.append(np.array(emulator_execution_times))
-    
+
     print("\n")
     print("Num. Emulators    Num. Processors    Execution Time (s)   Execution Time per Emulator (s)")
     for n_emulators, exec_times in zip(n_emulators_list, execution_times):
         for process, exec_time in zip(process_list, exec_times):
             print("{:18}{:19}{:21}{}".format(str(n_emulators), str(process), str(exec_time), str(exec_time/float(n_emulators))))
-    
+
     if makeplots:
         make_scaling_plot(n_emulators_list, process_list, execution_times)
 
