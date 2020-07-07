@@ -96,11 +96,6 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
             gp = MultiOutputGP(*args, **gp_kwargs)
             return _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
 
-def _fit_GP_MAP_bound(gp, theta0, n_tries, method, **kwargs):
-    "fitting function accepting theta0 as an argument for parallelization"
-
-    return fit_GP_MAP(gp, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
-
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """
     Fit hyperparameters using MAP for a single GP
@@ -150,6 +145,11 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
 
     return gp
 
+def _fit_single_GP_MAP_bound(gp, theta0, n_tries, method, **kwargs):
+    "fitting function accepting theta0 as an argument for parallelization"
+
+    return _fit_single_GP_MAP(gp, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
+
 def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """
     Fit hyperparameters using MAP for multiple GPs in parallel
@@ -197,7 +197,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
                     for (emulator, t0) in zip(gp.emulators, theta0)]
     else:
         with Pool(processes) as p:
-            fit_MOGP = p.starmap(partial(_fit_GP_MAP_bound, n_tries=n_tries, method=method, **kwargs),
+            fit_MOGP = p.starmap(partial(_fit_single_GP_MAP_bound, n_tries=n_tries, method=method, **kwargs),
                                  [(emulator, t0) for (emulator, t0) in zip(gp.emulators, theta0)])
 
     gp.emulators = fit_MOGP
