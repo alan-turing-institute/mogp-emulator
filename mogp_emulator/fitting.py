@@ -31,9 +31,13 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
     optimal hyperparameters result in an error, then the method raises an exception.
 
     The ``theta0`` parameter is the point at which the first iteration will start. If more than
-    one attempt is made, subsequent attempts will use random starting points. Note that the
-    same starting point is assumed for all emulators if using Multiple Outputs, so if the
-    emulators require differing numbers of parameters a fixed start point cannot be used.
+    one attempt is made, subsequent attempts will use random starting points. If you are fitting
+    Multiple Outputs, then this argument can take any of the following forms: (1) None (random
+    start points for all emulators), (2) a list of numpy arrays or ``NoneTypes`` with length
+    ``n_emulators``, (3) a numpy array of shape ``(n_params,)`` or ``(n_emulators, n_params)``
+    which with either use the same start point for all emulators or the specified start
+    point for all emulators. Note that if you us a numpy array, all emulators must have the
+    same number of parameters, while using a list allows more flexibility.
 
     The user can specify the details of the minimization method, using any of the gradient-based
     optimizers available in ``scipy.optimize.minimize``. Any additional parameters beyond the method
@@ -50,8 +54,12 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
     :type n_tries: int
     :param theta0: Initial starting point for the first iteration. If present, must be
                    array-like with shape ``(n_params,)`` based on the specific
-                   ``GaussianProcess`` being fit. If ``None`` is given, then a random value
-                   is chosen. (Default is ``None``)
+                   ``GaussianProcess`` being fit. If a ``MultiOutputGP`` is being fit
+                   it must be a list of length ``n_emulators`` with each entry as either
+                   ``None`` or a numpy array of shape ``(n_params,)``, or a numpy array
+                   with shape ``(n_emulators, n_params)`` (note that if the various emulators
+                   have different numbers of parameters, the numpy array option will not work).
+                   If ``None`` is given, then a random value is chosen. (Default is ``None``)
     :type theta0: None or ndarray
     :param method: Minimization method to be used. Can be any gradient-based optimization
                    method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
@@ -137,6 +145,11 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
 
     return gp
 
+def _fit_single_GP_MAP_bound(gp, theta0, n_tries, method, **kwargs):
+    "fitting function accepting theta0 as an argument for parallelization"
+
+    return _fit_single_GP_MAP(gp, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
+
 def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """
     Fit hyperparameters using MAP for multiple GPs in parallel
@@ -158,21 +171,34 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
         processes = None
 
     assert int(n_tries) > 0, "n_tries must be a positive integer"
-    if not theta0 is None:
-        theta0 = np.array(theta0)
+
+    if theta0 is None:
+        theta0 = [ None ]*gp.n_emulators
+    else:
+        if isinstance(theta0, np.ndarray):
+            if theta0.ndim == 1:
+                theta0 = [theta0]*gp.n_emulators
+            else:
+                assert theta0.ndim == 2, "theta0 must be a 1D or 2D array"
+                assert theta0.shape[0] == gp.n_emulators, "bad shape for fitting starting points"
+        elif isinstance(theta0, list):
+            assert len(theta0) == gp.n_emulators, "theta0 must be a list of length n_emulators"
+
     if not processes is None:
         processes = int(processes)
         assert processes > 0, "number of processes must be positive"
 
     n_tries = int(n_tries)
 
+    # partial(fit_GP_MAP, )
+
     if platform.system() == "Windows":
-        fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
-                    for emulator in gp.emulators]
+        fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
+                    for (emulator, t0) in zip(gp.emulators, theta0)]
     else:
         with Pool(processes) as p:
-            fit_MOGP = p.starmap(partial(fit_GP_MAP, n_tries=n_tries, theta0=theta0, method=method, **kwargs),
-                                 [(emulator,) for emulator in gp.emulators])
+            fit_MOGP = p.starmap(partial(_fit_single_GP_MAP_bound, n_tries=n_tries, method=method, **kwargs),
+                                 [(emulator, t0) for (emulator, t0) in zip(gp.emulators, theta0)])
 
     gp.emulators = fit_MOGP
 
