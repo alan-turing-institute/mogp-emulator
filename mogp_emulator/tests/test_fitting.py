@@ -146,7 +146,7 @@ def test_fit_GP_MAP_MOGP():
         fit_GP_MAP(gp, theta0=[None, None, None])
 
     with pytest.raises(AssertionError):
-        fit_GP_MAP(gp, theta0=[None, np.zeros(1)])
+        fit_GP_MAP(gp, theta0=[np.zeros(3), np.zeros(1)])
 
 def test_fit_single_GP_MAP():
     "test the method to run the minimization algorithm on a GP class"
