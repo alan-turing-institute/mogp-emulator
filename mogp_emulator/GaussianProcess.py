@@ -666,7 +666,7 @@ class GaussianProcess(object):
 
         return hessian
 
-    def predict(self, testing, unc=True, deriv=True):
+    def predict(self, testing, unc=True, deriv=True, include_nugget=True):
         """
         Make a prediction for a set of input vectors for a single set of hyperparameters
 
@@ -685,6 +685,13 @@ class GaussianProcess(object):
         shaped numpy array. If the derivatives are computed, they are returned as the third
         output from the method as an ``(n_predict, D)`` shaped numpy array.
 
+        The final input to the method determines if the predictive variance should include
+        the nugget or not. For situations where the nugget represents observational error
+        and predictions are estimating the true underlying function, this should be set to
+        ``False``. However, most other cases should probably include the nugget, as the
+        emulator is using it to represent some of the uncertainty in the underlying simulator,
+        so the default value is ``True``.
+
         :param testing: Array-like object holding the points where predictions will be made.
                         Must have shape ``(n_predict, D)`` or ``(D,)`` (for a single prediction)
         :type testing: ndarray
@@ -696,6 +703,10 @@ class GaussianProcess(object):
                       If ``False`` the method returns ``None`` in place of the derivative
                       array. Default value is ``True``.
         :type deriv: bool
+        :param include_nugget: (optional) Flag indicating if the nugget should be included
+                               in the predictive variance. Only relevant if ``unc = True``.
+                               Default is ``True``.
+        :type include_nugget: bool
         :returns: Tuple of numpy arrays holding the predictions, uncertainties, and derivatives,
                   respectively. Predictions and uncertainties have shape ``(n_predict,)``
                   while the derivatives have shape ``(n_predict, D)``. If the ``unc`` or
@@ -717,8 +728,6 @@ class GaussianProcess(object):
         n_testing, D = np.shape(testing)
         assert D == self.D
 
-        sigma_2 = np.exp(self.theta[-2])
-
         switch = self.mean.get_n_params(testing)
         mtest = self.mean.mean_f(testing, self.theta[:switch])
         Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta[switch:-1])
@@ -727,6 +736,11 @@ class GaussianProcess(object):
 
         var = None
         if unc:
+            sigma_2 = np.exp(self.theta[-2])
+
+            if include_nugget:
+                sigma_2 += self._nugget
+
             var = np.maximum(sigma_2 - np.sum(Ktest*linalg.cho_solve((self.L, True), Ktest), axis=0),
                              0.)
 
