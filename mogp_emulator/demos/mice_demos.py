@@ -28,7 +28,11 @@ lhd = mogp_emulator.LatinHypercubeDesign([(-5., 1.), (0., 1000.)])
 # nugget (nugget parameter for design GP, default is to set adaptively)
 # nugget_s (nugget parameter for candidate GP, default is 1.)
 
-md = mogp_emulator.MICEDesign(lhd, simulator, n_samples = 20, n_init = 5, n_cand = 100)
+n_init = 5
+n_samples = 20
+n_cand = 100
+
+md = mogp_emulator.MICEDesign(lhd, simulator, n_samples=n_samples, n_init=n_init, n_cand=n_cand)
 
 md.run_sequential_design()
 
@@ -46,7 +50,7 @@ print()
 
 # second example: run design manually
 
-md2 = mogp_emulator.MICEDesign(lhd, n_init = 5, n_cand = 100)
+md2 = mogp_emulator.MICEDesign(lhd, n_init=n_init, n_cand=n_cand)
 
 init_design = md2.generate_initial_design()
 
@@ -63,7 +67,7 @@ md2.set_initial_targets(init_targets)
 
 # run 20 sequential design steps
 
-for d in range(20):
+for d in range(n_samples):
     next_point = md2.get_next_point()
     next_target = simulator(next_point)
     md2.set_next_target(next_target)
@@ -78,7 +82,7 @@ print("Final targets:\n", targets)
 
 # look at final GP emulator and make some predictions to compare with lhd
 
-lhd_design = lhd.sample(25)
+lhd_design = lhd.sample(n_init + n_samples)
 
 gp_lhd = mogp_emulator.fit_GP_MAP(lhd_design, np.array([simulator(p) for p in lhd_design]))
 
