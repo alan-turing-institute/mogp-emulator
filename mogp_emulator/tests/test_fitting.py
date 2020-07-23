@@ -101,6 +101,14 @@ def test_fit_GP_MAP_MOGP():
     gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
 
+    # pass various theta0 arguments
+
+    gp = fit_GP_MAP(x, y, theta0=np.zeros(3))
+
+    gp = fit_GP_MAP(x, y, theta0=np.zeros((2, 3)))
+
+    gp = fit_GP_MAP(x, y, theta0=[None, np.zeros(3)])
+
     # minimization fails
 
     with pytest.raises(RuntimeError):
@@ -124,6 +132,21 @@ def test_fit_GP_MAP_MOGP():
 
     with pytest.raises(AssertionError):
         fit_GP_MAP(gp, theta0=np.ones(1))
+
+    with pytest.raises(AssertionError):
+        fit_GP_MAP(gp, theta0=np.zeros((3, 3)))
+
+    with pytest.raises(AssertionError):
+        fit_GP_MAP(gp, theta0=np.zeros((2, 1)))
+
+    with pytest.raises(AssertionError):
+        fit_GP_MAP(gp, theta0=np.zeros((1, 1, 1)))
+
+    with pytest.raises(AssertionError):
+        fit_GP_MAP(gp, theta0=[None, None, None])
+
+    with pytest.raises(AssertionError):
+        fit_GP_MAP(gp, theta0=[np.zeros(3), np.zeros(1)])
 
 def test_fit_single_GP_MAP():
     "test the method to run the minimization algorithm on a GP class"
@@ -196,6 +219,14 @@ def test_fit_MOGP_MAP_MOGP():
     gp = _fit_MOGP_MAP(gp, processes=1)
     assert isinstance(gp, MultiOutputGP)
 
+    # pass various theta0 arguments
+
+    gp = fit_GP_MAP(gp, theta0=np.zeros(3))
+
+    gp = fit_GP_MAP(gp, theta0=np.zeros((2, 3)))
+
+    gp = fit_GP_MAP(gp, theta0=[None, np.zeros(3)])
+
     # minimization fails
 
     with pytest.raises(RuntimeError):
@@ -216,6 +247,21 @@ def test_fit_MOGP_MAP_MOGP():
 
     with pytest.raises(AssertionError):
         _fit_MOGP_MAP(gp, theta0=np.ones(1))
+
+    with pytest.raises(AssertionError):
+        _fit_MOGP_MAP(gp, theta0=np.zeros((3, 3)))
+
+    with pytest.raises(AssertionError):
+        _fit_MOGP_MAP(gp, theta0=np.zeros((2, 1)))
+
+    with pytest.raises(AssertionError):
+        _fit_MOGP_MAP(gp, theta0=np.zeros((1, 1, 1)))
+
+    with pytest.raises(AssertionError):
+        _fit_MOGP_MAP(gp, theta0=[None, None, None])
+
+    with pytest.raises(AssertionError):
+        _fit_MOGP_MAP(gp, theta0=[None, np.zeros(1)])
 
     with pytest.raises(AssertionError):
         _fit_MOGP_MAP(gp, processes=-1)
