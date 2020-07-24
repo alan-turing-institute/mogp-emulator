@@ -70,3 +70,20 @@ def simulator(x):
     results = solve_ivp(f, (0., 1.e8), y0, events=event, args = (c,))
 
     return results.y_events[0][0][2]
+
+# function for printing out results
+
+def print_results(inputs, predictions):
+    "convenience function for printing out results and computing mean square error"
+
+    print("Target Point                   Predicted mean            Actual Value")
+    print("------------------------------------------------------------------------------")
+
+    error = 0.
+
+    for pp, m in zip(inputs, predictions):
+        trueval = simulator(pp)
+        print("{}      {}       {}".format(pp, m, simulator(pp)))
+        error += (trueval - m)**2
+
+    print("Mean squared error: {}".format(np.sqrt(error)/len(predictions)))

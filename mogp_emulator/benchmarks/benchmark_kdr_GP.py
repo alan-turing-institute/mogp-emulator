@@ -12,7 +12,7 @@ into one dimension.
 import os
 from contextlib import redirect_stdout
 import numpy as np
-from mogp_emulator import GaussianProcess
+from mogp_emulator import fit_GP_MAP
 from mogp_emulator import DimensionReduction
 from mogp_emulator import gKDR
 try:
@@ -36,7 +36,7 @@ def make_plot(loss):
         assert(np.all(loss[ic,:,2:] == loss[ic,0,2:]))
         cX, cY = loss[ic,0,2:]
         plt.plot(loss[ic,:,0], loss[ic,:,1], 'x-', label = "$c_X = {}, c_Y = {}$".format(cX, cY))
-    
+
     plt.ylim(bottom=0.0)
     plt.legend()
     # plt.show()
@@ -54,7 +54,7 @@ def run():
     def compute_loss(k):
         ## ignore occasional warning messages from the GP fitting
         with redirect_stdout(dev_null):
-            loss = gKDR._compute_loss(X, Y, GaussianProcess.train_model,
+            loss = gKDR._compute_loss(X, Y, fit_GP_MAP,
                                       cross_validation_folds = 5,
                                       K = k, X_scale = cX, Y_scale = cY)
 
@@ -63,7 +63,7 @@ def run():
 
     K = np.arange(1,101)
     scale_params = [(1.0, 1.0), (2.0, 2.0), (5.0, 5.0)]
-    
+
     loss = np.zeros((len(scale_params), len(K), 4))
 
     for ic in range(len(scale_params)):

@@ -3,30 +3,31 @@ Simple demos and sanity checks for the HistoryMatching class.
 
 Provided methods:
     get_y_simulated_1D:
-        A toy model that acts as the simulator output for constructing GPEs for 
+        A toy model that acts as the simulator output for constructing GPEs for
         1D data.
-    
+
     get_y_simulated_2D:
-        A toy model that acts as the simulator output for constructing GPEs for 
+        A toy model that acts as the simulator output for constructing GPEs for
         2D data.
 
     demo_1D:
-        Follows the example of 
-        http://www.int.washington.edu/talks/WorkShops/int_16_2a/People/Vernon_I/Vernon2.pdf 
-        in setting up a simple test model, constructing a gaussian process to 
-        emulate it, and ruling out expectations of the GPE based on an 
+        Follows the example of
+        http://www.int.washington.edu/talks/WorkShops/int_16_2a/People/Vernon_I/Vernon2.pdf
+        in setting up a simple test model, constructing a gaussian process to
+        emulate it, and ruling out expectations of the GPE based on an
         historical observation.
 
     demo_2D:
         As demo_1D, however the toy model is expanded to take two inputs rather
-        then 1 extending it to a second dimension. Exists primarily to confirm 
+        then 1 extending it to a second dimension. Exists primarily to confirm
         that the HistoryMatching class is functional with higher-dimensional
-        parameter spaces. 
+        parameter spaces.
 
 """
 
 from mogp_emulator.HistoryMatching import HistoryMatching
 from mogp_emulator.GaussianProcess import GaussianProcess
+from mogp_emulator.fitting import fit_GP_MAP
 try:
     from matplotlib import pyplot as plt
     makeplots = True
@@ -39,7 +40,7 @@ def get_y_simulated_1D(x):
     n_points = len(x)
     f = np.zeros(n_points)
     for i in range(n_points):
-        f[i] = np.sin(2.*np.pi*x[i] / 50.) 
+        f[i] = np.sin(2.*np.pi*x[i] / 50.)
     return f
 
 def demo_1D():
@@ -57,7 +58,7 @@ def demo_1D():
 
     gp = GaussianProcess(x_training, y_training)
     np.random.seed(47)
-    gp.learn_hyperparameters()
+    gp = fit_GP_MAP(gp)
 
     # Define observation
     obs = [-0.8, 0.0004]
@@ -86,7 +87,7 @@ def demo_1D():
     print("Fraction of points ruled out {:6}".format(str(float(len(RO))/float(n_rand))))
 
     # Plotting
-    
+
     if makeplots:
         fig, axs = plt.subplots(2, 1, sharex=True)
         fig.subplots_adjust(hspace=0)
@@ -177,7 +178,7 @@ def demo_1D():
 
 def get_y_simulated_2D(x):
     n_points = len(x[:,0])
-    f = np.zeros(n_points)  
+    f = np.zeros(n_points)
     for i in range(n_points):
         f[i] = np.sin(x[i,0] ** (2.0) + x[i,1] ** (2.0))
     return f
@@ -200,7 +201,7 @@ def demo_2D():
 
     gp = GaussianProcess(x_training, y_training)
     np.random.seed(47)
-    gp.learn_hyperparameters()
+    gp = fit_GP_MAP(gp)
 
     # Define observation
     obs = [0.1, 0.0004]
@@ -264,8 +265,8 @@ def demo_2D():
             marker='.',
             s=1
         )
-        Axes3D.scatter(  
-            ax,   
+        Axes3D.scatter(
+            ax,
             coords[:,0][RO],
             coords[:,1][RO],
             expectations[0][RO] - 3*np.sqrt(expectations[1][RO]),
@@ -273,7 +274,7 @@ def demo_2D():
             marker='.',
             s=1
         )
-        Axes3D.scatter(     
+        Axes3D.scatter(
             ax,
             coords[:,0][NROY],
             coords[:,1][NROY],
@@ -282,8 +283,8 @@ def demo_2D():
             marker='.',
             s=1
         )
-        Axes3D.scatter(  
-            ax,   
+        Axes3D.scatter(
+            ax,
             coords[:,0][NROY],
             coords[:,1][NROY],
             expectations[0][NROY] - 3*np.sqrt(expectations[1][NROY]),
