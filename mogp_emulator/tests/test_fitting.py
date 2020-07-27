@@ -146,7 +146,7 @@ def test_fit_GP_MAP_MOGP():
         fit_GP_MAP(gp, theta0=[None, None, None])
 
     with pytest.raises(AssertionError):
-        fit_GP_MAP(gp, theta0=[np.zeros(3), np.zeros(1)])
+        fit_GP_MAP(gp, theta0=[np.zeros(1), np.zeros(3)], processes=1)
 
 def test_fit_single_GP_MAP():
     "test the method to run the minimization algorithm on a GP class"
@@ -261,7 +261,7 @@ def test_fit_MOGP_MAP_MOGP():
         _fit_MOGP_MAP(gp, theta0=[None, None, None])
 
     with pytest.raises(AssertionError):
-        _fit_MOGP_MAP(gp, theta0=[None, np.zeros(1)])
+        _fit_MOGP_MAP(gp, theta0=[np.zeros(1), None], processes=1)
 
     with pytest.raises(AssertionError):
         _fit_MOGP_MAP(gp, processes=-1)
