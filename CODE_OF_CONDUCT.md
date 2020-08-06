@@ -62,4 +62,4 @@ members of the project's leadership.
 ## Attribution
 
 This Code of Conduct is adapted from the [scona project Code of Conduct](https://github.com/WhitakerLab/scona/blob/master/CODE_OF_CONDUCT.md)
-and the [Contributor Covenant][https://www.contributor-covenant.org], version [1.4](https://www.contributor-covenant.org/version/1/4/code-of-conduct.html)
+and the [Contributor Covenant](https://www.contributor-covenant.org), version [1.4](https://www.contributor-covenant.org/version/1/4/code-of-conduct.html)
