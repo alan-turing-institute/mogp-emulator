@@ -39,7 +39,7 @@
 
  - [![good-first-issue](https://img.shields.io/badge/-good%20first%20issue-1b3487.svg)][labels-firstissue] _These issues are particularly appropriate if it is your first contribution to `mogp_emulator`, or to GitHub overall._
 
-- [![documentation](https://img.shields.io/badge/-documentation-0075ca.svg)][labels-documentation] _These issues relate to improving or updating the documentation._
+ - [![documentation](https://img.shields.io/badge/-documentation-0075ca.svg)][labels-documentation] _These issues relate to improving or updating the documentation._
 
  - [![enhancement](https://img.shields.io/badge/-enhancement-84b6eb.svg)][labels-enhancement] _These issues are suggesting new features that can be added to the project._
 
@@ -56,7 +56,7 @@
    If you have GPU experience and would like to contribute to the GPU implementation, these issues are related
    to this part of the software.
 
- - [![FPGA](https://img.shields.io/badge/-FPGA-fcdc8d.svg)][labels-gpu] _These issues are related to the FPGA implementation._
+ - [![FPGA](https://img.shields.io/badge/-FPGA-fcdc8d.svg)][labels-fpga] _These issues are related to the FPGA implementation._
 
    If you have FPGA experience and would like to contribute to the FPGA implementation, these issues are related
    to this part of the software.
@@ -155,6 +155,8 @@
  [labels-bug]: https://github.com/alan-turing-institute/mogp_emulator/labels/bug
  [labels-enhancement]: https://github.com/alan-turing-institute/mogp_emulator/labels/enhancement
  [labels-firstissue]: https://github.com/alan-turing-institute/mogp_emulator/labels/good%20first%20issue
+ [labels-fpga]: https://github.com/alan-turing-institute/mogp_emulator/labels/FPGA
+ [labels-gpu]: https://github.com/alan-turing-institute/mogp_emulator/labels/gpu
  [labels-helpwanted]: https://github.com/alan-turing-institute/mogp_emulator/labels/help%20wanted
  [labels-project-management]: https://github.com/alan-turing-institute/mogp_emulator/labels/project%20management
  [labels-question]: https://github.com/alan-turing-institute/mogp_emulator/labels/question
