@@ -2,9 +2,9 @@ import setuptools
 
 # version information
 MAJOR = 0
-MINOR = 3
+MINOR = 4
 MICRO = 0
-PRERELEASE = 16
+PRERELEASE = 0
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
