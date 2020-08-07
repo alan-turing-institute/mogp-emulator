@@ -1,6 +1,7 @@
 *.pyc
 *.DS_Store
 docs/_build/*
-mogp_emulator/tests/*.png
-mogp_emulator/tests/*.pdf
+mogp_emulator/benchmarks/*.png
+mogp_emulator/benchmarks/*.pdf
+mogp_emulator/benchmarks/*.npy
 mogp_emulator/version.py

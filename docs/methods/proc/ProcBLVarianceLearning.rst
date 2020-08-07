@@ -118,9 +118,9 @@ the residual process to be weakly stationary with mean zero a priori,
 which gives
 
 .. math::
-   e_i &=& f(x_i) - \beta_1 h_1(x_i) - \dots - \beta_q h_q(x_i) \\
-   \text{E}[e_i] &=& 0 \\
-   \text{Var}[e_i] &=& \sigma^2 = \omega_e
+   e_i &= f(x_i) - \beta_1 h_1(x_i) - \dots - \beta_q h_q(x_i) \\
+   \text{E}[e_i] &= 0 \\
+   \text{Var}[e_i] &= \sigma^2 = \omega_e
 
 where we introduce :math:`\omega_e=\sigma^2` as the variance of :math:`e(x)`
 for notational convenience and to mirror the notation of
@@ -150,8 +150,8 @@ eigen-decomposition of :math:`R` such that :math:`R=A\Lambda A^T` then
 transformation matrix. Under this transformation, we have that
 
 .. math::
-   \text{E}[e'] &=& Q^{-1}\text{E}[e]=0 \\
-   \text{Var}[e'] &=& Q^{-1}\text{Var}[e]Q^{-T}=\omega_e I_n.
+   \text{E}[e'] &= Q^{-1}\text{E}[e]=0 \\
+   \text{Var}[e'] &= Q^{-1}\text{Var}[e]Q^{-T}=\omega_e I_n.
 
 Note that he transformed residuals :math:`e'` have both the same mean and
 variance as the un-transformed residuals :math:`e_i`, and in particular
@@ -214,10 +214,10 @@ and
 and it follows that we have the follow belief statements
 
 .. math::
-   \text{E}[\hat{\sigma}^2] &=& \omega_e=\sigma^2, \\
-   \text{Var}[\hat{\sigma}^2] &=& \omega_\mathcal{M} + \omega_t, \\
-   \text{Cov}[\hat{\sigma}^2,\mathcal{M}(v)] &=& \omega_\mathcal{M}, \\
-   \omega_T  &=& \frac{1}{(n-q)^2}\left[ \omega_\mathcal{R} \sum_k
+   \text{E}[\hat{\sigma}^2] &= \omega_e=\sigma^2, \\
+   \text{Var}[\hat{\sigma}^2] &= \omega_\mathcal{M} + \omega_t, \\
+   \text{Cov}[\hat{\sigma}^2,\mathcal{M}(v)] &= \omega_\mathcal{M}, \\
+   \omega_T  &= \frac{1}{(n-q)^2}\left[ \omega_\mathcal{R} \sum_k
    (1-h_{kk})^2 -2(\omega_\mathcal{M}+\omega_e^2)\sum_k h_{kk}^2
    +2q(\omega_\mathcal{M}+\omega_e^2)\right],
 
@@ -233,9 +233,9 @@ trend, we obtain the following expression for the adjusted mean and
 variance for :math:`\mathcal{M}(v)`, the population residual variance:
 
 .. math::
-   \text{E}_{\hat{\sigma}^2}[\mathcal{M}(v)] &=&
+   \text{E}_{\hat{\sigma}^2}[\mathcal{M}(v)] &=
    \frac{\omega_\mathcal{M}\hat{\sigma}^2+\omega_T\omega_e}{\omega_\mathcal{M}+\omega_T} \\
-   \text{Var}_{\hat{\sigma}^2}[\mathcal{M}(v)] &=&
+   \text{Var}_{\hat{\sigma}^2}[\mathcal{M}(v)] &=
    \frac{\omega_\mathcal{M}\omega_t}{\omega_\mathcal{M}+\omega_t}
 
 Comments and Discussion

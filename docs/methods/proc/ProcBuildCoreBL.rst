@@ -88,10 +88,10 @@ design :math:`X`. Then the adjusted expectation and variance for :math:`\beta`
 are given by:
 
 .. math::
-   \textrm{E}_F[\beta] &=& \textrm{E}[\beta] + \textrm{Var}[\beta] H(X)
+   \textrm{E}_F[\beta] &= \textrm{E}[\beta] + \textrm{Var}[\beta] H(X)
    \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
    \times (F - H(X)^T\textrm{E}[\beta] - \textrm{E}[w(X)]) \\
-   \textrm{Var}_F[\beta] &=& \textrm{Var}[\beta] - (\textrm{Var}[\beta] H(X))
+   \textrm{Var}_F[\beta] &= \textrm{Var}[\beta] - (\textrm{Var}[\beta] H(X))
    \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
    (H(X)^T\textrm{Var}[\beta])
 
@@ -103,13 +103,13 @@ input point :math:`x`, and the adjusted covariance between any further pair
 of points :math:`(x,x')` are given by:
 
 .. math::
-   \textrm{E}_F[w(x)] &=& \textrm{E}[w(x)] + \textrm{Cov}[w(x),w(X)]
+   \textrm{E}_F[w(x)] &= \textrm{E}[w(x)] + \textrm{Cov}[w(x),w(X)]
    \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
    \times(F - H(X)^T\textrm{E}[\beta] - \textrm{E}[w(X)]) \\
-   \textrm{Var}_F[w(x)] &=& \textrm{Var}[w(x)] - \textrm{Cov}[w(x),w(X)]
+   \textrm{Var}_F[w(x)] &= \textrm{Var}[w(x)] - \textrm{Cov}[w(x),w(X)]
    \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)] \}^{-1}
    \textrm{Cov}[w(X),w(x)] \\
-   \textrm{Cov}_F[w(x),w(x')] &=& \textrm{Cov}[w(x),w(x')] - \textrm{Cov}[w(x),w(X)]
+   \textrm{Cov}_F[w(x),w(x')] &= \textrm{Cov}[w(x),w(x')] - \textrm{Cov}[w(x),w(X)]
    \{H(X)^T\textrm{Var}[\beta]H(X) + \textrm{Var}[w(X)]\}^{-1}
    \textrm{Cov}[w(X),w(x')]
 

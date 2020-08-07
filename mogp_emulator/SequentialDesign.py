@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 from inspect import signature
-from .ExperimentalDesign import ExperimentalDesign
-from .GaussianProcess import GaussianProcess
+from mogp_emulator.ExperimentalDesign import ExperimentalDesign
+from mogp_emulator.GaussianProcess import GaussianProcess
+from mogp_emulator.fitting import fit_GP_MAP
 from numpy.linalg import LinAlgError
 
 class SequentialDesign(object):
@@ -731,16 +732,18 @@ class MICEFastGP(GaussianProcess):
 
         indices = (np.arange(self.n) != index)
 
-        exp_theta = np.exp(self.theta)
+        switch = self.mean.get_n_params(self.inputs)
+        sigma_2 = np.exp(self.theta[-2])
 
         Ktest = self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
-                                     np.reshape(self.inputs[index, :], (1, self.D)), self.theta)
+                                     np.reshape(self.inputs[index, :], (1, self.D)),
+                                     self.theta[switch:-1])
 
         invQ = np.linalg.solve(self.L.T, np.linalg.solve(self.L, np.eye(self.n)))
         invQ_mod = (invQ[indices][:, indices] -
                     1./invQ[index, index]*np.outer(invQ[indices, index], invQ[indices, index]))
 
-        var = np.maximum(exp_theta[self.D] - np.sum(Ktest * np.dot(invQ_mod, Ktest), axis=0), 0.)
+        var = np.maximum(sigma_2 - np.sum(Ktest * np.dot(invQ_mod, Ktest), axis=0), 0.)
 
         return var
 
@@ -771,7 +774,7 @@ class MICEDesign(SequentialDesign):
     other methods are identical.
     """
     def __init__(self, base_design, f = None, n_samples = None, n_init = 10, n_cand = 50,
-                 nugget = None, nugget_s = 1.):
+                 nugget = "adaptive", nugget_s = 1.):
         """
         Create new instance of a MICE sequential design
 
@@ -812,14 +815,18 @@ class MICEDesign(SequentialDesign):
         :type nugget_s: float
         """
 
-        if not nugget is None:
+        if not isinstance(nugget, str):
+            try:
+                float(nugget)
+            except TypeError:
+                raise TypeError("nugget must be a string or convertible to a float")
             if nugget < 0.:
                 raise ValueError("nugget parameter cannot be negative")
 
         if nugget_s < 0.:
             raise ValueError("nugget smoothing parameter cannot be negative")
 
-        if nugget is None:
+        if isinstance(nugget, str):
             self.nugget = nugget
         else:
             self.nugget = float(nugget)
@@ -900,7 +907,7 @@ class MICEDesign(SequentialDesign):
 
         assert data_point >= 0 and data_point < self.n_cand, "test point index is out of range"
 
-        _, unc1, _ = self.gp.predict(self.candidates[data_point], do_unc = True)
+        _, unc1, _ = self.gp.predict(self.candidates[data_point], unc=True, deriv=False)
         unc2 = self.gp_fast.fast_predict(data_point)
 
         mice_criter =  unc1/unc2
@@ -932,11 +939,11 @@ class MICEDesign(SequentialDesign):
 
         for i in range(numtries):
             try:
-                self.gp = GaussianProcess(self.inputs, self.targets, self.nugget)
-                self.gp.learn_hyperparameters()
+                self.gp = GaussianProcess(self.inputs, self.targets, nugget=self.nugget)
+                self.gp = fit_GP_MAP(self.gp)
 
-                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), np.exp(self.gp.theta[-1])*self.nugget_s)
-                self.gp_fast._set_params(self.gp.theta)
+                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), nugget=np.exp(self.gp.theta[-2])*self.nugget_s)
+                self.gp_fast.theta = self.gp.theta
                 break
             except FloatingPointError:
                 if i < numtries - 1:

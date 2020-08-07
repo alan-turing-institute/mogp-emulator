@@ -305,9 +305,9 @@ Following the same procedure as before, we find the following values for
 the parameters:
 
 .. math::
-   \hat{\delta} &=& 0.17 \\
-   \hat{\sigma}^2 &=& 50.00 \\
-   \hat{\beta} &=& [-48.65, 56.47]^T
+   \hat{\delta} &= 0.17 \\
+   \hat{\sigma}^2 &= 50.00 \\
+   \hat{\beta} &= [-48.65, 56.47]^T
 
 Figure 6 shows the predictions of the emulator for 100 points uniformly
 spaced in 1075, 1325 in the original scale. A comparison with Figure 3
@@ -412,9 +412,9 @@ The hyperparameter estimates obtained using the above training points
 are
 
 .. math::
-   \hat{\delta} &=& 0.145 \\
-   \hat{\sigma}^2 &=& 30.05 \\
-   \hat{\beta} &=& [-50.18, 58.64]^T
+   \hat{\delta} &= 0.145 \\
+   \hat{\sigma}^2 &= 30.05 \\
+   \hat{\beta} &= [-50.18, 58.64]^T
 
 Finally, figure 8 shows the predictions of the emulator for 100 points,
 uniformly spaced in 1075, 1325 in the original scale. Comparing with

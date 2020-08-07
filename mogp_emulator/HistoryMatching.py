@@ -1,5 +1,5 @@
 import numpy as np
-from mogp_emulator import GaussianProcess
+from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 
 class HistoryMatching(object):
     r"""
@@ -525,8 +525,7 @@ class HistoryMatching(object):
 
         Returns a boolean that is ``True`` if the provided quantity is consistent with
         the output of the predict method of a GaussianProcess object, i.e. that it
-        is a tuple of length 3 containing ndarrays or 2 arrays and ``None`` for the
-        third entry.
+        is a ``GaussianProcess.PredictResult`` object with mean and variance defined.
 
         :param expectations: Input to check for consistency with expectations
         :type expectations: tuple of 3 numpy arrays or 2 numpy arrays and None
@@ -535,16 +534,15 @@ class HistoryMatching(object):
         """
         if expectations is None:
             return False
-        if not isinstance(expectations, tuple):
-            return False
-        if len(expectations) != 3:
+        if not isinstance(expectations, PredictResult):
             return False
         if not all((isinstance(expectations[0], np.ndarray),
                     isinstance(expectations[1], np.ndarray),
                     (isinstance(expectations[2], np.ndarray) or
                      expectations[2] is None))):
             raise TypeError("bad input type for HistoryMatching - expected expectation " +
-                            "values in the form of a tuple of ndarrays.")
+                            "values in the form of a PredictResults object with mean" +
+                            "and uncertainty set.")
         if not expectations[0].shape == expectations[1].shape:
             raise ValueError("bad input for HistoryMatching - mean and variance " +
                              "expectations do not match")

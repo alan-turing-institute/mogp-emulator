@@ -77,8 +77,8 @@ expectation and variance at a **known** input :math:`x` (as given in
 :ref:`ProcBLPredict<ProcBLPredict>`) in the form:
 
 .. math::
-   \mu(x) &=& \hat{\beta}^T h(x) + c(x) V^{-1} e \\
-   \Sigma(x) &=& h(x)^T B_F h(x) + \sigma^2 - c(x)^T V^{-1} c(x) -
+   \mu(x) &= \hat{\beta}^T h(x) + c(x) V^{-1} e \\
+   \Sigma(x) &= h(x)^T B_F h(x) + \sigma^2 - c(x)^T V^{-1} c(x) -
    h(x)^T BHV^{-1} c(x) - c(x)^T V^{-1} H^T B h(x)
 
 where the vector :math:`h(x)` and the matrix :math:`H` are as defined in
@@ -113,13 +113,13 @@ Calculating :math:`\Sigma`
 as:
 
 .. math::
-   \textrm{Var}[\mu(x_0)] &=& \hat{\beta}^T\textrm{Var}[h_0]
+   \textrm{Var}[\mu(x_0)] &= \hat{\beta}^T\textrm{Var}[h_0]
    \hat{\beta}+e^TV^{-1}\textrm{Var}[c_0]^TV^{-1}e +
    2\hat{\beta}^T\textrm{Cov}[h_0,c_0] V^{-1}e \\
-   \text{E}[\Sigma(x_0)] &=& \sigma^2 + \text{E}[h_0]^TB_F\text{E}[h_0] -
+   \text{E}[\Sigma(x_0)] &= \sigma^2 + \text{E}[h_0]^TB_F\text{E}[h_0] -
    \text{E}[c_0]^TV^{-1}\text{E}[c_0] - 2 \text{E}[h_0]^TB H
    V^{-1}\text{E}[c_0] \\
-   & & + \text{tr}\left\{ \text{Var}[h_0]B_F - \text{Var}[c_0]V^{-1}
+   & + \text{tr}\left\{ \text{Var}[h_0]B_F - \text{Var}[c_0]V^{-1}
    -2\text{Cov}[h_0,c_0]V^{-1}H^TB\right\}
 
 Beliefs about :math:`g_0` and :math:`c_0`

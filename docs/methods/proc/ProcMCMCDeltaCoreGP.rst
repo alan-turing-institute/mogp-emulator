@@ -65,10 +65,10 @@ given by
 
 .. math::
    \displaystyle \left(\frac{\partial A} {\partial
-   \delta_k}\right)_{i,j} &=&
+   \delta_k}\right)_{i,j} &=
    A(i,j)\left[\frac{2(x_{k,i}-x_{k,j})^2}{\delta_k^3}\right] \\
    \displaystyle \left(\frac{\partial^2 A} {\partial^2
-   \delta_k}\right)_{i,j} &=& A(i,j) \frac{(x_{k,i}-x_{k,j})^2}{\delta_k^4}
+   \delta_k}\right)_{i,j} &= A(i,j) \frac{(x_{k,i}-x_{k,j})^2}{\delta_k^4}
    \left[ \frac{4(x_{k,i}-x_{k,j})^2}{\delta_k^2} - 6 \right]
 
 and finally

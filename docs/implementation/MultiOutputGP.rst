@@ -9,5 +9,5 @@ The ``MultiOutputGP`` Class
 
 .. autoclass:: mogp_emulator.MultiOutputGP.MultiOutputGP
     :members:
-    
+
     .. automethod:: __init__

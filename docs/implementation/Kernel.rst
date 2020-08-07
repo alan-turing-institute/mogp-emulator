@@ -1,7 +1,7 @@
 .. _Kernel:
 
 **********************************
-The ``Kernel`` Class
+The ``Kernel`` Module
 **********************************
 
 .. automodule:: mogp_emulator.Kernel
@@ -9,9 +9,13 @@ The ``Kernel`` Class
 
 .. autoclass:: mogp_emulator.Kernel.Kernel
     :members:
-    
+
+.. _SquaredExponential:
+
 .. autoclass:: mogp_emulator.Kernel.SquaredExponential
     :members:
-    
+
+.. _Matern52:
+
 .. autoclass:: mogp_emulator.Kernel.Matern52
     :members:

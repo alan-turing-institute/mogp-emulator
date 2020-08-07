@@ -1,6 +1,6 @@
 """This module provides classes and utilities for performing dimension
 reduction.  Currently there is a single class :class:`mogp_emulator.gKDR` which implements
-the method of Liu and Guillas [LG17]_.
+the method of Fukumizu and Leng [FL13]_.
 
 Example: ::
 
@@ -23,7 +23,7 @@ regression on the reduced input space:
 ::
 
   >>> import numpy as np
-  >>> from mogp_emulator import gKDR, GaussianProcess
+  >>> from mogp_emulator import gKDR, GaussianProcess, fit_GP_MAP
 
   ### generate some training data (from the function f)
 
@@ -55,7 +55,7 @@ regression on the reduced input space:
 
   ### train a Gaussian Process with reduced inputs
   >>> gp = GaussianProcess(dr(X), Y)
-  >>> gp.learn_hyperparameters()
+  >>> gp = fit_GP_MAP(gp)
 
   ### make a prediction (given an input in the reduced space)
   >>> Xnew = np.array([0.12, 0.37])
@@ -70,7 +70,7 @@ regression on the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
-from .utils import k_fold_cross_validation, integer_bisect
+from mogp_emulator.utils import k_fold_cross_validation, integer_bisect
 
 def gram_matrix(X, k):
     """Computes the Gram matrix of `X`
@@ -120,12 +120,12 @@ class gKDR(object):
 
     """Dimension reduction by the gKDR method.
 
-    See link [LG17]_ (as well as [Fukumizu1]_ and [FL13]_) for details of
+    See link [Fukumizu1]_ (and in particular, [FL13]_) for details of
     the method.
 
     Note that this is a simpler and faster method than the original
-    "KDR" method by Fukumizu and Leng (but with an added approximation).
-    The KDR method will be implemented separately.
+    "KDR" method by the same authors (but with an added
+    approximation).  The KDR method will be implemented separately.
 
     An instance of this class is callable, with the ``__call__``
     method taking an input coordinate and mapping it to a reduced
@@ -248,8 +248,8 @@ class gKDR(object):
         return X @ self.B[:,0:self.K]
 
 
-    @classmethod
-    def _compute_loss(cls, X, Y, train_model, cross_validation_folds, *params, **kwparams):
+    @staticmethod
+    def _compute_loss( X, Y, train_model, cross_validation_folds, *params, **kwparams):
         """Compute the L1 loss of a model (produced by calling train_model), via
         cross validation.  The model is trained on input parameters `x` that
         are first reduced via the dimension reduction procedure produced by
@@ -278,9 +278,9 @@ class gKDR(object):
         :type params: tuple
         :param params: parameters to pass to :meth:`mogp_emulator.gKDR.__init__`
 
-        :type params: dict
-        :param params: keyword parameters to pass to
-                       :meth:`mogp_emulator.gKDR.__init__`
+        :type kwparams: dict
+        :param kwparams: keyword parameters to pass to
+                         :meth:`mogp_emulator.gKDR.__init__`
         """
 
         ## combine input and output arrays, such that if

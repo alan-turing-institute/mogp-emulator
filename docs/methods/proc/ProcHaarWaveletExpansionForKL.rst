@@ -34,11 +34,11 @@ Inputs
    constructed in the following way
 
    .. math::
-      \psi_1 &=& 1 \\
-      \psi_i &=& \psi_{j,k}(x) \\
-      i &= &2^j+k+1 \\
-      j &=& 0,1, \cdots, n-1 \\
-      k &=& 0,1, \cdots, 2^j-1
+      \psi_1 &= 1 \\
+      \psi_i &= \psi_{j,k}(x) \\
+      i &= 2^j+k+1 \\
+      j &= 0,1, \cdots, n-1 \\
+      k &= 0,1, \cdots, 2^j-1
 
    where
 

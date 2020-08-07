@@ -35,7 +35,7 @@ which are outlined here and discussed further when we present particular
 SA methods.
 
 -  *Understanding.* Techniques to show how the output :math:`f(x)` behaves
-   as we vary one or more of the inputs :math:`\strut x` are an aid to
+   as we vary one or more of the inputs :math:`x` are an aid to
    understanding :math:`f`. They can act as a 'face validity' check, in the
    sense that if the simulator is responding in unexpected ways to
    changes in its inputs, or if some inputs appear to have unexpectedly
@@ -46,7 +46,7 @@ SA methods.
    negligible effect on the output, then this offers the prospect of
    simplifying :math:`f` by fixing those inputs. Whilst this does not
    usually simplify the simulator in the sense of making it quicker or
-   easier to evaluate :math:`f(x)` at any desired :math:`\strut x`, it reduces
+   easier to evaluate :math:`f(x)` at any desired :math:`x`, it reduces
    the dimensionality of the input space. This makes it easier to
    understand and use.
 
