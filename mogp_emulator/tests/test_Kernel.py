@@ -81,6 +81,9 @@ def test_calc_r_failures():
     with pytest.raises(AssertionError):
         k.calc_r(x, y, params)
 
+    with pytest.raises(FloatingPointError):
+        k.calc_r(y, y, np.array([800., 0.]))
+
 def test_calc_drdtheta():
     "test calc_drdtheta function"
 

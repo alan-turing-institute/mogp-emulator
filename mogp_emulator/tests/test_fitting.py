@@ -44,6 +44,9 @@ def test_fit_GP_MAP():
     with pytest.raises(RuntimeError):
         fit_GP_MAP(gp, n_tries=1)
 
+    with pytest.raises(RuntimeError):
+        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+
     # bad inputs
 
     with pytest.raises(TypeError):
@@ -119,6 +122,9 @@ def test_fit_GP_MAP_MOGP():
     with pytest.raises(RuntimeError):
         fit_GP_MAP(gp, n_tries=1)
 
+    with pytest.raises(RuntimeError):
+        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+
     # bad inputs
 
     with pytest.raises(TypeError):
@@ -175,6 +181,9 @@ def test_fit_single_GP_MAP():
 
     with pytest.raises(RuntimeError):
         _fit_single_GP_MAP(gp, n_tries=1)
+
+    with pytest.raises(RuntimeError):
+        _fit_single_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
 
     # bad inputs
 
@@ -236,6 +245,9 @@ def test_fit_MOGP_MAP_MOGP():
 
     with pytest.raises(RuntimeError):
         _fit_MOGP_MAP(gp, n_tries=1)
+
+    with pytest.raises(RuntimeError):
+        _fit_MOGP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
 
     # bad inputs
 
