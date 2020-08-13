@@ -3,7 +3,7 @@ import setuptools
 # version information
 MAJOR = 0
 MINOR = 3
-MICRO = 0
+MICRO = 1
 PRERELEASE = 0
 ISRELEASED = True
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
