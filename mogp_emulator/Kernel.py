@@ -147,6 +147,9 @@ class Kernel(object):
 
         r_matrix = cdist(x1, x2, "seuclidean", V = exp_theta)
 
+        if np.any(np.isnan(r_matrix)):
+            raise FloatingPointError("NaN enountered in kernel distance computation")
+
         return r_matrix
 
     def calc_drdtheta(self, x1, x2, params):
