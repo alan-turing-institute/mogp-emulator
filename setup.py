@@ -2,10 +2,10 @@ import setuptools
 
 # version information
 MAJOR = 0
-MINOR = 3
-MICRO = 1
-PRERELEASE = 0
-ISRELEASED = True
+MINOR = 4
+MICRO = 0
+PRERELEASE = 1
+ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:
