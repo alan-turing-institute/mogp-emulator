@@ -271,7 +271,7 @@ public:
         int info_h;
         cusolverStatus_t status;
         
-        thrust::copy(theta, theta + N + 1, theta_d.begin());
+        thrust::copy(theta, theta + Ninput + 1, theta_d.begin());
         
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
