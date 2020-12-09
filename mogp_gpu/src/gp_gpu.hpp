@@ -1,8 +1,6 @@
 #ifndef GP_GPU_HPP
 #define GP_GPU_HPP
 
-#include "pybind11/pybind11.h"
-
 #include <iostream>
 
 #include <algorithm>
@@ -21,14 +19,14 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/copy.h>
 
+#include <Eigen/Dense>
+
 #include "strided_range.hpp"
 #include "cov_gpu.hpp"
-#include "identity.hpp"
+#include "util.hpp"
 
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff
-
-namespace py = pybind11;
 
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
@@ -87,6 +85,10 @@ void sumLogDiag(int N, double *A, double *result)
 
 typedef int obs_kind;
 // typedef ivec vec_obs_kind;
+typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> mat;
+typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > mat_ref;
+typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, 1> vec;
+typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, 1> > vec_ref;
 
 // The GP class
 // By convention, members ending "_d" are allocated on the device
@@ -135,7 +137,7 @@ public:
     {
         return N;
     }
-
+        
     // length of xnew assumed to be Ninput
     double predict(REAL *xnew)
     {
@@ -193,11 +195,11 @@ public:
 
     // assumes on input that xnew is Nbatch * Ninput, and that result
     // contains space for Nbatch result values
-    void predict_batch(int Nbatch, REAL *xnew, REAL *result)
+    void predict_batch(int Nbatch, mat_ref xnew, vec_ref result)
     {
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> result_d(Nbatch);
 
         cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput,
@@ -210,7 +212,7 @@ public:
 
         cudaDeviceSynchronize();
 
-        thrust::copy(result_d.begin(), result_d.end(), result);
+        thrust::copy(result_d.begin(), result_d.end(), result.data());        
     }
 
     void predict_variance_batch(int Nbatch, REAL *xnew, REAL *mean, REAL *var)
@@ -269,13 +271,13 @@ public:
     }
 
     // Update the hyperparameters, and invQ and invQt which depend on them
-    void update_theta(const double *theta)
+    void update_theta(vec_ref theta)
     {
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
 
-        thrust::copy(theta, theta + Ninput + 1, theta_d.begin());
+        thrust::copy(theta.data(), theta.data() + Ninput + 1, theta_d.begin());
 
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
@@ -392,8 +394,8 @@ public:
             //             Ninput, &zero, dev_ptr(invCk_d), 1);
     }
 
-  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const std::vector<double>& theta_,
-	      const std::vector<double>& xs_, const std::vector<double>& ts_)
+  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, vec_ref theta_,
+	      mat_ref xs_, vec_ref ts_)
         : N(N_)
         , Ninput(Ninput_)
         , invC_d(N_ * N_, 0.0)
@@ -407,7 +409,7 @@ public:
         , result_d(xnew_size, 0.0)
         , kappa_d(xnew_size, 0.0)
         , invCk_d(xnew_size * N_, 0.0)
-    {
+    {        
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
