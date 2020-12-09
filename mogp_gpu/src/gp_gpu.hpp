@@ -1,6 +1,8 @@
 #ifndef GP_GPU_HPP
 #define GP_GPU_HPP
 
+#include "pybind11/pybind11.h"
+
 #include <iostream>
 
 #include <algorithm>
@@ -26,6 +28,8 @@
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff
 
+namespace py = pybind11;
+
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
 {
@@ -44,7 +48,7 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
 // see https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
 __inline__ __device__
 double warpReduceSum(double val) {
-    for (int offset = WARP_SIZE/2; offset > 0; offset /= 2) 
+    for (int offset = WARP_SIZE/2; offset > 0; offset /= 2)
         val += __shfl_down_sync(FULL_MASK, val, offset);
     return val;
 }
@@ -57,20 +61,20 @@ void sumLogDiag(int N, double *A, double *result)
 {
     // assumes a single block
     int i = threadIdx.x;
-    
+
     static __shared__ double work[WARP_SIZE];
     double log_diag = 0.0;
-    
+
     work[i] = 0.0;
     if (i < N) {
         log_diag = log(A[i * (N+1)]);
     }
-   
+
     int laneIdx = i % WARP_SIZE;
     int warpIdx = i / WARP_SIZE;
 
     log_diag = warpReduceSum(log_diag);
-    
+
     if (laneIdx == 0) work[warpIdx] = log_diag;
 
     __syncthreads();
@@ -92,13 +96,13 @@ class DenseGP_GPU {
 
     // Number of training points, dimension of input
     unsigned int N, Ninput;
-    
+
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
 
     // handle for cuSOLVER calls
     cusolverDnHandle_t cusolverHandle;
-	
+
     // inverse covariance matrix on device
     thrust::device_vector<REAL> invC_d;
 
@@ -116,7 +120,7 @@ class DenseGP_GPU {
 
     // precomputed product, used in the prediction
     thrust::device_vector<REAL> invCts_d;
-    
+
     // preallocated work array (length N) on the CUDA device
     thrust::device_vector<REAL> work_d;
 
@@ -190,7 +194,7 @@ public:
     // assumes on input that xnew is Nbatch * Ninput, and that result
     // contains space for Nbatch result values
     void predict_batch(int Nbatch, REAL *xnew, REAL *result)
-    {	    
+    {
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
@@ -240,7 +244,7 @@ public:
                     dev_ptr(work_mat_d), Nbatch,
                     &zero,
                     dev_ptr(invCk_d), N);
-	
+
         // result accumulated into 'kappa'
         status = cublasDgemmStridedBatched(
             cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N,
@@ -270,9 +274,9 @@ public:
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
-        
+
         thrust::copy(theta, theta + Ninput + 1, theta_d.begin());
-        
+
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
 
@@ -312,7 +316,7 @@ public:
                 smsg << "Error in potrf: return code " << status << ", info " << info_h;
                 throw std::runtime_error(smsg.str());
 
-            } else if (info_h == 0) {    
+            } else if (info_h == 0) {
                 break;
             }
 
@@ -336,7 +340,7 @@ public:
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
-        
+
 
         // invQt
         thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
@@ -372,7 +376,7 @@ public:
     void dloglik_dtheta(double *result_h)
     {
             // TODO: calculation of dloglik_dtheta
-            
+
             // // dK{jk}_dtheta{i}
             // cov_deriv_batch_gpu(/* result_d */,
             //                     Ninput, N, N,
@@ -388,14 +392,14 @@ public:
             //             Ninput, &zero, dev_ptr(invCk_d), 1);
     }
 
-    DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const double *theta_,
-                const double *xs_, const double *ts_)
+  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, const std::vector<double>& theta_,
+	      const std::vector<double>& xs_, const std::vector<double>& ts_)
         : N(N_)
         , Ninput(Ninput_)
         , invC_d(N_ * N_, 0.0)
-        , theta_d(theta_, theta_ + Ninput_ + 1)
-        , xs_d(xs_, xs_ + Ninput_ * N_)
-        , ts_d(ts_, ts_ + N_)
+        , theta_d(theta_.data(), theta_.data() + Ninput_ + 1)
+        , xs_d(xs_.data(), xs_.data() + Ninput_ * N_)
+        , ts_d(ts_.data(), ts_.data() + N_)
         , invCts_d(N_, 0.0)
         , xnew_d(Ninput_ * xnew_size, 0.0)
         , work_d(N_, 0.0)
@@ -408,7 +412,7 @@ public:
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
             throw std::runtime_error("CUBLAS initialization error\n");
-        }	
+        }
         cusolverStatus_t cusolver_status = cusolverDnCreate(&cusolverHandle);
         if (cusolver_status != CUSOLVER_STATUS_SUCCESS)
         {
