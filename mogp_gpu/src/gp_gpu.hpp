@@ -195,8 +195,13 @@ public:
 
     // assumes on input that xnew is Nbatch * Ninput, and that result
     // contains space for Nbatch result values
-    void predict_batch(int Nbatch, mat_ref xnew, vec_ref result)
+    void predict_batch(mat_ref xnew, vec_ref result)
     {
+        int Nbatch = result.size();
+
+        // TODO
+        // assert result.size() == xnew.rows()
+        
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
@@ -394,12 +399,11 @@ public:
             //             Ninput, &zero, dev_ptr(invCk_d), 1);
     }
 
-  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, vec_ref theta_,
-	      mat_ref xs_, vec_ref ts_)
+  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, mat_ref xs_, vec_ref ts_)
         : N(N_)
         , Ninput(Ninput_)
         , invC_d(N_ * N_, 0.0)
-        , theta_d(theta_.data(), theta_.data() + Ninput_ + 1)
+        , theta_d(Ninput_ + 1)
         , xs_d(xs_.data(), xs_.data() + Ninput_ * N_)
         , ts_d(ts_.data(), ts_.data() + N_)
         , invCts_d(N_, 0.0)
