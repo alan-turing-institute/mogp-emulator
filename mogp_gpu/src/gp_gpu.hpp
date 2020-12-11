@@ -137,11 +137,11 @@ public:
     {
         return N;
     }
-        
+
     // length of xnew assumed to be Ninput
-    double predict(REAL *xnew)
+    double predict(mat_ref xnew)
     {
-        thrust::device_vector<REAL> xnew_d(xnew, xnew + Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Ninput);
         cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
                     dev_ptr(theta_d));
 
@@ -155,10 +155,10 @@ public:
     // xnew (in): input point, to predict
     // var (output): variance
     // returns: prediction of value
-    double predict_variance(REAL *xnew, REAL *var)
+    double predict_variance(mat_ref xnew, vec_ref var)
     {
         // value prediction
-        thrust::device_vector<REAL> xnew_d(xnew, xnew + Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Ninput);
         cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
                     dev_ptr(theta_d));
 
@@ -181,14 +181,14 @@ public:
         CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d),
                   1, &result);
         CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCk_d),
-                  1, var);
+                  1, var.data());
 
         double kappa;
         thrust::copy(kappa_d.begin(), kappa_d.end(), &kappa);
 
         cudaDeviceSynchronize();
 
-        *var = kappa - *var;
+        var = kappa - var.array();
 
         return REAL(result);
     }
@@ -201,7 +201,7 @@ public:
 
         // TODO
         // assert result.size() == xnew.rows()
-        
+
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
@@ -217,16 +217,16 @@ public:
 
         cudaDeviceSynchronize();
 
-        thrust::copy(result_d.begin(), result_d.end(), result.data());        
+        thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
-    void predict_variance_batch(int Nbatch, REAL *xnew, REAL *mean, REAL *var)
+    void predict_variance_batch(int Nbatch, mat_ref xnew, vec_ref mean, vec_ref var)
     {
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
 
-        thrust::device_vector<REAL> xnew_d(xnew, xnew + Nbatch * Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
@@ -269,11 +269,12 @@ public:
         cudaDeviceSynchronize();
 
         // copy back means
-        thrust::copy(mean_d.begin(), mean_d.end(), mean);
+        thrust::copy(mean_d.begin(), mean_d.end(), mean.data());
 
         // copy back variances
-        thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var);
+        thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
+
 
     // Update the hyperparameters, and invQ and invQt which depend on them
     void update_theta(vec_ref theta)
@@ -365,14 +366,14 @@ public:
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
     }
 
-    void get_invQ(double *invQ_h)
+    void get_invQ(mat_ref invQ_h)
     {
-        thrust::copy(invC_d.begin(), invC_d.end(), invQ_h);
+      thrust::copy(invC_d.begin(), invC_d.end(), invQ_h.data());
     }
 
-    void get_invQt(double *invQt_h)
+    void get_invQt(mat_ref invQt_h)
     {
-        thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h);
+      thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h.data());
     }
 
     double get_logdetQ(void)
@@ -380,7 +381,7 @@ public:
         return logdetC;
     }
 
-    void dloglik_dtheta(double *result_h)
+    void dloglik_dtheta(mat_ref result_h)
     {
             // TODO: calculation of dloglik_dtheta
 
@@ -413,7 +414,7 @@ public:
         , result_d(xnew_size, 0.0)
         , kappa_d(xnew_size, 0.0)
         , invCk_d(xnew_size * N_, 0.0)
-    {        
+    {
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
