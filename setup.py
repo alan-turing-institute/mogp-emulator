@@ -1,10 +1,38 @@
 import os
 import setuptools
 
+
 from distutils.extension import Extension
 from distutils.command.build_ext import build_ext
 
 import numpy as np
+
+# version information
+MAJOR = 0
+MINOR = 3
+MICRO = 1
+PRERELEASE = 0
+ISRELEASED = True
+version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
+
+if not ISRELEASED:
+    version += ".dev{}".format(PRERELEASE)
+
+# write version information to file
+
+def write_version_file(version):
+    "writes version file that is read when importing version number"
+    version_file = """'''
+Version file automatically created by setup.py file
+'''
+version = '{}'
+    """.format(version)
+
+    with open("mogp_emulator/version.py", "w") as fh:
+        fh.write(version_file)
+
+write_version_file(version)
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -87,18 +115,21 @@ ext = Extension("libgpgpu",
                 include_dirs=[numpy_include, cuda_config["include"],"mogp_gpu/src"])
 
 setuptools.setup(name='mogp_emulator',
-                 version='0.1',
-                 description='Tool for Multi-Output Gaussian Process Emulators',
-                 long_description=long_description,
-                 long_description_content_type="text/markdown",
-                 url='TBD',
-                 author='Eric Daub',
-                 author_email='edaub@turing.ac.uk',
-                 packages=setuptools.find_packages(),
-                 license=['MIT'],
-                 ext_modules=[ext],
-                 cmdclass={"build_ext": custom_build_ext},
-                 install_requires=['numpy', 'scipy'],
-                 zip_safe=False
-
-)
+      version=version,
+      description='Tool for Multi-Output Gaussian Process Emulators',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
+      url='https://mogp-emulator.readthedocs.io/',
+      project_urls={
+                  "Bug Tracker": "https://github.com/alan-turing-institute/mogp_emulator/issues",
+                  "Documentation": "https://mogp-emulator.readthedocs.io/",
+                  "Source Code": "https://github.com/alan-turing-institute/mogp_emulator/",
+              },
+      author='Alan Turing Institute Research Engineering Group',
+      author_email='edaub@turing.ac.uk',
+      packages=setuptools.find_packages(),
+      license=['MIT'],
+      ext_modules=[ext],
+      cmdclass={"build_ext": custom_build_ext},
+      install_requires=['numpy', 'scipy'],
+      zip_safe=False)

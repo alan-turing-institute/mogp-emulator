@@ -400,20 +400,20 @@ public:
             //             Ninput, &zero, dev_ptr(invCk_d), 1);
     }
 
-  DenseGP_GPU(unsigned int N_, unsigned int Ninput_, mat_ref xs_, vec_ref ts_)
-        : N(N_)
-        , Ninput(Ninput_)
-        , invC_d(N_ * N_, 0.0)
-        , theta_d(Ninput_ + 1)
-        , xs_d(xs_.data(), xs_.data() + Ninput_ * N_)
-        , ts_d(ts_.data(), ts_.data() + N_)
-        , invCts_d(N_, 0.0)
-        , xnew_d(Ninput_ * xnew_size, 0.0)
-        , work_d(N_, 0.0)
-        , work_mat_d(N_ * xnew_size, 0.0)
+  DenseGP_GPU(mat_ref xs_, vec_ref ts_)
+        : N(xs_.rows())
+	, Ninput(xs_.cols())
+        , invC_d(N * N, 0.0)
+        , theta_d(Ninput + 1)
+        , xs_d(xs_.data(), xs_.data() + Ninput * N)
+        , ts_d(ts_.data(), ts_.data() + N)
+        , invCts_d(N, 0.0)
+        , xnew_d(Ninput * xnew_size, 0.0)
+        , work_d(N, 0.0)
+        , work_mat_d(N * xnew_size, 0.0)
         , result_d(xnew_size, 0.0)
         , kappa_d(xnew_size, 0.0)
-        , invCk_d(xnew_size * N_, 0.0)
+        , invCk_d(xnew_size * N, 0.0)
     {
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)

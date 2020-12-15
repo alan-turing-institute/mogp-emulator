@@ -4,4 +4,4 @@
 MCMC Benchmark
 **********************************
 
-.. automodule:: mogp_emulator.tests.benchmark_MCMC
+.. automodule:: mogp_emulator.benchmarks.benchmark_MCMC
