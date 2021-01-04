@@ -81,6 +81,8 @@ def customize_compiler_for_nvcc(self):
         if os.path.splitext(src)[1] == '.cu':
             # use nvcc for .cu files
             cuda_config = get_cuda_config()
+            if not "nvcc" in cuda_config.keys():
+                return
             self.set_executable('compiler_so', cuda_config['nvcc'])
             # use subset of extra_postargs
             postargs = extra_postargs['nvcc']
@@ -93,7 +95,6 @@ def customize_compiler_for_nvcc(self):
     # replace the class default _compile method with this one
     self._compile = _compile
 
-
 # Run the custom compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
@@ -102,17 +103,23 @@ class custom_build_ext(build_ext):
 
 cuda_config = get_cuda_config()
 numpy_include = np.get_include()
-
-ext = Extension("libgpgpu",
-                sources=["mogp_gpu/src/gp_gpu.cu","mogp_gpu/src/cov_gpu.cu","mogp_gpu/src/util.cu"],
-                library_dirs=[cuda_config["lib64"]],
-                libraries=["cudart","cublas","cusolver"],
-                runtime_library_dirs=[cuda_config["lib64"]],
-                extra_compile_args={"gcc":["-std=c++11"],
-                                    "nvcc": ["--compiler-options","-O3,-Wall,-shared,-std=c++11,-fPIC",
+# we only want to add the mogp_gpu extension if we have cuda compiler
+ext_modules = []
+if len(cuda_config) > 0:
+    ext = Extension("libgpgpu",
+                    sources=["mogp_gpu/src/gp_gpu.cu",
+                             "mogp_gpu/src/cov_gpu.cu",
+                             "mogp_gpu/src/util.cu"],
+                    library_dirs=[cuda_config["lib64"]],
+                    libraries=["cudart","cublas","cusolver"],
+                    runtime_library_dirs=[cuda_config["lib64"]],
+                    extra_compile_args={"gcc":["-std=c++11"],
+                                    "nvcc": ["--compiler-options",
+                                             "-O3,-Wall,-shared,-std=c++11,-fPIC",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
-                include_dirs=[numpy_include, cuda_config["include"],"mogp_gpu/src"])
+                    include_dirs=[numpy_include, cuda_config["include"],"mogp_gpu/src"])
+    ext_modules.append(ext)
 
 setuptools.setup(name='mogp_emulator',
       version=version,
@@ -129,7 +136,7 @@ setuptools.setup(name='mogp_emulator',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
       license=['MIT'],
-      ext_modules=[ext],
+      ext_modules=ext_modules,
       cmdclass={"build_ext": custom_build_ext},
       install_requires=['numpy', 'scipy'],
       zip_safe=False)
