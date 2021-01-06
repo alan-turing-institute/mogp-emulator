@@ -6,8 +6,8 @@ values, optimizing hyperparameter values, and making predictions on unseen data.
 experimental design, dimension reduction, and calibration tools to enable modellers to understand complex
 computer simulations.
 
-[![Build Status](https://travis-ci.com/alan-turing-institute/mogp_emulator.svg?branch=master)](https://travis-ci.com/alan-turing-institute/mogp_emulator)
-[![codecov](https://codecov.io/gh/alan-turing-institute/mogp_emulator/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/mogp_emulator)
+[![Build Status](https://travis-ci.com/alan-turing-institute/mogp-emulator.svg?branch=master)](https://travis-ci.com/alan-turing-institute/mogp-emulator)
+[![codecov](https://codecov.io/gh/alan-turing-institute/mogp-emulator/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/mogp-emulator)
 [![Documentation Status](https://readthedocs.org/projects/mogp-emulator/badge/?version=latest)](https://mogp-emulator.readthedocs.io/en/latest/?badge=latest)
 
 ## Installation
@@ -16,14 +16,8 @@ computer simulations.
 installed via `pip`:
 
 ```bash
-pip install mogp_emulator
+pip install mogp-emulator
 ```
-
-(NOTE: the project is not yet on PyPI, but we expect that the current version of the `devel` branch will
-be the first one available to be installed that way so are accounting for this in the rewrite of this
-README. Until that is completed, please see the [docs/installation.rst](docs/intro/installation.rst)
-page for details on how to install the software manually. Thank you for your patience as we are hard
-at work on improvements to the software!)
 
 Optionally, you may want to install some additional optional packages. `matplotlib` is useful for
 visualising some of the results of the benchmarks, and `patsy` is highly recommended for users that
