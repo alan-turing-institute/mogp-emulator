@@ -6,13 +6,15 @@ Installation
 In most cases, the easiest way to install ``mogp_emulator`` is via ``pip``, which should install the
 library and all of its dependencies: ::
 
-   pip install mogp_emulator
+   pip install mogp-emulator
 
-(NOTE: the project is not yet on PyPI, but we expect that the current version of the ``devel`` branch will
-be the first one available to be installed that way so are accounting for this in the rewrite of this
-documentation. Until that is completed, please follow the instructions below to install the software
-manually. Thank you for your patience as we are hard at work on improvements to the software!)
+You can also use ``pip`` to install directly from the github repository using ::
 
+   pip install git+https://github.com/alan-turing-institute/mogp-emulator
+
+This will accomplish the same thing as the manual installation instructions
+below.
+   
 Manual Installation
 -------------------
 
@@ -28,7 +30,7 @@ below.
 
 If you prefer to check out the Github repository, you can download the code using: ::
 
-	git clone https://github.com/alan-turing-institute/mogp_emulator/
+	git clone https://github.com/alan-turing-institute/mogp-emulator/
 
 This will clone the entire git history of the software and check out the ``master`` branch by default.
 The ``master`` branch is the most stable version of the code, but will not have all features as the
@@ -61,7 +63,7 @@ Installation
 
 Then to install the main code, run the following command: ::
 
-	python setup.py install
+   python setup.py install
 
 This will install the main code in the system Python installation. You may need adminstrative priveleges
 to install the software itself, depending on your system configuration. However, any updates to the code
@@ -69,7 +71,7 @@ cloned through the github repository (particularly if you are using the devel br
 active development) will not be reflected in the system installation using this method. If you would like
 to always have the most active development version, install using: ::
 
-	python setup.py develop
+   python setup.py develop
 
 This will insert symlinks to the repository files into the system Python installation so that files
 are updated whenever there are changes to the code files.
@@ -86,12 +88,12 @@ change to the ``docs`` directory. There is a Makefile in the `docs` directory to
 documentation for you. To build the HTML version, enter the
 following into the shell from the ``docs`` directory: ::
 
-	make html
+   make html
 
 This will build the HTML version of the documentation. A standalone PDF version can be built, which
 requires a standard LaTeX installation, via: ::
 
-	make latexpdf
+   make latexpdf
 
 In both cases, the documentation files can be found in the corresponding directories in the ``docs/_build``
 directory. Note that if these directories are not found on your system, you may need to create them in

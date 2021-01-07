@@ -2,8 +2,8 @@ import setuptools
 
 # version information
 MAJOR = 0
-MINOR = 3
-MICRO = 1
+MINOR = 4
+MICRO = 0
 PRERELEASE = 0
 ISRELEASED = True
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
@@ -36,9 +36,9 @@ setuptools.setup(name='mogp_emulator',
       long_description_content_type="text/markdown",
       url='https://mogp-emulator.readthedocs.io/',
       project_urls={
-                  "Bug Tracker": "https://github.com/alan-turing-institute/mogp_emulator/issues",
+                  "Bug Tracker": "https://github.com/alan-turing-institute/mogp-emulator/issues",
                   "Documentation": "https://mogp-emulator.readthedocs.io/",
-                  "Source Code": "https://github.com/alan-turing-institute/mogp_emulator/",
+                  "Source Code": "https://github.com/alan-turing-institute/mogp-emulator/",
               },
       author='Alan Turing Institute Research Engineering Group',
       author_email='edaub@turing.ac.uk',

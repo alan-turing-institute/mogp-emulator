@@ -34,6 +34,7 @@ details, and some included benchmarks.
    demos/gp_demos
    demos/mice_demos
    demos/gp_demoR
+   demos/excalibur_workshop_demo
 
 .. toctree::
    :maxdepth: 1
