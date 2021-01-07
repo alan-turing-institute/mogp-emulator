@@ -17,9 +17,9 @@ def f(x):
 
 ed = mogp_emulator.LatinHypercubeDesign([(0., 5.), (0., 5.)])
 
-# sample space
+# sample space, use many samples to ensure we get a good emulator
 
-inputs = ed.sample(20)
+inputs = ed.sample(50)
 
 # run simulation
 
@@ -46,7 +46,7 @@ print("Example 1: Make predictions with HistoryMatching object")
 # create HistoryMatching object, set threshold to be low to make printed output
 # easier to read
 
-threshold = 0.06
+threshold = 0.01
 hm = mogp_emulator.HistoryMatching(threshold=threshold)
 
 # For this example, we set the observations, GP, and the coordinates
@@ -75,23 +75,15 @@ for p, im in zip(coords[hm.get_NROY()], implaus[hm.get_NROY()]):
 
 ###################################################################################
 
-# Second Example: Pass customized GP predictions and add model discrepancy
+# Second Example: Pass external GP predictions and add model discrepancy
 
 print("Example 2: External Predictions and Model Discrepancy")
 
-# create GP as before
-
-gp_mcmc = mogp_emulator.GaussianProcess(inputs, targets)
-
-# fit hyperparameters with MCMC
-
-gp_mcmc.learn_hyperparameters_MCMC(n_samples = 10000)
-
-# use MCMC samples to make custom predictions on 10000 new points
+# use gp to make predictions on 10000 new points externally
 
 coords = ed.sample(10000)
 
-expectations = gp_mcmc.predict(coords, predict_from_samples = True)
+expectations = gp.predict(coords)
 
 # now create HistoryMatching object with these new parameters
 
@@ -100,7 +92,7 @@ hm_extern = mogp_emulator.HistoryMatching(obs=obs, expectations=expectations,
 
 # calculate implausibility, adding a model discrepancy (as a variance)
 
-implaus_extern = hm_extern.get_implausibility(0.2)
+implaus_extern = hm_extern.get_implausibility(0.1)
 
 # print points that we have not ruled out yet:
 
