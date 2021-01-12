@@ -22,7 +22,8 @@ class UnavailableError(RuntimeError):
 
 
 class GaussianProcessGPU(object):
-    """This class implements the same interface as
+    """
+    This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
     particular methods overridden to use a GPU if it is available.
     """
@@ -37,7 +38,7 @@ class GaussianProcessGPU(object):
         targets = np.array(targets)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
-
+        self.kernel=kernel
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
@@ -46,12 +47,100 @@ class GaussianProcessGPU(object):
                 kernel = SquaredExponential()
             else:
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential")
-        elif kernel and kernel != SquaredExponential():
+        elif kernel and not isinstance(kernel, SquaredExponential):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
         self._densegp_gpu = libgpgpu.DenseGP_GPU(inputs, targets)
 
+    @property
+    def inputs(self):
+        """
+        Returns inputs for the emulator as a numpy array
+
+        :returns: Emulator inputs, 2D array with shape ``(n, D)``
+        :rtype: ndarray
+        """
+        return self._densegp_gpu.inputs()
+
+    @property
+    def targets(self):
+        """
+        Returns targets for the emulator as a numpy array
+
+        :returns: Emulator targets, 1D array with shape ``(n,)``
+        :rtype: ndarray
+        """
+        return self._densegp_gpu.targets()
+
+    @property
+    def n(self):
+        """
+        Returns number of training examples for the emulator
+
+        :returns: Number of training examples for the emulator object
+        :rtype: int
+        """
+        return self._densegp_gpu.data_length()
+
+    @property
+    def D(self):
+        """
+        Returns number of inputs (dimensions) for the emulator
+
+        :returns: Number of inputs for the emulator object
+        :rtype: int
+        """
+        return self._densegp_gpu.D()
+
+    @property
+    def n_params(self):
+        """
+        Returns number of hyperparameters
+
+        Returns the number of hyperparameters for the emulator. The number depends on the
+        choice of mean function, covariance function, and nugget strategy, and possibly the
+        number of inputs for certain choices of the mean function.
+
+        :returns: Number of hyperparameters
+        :rtype: int
+        """
+        return self._densegp_gpu.n_params()
+
 
     def fit(self, theta):
+        """
+        Fits the emulator and sets the parameters.
 
+        Implements the same interface as
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
+        """
         theta = np.array(theta)
         self._densegp_gpu.update_theta(theta)
+
+    def predict(self, testing, unc=True, deriv=False, include_nugget=False):
+        """
+        Make a prediction for a set of input vectors for a single set of hyperparameters.
+        This method implements the same interface as
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
+        """
+#        if self.theta is None:
+ #           raise ValueError("hyperparameters have not been fit for this Gaussian Process")
+
+        testing = np.array(testing)
+        if testing.ndim == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert testing.ndim == 2
+
+        result = np.zeros(testing.shape[1])
+        unc = np.zeros(testing.shape[1])
+        deriv = np.zeros(testing.shape[1])
+        self._densegp_gpu.predict_batch(testing, result)
+        return GaussianProcess.PredictResult(mu=result, unc=unc, deriv=deriv)
+
+
+    def __call__(self, testing):
+        """A Gaussian process object is callable: calling it is the same as
+        calling `predict` without uncertainty and derivative
+        predictions, and extracting the zeroth component for the
+        'mean' prediction.
+        """
+        return (self.predict(testing, unc=False, deriv=False)[0])

@@ -99,6 +99,12 @@ class DenseGP_GPU {
     // Number of training points, dimension of input
     unsigned int N, Ninput;
 
+    // inputs
+    mat_ref xs;
+
+    // targets
+    vec_ref ts;
+
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
 
@@ -136,6 +142,26 @@ public:
     int data_length(void) const
     {
         return N;
+    }
+
+    int D(void) const
+    {
+        return Ninput;
+    }
+
+    mat_ref inputs(void) const
+    {
+        return xs;
+    }
+
+    vec_ref targets(void) const
+    {
+        return ts;
+    }
+
+    int n_params(void) const
+    {
+        return Ninput + 1;
     }
 
     // length of xnew assumed to be Ninput
@@ -405,6 +431,8 @@ public:
 	, Ninput(xs_.cols())
         , invC_d(N * N, 0.0)
         , theta_d(Ninput + 1)
+	, xs(xs_)
+	, ts(ts_)
         , xs_d(xs_.data(), xs_.data() + Ninput * N)
         , ts_d(ts_.data(), ts_.data() + N)
         , invCts_d(N, 0.0)
