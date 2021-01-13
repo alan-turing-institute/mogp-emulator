@@ -23,4 +23,8 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("get_invQt", &DenseGP_GPU::get_invQt)
         .def("get_logdetQ", &DenseGP_GPU::get_logdetQ)
         .def("dloglik_dtheta", &DenseGP_GPU::dloglik_dtheta);
+    py::enum_<nugget_type>(m, "nugget_type")
+        .value("adaptive", NUG_ADAPTIVE)
+        .value("fixed", NUG_FIXED)
+        .value("fit", NUG_FIT);
 }

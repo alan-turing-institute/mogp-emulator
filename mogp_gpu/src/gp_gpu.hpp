@@ -90,6 +90,8 @@ typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, 
 typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, 1> vec;
 typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, 1> > vec_ref;
 
+enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
+
 // The GP class
 // By convention, members ending "_d" are allocated on the device
 class DenseGP_GPU {
@@ -161,7 +163,7 @@ public:
 
     int n_params(void) const
     {
-        return Ninput + 1;
+        return Ninput + 2;
     }
 
     void get_theta(vec_ref theta)
@@ -309,67 +311,77 @@ public:
 
 
     // Update the hyperparameters, and invQ and invQt which depend on them
-    void update_theta(vec_ref theta)
+
+    void update_theta(vec_ref theta, nugget_type nugget)
     {
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
 
-        thrust::copy(theta.data(), theta.data() + Ninput + 1, theta_d.begin());
+        thrust::copy(theta.data(), theta.data() + Ninput + 2, theta_d.begin());
 
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
 
-        double mean_diag, jitter;
-        const int max_tries = 5;
-        int itry = 0;
-        while (itry < max_tries) {
-            // invC_d holds the covariance matrix - work with a copy
-            // in work_mat_d, in case the factorization fails
-            thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
+	if (nugget == NUG_ADAPTIVE) {
+	    double mean_diag, jitter;
+	    const int max_tries = 5;
+	    int itry = 0;
+	    while (itry < max_tries) {
+		// invC_d holds the covariance matrix - work with a copy
+		// in work_mat_d, in case the factorization fails
+		thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
 
-            // if the first attempt at factorization failed, add a
-            // small term to the diagonal, increasing each iteration
-            // until the factorization succeeds
-            if (itry >= 1) {
-                if (itry == 1) {
-                    // find mean of (absolute) diagonal elements (diagonal
-                    // elements should all be positive)
-                    cublasDasum(cublasHandle, N, dev_ptr(invC_d), N+1, &mean_diag);
-                    mean_diag /= N;
-                    jitter = 1e-6 * mean_diag;
-                }
-                add_diagonal(N, jitter, dev_ptr(work_mat_d));
-                jitter *= 10;
-            }
+		// if the first attempt at factorization failed, add a
+		// small term to the diagonal, increasing each iteration
+		// until the factorization succeeds
+		if (itry >= 1) {
+		    if (itry == 1) {
+			// find mean of (absolute) diagonal elements (diagonal
+			// elements should all be positive)
+			cublasDasum(cublasHandle, N, dev_ptr(invC_d), N+1, &mean_diag);
+			mean_diag /= N;
+			jitter = 1e-6 * mean_diag;
+		    }
+		    add_diagonal(N, jitter, dev_ptr(work_mat_d));
+		    jitter *= 10;
+		}
 
-            // compute Cholesky factors
-            status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
-                                      dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
-                                      potrf_buffer_d.size(), dev_ptr(info_d));
 
-            thrust::copy(info_d.begin(), info_d.end(), &info_h);
+		// compute Cholesky factors
+		status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
+					  dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
+					  potrf_buffer_d.size(), dev_ptr(info_d));
 
-            if (status != CUSOLVER_STATUS_SUCCESS || info_h < 0) {
-                std::string msg;
-                std::stringstream smsg(msg);
-                smsg << "Error in potrf: return code " << status << ", info " << info_h;
-                throw std::runtime_error(smsg.str());
+		thrust::copy(info_d.begin(), info_d.end(), &info_h);
 
-            } else if (info_h == 0) {
-                break;
-            }
+		if (status != CUSOLVER_STATUS_SUCCESS || info_h < 0) {
+		    std::string msg;
+		    std::stringstream smsg(msg);
+		    smsg << "Error in potrf: return code " << status << ", info " << info_h;
+		    throw std::runtime_error(smsg.str());
 
-            itry++;
-        }
+		} else if (info_h == 0) {
+		    break;
+		}
 
-        // if none of the factorization attempts succeeded:
-        if (itry == max_tries) {
-            std::string msg;
-            std::stringstream smsg(msg);
-            smsg << "All attempts at factorization failed. Last return code " << status << ", info " << info_h;
-            throw std::runtime_error(smsg.str());
-        }
+		itry++;
+	    }
+
+
+	    // if none of the factorization attempts succeeded:
+	    if (itry == max_tries) {
+		std::string msg;
+		std::stringstream smsg(msg);
+		smsg << "All attempts at factorization failed. Last return code " << status << ", info " << info_h;
+		throw std::runtime_error(smsg.str());
+	    }
+
+	} else if (nugget == NUG_FIXED) {
+	    add_diagonal(N, theta[theta.size()-1], dev_ptr(work_mat_d));
+	} else { //nugget == "fit"
+	    // ...
+	}
 
         identity_device(N, dev_ptr(invC_d));
 
@@ -436,7 +448,7 @@ public:
         : N(xs_.rows())
 	, Ninput(xs_.cols())
         , invC_d(N * N, 0.0)
-        , theta_d(Ninput + 1)
+        , theta_d(Ninput + 2)
 	, xs(xs_)
 	, ts(ts_)
         , xs_d(xs_.data(), xs_.data() + Ninput * N)

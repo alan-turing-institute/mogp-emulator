@@ -49,6 +49,15 @@ class GaussianProcessGPU(object):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential")
         elif kernel and not isinstance(kernel, SquaredExponential):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
+        if nugget == "adaptive":
+            self._nugget_type = libgpgpu.nugget_type(0)
+        elif nugget == "fit":
+            self._nugget_type = libgpgpu.nugget_type(1)
+        elif nugget == "fixed":
+            self._nugget_type = libgpgpu.nugget_type(2)
+        else:
+            raise ValueError("nugget must be set to 'adaptive', 'fit', or 'fixed'")
+        # instantiate the C++ class
         self._densegp_gpu = libgpgpu.DenseGP_GPU(inputs, targets)
 
     @property
@@ -118,6 +127,33 @@ class GaussianProcessGPU(object):
         self._densegp_gpu.get_theta(theta)
         return theta
 
+    @theta.setter
+    def theta(self, theta):
+        """
+        Fits the emulator and sets the parameters (property-based setter
+        alias for ``fit``)
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.theta`
+
+        :type theta: ndarray
+        :returns: None
+        """
+        self.fit(theta)
+
+
+    @property
+    def nugget_type(self):
+        """
+        Returns method used to select nugget parameter
+
+        Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
+        ``"fit"``, or ``"fixed"``. This is automatically set when changing the ``nugget``
+        property.
+
+        :returns: Current nugget fitting method
+        :rtype: str
+        """
+        return self._nugget_type
 
     def fit(self, theta):
         """
@@ -127,8 +163,7 @@ class GaussianProcessGPU(object):
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
         """
         theta = np.array(theta)
-        self._densegp_gpu.update_theta(theta)
-
+        self._densegp_gpu.update_theta(theta, self._nugget_type)
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=False):
         """
@@ -144,9 +179,9 @@ class GaussianProcessGPU(object):
             testing = np.reshape(testing, (1, len(testing)))
         assert testing.ndim == 2
 
-        means = np.zeros(testing.shape[1])
-        variances = np.zeros(testing.shape[1])
-        deriv = np.zeros(testing.shape[1])
+        means = np.zeros(testing.shape[0])
+        variances = np.zeros(testing.shape[0])
+        deriv = np.zeros(testing.shape[0])
         if unc:
             self._densegp_gpu.predict_variance_batch(testing, means, variances)
         else:
