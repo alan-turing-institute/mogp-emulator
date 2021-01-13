@@ -12,7 +12,7 @@ from scipy.optimize import OptimizeResult
 
 import libgpgpu
 
-from . import GaussianProcess
+from mogp_emulator.GaussianProcess import PredictResult
 
 
 
@@ -105,6 +105,19 @@ class GaussianProcessGPU(object):
         """
         return self._densegp_gpu.n_params()
 
+    @property
+    def theta(self):
+        """
+        Returns emulator hyperparameters
+        see
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.theta`
+
+        :type theta: ndarray
+        """
+        theta = np.zeros(self.n_params)
+        self._densegp_gpu.get_theta(theta)
+        return theta
+
 
     def fit(self, theta):
         """
@@ -115,6 +128,7 @@ class GaussianProcessGPU(object):
         """
         theta = np.array(theta)
         self._densegp_gpu.update_theta(theta)
+
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=False):
         """
@@ -130,11 +144,14 @@ class GaussianProcessGPU(object):
             testing = np.reshape(testing, (1, len(testing)))
         assert testing.ndim == 2
 
-        result = np.zeros(testing.shape[1])
-        unc = np.zeros(testing.shape[1])
+        means = np.zeros(testing.shape[1])
+        variances = np.zeros(testing.shape[1])
         deriv = np.zeros(testing.shape[1])
-        self._densegp_gpu.predict_batch(testing, result)
-        return GaussianProcess.PredictResult(mu=result, unc=unc, deriv=deriv)
+        if unc:
+            self._densegp_gpu.predict_variance_batch(testing, means, variances)
+        else:
+            self._densegp_gpu.predict_batch(testing, means)
+        return PredictResult(mean=means, unc=variances, deriv=deriv)
 
 
     def __call__(self, testing):
@@ -144,3 +161,15 @@ class GaussianProcessGPU(object):
         'mean' prediction.
         """
         return (self.predict(testing, unc=False, deriv=False)[0])
+
+
+    def __str__(self):
+        """
+        Returns a string representation of the model
+
+        :returns: A string representation of the model
+        (indicates number of training examples and inputs)
+        :rtype: str
+        """
+        return ("Gaussian Process with " + str(self.n) + " training examples and " +
+                str(self.D) + " input variables")

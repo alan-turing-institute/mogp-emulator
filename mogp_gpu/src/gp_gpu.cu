@@ -13,6 +13,7 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("inputs", &DenseGP_GPU::inputs)
         .def("targets", &DenseGP_GPU::targets)
         .def("n_params", &DenseGP_GPU::n_params)
+        .def("get_theta", &DenseGP_GPU::get_theta)
         .def("predict", &DenseGP_GPU::predict)
         .def("predict_variance", &DenseGP_GPU::predict_variance)
         .def("predict_batch", &DenseGP_GPU::predict_batch)

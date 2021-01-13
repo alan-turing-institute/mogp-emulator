@@ -164,6 +164,11 @@ public:
         return Ninput + 1;
     }
 
+    void get_theta(vec_ref theta)
+    {
+      thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
+    }
+
     // length of xnew assumed to be Ninput
     double predict(mat_ref xnew)
     {
@@ -246,11 +251,12 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
-    void predict_variance_batch(int Nbatch, mat_ref xnew, vec_ref mean, vec_ref var)
+    void predict_variance_batch(mat_ref xnew, vec_ref mean, vec_ref var)
     {
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
+	int Nbatch = mean.size();
 
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> mean_d(Nbatch);
