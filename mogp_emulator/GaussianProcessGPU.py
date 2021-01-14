@@ -38,7 +38,7 @@ class GaussianProcessGPU(object):
         targets = np.array(targets)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
-        self.kernel=kernel
+
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
@@ -49,14 +49,8 @@ class GaussianProcessGPU(object):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential")
         elif kernel and not isinstance(kernel, SquaredExponential):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
-        if nugget == "adaptive":
-            self._nugget_type = libgpgpu.nugget_type(0)
-        elif nugget == "fit":
-            self._nugget_type = libgpgpu.nugget_type(1)
-        elif nugget == "fixed":
-            self._nugget_type = libgpgpu.nugget_type(2)
-        else:
-            raise ValueError("nugget must be set to 'adaptive', 'fit', or 'fixed'")
+        self.kernel=kernel
+        self.nugget = nugget
         # instantiate the C++ class
         self._densegp_gpu = libgpgpu.DenseGP_GPU(inputs, targets)
 
@@ -131,27 +125,27 @@ class GaussianProcessGPU(object):
     @property
     def nugget(self):
         return self._nugget
-    
+
     @nugget.setter
-    def nugget(self):
+    def nugget(self, nugget):
         if not isinstance(nugget, (str, float)):
             try:
                 nugget = float(nugget)
             except TypeError:
                 raise TypeError("nugget parameter must be a string or a non-negative float")
-        
+
         if isinstance(nugget, str):
             if nugget == "adaptive":
-                self._nugget_type = "adaptive"
+                self._nugget_type = libgpgpu.nugget_type(0)
             elif nugget == "fit":
-                self._nugget_type = "fit"
+                self._nugget_type = libgpgpu.nugget_type(1)
             else:
-                raise ValueError("bad value of nugget, must be a float or 'adaptive' or 'fit'")
+                raise ValueError("nugget must be a float set to 'adaptive', 'fit', or 'fixed'")
             self._nugget = None
         else:
             if nugget < 0.:
                 raise ValueError("nugget parameter must be non-negative")
-            self._nugget_type = "fixed"
+            self._nugget_type = libgpgpu.nugget_type(2) #fixed
             self._nugget = float(nugget)
 
     @property
@@ -195,7 +189,7 @@ class GaussianProcessGPU(object):
             self.fit(theta)
 
         return self._densegp_gpu.get_logpost()
-        
+
     def predict(self, testing, unc=True, deriv=False, include_nugget=False):
         """
         Make a prediction for a set of input vectors for a single set of hyperparameters.
