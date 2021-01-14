@@ -96,13 +96,14 @@ __device__ void cov_deriv(REAL *result_d, int Ninput, const REAL *x_d,
         REAL d_i = x_d[i] - y_d[i];
         REAL a = d_i * d_i * exp(theta_d[i]);
         s += a;
-        result_d[i] = -0.5 * exp_thetaN * a;
+        result_d[i] = -0.5 * a;
     }
+    s = exp_thetaN * exp(-0.5 * s);
     for (unsigned int i=0; i < Ninput; i++)
     {
         result_d[i] *= s;
     }
-    result_d[Ninput] = exp_thetaN * exp(-0.5 * s);   
+    result_d[Ninput] = s;
 }
 
 __global__ void cov_deriv_batch_kernel(
