@@ -130,6 +130,16 @@ class GaussianProcessGPU(object):
 
     @property
     def nugget(self):
+        return self._nugget
+    
+    @nugget.setter
+    def nugget(self):
+        if not isinstance(nugget, (str, float)):
+            try:
+                nugget = float(nugget)
+            except TypeError:
+                raise TypeError("nugget parameter must be a string or a non-negative float")
+        
         if isinstance(nugget, str):
             if nugget == "adaptive":
                 self._nugget_type = "adaptive"
