@@ -115,6 +115,36 @@ class GaussianProcessGPU(object):
         return self._densegp_gpu.n_params()
 
     @property
+    def nugget_type(self):
+        """
+        Returns method used to select nugget parameter
+
+        Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
+        ``"fit"``, or ``"fixed"``. This is automatically set when changing the ``nugget``
+        property.
+
+        :returns: Current nugget fitting method
+        :rtype: str
+        """
+        return self._nugget_type.__str__().split(".")[1]
+
+    @property
+    def nugget(self):
+        if isinstance(nugget, str):
+            if nugget == "adaptive":
+                self._nugget_type = "adaptive"
+            elif nugget == "fit":
+                self._nugget_type = "fit"
+            else:
+                raise ValueError("bad value of nugget, must be a float or 'adaptive' or 'fit'")
+            self._nugget = None
+        else:
+            if nugget < 0.:
+                raise ValueError("nugget parameter must be non-negative")
+            self._nugget_type = "fixed"
+            self._nugget = float(nugget)
+
+    @property
     def theta(self):
         """
         Returns emulator hyperparameters
@@ -139,21 +169,6 @@ class GaussianProcessGPU(object):
         :returns: None
         """
         self.fit(theta)
-
-
-    @property
-    def nugget_type(self):
-        """
-        Returns method used to select nugget parameter
-
-        Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
-        ``"fit"``, or ``"fixed"``. This is automatically set when changing the ``nugget``
-        property.
-
-        :returns: Current nugget fitting method
-        :rtype: str
-        """
-        return self._nugget_type
 
     def fit(self, theta):
         """
