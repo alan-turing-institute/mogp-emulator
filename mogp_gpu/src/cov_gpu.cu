@@ -111,20 +111,47 @@ __global__ void cov_deriv_batch_kernel(
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
+    const int Ntheta = Ninput + 1;
     if (i < Nx && j < Ny)
     {
-        cov_deriv(result_d + (Ninput + 1) * (j + Nx * j), Ninput,
+        cov_deriv(result_d + Ntheta * (j + Nx * j), Ninput,
                   xs_d + Ninput * j, ys_d + Ninput * i, theta_d);
     }
 }
+
+// __global__ void cov_deriv_kernel(
+//     REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
+//     const REAL *ys_d, const REAL *theta_d)
+// {
+//     int i = blockIdx.x * blockDim.x + threadIdx.x;
+//     int j = blockIdx.y * blockDim.y + threadIdx.y;
+//     const int Ntheta = Ninput + 1;
+//     if (i < Nx && j < Ny)
+//     {
+//         cov_deriv(result_d + Ntheta * (j + Nx * j), Ninput,
+//                   xs_d + Ninput * j, ys_d + Ninput * i, theta_d);
+//     }
+// }
 
 void cov_deriv_batch_gpu(
     REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
     const REAL *ys_d, const REAL *theta_d)
 {
+    // TODO determine correct size of thread block
     const int Bx = 16, By = 16;
     dim3 threads_per_block(Bx, By);
-    dim3 blocks(Nx / Bx, Ny / By);
+    dim3 blocks(Nx / Bx + 1, Ny / By + 1);
     cov_deriv_batch_kernel<<<blocks, threads_per_block>>>(
         result_d, Ninput, Nx, Ny, xs_d, ys_d, theta_d);
 }
+
+// void cov_deriv_gpu(
+//     REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
+//     const REAL *ys_d, const REAL *theta_d)
+// {
+//     const int Bx = 16, By = 16;
+//     dim3 threads_per_block(Bx, By);
+//     dim3 blocks(Nx / Bx, Ny / By);
+//     cov_deriv_kernel<<<blocks, threads_per_block>>>(
+//         result_d, Ninput, xs_d, ys_d, theta_d);
+// }

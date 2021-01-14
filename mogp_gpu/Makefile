@@ -21,8 +21,8 @@ obj/util.o: src/util.cu src/util.hpp
 	mkdir -p obj
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -Xcompiler -fPIC -c src/util.cu -o obj/util.o
 
-bin/test/gpu_basic: test/gpu_basic.cu
+bin/test/gpu_basic: test/gpu_basic.cu obj/cov_gpu.o obj/util.o
 	mkdir -p bin/test
-	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< -o $@
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< obj/cov_gpu.o obj/util.o -o $@
 
 .PHONY: all clean

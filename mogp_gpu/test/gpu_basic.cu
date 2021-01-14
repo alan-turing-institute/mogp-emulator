@@ -17,6 +17,9 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/copy.h>
 
+#include "../src/cov_gpu.hpp"
+#include "../src/gp_gpu.hpp"
+
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff
 
@@ -44,10 +47,43 @@ void test_device_vector_copy()
     std::cout << "\n";
 }
 
+void test_cov_deriv()
+{
+    const size_t N=2;
+    const size_t Ninput=3;
+    const size_t Ntheta=Ninput+1;
+
+    std::vector<REAL> x{1.0, 2.0, 3.0};
+    std::vector<REAL> y{4.0, 5.0, 6.0};
+
+    std::vector<REAL> result(Ntheta);
+    
+    thrust::device_vector<REAL> result_d(Ntheta, 0.0);
+    thrust::device_vector<REAL> x_d(x);
+    thrust::device_vector<REAL> y_d(y);
+    thrust::device_vector<REAL> theta_d(Ntheta, 1.0);
+    
+    cov_deriv_batch_gpu(dev_ptr(result_d), Ninput, 1, 1, dev_ptr(x_d), dev_ptr(y_d), dev_ptr(theta_d));
+    thrust::copy(result_d.begin(), result_d.end(), result.begin());
+    
+    for (size_t i=0; i<Ntheta; i++)
+        std::cout << result[i] << " ";
+    std::cout << "\n";
+
+    cov_deriv_batch_gpu(dev_ptr(result_d), Ninput, 1, 1, dev_ptr(x_d), dev_ptr(y_d), dev_ptr(theta_d));
+    thrust::copy(result_d.begin(), result_d.end(), result.begin());
+    
+    for (size_t i=0; i<Ntheta; i++)
+        std::cout << result[i] << " ";
+    std::cout << "\n";
+}
+
 int main(void)
 {
     test_device_vector_copy();
+    test_cov_deriv();
 
+    
     return 0;
 
 }
