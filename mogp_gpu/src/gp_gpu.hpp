@@ -420,9 +420,15 @@ public:
       thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h.data());
     }
 
-    double get_logdetQ(void)
+    double get_logpost(void)
     {
-        return logdetC;
+        double result;
+        CUBLASDOT(cublasHandle, N, dev_ptr(ts_d), 1, dev_ptr(invCts_d), 1,
+                  &result);
+
+        result += logdetC + N * log(2.0 * M_PI);
+
+        return 0.5 * result;
     }
 
     void dloglik_dtheta(mat_ref result_h)

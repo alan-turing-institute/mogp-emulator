@@ -190,6 +190,12 @@ class GaussianProcessGPU(object):
         theta = np.array(theta)
         self._densegp_gpu.update_theta(theta, self._nugget_type)
 
+    def logposterior(self, theta):
+        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+            self.fit(theta)
+
+        return self._densegp_gpu.get_logpost()
+        
     def predict(self, testing, unc=True, deriv=False, include_nugget=False):
         """
         Make a prediction for a set of input vectors for a single set of hyperparameters.
