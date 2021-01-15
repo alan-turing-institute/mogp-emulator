@@ -1,8 +1,11 @@
 from .version import version as __version__
 
 from .GaussianProcess import GaussianProcess
-from .GaussianProcessGPU import GaussianProcessGPU
-from .GaussianProcessGPU import UnavailableError
+try:
+    from .GaussianProcessGPU import GaussianProcessGPU
+    from .GaussianProcessGPU import UnavailableError
+except:
+    pass
 from .ExperimentalDesign import ExperimentalDesign, MonteCarloDesign, LatinHypercubeDesign
 from .SequentialDesign import SequentialDesign, MICEDesign
 from .MultiOutputGP import MultiOutputGP
