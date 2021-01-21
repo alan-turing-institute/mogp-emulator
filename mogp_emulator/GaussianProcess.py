@@ -662,7 +662,7 @@ class GaussianProcess(object):
                                                                                        linalg.cho_solve((self.L, True),
                                                                                                         np.eye(self.n)[self.P])[pivot_transpose(self.P)])[self.P])[pivot_transpose(self.P)]))
 
-            hessian[-1, -1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n)[self.P])[pivot_tranpose(self.P)]) -
+            hessian[-1, -1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n)[self.P])[pivot_transpose(self.P)]) -
                                                    np.dot(self.invQt, self.invQt))
             hessian[-1, -1] += nugget**2*(np.dot(self.invQt, invQinvQt) -
                                           0.5*np.trace(linalg.cho_solve((self.L, True),
