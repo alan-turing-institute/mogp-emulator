@@ -78,3 +78,50 @@ def jit_cholesky(A, maxtries = 5):
         raise linalg.LinAlgError("not positive definite, even with jitter.")
 
     return L, jitter
+
+def pivot_cholesky(A):
+    """
+    Pivoted cholesky decomposition routine
+
+    Performs a pivoted Cholesky decomposition on a square, potentially
+    singular (i.e. can have collinear rows) covariance matrix. Rows
+    and columns are interchanged such that the diagonal entries of the
+    factorized matrix decrease from the first entry to the last entry.
+    Any collinear rows are skipped, and the diagonal entries for those
+    rows are instead replaced by a decreasing entry. This allows the
+    factorized matrix to still be used to compute the log determinant
+    in the same way, which is required to compute the marginal log
+    likelihood/posterior in the GP fitting.
+
+    Returns the factorized matrix, and an ordered array of integer
+    indices indicating the pivoting order. Raises an error if the
+    decomposition fails.
+
+    :param A: The matrix to be inverted as an array of shape ``(n,n)``. Must be a symmetric matrix (though can be singular).
+    :type A: ndarray
+    :returns: Lower-triangular factored matrix (shape ``(n,n)`` an an array of
+              integers indicating the pivoting order needed to produce the
+              factorization.
+    :rtype: tuple containing an ndarray of shape `(n,n)` of floats and a
+            ndarray of shape `(n,)` of integers. 
+    """
+
+    A = check_cholesky_inputs(A)
+
+    A = np.ascontiguousarray(A)
+    L, P, rank, info = lapack.dpstrf(A, lower = 1)
+
+    # if info is unacceptable, raise an error
+    
+    n = A.shape[0]
+
+    idx = np.arange(rank, n)
+    divs = np.cumprod(np.arange(rank+1, n+1, dtype=np.float64))
+    L[idx, idx] = L[rank-1, rank-1]/divs
+    
+    return L, P-1
+    
+def pivot_transpose(P):
+    "invert a pivot matrix"
+
+    return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
