@@ -110,8 +110,10 @@ def pivot_cholesky(A):
 
     A = np.ascontiguousarray(A)
     L, P, rank, info = lapack.dpstrf(A, lower = 1)
-
-    # if info is unacceptable, raise an error
+    L = np.tril(L)
+    
+    if info < 0:
+        raise linalg.LinAlgError("Illegal value in covariance matrix")
     
     n = A.shape[0]
 
@@ -123,5 +125,8 @@ def pivot_cholesky(A):
     
 def pivot_transpose(P):
     "invert a pivot matrix"
+
+    assert np.array(P).ndim == 1, "pivot matrix must be a list of integers"
+    assert all([idx in P for idx in range(len(P))]), "pivot matrix must contain all integers up to its length exactly once"
 
     return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
