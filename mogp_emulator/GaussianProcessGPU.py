@@ -15,8 +15,7 @@ import libgpgpu
 from mogp_emulator.GaussianProcess import PredictResult
 
 
-
-class UnavailableError(RuntimeError):
+class GPUUnavailableError(RuntimeError):
     """Exception type to use when a GPU, or the GPU library, is unavailable"""
     pass
 

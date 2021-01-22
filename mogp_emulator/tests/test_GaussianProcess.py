@@ -9,11 +9,11 @@ try:
 except(ModuleNotFoundError):
     print("Did not find GPU library - will skip GaussianProcessGPU tests")
     found_gpu=False
+
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import SquaredExponential, Matern52
 from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy import linalg
-
 
 @pytest.fixture
 def x():
@@ -30,6 +30,7 @@ def test_GaussianProcess_init(x, y):
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 3
+<<<<<<< HEAD
     assert gp.n == 2
     assert gp.nugget == None
 
@@ -72,6 +73,32 @@ def test_GaussianProcessGPU_init(x, y):
     gp = GaussianProcessGPU(x, y, nugget=1.e-12)
     assert_allclose(gp.nugget, 1.e-12)
 
+=======
+    assert gp.n == 2
+    assert gp.nugget == None
+
+    gp = GaussianProcess(y, y)
+    assert gp.inputs.shape == (2, 1)
+
+    gp = GaussianProcess(x, y, nugget=1.e-12)
+    assert_allclose(gp.nugget, 1.e-12)
+
+    gp = GaussianProcess(x, y, mean=ConstantMean(1.), kernel=Matern52(), nugget="fit")
+
+    gp = GaussianProcess(x, y, kernel="SquaredExponential")
+    assert isinstance(gp.kernel, SquaredExponential)
+
+    gp = GaussianProcess(x, y, kernel="Matern52")
+    assert isinstance(gp.kernel, Matern52)
+
+    gp = GaussianProcess(x, y, mean="a+b*x[0]", use_patsy=False)
+
+    assert str(gp.mean) == "c + c*x[0]"
+
+    gp = GaussianProcess(x, y, mean="c", inputdict={"c": 0})
+
+    assert str(gp.mean) == "c + c*x[0]"
+>>>>>>> devel
 
 def test_GP_init_failures(x, y):
     "Tests that GaussianProcess fails correctly with bad inputs"
@@ -96,6 +123,7 @@ def test_GP_init_failures(x, y):
 
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, nugget="a")
+
 
 @pytest.mark.skipif(not found_gpu, reason="GPU library not found")
 def test_GPGPU_init_failures(x, y):
@@ -132,12 +160,14 @@ def test_GaussianProcess_n_params(x, y):
     gp = GaussianProcess(x, y, mean="x[0]")
     assert gp.n_params == 2 + x.shape[1] + 2
 
+
 @pytest.mark.skipif(not found_gpu, reason="GPU library not found")
 def test_GaussianProcessGPU_n_params(x, y):
     "test the get_n_params method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
     assert gp.n_params == x.shape[1] + 2
+
 
 def test_GaussianProcess_nugget(x, y):
     "Tests the get_nugget method of GaussianProcess"
@@ -166,6 +196,7 @@ def test_GaussianProcess_nugget(x, y):
 
     with pytest.raises(ValueError):
         gp.nugget = -1.
+
 
 @pytest.mark.skipif(not found_gpu, reason="GPU library not found")
 def test_GaussianProcessGPU_nugget(x, y):
@@ -621,4 +652,12 @@ def test_GaussianProcess_str(x, y):
     "Test function for string method"
 
     gp = GaussianProcess(x, y)
+    assert (str(gp) == "Gaussian Process with {} training examples and {} input variables".format(x.shape[0], x.shape[1]))
+
+
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_str(x, y):
+    "Test function for string method"
+
+    gp = GaussianProcessGPU(x, y)
     assert (str(gp) == "Gaussian Process with {} training examples and {} input variables".format(x.shape[0], x.shape[1]))

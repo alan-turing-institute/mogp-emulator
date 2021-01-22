@@ -1,6 +1,7 @@
 import os
 import setuptools
 
+<<<<<<< HEAD
 
 from distutils.extension import Extension
 from distutils.command.build_ext import build_ext
@@ -13,6 +14,14 @@ MINOR = 3
 MICRO = 1
 PRERELEASE = 0
 ISRELEASED = True
+=======
+# version information
+MAJOR = 0
+MINOR = 4
+MICRO = 0
+PRERELEASE = 2
+ISRELEASED = False
+>>>>>>> devel
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:
