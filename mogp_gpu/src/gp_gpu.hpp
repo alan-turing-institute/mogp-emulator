@@ -437,16 +437,16 @@ public:
 
         thrust::device_vector<REAL> dKdtheta_d((Ninput+1)*N*N, 0.0);
         // dK{jk}_dtheta{i}
-        // cov_deriv_batch_gpu(dev_ptr(dKdtheta_d),
-        //                     Ninput, N, N,
-        //                     dev_ptr(xs_d), dev_ptr(xs_d),
-        //                     dev_ptr(theta_d));
+        cov_deriv_batch_gpu(dev_ptr(dKdtheta_d),
+                             Ninput, N, N,
+                             dev_ptr(xs_d), dev_ptr(xs_d),
+                             dev_ptr(theta_d));
 
-        
-        
+
+
         thrust::copy(dKdtheta_d.begin(), dKdtheta_d.end(), result_h.data());
-        
-            
+
+
             // // // compute intermediate matrix "C" (can overlap)
             // // ...
 

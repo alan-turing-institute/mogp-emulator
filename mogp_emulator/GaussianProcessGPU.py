@@ -174,6 +174,16 @@ class GaussianProcessGPU(object):
         """
         self.fit(theta)
 
+    def get_invK_matrix(self):
+        """
+        Returns current value of the inverse covariance matrix as a numpy array.
+        Does not include the nugget
+        parameter, as this is dependent on how the nugget is fit.
+        """
+        result = np.zeros((self.n, self.n))
+        self._densegp_gpu.get_invQ(result)
+        return result
+
     def fit(self, theta):
         """
         Fits the emulator and sets the parameters.
@@ -185,10 +195,49 @@ class GaussianProcessGPU(object):
         self._densegp_gpu.update_theta(theta, self._nugget_type)
 
     def logposterior(self, theta):
+        """
+        Calculate the negative log-posterior at a particular value of the hyperparameters
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logposterior`
+
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(n_params,)``
+        :type theta: ndarray
+        :returns: negative log-posterior
+        :rtype: float
+        """
         if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
         return self._densegp_gpu.get_logpost()
+
+    def logpost_deriv(self, theta):
+        """
+        Calculate the partial derivatives of the negative log-posterior
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logpost_deriv`
+        :param theta: Value of the hyperparameters. Must be array-like with shape
+                      ``(n_params,)``
+        :type theta: ndarray
+        :returns: partial derivatives of the negative log-posterior with respect to the
+                  hyperparameters (array with shape ``(n_params,)``)
+        :rtype: ndarray
+        """
+        pass
+
+    def logpost_hessian(self, theta):
+        """
+        Calculate the Hessian of the negative log-posterior
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logpost_hessian`
+
+        :param theta: Value of the hyperparameters. Must be array-like with shape
+                      ``(n_params,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-posterior (array with shape
+                  ``(n_params, n_params)``)
+        :rtype: ndarray
+        """
+        pass
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=False):
         """
