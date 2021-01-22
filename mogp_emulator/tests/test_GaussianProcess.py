@@ -30,7 +30,6 @@ def test_GaussianProcess_init(x, y):
     assert_allclose(x, gp.inputs)
     assert_allclose(y, gp.targets)
     assert gp.D == 3
-<<<<<<< HEAD
     assert gp.n == 2
     assert gp.nugget == None
 
@@ -73,32 +72,9 @@ def test_GaussianProcessGPU_init(x, y):
     gp = GaussianProcessGPU(x, y, nugget=1.e-12)
     assert_allclose(gp.nugget, 1.e-12)
 
-=======
-    assert gp.n == 2
-    assert gp.nugget == None
-
-    gp = GaussianProcess(y, y)
-    assert gp.inputs.shape == (2, 1)
-
-    gp = GaussianProcess(x, y, nugget=1.e-12)
-    assert_allclose(gp.nugget, 1.e-12)
-
-    gp = GaussianProcess(x, y, mean=ConstantMean(1.), kernel=Matern52(), nugget="fit")
-
-    gp = GaussianProcess(x, y, kernel="SquaredExponential")
+    gp = GaussianProcessGPU(x, y, kernel="SquaredExponential")
     assert isinstance(gp.kernel, SquaredExponential)
 
-    gp = GaussianProcess(x, y, kernel="Matern52")
-    assert isinstance(gp.kernel, Matern52)
-
-    gp = GaussianProcess(x, y, mean="a+b*x[0]", use_patsy=False)
-
-    assert str(gp.mean) == "c + c*x[0]"
-
-    gp = GaussianProcess(x, y, mean="c", inputdict={"c": 0})
-
-    assert str(gp.mean) == "c + c*x[0]"
->>>>>>> devel
 
 def test_GP_init_failures(x, y):
     "Tests that GaussianProcess fails correctly with bad inputs"
@@ -262,6 +238,40 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     assert_allclose(L_expect, gp.L)
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
+
+
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 0.)]) # ("fit", np.log(1.e-6))])
+def test_GaussianProcessGPU_theta(x, y, nugget, sn):
+    "test the theta property of GaussianProcess (effectively the same as fit)"
+
+    # zero mean, zero nugget
+
+    gp = GaussianProcessGPU(x, y, nugget=nugget)
+
+    theta = np.ones(gp.n_params)
+    theta[-1] = sn
+
+    gp.theta = theta
+
+    if nugget == "adaptive" or nugget == 0.:
+        assert gp.nugget == 0.
+        noise = 0.
+    else:
+        assert_allclose(gp.nugget, np.exp(sn))
+        noise = np.exp(sn)*np.eye(x.shape[0])
+    Q = gp.kernel.kernel_f(x, x, theta[:-1]) + noise
+
+    L_expect = np.linalg.cholesky(Q)
+    invQt_expect = np.linalg.solve(Q, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
+                          np.dot(y, invQt_expect) +
+                          gp.n*np.log(2.*np.pi))
+
+    assert_allclose(L_expect, gp.L)
+    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(logpost_expect, gp.current_logpost)
+
 
 def test_GaussianProcess_priors(x, y):
     "test that priors are set properly"
