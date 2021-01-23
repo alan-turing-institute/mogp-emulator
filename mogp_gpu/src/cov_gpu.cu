@@ -86,8 +86,9 @@ void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
 }
 
 ////////////////////
-__device__ void cov_deriv(REAL *result_d, int Ninput, const REAL *x_d,
-                          const REAL *y_d, const REAL *theta_d)
+__device__ void cov_deriv(REAL *result_d, int result_stride, int Ninput,
+                          const REAL *x_d, const REAL *y_d,
+                          const REAL *theta_d)
 {
     REAL s = 0.0;
     REAL exp_thetaN = exp(theta_d[Ninput]);
@@ -96,14 +97,14 @@ __device__ void cov_deriv(REAL *result_d, int Ninput, const REAL *x_d,
         REAL d_i = x_d[i] - y_d[i];
         REAL a = d_i * d_i * exp(theta_d[i]);
         s += a;
-        result_d[i] = -0.5 * a;
+        result_d[i * result_stride] = -0.5 * a;
     }
     s = exp_thetaN * exp(-0.5 * s);
     for (unsigned int i=0; i < Ninput; i++)
     {
-        result_d[i] *= s;
+        result_d[i * result_stride] *= s;
     }
-    result_d[Ninput] = s;
+    result_d[Ninput * result_stride] = s;
 }
 
 __global__ void cov_deriv_batch_kernel(
@@ -112,11 +113,13 @@ __global__ void cov_deriv_batch_kernel(
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    const int Ntheta = Ninput + 1;
+    const int result_stride = Nx * Ny;
     if (i < Nx && j < Ny)
     {
-        cov_deriv(result_d + Ntheta * (j + Nx * j), Ninput,
-                  xs_d + Ninput * j, ys_d + Ninput * i, theta_d);
+        cov_deriv(result_d + Ny * i + j,
+                  result_stride,
+                  Ninput, xs_d + Ninput * j, ys_d + Ninput * i,
+                  theta_d);
     }
 }
 
