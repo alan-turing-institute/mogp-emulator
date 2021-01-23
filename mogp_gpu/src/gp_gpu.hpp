@@ -412,12 +412,12 @@ public:
 
     void get_invQ(mat_ref invQ_h)
     {
-      thrust::copy(invC_d.begin(), invC_d.end(), invQ_h.data());
+        thrust::copy(invC_d.begin(), invC_d.end(), invQ_h.data());
     }
 
     void get_invQt(mat_ref invQt_h)
     {
-      thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h.data());
+        thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h.data());
     }
 
     double get_logpost(void)
