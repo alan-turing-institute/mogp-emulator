@@ -431,29 +431,75 @@ public:
         return 0.5 * result;
     }
 
-    void dloglik_dtheta(vec_ref result_h)
+    void dloglik_dtheta(vec_ref result)
     {
-            // TODO: calculation of dloglik_dtheta
+        double zero(0.0);
+        double one(1.0);
+        double half(0.5);
+        double m_half(-0.5);
 
-        thrust::device_vector<REAL> dKdtheta_d((Ninput+1)*N*N, 0.0);
-        // dK{jk}_dtheta{i}
-        cov_deriv_batch_gpu(dev_ptr(dKdtheta_d),
-                             Ninput, N, N,
-                             dev_ptr(xs_d), dev_ptr(xs_d),
-                             dev_ptr(theta_d));
+        const int Ntheta = Ninput + 1;
 
+        // Compute
+        //   \pderiv{C_{jk}}{theta_i}
+        //
+        // The length of work_mat_d is N * xnew_size
+        // The derivative above has  N * N * Ntheta components
+        // The following assumes that xnew_size > Ntheta * N
+        cov_deriv_batch_gpu(dev_ptr(work_mat_d),
+                            Ninput, N, N,
+                            dev_ptr(xs_d), dev_ptr(xs_d),
+                            dev_ptr(theta_d));
 
+        // Compute
+        //   \deriv{logpost}{theta_i}
+        //     =   0.5 Tr(inv(C)*\pderiv{C}{\theta_i}           (Term 1)
+        //       - 0.5 (invC_ts)^T \pderiv{C}{\theta_i} invCts  (Term 2)
 
-        thrust::copy(dKdtheta_d.begin(), dKdtheta_d.end(), result_h.data());
+        // Working memory on device:
+        //   result_d:
+        //       accumulated result
+        //   work_mat_d (until Term 2 step 1):
+        //       covariance derivatives
+        //   work_mat_d (after Term 2 step 1):
+        //       temporary product in term 2 (okay to overwrite derivatives at this point)
 
+        // ***** Term 1 *****
+        // Treat 'jk' as a new 1-d index in C_{jk} and \pderiv{C_{jk}}{\theta}, called 'l' below.
+        // That is:
+        //    R_i = \pderiv{vec(C)_l}{\theta_i} vec(inv(C))_l
+        //
+        // Compute with gemv (y = \alpha A x + \beta y)
+        cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
+                    N * N, Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &half, dev_ptr(work_mat_d), N * N, // alpha, A, lda
+                    dev_ptr(invC_d), 1, // x, incx
+                    &zero, // beta
+                    dev_ptr(result_d), 1); // y, incy
 
-            // // // compute intermediate matrix "C" (can overlap)
-            // // ...
+        // ***** Term 2 *****
+        // First step:
+        //   S_ij = \pderiv{C_{jk}}{\theta_i} invCts_k
+        //
+        // Treat \pderiv{C_{jk}}{\theta_i} as (N * Ntheta) * N, treating 'ij' as a single index
+        // and take mat-vec product with invCts:
+        cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
+                    N, N * Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &one, dev_ptr(work_mat_d), N, // alpha, A, lda
+                    dev_ptr(invCts_d), 1, // x, incx
+                    &zero, // beta
+                    dev_ptr(work_mat_d), 1); // y, incy
 
-            // // // gemm (treat the matrix indices as a single 1-d index)
-            // cublasDgemv(cublasHandle, CUBLAS_OP_N, N * N, Ninput, &one,
-            //             dev_ptr("C"), N * N, dev_ptr(work_d),
-            //             Ninput, &zero, dev_ptr(invCk_d), 1);
+        // Second step:
+        //   R_i += 0.5 S_ij invCts_j
+        cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
+                    N, Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &m_half, dev_ptr(work_mat_d), N, // alpha, A, lda
+                    dev_ptr(invCts_d), 1, // x, incx
+                    &one, // beta
+                    dev_ptr(result_d), 1); // y, incy
+
+        thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
     }
 
   DenseGP_GPU(mat_ref xs_, vec_ref ts_)
