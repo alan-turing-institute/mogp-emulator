@@ -25,9 +25,8 @@ void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
                    REAL *xs_d, REAL *theta_d);
 
 // Computes the matrix (dC/dtheta)(xs(i,:), ys(j,:); theta)
-void cov_deriv_batch_gpu(REAL *result_d, int Ninput, int Nx, int Ny,
-                         const REAL *xs_d, const REAL *ys_d,
-                         const REAL *theta_d);
+void cov_deriv_theta_batch_gpu(REAL *result_d, int Ninput, int Nx, int Ny,
+			       const REAL *xs_d, const REAL *ys_d,
+			       const REAL *theta_d);
 
 #endif
-

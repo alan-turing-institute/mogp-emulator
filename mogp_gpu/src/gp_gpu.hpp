@@ -446,10 +446,10 @@ public:
         // The length of work_mat_d is N * xnew_size
         // The derivative above has  N * N * Ntheta components
         // The following assumes that xnew_size > Ntheta * N
-        cov_deriv_batch_gpu(dev_ptr(work_mat_d),
-                            Ninput, N, N,
-                            dev_ptr(xs_d), dev_ptr(xs_d),
-                            dev_ptr(theta_d));
+        cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
+				  Ninput, N, N,
+				  dev_ptr(xs_d), dev_ptr(xs_d),
+				  dev_ptr(theta_d));
 
         // Compute
         //   \deriv{logpost}{theta_i}
@@ -531,11 +531,14 @@ public:
         }
 
         int potrfBufferSize;
+
+
         cusolverDnDpotrf_bufferSize(cusolverHandle, CUBLAS_FILL_MODE_LOWER,
                                     N, dev_ptr(potrf_buffer_d), N,
                                     &potrfBufferSize);
 
         potrf_buffer_d.resize(potrfBufferSize);
+
     }
 };
 
