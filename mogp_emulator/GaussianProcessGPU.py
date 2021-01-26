@@ -173,7 +173,7 @@ class GaussianProcessGPU(object):
         """
         self.fit(theta)
 
-    def get_invK_matrix(self):
+    def get_K_matrix(self):
         """
         Returns current value of the inverse covariance matrix as a numpy array.
         Does not include the nugget
@@ -181,7 +181,7 @@ class GaussianProcessGPU(object):
         """
         result = np.zeros((self.n, self.n))
         self._densegp_gpu.get_invQ(result)
-        return result
+        return np.linalg.inv(result)
 
     def fit(self, theta):
         """
@@ -221,7 +221,16 @@ class GaussianProcessGPU(object):
                   hyperparameters (array with shape ``(n_params,)``)
         :rtype: ndarray
         """
-        pass
+        theta = np.array(theta)
+
+        assert theta.shape == (self.n_params,), "bad shape for new parameters"
+
+        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+            self.fit(theta)
+
+        result = np.zeros(self.n_params)
+        self._densegp_gpu.dloglik_dtheta(result)
+        return result
 
     def logpost_hessian(self, theta):
         """
