@@ -30,11 +30,15 @@ class GaussianProcessGPU(object):
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
         inputs = np.array(inputs)
+        # cast into float64, just in case we were given integers
+        inputs = inputs.astype(np.float64)
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
         assert inputs.ndim == 2
 
         targets = np.array(targets)
+        # again, explicitly cast into float64
+        targets = targets.astype(np.float64)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
 
@@ -156,6 +160,8 @@ class GaussianProcessGPU(object):
 
         :type theta: ndarray
         """
+        if not self._densegp_gpu.theta_fit_status():
+            return None
         theta = np.zeros(self.n_params)
         self._densegp_gpu.get_theta(theta)
         return theta
@@ -191,7 +197,14 @@ class GaussianProcessGPU(object):
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
         """
         theta = np.array(theta)
-        self._densegp_gpu.update_theta(theta, self._nugget_type)
+        nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
+        self._densegp_gpu.update_theta(theta, self._nugget_type, nugget_size)
+        if self.nugget_type == "adaptive":
+            self._nugget = self._densegp_gpu.get_jitter()
+        invQt_result = np.zeros(self.n)
+        self._densegp_gpu.get_invQt(invQt_result)
+        self.invQt = invQt_result
+        self.current_logpost = self.logposterior(theta)
 
     def logposterior(self, theta):
         """
@@ -253,13 +266,16 @@ class GaussianProcessGPU(object):
         This method implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
         """
-#        if self.theta is None:
- #           raise ValueError("hyperparameters have not been fit for this Gaussian Process")
+        if self.theta is None:
+            raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
         testing = np.array(testing)
         if testing.ndim == 1:
             testing = np.reshape(testing, (1, len(testing)))
         assert testing.ndim == 2
+
+        n_testing, D = np.shape(testing)
+        assert D == self.D
 
         means = np.zeros(testing.shape[0])
         variances = np.zeros(testing.shape[0])
