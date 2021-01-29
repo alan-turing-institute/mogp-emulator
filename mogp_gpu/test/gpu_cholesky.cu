@@ -20,25 +20,6 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/copy.h>
 
-
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-/*
-#include <fstream>
-#include<iomanip>
-#include<stdlib.h>
-#include<stdio.h>
-#include<assert.h>
-
-#include <cusolverDn.h>
-#include <cublas_v2.h>
-#include <cuda_runtime_api.h>
-
-//#include "Utilities.cuh"
-
-*/
-
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff
 
@@ -67,10 +48,8 @@ void setTest3x3Matrix(double * __restrict h_A) {
 }
 
 
-/********/
-/* MAIN */
-/********/
-int main(){
+void testCholesky()
+{
 
     // --- CUDA solver initialization
     cusolverDnHandle_t solver_handle;
@@ -125,11 +104,14 @@ int main(){
     }
 
     std::vector<double> expected = { 2.0, 6.0, -8.0, 12.0, 1.0, 5.0, 16.0, -43.0, 3.0};
-    for (int i=0; i< A_d.size(); ++i) {
+    for (unsigned int i=0; i< A_d.size(); ++i) {
       std::cout<<"element "<<i<<" is "<<A_d[i]<<std::endl;
       assert (A_d[i] == expected[i]);
     }
 
-    return 0;
+}
 
+int main() {
+  testCholesky();
+  return 0;
 }
