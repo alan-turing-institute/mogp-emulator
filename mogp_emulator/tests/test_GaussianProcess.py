@@ -103,7 +103,7 @@ def test_GP_init_failures(x, y):
 
 @pytest.mark.skipif(not found_gpu, reason="GPU library not found")
 def test_GPGPU_init_failures(x, y):
-    "Tests that GaussianProcessGPI fails correctly with bad inputs"
+    "Tests that GaussianProcessGPU fails correctly with bad inputs"
 
     with pytest.raises(AssertionError):
         gp = GaussianProcessGPU(np.ones((2, 2, 2)), y)
@@ -380,6 +380,32 @@ def test_GaussianProcess_logposterior(x, y):
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
 
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_logposterior(x, y):
+    "test logposterior method of GaussianProcessGPU"
+
+    # logposterior already tested, but check that parameters are re-fit if changed
+
+    gp = GaussianProcessGPU(x, y, nugget = 0.)
+
+    theta = np.ones(gp.n_params)
+    gp.fit(theta)
+
+    theta = np.zeros(gp.n_params)
+
+    Q = gp.kernel.kernel_f(x, x, theta[:-1])
+
+    L_expect = np.linalg.cholesky(Q)
+    invQt_expect = np.linalg.solve(Q, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
+                          np.dot(y, invQt_expect) +
+                          gp.n*np.log(2.*np.pi))
+
+    assert_allclose(logpost_expect, gp.logposterior(theta))
+    assert_allclose(gp.L, L_expect)
+    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(logpost_expect, gp.current_logpost)
+
 @pytest.fixture
 def dx():
     return 1.e-6
@@ -390,6 +416,27 @@ def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
     "test logposterior derivatives for GaussianProcess via finite differences"
 
     gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
+
+    n = gp.n_params
+    theta = np.ones(n)
+    theta[-1] = sn
+
+    deriv = np.zeros(n)
+
+    for i in range(n):
+        dx_array = np.zeros(n)
+        dx_array[i] = dx
+        deriv[i] = (gp.logposterior(theta) - gp.logposterior(theta - dx_array))/dx
+
+    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-7, rtol=1.e-5)
+
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 1.),
+                                            ("fit", np.log(1.e-6))])
+def test_GaussianProcessGPU_logpost_deriv(x, y, dx, nugget, sn):
+    "test logposterior derivatives for GaussianProcessGPU via finite differences"
+
+    gp = GaussianProcessGPU(x, y, nugget=nugget)
 
     n = gp.n_params
     theta = np.ones(n)
@@ -657,6 +704,26 @@ def test_GaussianProcess_predict_failures(x, y):
 
     with pytest.raises(AssertionError):
         gp.predict(np.array([[2., 4.]]))
+
+
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_predict_failures(x, y):
+    "test situations where predict method of GaussianProcessGPU should fail"
+
+    gp = GaussianProcessGPU(x, y)
+
+    with pytest.raises(ValueError):
+        gp.predict(np.array([2., 3., 4.]))
+
+    theta = np.ones(gp.n_params)
+    gp.fit(theta)
+
+    with pytest.raises(AssertionError):
+        gp.predict(np.ones((2, 2, 2)))
+
+    with pytest.raises(AssertionError):
+        gp.predict(np.array([[2., 4.]]))
+
 
 def test_GaussianProcess_str(x, y):
     "Test function for string method"
