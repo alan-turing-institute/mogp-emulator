@@ -25,4 +25,8 @@ bin/test/gpu_basic: test/gpu_basic.cu obj/cov_gpu.o obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< obj/cov_gpu.o obj/util.o -o $@
 
+bin/test/gpu_cholesky: test/gpu_cholesky.cu
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcusolver -lcublas $< -o $@
+
 .PHONY: all clean
