@@ -107,6 +107,9 @@ class DenseGP_GPU {
     // targets
     vec_ref ts;
 
+    // flag for whether we have fit hyperparameters
+    bool theta_fitted;
+
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
 
@@ -118,6 +121,9 @@ class DenseGP_GPU {
 
     // log determinant of covariance matrix (on host)
     double logdetC;
+
+    // adaptive nugget jitter
+    double jitter;
 
     // hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
@@ -169,6 +175,11 @@ public:
     void get_theta(vec_ref theta)
     {
       thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
+    }
+
+    double get_jitter() const
+    {
+      return jitter;
     }
 
     // length of xnew assumed to be Ninput
@@ -312,7 +323,7 @@ public:
 
     // Update the hyperparameters, and invQ and invQt which depend on them
 
-    void update_theta(vec_ref theta, nugget_type nugget)
+  void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.)
     {
         thrust::device_vector<int> info_d(1);
         int info_h;
@@ -323,8 +334,11 @@ public:
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
                       dev_ptr(xs_d), dev_ptr(theta_d));
 
+	/// copy the covariance matrix invC_d into work_mat_d
+	thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
+
 	if (nugget == NUG_ADAPTIVE) {
-	    double mean_diag, jitter;
+	    double mean_diag;
 	    const int max_tries = 5;
 	    int itry = 0;
 	    while (itry < max_tries) {
@@ -368,7 +382,6 @@ public:
 		itry++;
 	    }
 
-
 	    // if none of the factorization attempts succeeded:
 	    if (itry == max_tries) {
 		std::string msg;
@@ -378,9 +391,9 @@ public:
 	    }
 
 	} else if (nugget == NUG_FIXED) {
-	    add_diagonal(N, theta[theta.size()-1], dev_ptr(work_mat_d));
+	    add_diagonal(N, nugget_size, dev_ptr(work_mat_d));
 	} else { //nugget == "fit"
-	    // ...
+	    add_diagonal(N, exp(theta[theta.size()-1]), dev_ptr(work_mat_d));
 	}
 
         identity_device(N, dev_ptr(invC_d));
@@ -408,6 +421,13 @@ public:
 
         sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
+
+	//set the flag to say we have fitted theta
+	theta_fitted = true;
+    }
+
+    bool theta_fit_status() {
+        return theta_fitted;
     }
 
     void get_invQ(mat_ref invQ_h)
@@ -509,8 +529,11 @@ public:
         , theta_d(Ninput + 2)
 	, xs(xs_)
 	, ts(ts_)
+	, theta_fitted(false)
         , xs_d(xs_.data(), xs_.data() + Ninput * N)
         , ts_d(ts_.data(), ts_.data() + N)
+	, logdetC(0.0)
+	, jitter(0.0)
         , invCts_d(N, 0.0)
         , xnew_d(Ninput * xnew_size, 0.0)
         , work_d(N, 0.0)

@@ -13,6 +13,7 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("inputs", &DenseGP_GPU::inputs)
         .def("targets", &DenseGP_GPU::targets)
         .def("n_params", &DenseGP_GPU::n_params)
+        .def("theta_fit_status", &DenseGP_GPU::theta_fit_status)
         .def("get_theta", &DenseGP_GPU::get_theta)
         .def("predict", &DenseGP_GPU::predict)
         .def("predict_variance", &DenseGP_GPU::predict_variance)
@@ -22,6 +23,7 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("get_invQ", &DenseGP_GPU::get_invQ)
         .def("get_invQt", &DenseGP_GPU::get_invQt)
         .def("get_logpost", &DenseGP_GPU::get_logpost)
+        .def("get_jitter", &DenseGP_GPU::get_jitter)
         .def("dloglik_dtheta", &DenseGP_GPU::dloglik_dtheta);
     py::enum_<nugget_type>(m, "nugget_type")
         .value("adaptive", NUG_ADAPTIVE)
