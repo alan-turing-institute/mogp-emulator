@@ -100,6 +100,10 @@ def test_GaussianProcess_nugget(x, y):
     assert_allclose(gp.nugget, 0.)
     assert gp.nugget_type == "fixed"
 
+    gp.nugget = "pivot"
+    assert gp.nugget is None
+    assert gp.nugget_type == "pivot"
+    
     with pytest.raises(TypeError):
         gp.nugget = [1]
 
@@ -111,6 +115,7 @@ def test_GaussianProcess_nugget(x, y):
 
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
+                                            (None, "pivot", 0.),
                                             (MeanFunction("x[0]"), "fit", np.log(1.e-6))])
 def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     "test the theta property of GaussianProcess (effectively the same as fit)"
@@ -126,7 +131,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
 
     switch = gp.mean.get_n_params(x)
 
-    if nugget == "adaptive" or nugget == 0.:
+    if nugget == "adaptive" or nugget == 0. or nugget == "pivot":
         assert gp.nugget == 0.
         noise = 0.
     else:
@@ -145,6 +150,26 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
 
+def test_GaussianProcess_theta_pivot():
+    "test that pivoting works as expected"
+
+    # input arrays are re-ordered such that pivoting should re-order the second to match the first
+
+    x1 = np.array([1., 4., 2.])
+    x2 = np.array([1., 2., 4.])
+    y1 = np.array([1., 1., 2.])
+    y2 = np.array([1., 2., 1.])
+
+    gp1 = GaussianProcess(x1, y1, nugget=0.)
+    gp2 = GaussianProcess(x2, y2, nugget="pivot")
+
+    gp1.theta = np.zeros(3)
+    gp2.theta = np.zeros(3)
+
+    assert_allclose(gp1.L, gp2.L)
+    assert_allclose(gp1.invQt, gp2.invQt[gp2.P])
+    assert np.array_equal(gp2.P, [0, 2, 1])
+    
 def test_GaussianProcess_priors(x, y):
     "test that priors are set properly"
 
@@ -192,6 +217,7 @@ def test_GaussianProcess_priors(x, y):
         GaussianProcess(x, y, priors=priors)
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
+                                            (None, "pivot", 0.),
                                             (MeanFunction("x[0]"), "fit", np.log(1.e-6))])
 def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     "test the fit and logposterior methods of GaussianProcess"
@@ -207,7 +233,7 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
 
     switch = gp.mean.get_n_params(x)
 
-    if nugget == "adaptive" or nugget == 0.:
+    if nugget == "adaptive" or nugget == 0. or nugget == "pivot":
         assert gp.nugget == 0.
         noise = 0.
     else:
@@ -257,6 +283,7 @@ def dx():
     return 1.e-6
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 1.),
+                                            (None, "pivot", 1.),
                                             ("x[0]", "fit", np.log(1.e-6))])
 def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
     "test logposterior derivatives for GaussianProcess via finite differences"
@@ -276,7 +303,8 @@ def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
 
     assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-7, rtol=1.e-5)
 
-@pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), ("x[0]", "fit", np.log(1.e-6))])
+@pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.),
+                                            (None, "pivot", 1.), ("x[0]", "fit", np.log(1.e-6))])
 def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
     "test the hessian method of GaussianProcess with finite differences"
 
@@ -494,6 +522,31 @@ def test_GaussianProcess_predict_nugget(x, y):
 
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
+def test_GaussianProcess_predict_pivot():
+    "test that pivoting gives same predictions as standard version"
+
+    # input arrays are re-ordered such that pivoting should re-order the second to match the first
+    
+    x1 = np.array([1., 4., 2.])
+    x2 = np.array([1., 2., 4.])
+    y1 = np.array([1., 1., 2.])
+    y2 = np.array([1., 2., 1.])
+
+    gp1 = GaussianProcess(x1, y1, nugget=0.)
+    gp2 = GaussianProcess(x2, y2, nugget="pivot")
+
+    gp1.theta = np.zeros(3)
+    gp2.theta = np.zeros(3)
+
+    xpred = np.linspace(0., 5.)
+
+    mean1, var1, deriv1 = gp1.predict(xpred)
+    mean2, var2, deriv2 = gp2.predict(xpred)
+
+    assert_allclose(mean1, mean2)
+    assert_allclose(var1, var2)
+    assert_allclose(deriv1, deriv2)
+    
 def test_GaussianProcess_predict_variance():
     "confirm that caching factorized matrix produces stable variance predictions"
 
