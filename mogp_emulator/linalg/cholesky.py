@@ -124,9 +124,28 @@ def pivot_cholesky(A):
     return L, P-1
     
 def pivot_transpose(P):
-    "invert a pivot matrix"
+    """
+    Invert a pivot matrix by taking its transpose
+
+    Inverts the pivot matrix by taking its transpose. Since the pivot
+    matrix is represented by an array of integers(to make swapping the
+    rows more simple by using numpy indexing), this is done by
+    creating the equivalent array of integers representing the
+    transpose.  Input must be a list of non-negative integers, where
+    each integer up to the length of the array appears exactly
+    once. Otherwise this function will raise an exception.
+
+    :param P: Input pivot matrix, represented as an array of non-negative
+              integers.
+    :type P: ndarray containing integers
+    :returns: Transpose of the pivot matrix, represented as an array of
+              non-negative integers.
+    :rtype: ndarray containing integers.
+    """
 
     assert np.array(P).ndim == 1, "pivot matrix must be a list of integers"
-    assert all([idx in P for idx in range(len(P))]), "pivot matrix must contain all integers up to its length exactly once"
 
-    return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
+    try:
+        return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
+    except IndexError:
+        raise ValueError("Bad values for pivot matrix input to pivot_transpose")

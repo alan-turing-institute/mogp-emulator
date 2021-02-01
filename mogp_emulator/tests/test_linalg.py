@@ -91,5 +91,10 @@ def test_pivot_transpose():
     
     P = np.array([1, 2, 1], dtype = np.int32)
     
+    with pytest.raises(ValueError):
+        pivot_transpose(P)
+
+    P = np.array([[0, 1, 2], [2, 1, 0]], dtype=np.int32)
+
     with pytest.raises(AssertionError):
         pivot_transpose(P)
