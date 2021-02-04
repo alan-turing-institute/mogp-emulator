@@ -321,6 +321,29 @@ public:
     }
 
 
+  int calc_Cholesky_factors()
+    {
+        thrust::device_vector<int> info_d(1);
+        int info_h;
+        cusolverStatus_t status;
+
+	// compute Cholesky factors
+	status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
+				  dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
+				  potrf_buffer_d.size(), dev_ptr(info_d));
+
+	thrust::copy(info_d.begin(), info_d.end(), &info_h);
+
+	if (status != CUSOLVER_STATUS_SUCCESS || info_h < 0) {
+	  std::string msg;
+	  std::stringstream smsg(msg);
+	  smsg << "Error in potrf: return code " << status << ", info " << info_h;
+	  throw std::runtime_error(smsg.str());
+
+	}
+	return info_h;
+    }
+
     // Update the hyperparameters, and invQ and invQt which depend on them
 
   void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.)
@@ -361,7 +384,7 @@ public:
 		    jitter *= 10;
 		}
 
-
+		/*
 		// compute Cholesky factors
 		status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
 					  dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
@@ -378,6 +401,12 @@ public:
 		} else if (info_h == 0) {
 		    break;
 		}
+		*/
+
+		int factorisation_status = calc_Cholesky_factors();
+		if (factorisation_status == 0) {
+		  break;
+		}
 
 		itry++;
 	    }
@@ -392,13 +421,23 @@ public:
 
 	} else if (nugget == NUG_FIXED) {
 	    add_diagonal(N, nugget_size, dev_ptr(work_mat_d));
+
+	    int factorisation_status = calc_Cholesky_factors();
+	    if (factorisation_status != 0) {
+	      throw std::runtime_error("Unable to factorize matrix using fixed nugget");
+	    }
+
 	} else { //nugget == "fit"
-	    add_diagonal(N, exp(theta[theta.size()-1]), dev_ptr(work_mat_d));
+
+	    int factorisation_status = calc_Cholesky_factors();
+	    if (factorisation_status != 0) {
+	      throw std::runtime_error("Unable to factorize matrix using fitted nugget");
+	    }
 	}
 
         identity_device(N, dev_ptr(invC_d));
 
-        // invQ
+        // invC
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, N,
                                   dev_ptr(work_mat_d), N, dev_ptr(invC_d), N,
                                   dev_ptr(info_d));
@@ -407,7 +446,7 @@ public:
         check_cusolver_status(status, info_h);
 
 
-        // invQt
+        // invCt
         thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
                                   dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
@@ -416,7 +455,7 @@ public:
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
 
-        // logdetQ
+        // logdetC
         thrust::device_vector<double> logdetC_d(1);
 
         sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
