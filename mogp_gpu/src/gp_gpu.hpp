@@ -320,7 +320,7 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
-
+  // Assume at this point that work_mat_d contains the inverse covariance matrix invC_d
   int calc_Cholesky_factors()
     {
         thrust::device_vector<int> info_d(1);
@@ -348,9 +348,6 @@ public:
 
   void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.)
     {
-        thrust::device_vector<int> info_d(1);
-        int info_h;
-        cusolverStatus_t status;
 
         thrust::copy(theta.data(), theta.data() + Ninput + 2, theta_d.begin());
 
@@ -359,6 +356,11 @@ public:
 
 	/// copy the covariance matrix invC_d into work_mat_d
 	thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
+
+        thrust::device_vector<int> info_d(1);
+        int info_h;
+        cusolverStatus_t status;
+	int factorisation_status;
 
 	if (nugget == NUG_ADAPTIVE) {
 	    double mean_diag;
@@ -384,26 +386,7 @@ public:
 		    jitter *= 10;
 		}
 
-		/*
-		// compute Cholesky factors
-		status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
-					  dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
-					  potrf_buffer_d.size(), dev_ptr(info_d));
-
-		thrust::copy(info_d.begin(), info_d.end(), &info_h);
-
-		if (status != CUSOLVER_STATUS_SUCCESS || info_h < 0) {
-		    std::string msg;
-		    std::stringstream smsg(msg);
-		    smsg << "Error in potrf: return code " << status << ", info " << info_h;
-		    throw std::runtime_error(smsg.str());
-
-		} else if (info_h == 0) {
-		    break;
-		}
-		*/
-
-		int factorisation_status = calc_Cholesky_factors();
+		factorisation_status = calc_Cholesky_factors();
 		if (factorisation_status == 0) {
 		  break;
 		}
@@ -415,21 +398,21 @@ public:
 	    if (itry == max_tries) {
 		std::string msg;
 		std::stringstream smsg(msg);
-		smsg << "All attempts at factorization failed. Last return code " << status << ", info " << info_h;
+		smsg << "All attempts at factorization failed. Last return code " << factorisation_status;
 		throw std::runtime_error(smsg.str());
 	    }
 
 	} else if (nugget == NUG_FIXED) {
 	    add_diagonal(N, nugget_size, dev_ptr(work_mat_d));
 
-	    int factorisation_status = calc_Cholesky_factors();
+	    factorisation_status = calc_Cholesky_factors();
 	    if (factorisation_status != 0) {
 	      throw std::runtime_error("Unable to factorize matrix using fixed nugget");
 	    }
 
 	} else { //nugget == "fit"
 
-	    int factorisation_status = calc_Cholesky_factors();
+	    factorisation_status = calc_Cholesky_factors();
 	    if (factorisation_status != 0) {
 	      throw std::runtime_error("Unable to factorize matrix using fitted nugget");
 	    }
