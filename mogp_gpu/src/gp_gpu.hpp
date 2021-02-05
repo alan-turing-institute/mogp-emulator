@@ -394,14 +394,13 @@ public:
 			jitter = 1e-6 * mean_diag;
 		    }
 		    add_diagonal(N, jitter, dev_ptr(work_mat_d));
-		    jitter *= 10;
 		}
 
 		factorisation_status = calc_Cholesky_factors();
 		if (factorisation_status == 0) {
 		  break;
 		}
-
+		jitter *= 10;
 		itry++;
 	    }
 
