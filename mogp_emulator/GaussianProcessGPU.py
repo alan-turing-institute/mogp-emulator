@@ -179,6 +179,17 @@ class GaussianProcessGPU(object):
         """
         self.fit(theta)
 
+    @property
+    def L(self):
+        """
+        Return the lower triangular Cholesky factor.
+
+        :returns: np.array
+        """
+        result = np.zeros((self.n, self.n))
+        self._densegp_gpu.get_Cholesky_lower(result)
+        return np.tril(result.transpose())
+
     def get_K_matrix(self):
         """
         Returns current value of the inverse covariance matrix as a numpy array.
