@@ -119,6 +119,9 @@ class DenseGP_GPU {
     // inverse covariance matrix on device
     thrust::device_vector<REAL> invC_d;
 
+    // lower triangular Cholesky factor on device
+    thrust::device_vector<REAL> chol_lower_d;
+
     // log determinant of covariance matrix (on host)
     double logdetC;
 
@@ -344,6 +347,14 @@ public:
 	return info_h;
     }
 
+  // return the lower triangular matrix (actually it will be the whole matrix
+  // but only the lower triangle will be correct!)
+  void get_Cholesky_lower(mat_ref result) {
+
+    thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
+
+  }
+
     // Update the hyperparameters, and invQ and invQt which depend on them
 
   void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.)
@@ -443,6 +454,9 @@ public:
 
         sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
+
+	//copy work_mat_d into the lower triangular Cholesky factor
+	thrust::copy(work_mat_d.begin(), work_mat_d.begin()+N*N, chol_lower_d.begin());
 
 	//set the flag to say we have fitted theta
 	theta_fitted = true;
@@ -548,6 +562,7 @@ public:
         : N(xs_.rows())
 	, Ninput(xs_.cols())
         , invC_d(N * N, 0.0)
+	, chol_lower_d(N * N, 0.0)
         , theta_d(Ninput + 2)
 	, xs(xs_)
 	, ts(ts_)
