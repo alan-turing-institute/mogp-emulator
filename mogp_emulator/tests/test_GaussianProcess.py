@@ -688,6 +688,26 @@ def test_GaussianProcess_predict_variance():
 
     assert_allclose(np.zeros(101), var, atol = 1.e-3)
 
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_predict_variance():
+    "confirm that caching factorized matrix produces stable variance predictions"
+
+    x = np.linspace(0., 5., 21)
+    y = x**2
+    x = np.reshape(x, (-1, 1))
+    nugget = 2.e-8
+
+    gp = GaussianProcessGPU(x, y, nugget=nugget)
+
+    theta = np.array([-7.352408190715323, 15.041447753599755, 0.])
+    gp.fit(theta)
+
+    testing = np.reshape(np.linspace(0., 5., 101), (-1, 1))
+
+    _, var, _ = gp.predict(testing)
+
+    assert_allclose(np.zeros(101), var, atol = 1.e-3)
+
 def test_GaussianProcess_predict_failures(x, y):
     "test situations where predict method of GaussianProcess should fail"
 
