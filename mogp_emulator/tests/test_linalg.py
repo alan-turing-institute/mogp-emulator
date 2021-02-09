@@ -1,32 +1,32 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..linalg.cholesky import jit_cholesky, check_cholesky_inputs, pivot_cholesky, pivot_transpose
+from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, pivot_transpose
 from scipy import linalg
 
 def test_check_cholesky_inputs():
     "Test function that checks inputs to cholesky decomposition routines"
     
     A = np.array([[2., 1.], [1., 2.]])
-    B = check_cholesky_inputs(A)
+    B = _check_cholesky_inputs(A)
     
     assert_allclose(A, B)
 
     A = np.array([[1., 2.], [1., 2.]])
     with pytest.raises(AssertionError):
-        check_cholesky_inputs(A)
+        _check_cholesky_inputs(A)
     
     A = np.array([1., 2.])
     with pytest.raises(AssertionError):
-        check_cholesky_inputs(A)
+        _check_cholesky_inputs(A)
         
     A = np.array([[1., 2., 3.], [4., 5., 6.]])
     with pytest.raises(AssertionError):
-        check_cholesky_inputs(A)
+        _check_cholesky_inputs(A)
     
     input_matrix = np.array([[-1., 2., 2.], [2., 3., 2.], [2., 2., -3.]])
     with pytest.raises(linalg.LinAlgError):
-        check_cholesky_inputs(input_matrix)
+        _check_cholesky_inputs(input_matrix)
 
 def test_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine"
