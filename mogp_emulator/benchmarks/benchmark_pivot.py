@@ -1,20 +1,26 @@
-'''
-This benchmark performs convergence tests using the pivoted Cholesky routines applied to the
-2D Branin function. Details of the 2D Branin function can be found at
-https://www.sfu.ca/~ssurjano/branin.html. The code samples the Branin function using an increasing
-number of points, with a duplicate point added to make the matrix singular. When pivoting is not
-used, the algorithm is stabilized by adding a nugget term to the diagonal of the covariance matrix.
-This degrades the performance of the emulator globally, despite the fact that the problem arises
-from a local problem in fitting the emulator. Pivoting ignores points that are too close to one
-another, ensuring that there is no loss of performance as the number of points increases.
+'''This benchmark performs convergence tests using the pivoted
+Cholesky routines applied to the 2D Branin function. Details of the 2D
+Branin function can be found at
+https://www.sfu.ca/~ssurjano/branin.html. The code samples the Branin
+function using an increasing number of points, with a duplicate point
+added to make the matrix singular. When pivoting is not used, the
+algorithm is stabilized by adding a nugget term to the diagonal of the
+covariance matrix.  This degrades the performance of the emulator
+globally, despite the fact that the problem arises from a local
+problem in fitting the emulator. Pivoting ignores points that are too
+close to one another, ensuring that there is no loss of performance as
+the number of points increases.
 
-Note that this benchmark only covers relatively small designs. Tests have revealed that there are
-some stability issues when applying pivoting to larger numbers of inputs -- this appears to be
-due to the minimization algorithm, perhaps due to the fact that pivoting computes the inverse of
-a slightly different matrix which may make the gradient computations incorrect. Care should
-thus be taken to examine the resulting performance when applying pivoting in practice. Future
-versions may implement other approaches to ensure that pivoting gives stable performance
-on a wide variety of input data.
+Note that this benchmark only covers relatively small designs. Tests
+have revealed that there are some stability issues when applying
+pivoting to larger numbers of inputs -- this appears to be due to the
+minimization algorithm, perhaps due to the fact that pivoting computes
+the inverse of a slightly different matrix which may influence the
+fitting algorithm performance. Care should thus be taken to examine
+the resulting performance when applying pivoting in practice. Future
+versions may implement other approaches to ensure that pivoting gives
+stable performance on a wide variety of input data.
+
 '''
 
 import numpy as np
