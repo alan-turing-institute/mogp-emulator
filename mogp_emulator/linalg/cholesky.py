@@ -2,7 +2,7 @@ import numpy as np
 from scipy import linalg
 from scipy.linalg import lapack
 
-def check_cholesky_inputs(A):
+def _check_cholesky_inputs(A):
     """
     Check inputs to cholesky routines
 
@@ -56,7 +56,7 @@ def jit_cholesky(A, maxtries = 5):
     :rtype: tuple containing an ndarray and a float
     """
 
-    A = check_cholesky_inputs(A)
+    A = _check_cholesky_inputs(A)
     assert int(maxtries) > 0, "maxtries must be a positive integer"
 
     A = np.ascontiguousarray(A)
@@ -97,7 +97,8 @@ def pivot_cholesky(A):
     indices indicating the pivoting order. Raises an error if the
     decomposition fails.
 
-    :param A: The matrix to be inverted as an array of shape ``(n,n)``. Must be a symmetric matrix (though can be singular).
+    :param A: The matrix to be inverted as an array of shape ``(n,n)``.
+              Must be a symmetric matrix (though can be singular).
     :type A: ndarray
     :returns: Lower-triangular factored matrix (shape ``(n,n)`` an an array of
               integers indicating the pivoting order needed to produce the
@@ -106,7 +107,7 @@ def pivot_cholesky(A):
             ndarray of shape `(n,)` of integers. 
     """
 
-    A = check_cholesky_inputs(A)
+    A = _check_cholesky_inputs(A)
 
     A = np.ascontiguousarray(A)
     L, P, rank, info = lapack.dpstrf(A, lower = 1)
@@ -141,6 +142,7 @@ def pivot_transpose(P):
     :returns: Transpose of the pivot matrix, represented as an array of
               non-negative integers.
     :rtype: ndarray containing integers.
+
     """
 
     assert np.array(P).ndim == 1, "pivot matrix must be a list of integers"

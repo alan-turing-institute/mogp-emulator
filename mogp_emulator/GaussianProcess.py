@@ -4,7 +4,7 @@ from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from mogp_emulator.linalg.cholesky import jit_cholesky, pivot_cholesky, pivot_transpose
+from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_transpose
 
 class GaussianProcess(object):
     """
