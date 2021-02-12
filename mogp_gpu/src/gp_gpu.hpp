@@ -323,6 +323,36 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
+  void predict_deriv(mat_ref xnew, mat_ref result) {
+
+        int Nbatch = result.rows();
+	std::cout<<"result size is "<<result.size()<<std::endl;
+        // TODO
+        // assert result.size() == xnew.rows()
+
+        REAL zero(0.0);
+        REAL one(1.0);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
+        thrust::device_vector<REAL> result_d(Nbatch*Ninput);
+
+        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput,
+			      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
+	for (int i=0; i< 6; ++i) {
+	  std::cout<<" work_mat_d "<<i<<" is "<<work_mat_d[i]<<std::endl;
+	}
+        cublasStatus_t status =
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(result_d), 1);
+
+
+
+        cudaDeviceSynchronize();
+
+        thrust::copy(result_d.begin(), result_d.end(), result.data());
+    }
+
+
   // Assume at this point that work_mat_d contains the inverse covariance matrix invC_d
   int calc_Cholesky_factors()
     {

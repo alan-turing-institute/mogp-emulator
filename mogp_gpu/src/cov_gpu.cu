@@ -89,7 +89,46 @@ __device__ void cov_deriv_x(REAL *result_d, int Ninput,
 			    const REAL *x_d, const REAL *y_d,
 			    const REAL *theta_d)
 {
+    REAL s = 0.0;
+    for (unsigned int i=0; i < Ninput; i++)
+    {
+        REAL d_i = x_d[i] - y_d[i];
+        REAL a = d_i * d_i * exp(theta_d[i]);
+	result_d[i] = d_i;
+        s += a;
+    }
+    for (unsigned int i=0; i < Ninput; i++)
+    {
+      result_d[i] *= exp(-0.5*s + theta_d[Ninput]);
+    }
 }
+
+__global__ void cov_deriv_x_batch_kernel(
+    REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
+    const REAL *ys_d, const REAL *theta_d)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    if (i < Nx && j < Ny)
+    {
+        cov_deriv_x(result_d + Ninput*(Ny * i + j),
+		    Ninput, xs_d + Ninput * j, ys_d + Ninput * i,
+		    theta_d);
+    }
+}
+
+void cov_deriv_x_batch_gpu(
+    REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
+    const REAL *ys_d, const REAL *theta_d)
+{
+    // TODO determine correct size of thread block
+    const int Bx = 16, By = 16;
+    dim3 threads_per_block(Bx, By);
+    dim3 blocks(Nx / Bx + 1, Ny / By + 1);
+    cov_deriv_x_batch_kernel<<<blocks, threads_per_block>>>(
+        result_d, Ninput, Nx, Ny, xs_d, ys_d, theta_d);
+}
+
 
 ////////////////////
 __device__ void cov_deriv_theta(REAL *result_d, int result_stride, int Ninput,
