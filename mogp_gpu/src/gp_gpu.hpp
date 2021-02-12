@@ -102,10 +102,10 @@ class DenseGP_GPU {
     unsigned int N, Ninput;
 
     // inputs
-    mat_ref xs;
+    mat xs;
 
     // targets
-    vec_ref ts;
+    vec ts;
 
     // flag for whether we have fit hyperparameters
     bool theta_fitted;
@@ -160,12 +160,12 @@ public:
         return Ninput;
     }
 
-    mat_ref inputs(void) const
+    mat inputs(void) const
     {
         return xs;
     }
 
-    vec_ref targets(void) const
+    vec targets(void) const
     {
         return ts;
     }
@@ -244,7 +244,7 @@ public:
     // contains space for Nbatch result values
     void predict_batch(mat_ref xnew, vec_ref result)
     {
-        int Nbatch = result.size();
+        int Nbatch = xnew.rows();
 
         // TODO
         // assert result.size() == xnew.rows()
@@ -325,8 +325,8 @@ public:
 
   void predict_deriv(mat_ref xnew, mat_ref result) {
 
-        int Nbatch = result.rows();
-	std::cout<<"result size is "<<result.size()<<std::endl;
+        int Nbatch = xnew.rows();
+	// std::cout<<"result size is "<<result.size()<<std::endl;
         // TODO
         // assert result.size() == xnew.rows()
 
@@ -335,17 +335,18 @@ public:
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> result_d(Nbatch*Ninput);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput,
-			      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
-	for (int i=0; i< 6; ++i) {
+        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Ninput, N, Nbatch,
+			      dev_ptr(xs_d), dev_ptr(xnew_d), dev_ptr(theta_d));
+	for (int i=0; i< 12; ++i) {
 	  std::cout<<" work_mat_d "<<i<<" is "<<work_mat_d[i]<<std::endl;
 	}
+
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
-                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
-                        dev_ptr(result_d), 1);
-
-
+            cublasDgemv(cublasHandle, CUBLAS_OP_T,
+                        N, Ninput * Nbatch, // nrows, ncols
+                        &one, dev_ptr(work_mat_d), N, // alpha, A, lda
+                        dev_ptr(invCts_d), 1, // x, incx
+                        &zero, dev_ptr(result_d), 1); // beta, t, incy
 
         cudaDeviceSynchronize();
 

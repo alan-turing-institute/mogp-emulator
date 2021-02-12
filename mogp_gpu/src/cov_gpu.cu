@@ -1,5 +1,6 @@
 #include "cov_gpu.hpp"
 #include <stdio.h>
+#include <iostream>
 
 // Covariance device function
 __device__ REAL cov_val_d(int Ninput, REAL *x_d, REAL *y_d, REAL *theta_d)
@@ -85,7 +86,9 @@ void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
         result_d, Nnew, N, Ninput, xsnew_d, xs_d, theta_d);
 }
 
-__device__ void cov_deriv_x(REAL *result_d, int Ninput,
+
+////////////////////
+__device__ void cov_deriv_x(REAL *result_d, int result_stride, int Ninput,
 			    const REAL *x_d, const REAL *y_d,
 			    const REAL *theta_d)
 {
@@ -93,13 +96,14 @@ __device__ void cov_deriv_x(REAL *result_d, int Ninput,
     for (unsigned int i=0; i < Ninput; i++)
     {
         REAL d_i = x_d[i] - y_d[i];
-        REAL a = d_i * d_i * exp(theta_d[i]);
-	result_d[i] = d_i;
-        s += a;
+        REAL a = d_i * exp(theta_d[i]);
+	result_d[i * result_stride] = a;
+        s += d_i * a;
     }
+    printf("In cov_deriv_x: s = %f\n", s);
     for (unsigned int i=0; i < Ninput; i++)
     {
-      result_d[i] *= exp(-0.5*s + theta_d[Ninput]);
+      result_d[i * result_stride] *= exp(-0.5*s + theta_d[Ninput]);
     }
 }
 
@@ -109,9 +113,11 @@ __global__ void cov_deriv_x_batch_kernel(
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
+    const int result_stride = Nx * Ny;
     if (i < Nx && j < Ny)
     {
-        cov_deriv_x(result_d + Ninput*(Ny * i + j),
+        cov_deriv_x(result_d + Ny * i + j,
+                    result_stride,
 		    Ninput, xs_d + Ninput * j, ys_d + Ninput * i,
 		    theta_d);
     }
