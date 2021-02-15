@@ -4,7 +4,7 @@ from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_transpose
+from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_cho_solve
 
 class GaussianProcess(object):
     """Implementation of a Gaussian Process Emulator.
@@ -325,33 +325,43 @@ class GaussianProcess(object):
 
     @nugget.setter
     def nugget(self, nugget):
-        """
-        Set the nugget parameter for the emulator
+        """Set the nugget parameter for the emulator
 
-        Method for changing the ``nugget`` parameter for the emulator. When a new emulator is
-        initilized, this is set to None.
+        Method for changing the ``nugget`` parameter for the
+        emulator. When a new emulator is initilized, this is set to
+        None.
 
-        The ``nugget`` parameter controls how noise is added to the covariance matrix in order to
-        stabilize the inversion or smooth the emulator predictions. If ``nugget`` is a non-negative
-        float, then that particular value is used for the nugget. Note that setting this parameter
-        to be zero enforces that the emulator strictly interpolates between points. Alternatively,
-        a string can be provided. A value of ``"fit"`` means that the nugget is treated as a
-        hyperparameter, and is the last entry in the ``theta`` array. Alternatively, if ``nugget``
-        is set to be ``"adaptive"``, the fitting routine will adaptively make the noise parameter
-        as large as is needed to ensure that the emulator can be fit. Finally,
-        pivoting can be selected by setting to ``"pivot"``, which will ignore any
-        collinear rows in the covariance matrix.
+        The ``nugget`` parameter controls how noise is added to the
+        covariance matrix in order to stabilize the inversion or
+        smooth the emulator predictions. If ``nugget`` is a
+        non-negative float, then that particular value is used for the
+        nugget. Note that setting this parameter to be zero enforces
+        that the emulator strictly interpolates between
+        points. Alternatively, a string can be provided. A value of
+        ``"fit"`` means that the nugget is treated as a
+        hyperparameter, and is the last entry in the ``theta``
+        array. Alternatively, if ``nugget`` is set to be
+        ``"adaptive"``, the fitting routine will adaptively make the
+        noise parameter as large as is needed to ensure that the
+        emulator can be fit. Finally, pivoting can be selected by
+        setting to ``"pivot"``, which will ignore any collinear rows
+        in the covariance matrix.
 
-        Internally, this modifies both the way the nugget is chosen (which can be determined
-        via the ``nugget_type`` property) and the value itself (the ``nugget`` property)
+        Internally, this modifies both the way the nugget is chosen
+        (which can be determined via the ``nugget_type`` property) and
+        the value itself (the ``nugget`` property)
 
-        :param nugget: Noise to be added to the diagonal, specified as a string or a float.
-                       A non-negative float specifies the noise level explicitly, while a string
-                       indicates that the nugget will be found via fitting, either as ``"adaptive"``,
-                       ``"pivot"``, or ``"fit"`` (see above for a description).
+        :param nugget: Noise to be added to the diagonal, specified as
+                       a string or a float.  A non-negative float
+                       specifies the noise level explicitly, while a
+                       string indicates that the nugget will be found
+                       via fitting, either as ``"adaptive"``,
+                       ``"pivot"``, or ``"fit"`` (see above for a
+                       description).
         :type nugget: float or str
         :returns: None
         :rtype: None
+
         """
 
         if not isinstance(nugget, (str, float)):
@@ -565,7 +575,7 @@ class GaussianProcess(object):
             self.L = linalg.cholesky(Q, lower=True)
             self.P = np.arange(0, self.n)
 
-        self.invQt = linalg.cho_solve((self.L, True), (self.targets - m)[self.P])[pivot_transpose(self.P)]
+        self.invQt = pivot_cho_solve(self.L, self.P, self.targets - m)
 
         self.current_logpost = 0.5*(2.0*np.sum(np.log(np.diag(self.L))) +
                                     np.dot(self.targets - m, self.invQt) +
@@ -643,13 +653,13 @@ class GaussianProcess(object):
         partials[:switch] = -np.dot(dmdtheta, self.invQt)
 
         for d in range(self.D + 1):
-            invQ_dot_dKdtheta_trace = np.trace(linalg.cho_solve((self.L, True), dKdtheta[d, self.P])[pivot_transpose(self.P)])
+            invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, dKdtheta[d]))
             partials[switch + d] = -0.5*(np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
                                          invQ_dot_dKdtheta_trace)
 
         if self.nugget_type == "fit":
             nugget = np.exp(self.theta[-1])
-            partials[-1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n)[self.P])[pivot_transpose(self.P)]) -
+            partials[-1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
                                        np.dot(self.invQt, self.invQt))
 
         for i in range(self.n_params):
@@ -703,20 +713,20 @@ class GaussianProcess(object):
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta[switch:-1])
 
         hessian[:switch, :switch] = -(np.dot(d2mdtheta2, self.invQt) -
-                                      np.dot(dmdtheta, linalg.cho_solve((self.L, True),
-                                                                        np.transpose(dmdtheta)[self.P])[pivot_transpose(self.P)]))
+                                      np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
+                                                                        np.transpose(dmdtheta))))
 
         hessian[:switch, switch:-1] = np.dot(dmdtheta,
-                                             linalg.cho_solve((self.L, True),
-                                                              np.transpose(np.dot(dKdtheta, self.invQt))[self.P])[pivot_transpose(self.P)])
+                                             pivot_cho_solve(self.L, self.P,
+                                                              np.transpose(np.dot(dKdtheta, self.invQt))))
 
         hessian[switch:-1, :switch] = np.transpose(hessian[:switch, switch:-1])
 
         for d1 in range(self.D + 1):
-            invQ_dot_d1 = linalg.cho_solve((self.L, True), dKdtheta[d1, self.P])[pivot_transpose(self.P)]
+            invQ_dot_d1 = pivot_cho_solve(self.L, self.P, dKdtheta[d1])
             for d2 in range(self.D + 1):
-                invQ_dot_d2 = linalg.cho_solve((self.L, True), dKdtheta[d2, self.P])[pivot_transpose(self.P)]
-                invQ_dot_d1d2 = linalg.cho_solve((self.L, True), d2Kdtheta2[d1, d2, self.P])[pivot_transpose(self.P)]
+                invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
+                invQ_dot_d1d2 = pivot_cho_solve(self.L, self.P, d2Kdtheta2[d1, d2])
                 term_1 = np.linalg.multi_dot([self.invQt,
                                               2.*np.dot(dKdtheta[d1], invQ_dot_d2) - d2Kdtheta2[d1, d2],
                                               self.invQt])
@@ -725,21 +735,21 @@ class GaussianProcess(object):
 
         if self.nugget_type == "fit":
             nugget = np.exp(self.theta[-1])
-            invQinvQt = linalg.cho_solve((self.L, True), self.invQt[self.P])[pivot_transpose(self.P)]
+            invQinvQt = pivot_cho_solve(self.L, self.P, self.invQt)
             hessian[:switch, -1] = nugget*np.dot(dmdtheta, invQinvQt)
             for d in range(self.D + 1):
                 hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.invQt, dKdtheta[d], invQinvQt]) -
-                                                  0.5*np.trace(linalg.cho_solve((self.L, True),
+                                                  0.5*np.trace(pivot_cho_solve(self.L, self.P,
                                                                                 np.dot(dKdtheta[d],
-                                                                                       linalg.cho_solve((self.L, True),
-                                                                                                        np.eye(self.n)[self.P])[pivot_transpose(self.P)])[self.P])[pivot_transpose(self.P)]))
+                                                                                       pivot_cho_solve(self.L, self.P,
+                                                                                                        np.eye(self.n))))))
 
-            hessian[-1, -1] = 0.5*nugget*(np.trace(linalg.cho_solve((self.L, True), np.eye(self.n)[self.P])[pivot_transpose(self.P)]) -
+            hessian[-1, -1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
                                                    np.dot(self.invQt, self.invQt))
             hessian[-1, -1] += nugget**2*(np.dot(self.invQt, invQinvQt) -
-                                          0.5*np.trace(linalg.cho_solve((self.L, True),
-                                                                        linalg.cho_solve((self.L, True),
-                                                                                         np.eye(self.n)[self.P])[pivot_transpose(self.P)][self.P])[pivot_transpose(self.P)]))
+                                          0.5*np.trace(pivot_cho_solve(self.L, self.P,
+                                                                       pivot_cho_solve(self.L, self.P,
+                                                                                         np.eye(self.n)))))
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
 
@@ -841,7 +851,7 @@ class GaussianProcess(object):
             if include_nugget:
                 sigma_2 += self._nugget
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*linalg.cho_solve((self.L, True), Ktest[self.P])[pivot_transpose(self.P)], axis=0),
+            var = np.maximum(sigma_2 - np.sum(Ktest*pivot_cho_solve(self.L, self.P, Ktest), axis=0),
                              0.)
 
         inputderiv = None

@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, pivot_transpose
+from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
+from ..linalg.cholesky import pivot_cho_solve
 from scipy import linalg
 
 def test_check_cholesky_inputs():
@@ -85,16 +86,39 @@ def test_pivot_transpose():
     
     P = np.array([0, 2, 1], dtype = np.int32)
     
-    Piv = pivot_transpose(P)
+    Piv = _pivot_transpose(P)
     
     np.array_equal(Piv, P)
     
     P = np.array([1, 2, 1], dtype = np.int32)
     
     with pytest.raises(ValueError):
-        pivot_transpose(P)
+        _pivot_transpose(P)
 
     P = np.array([[0, 1, 2], [2, 1, 0]], dtype=np.int32)
 
     with pytest.raises(AssertionError):
-        pivot_transpose(P)
+        _pivot_transpose(P)
+
+def test_pivot_cho_solve():
+    "test the cho_solve routine using pivoting"
+
+    A = np.array([[2., 1., 0.4], [1., 2., 0.2], [0.4, 0.2, 2.]])
+    b = np.array([2., 3., 1.])
+
+    L = np.linalg.cholesky(A)
+
+    x = linalg.cho_solve((L, True), b)
+
+    L_pivot, P = pivot_cholesky(A)
+
+    x_pivot = pivot_cho_solve(L_pivot, P, b)
+
+    assert_allclose(x, x_pivot)
+
+    with pytest.raises(AssertionError):
+        pivot_cho_solve(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32), b)
+
+    with pytest.raises(ValueError):
+        pivot_cho_solve(L_pivot, np.array([0, 0, 1], dtype=np.int32), b)
+       

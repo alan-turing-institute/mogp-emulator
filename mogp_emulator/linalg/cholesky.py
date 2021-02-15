@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-from scipy.linalg import lapack
+from scipy.linalg import lapack, cho_solve
 
 def _check_cholesky_inputs(A):
     """
@@ -124,7 +124,7 @@ def pivot_cholesky(A):
     
     return L, P-1
     
-def pivot_transpose(P):
+def _pivot_transpose(P):
     """
     Invert a pivot matrix by taking its transpose
 
@@ -151,3 +151,38 @@ def pivot_transpose(P):
         return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
     except IndexError:
         raise ValueError("Bad values for pivot matrix input to pivot_transpose")
+
+
+def pivot_cho_solve(L, P, b):
+    """Solve a Linear System factorized using Pivoted Cholesky Decomposition
+
+    Solve a system :math:`{Ax = b}` where the matrix has been factorized using the
+    `pivot_cholesky` function. Can also solve a system which has been
+    factorized using the regular Cholesky decomposition routine if
+    `P` is the set of integers from 0 to the length of the linear system.
+    The routine rearranges the order of the RHS based on the pivoting
+    order that was used, and then rearranges back to the original
+    ordering of the RHS when returning the array.
+
+    :param L: Factorized :math:`{A}` square matrix using
+              pivoting. Assumes lower triangular factorization is
+              used.
+    :type L: ndarray
+    :param P: Pivot matrix, expressed as a list or 1D array of
+              integers that is the same length as `L`. Must contain
+              only nonzero integers as entries, with each number up to
+              the length of the array appearing exactly once.
+    :type P: list or ndarray
+    :param b: Right hand side to be solved. Can be any array that
+              satisfies the rules of the scipy `cho_solve` routine.
+    :type b: ndarray
+    :returns: Solution to the appropriate linear system as a ndarray.
+    :rtype: ndarray
+    """
+
+    assert len(P) == L.shape[0], "Length of pivot matrix must match linear system"
+    
+    try:
+        return cho_solve((L, True), b[P])[_pivot_transpose(P)]
+    except (IndexError, ValueError):
+        raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
