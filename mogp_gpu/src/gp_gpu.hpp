@@ -323,10 +323,9 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
-  void predict_deriv(mat_ref xnew, mat_ref result) {
-
+    void predict_deriv(mat_ref xnew, mat_ref result) {
         int Nbatch = xnew.rows();
-	// std::cout<<"result size is "<<result.size()<<std::endl;
+
         // TODO
         // assert result.size() == xnew.rows()
 
@@ -335,18 +334,15 @@ public:
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> result_d(Nbatch*Ninput);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Ninput, N, Nbatch,
-			      dev_ptr(xs_d), dev_ptr(xnew_d), dev_ptr(theta_d));
-	for (int i=0; i< 12; ++i) {
-	  std::cout<<" work_mat_d "<<i<<" is "<<work_mat_d[i]<<std::endl;
-	}
+        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Ninput, Nbatch, N,
+			      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_T,
-                        N, Ninput * Nbatch, // nrows, ncols
-                        &one, dev_ptr(work_mat_d), N, // alpha, A, lda
+            cublasDgemv(cublasHandle, CUBLAS_OP_N,
+                        Ninput * Nbatch, N, // nrows, ncols
+                        &one, dev_ptr(work_mat_d), Ninput * Nbatch, // alpha, A, lda
                         dev_ptr(invCts_d), 1, // x, incx
-                        &zero, dev_ptr(result_d), 1); // beta, t, incy
+                        &zero, dev_ptr(result_d), 1); // beta, y, incy
 
         cudaDeviceSynchronize();
 
