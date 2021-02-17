@@ -3,6 +3,7 @@ import scipy.stats
 from scipy.linalg import LinAlgError
 from scipy.optimize import minimize
 from mogp_emulator.GaussianProcess import GaussianProcess
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.MultiOutputGP import MultiOutputGP
 from multiprocessing import Pool
 from functools import partial
@@ -77,7 +78,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
             return _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
-        elif isinstance(gp, GaussianProcess):
+        elif isinstance(gp, GaussianProcess) or isinstance(gp, GaussianProcessGPU):
             return _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
@@ -104,7 +105,7 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     Accepts keyword arguments passed to scipy's minimization routine.
     """
 
-    assert isinstance(gp, GaussianProcess)
+    assert isinstance(gp, GaussianProcess) or isinstance(gp, GaussianProcessGPU)
 
     n_tries = int(n_tries)
     assert n_tries > 0, "number of attempts must be positive"
