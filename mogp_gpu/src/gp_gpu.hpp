@@ -57,13 +57,14 @@ double warpReduceSum(double val) {
 __global__
 void sumLogDiag(int N, double *A, double *result)
 {
+
     // assumes a single block
     int i = threadIdx.x;
 
     static __shared__ double work[WARP_SIZE];
     double log_diag = 0.0;
 
-    work[i] = 0.0;
+    if (i < WARP_SIZE) work[i] = 0.0;
     if (i < N) {
         log_diag = log(A[i * (N+1)]);
     }
@@ -71,6 +72,7 @@ void sumLogDiag(int N, double *A, double *result)
     int laneIdx = i % WARP_SIZE;
     int warpIdx = i / WARP_SIZE;
 
+    __syncthreads();
     log_diag = warpReduceSum(log_diag);
 
     if (laneIdx == 0) work[warpIdx] = log_diag;
@@ -80,7 +82,10 @@ void sumLogDiag(int N, double *A, double *result)
     log_diag = work[laneIdx];
 
     if (warpIdx == 0) log_diag = warpReduceSum(log_diag);
+
     if (i == 0) *result = 2.0 * log_diag;
+
+
 }
 
 typedef int obs_kind;
@@ -469,8 +474,8 @@ public:
         // invCt
         thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
-                                  dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
-                                  dev_ptr(info_d));
+	                         dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
+	                         dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
@@ -479,13 +484,16 @@ public:
         thrust::device_vector<double> logdetC_d(1);
 
         sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
+
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
 
 	//copy work_mat_d into the lower triangular Cholesky factor
 	thrust::copy(work_mat_d.begin(), work_mat_d.begin()+N*N, chol_lower_d.begin());
 
 	//set the flag to say we have fitted theta
+
 	theta_fitted = true;
+
     }
 
     bool theta_fit_status() {
