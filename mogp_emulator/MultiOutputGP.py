@@ -104,7 +104,7 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
+        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
@@ -170,10 +170,10 @@ class MultiOutputGP(object):
             assert processes > 0, "number of processes must be a positive integer"
 
         if platform.system() == "Windows":
-            predict_vals = [GPClass.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
+            predict_vals = [self.GPClass.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
         else:
             with Pool(processes) as p:
-                predict_vals = p.starmap(GPClass.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
+                predict_vals = p.starmap(self.GPClass.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 
