@@ -30,8 +30,8 @@ class GaussianProcessGPU(object):
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
         inputs = np.array(inputs)
-        # cast into float64, just in case we were given integers
-        inputs = inputs.astype(np.float64)
+        # cast into float64, just in case we were given integers and ensure contiguous (C type)
+        inputs = np.ascontiguousarray(inputs.astype(np.float64))
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
         assert inputs.ndim == 2
