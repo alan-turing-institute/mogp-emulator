@@ -15,7 +15,7 @@ import libgpgpu
 from mogp_emulator.GaussianProcess import PredictResult
 
 
-class GPUUnavailableError(RuntimeError):
+class NotImplementedError(RuntimeError):
     """Exception type to use when a GPU, or the GPU library, is unavailable"""
     pass
 
@@ -269,7 +269,10 @@ class GaussianProcessGPU(object):
                   ``(n_params, n_params)``)
         :rtype: ndarray
         """
-        pass
+        raise NotImplementedError(
+            "The Hessian calculation is not currently implemented in the GPU version of MOGP."
+        )
+
 
     def predict(self, testing, unc=True, deriv=True, include_nugget=False):
         """
