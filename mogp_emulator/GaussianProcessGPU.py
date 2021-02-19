@@ -30,8 +30,8 @@ class GaussianProcessGPU(object):
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
         inputs = np.array(inputs)
-        # cast into float64, just in case we were given integers
-        inputs = inputs.astype(np.float64)
+        # cast into float64, just in case we were given integers and ensure contiguous (C type)
+        inputs = np.ascontiguousarray(inputs.astype(np.float64))
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
         assert inputs.ndim == 2
@@ -271,7 +271,7 @@ class GaussianProcessGPU(object):
         """
         pass
 
-    def predict(self, testing, unc=True, deriv=False, include_nugget=False):
+    def predict(self, testing, unc=True, deriv=True, include_nugget=False):
         """
         Make a prediction for a set of input vectors for a single set of hyperparameters.
         This method implements the same interface as
@@ -281,7 +281,9 @@ class GaussianProcessGPU(object):
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
         testing = np.array(testing)
-        if testing.ndim == 1:
+        if self.D == 1 and testing.ndim == 1:
+            testing = np.reshape(testing, (-1, 1))
+        elif testing.ndim == 1:
             testing = np.reshape(testing, (1, len(testing)))
         assert testing.ndim == 2
 
@@ -290,12 +292,17 @@ class GaussianProcessGPU(object):
 
         means = np.zeros(testing.shape[0])
         variances = np.zeros(testing.shape[0])
-        deriv = np.zeros(testing.shape[0])
+        deriv_result = np.zeros((testing.shape[0],self.D))
         if unc:
             self._densegp_gpu.predict_variance_batch(testing, means, variances)
         else:
             self._densegp_gpu.predict_batch(testing, means)
-        return PredictResult(mean=means, unc=variances, deriv=deriv)
+            variances = None
+        if deriv:
+            self._densegp_gpu.predict_deriv(testing, deriv_result)
+        else:
+            deriv_result = None
+        return PredictResult(mean=means, unc=variances, deriv=deriv_result)
 
 
     def __call__(self, testing):

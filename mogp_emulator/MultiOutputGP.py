@@ -5,6 +5,13 @@ from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
+FOUND_GPU = False
+try:
+    from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
+    FOUND_GPU = True
+except ModuleNotFoundError:
+    pass
+
 
 class MultiOutputGP(object):
     """
@@ -28,10 +35,19 @@ class MultiOutputGP(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True):
+                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
         """
         Create a new multi-output GP Emulator
         """
+
+        # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
+        self.use_gpu = use_gpu
+        if self.use_gpu:
+            if not FOUND_GPU:
+                raise RuntimeError("GPU library not found")
+            self.GPClass = GaussianProcessGPU
+        else:
+            self.GPClass = GaussianProcess
 
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
@@ -88,7 +104,7 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n, inputdict, use_patsy)
+        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
@@ -154,10 +170,10 @@ class MultiOutputGP(object):
             assert processes > 0, "number of processes must be a positive integer"
 
         if platform.system() == "Windows":
-            predict_vals = [GaussianProcess.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
+            predict_vals = [self.GPClass.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
         else:
             with Pool(processes) as p:
-                predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
+                predict_vals = p.starmap(self.GPClass.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 
@@ -194,4 +210,3 @@ class MultiOutputGP(object):
                  str(self.n_emulators)+" emulators\n"+
                  str(self.n)+" training examples\n"+
                  str(self.D)+" input variables")
-

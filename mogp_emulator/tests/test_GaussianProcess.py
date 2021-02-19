@@ -645,6 +645,95 @@ def test_GaussianProcess_predict(x, y, dx):
 
     assert_allclose(gp(x_test), mu_expect)
 
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_predict(x, y, dx):
+    "test the predict method of GaussianProcessGPU"
+
+    # zero mean
+
+    gp = GaussianProcessGPU(x, y, nugget=0.)
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    x_test = np.array([[2., 3., 4.]])
+
+    mu, var, deriv = gp.predict(x_test)
+
+    K = gp.kernel.kernel_f(x, x, theta[:-1])
+    Ktest = gp.kernel.kernel_f(x_test, x, theta[:-1])
+
+    mu_expect = np.dot(Ktest, gp.invQt)
+    var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
+
+    D = gp.D
+
+    deriv_expect = np.zeros((1, D))
+
+    for i in range(D):
+        dx_array = np.zeros(D)
+        dx_array[i] = dx
+        deriv_expect[0, i] = (gp.predict(x_test)[0] - gp.predict(x_test - dx_array)[0])/dx
+
+    assert_allclose(mu, mu_expect)
+    assert_allclose(var, var_expect)
+    assert_allclose(deriv, deriv_expect, atol=1.e-7, rtol=1.e-7)
+
+    # check that reshaping works as expected
+
+    x_test = np.array([2., 3., 4.])
+
+    mu, var, deriv = gp.predict(x_test)
+
+    assert_allclose(mu, mu_expect)
+    assert_allclose(var, var_expect)
+    assert_allclose(deriv, deriv_expect, atol=1.e-7, rtol=1.e-7)
+
+    # check that with 1D input data can handle 1D prediction data correctly
+
+    gp = GaussianProcessGPU(y, y, nugget=0.)
+
+    gp.fit(np.ones(gp.n_params))
+
+    n_predict = 51
+    mu, var, deriv = gp.predict(np.linspace(0., 1., n_predict))
+
+    assert mu.shape == (n_predict,)
+    assert var.shape == (n_predict,)
+    assert deriv.shape == (n_predict, 1)
+
+    # check unc and deriv flags work
+
+    _, var, deriv = gp.predict(x_test, unc=False, deriv=False)
+
+    assert var is None
+    assert deriv is None
+
+    # check that the returned PredictResult works correctly
+    gp = GaussianProcessGPU(x, y, nugget=0.)
+    theta = np.ones(gp.n_params)
+    gp.fit(theta)
+    x_test = np.array([[2., 3., 4.]])
+
+    pr = gp.predict(x_test)
+
+    assert_allclose(pr.mean, mu_expect)
+    assert_allclose(pr.unc, var_expect)
+    assert_allclose(pr.deriv, deriv_expect, atol=1.e-7, rtol=1.e-7)
+
+    assert_allclose(pr['mean'], mu_expect)
+    assert_allclose(pr['unc'], var_expect)
+    assert_allclose(pr['deriv'], deriv_expect, atol=1.e-7, rtol=1.e-7)
+
+    assert_allclose(pr[0], mu_expect)
+    assert_allclose(pr[1], var_expect)
+    assert_allclose(pr[2], deriv_expect, atol=1.e-7, rtol=1.e-7)
+
+    # check that calling gp is equivalent to predicting
+
+    assert_allclose(gp(x_test), mu_expect)
+
+
 def test_GaussianProcess_predict_nugget(x, y):
     "test that the nugget works correctly when making predictions"
 
@@ -668,6 +757,33 @@ def test_GaussianProcess_predict_nugget(x, y):
     var_expect = np.exp(theta[-2]) - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
+
+
+@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+def test_GaussianProcessGPU_predict_nugget(x, y):
+    "test that the nugget works correctly when making predictions"
+
+    nugget = 1.e0
+
+    gp = GaussianProcessGPU(x, y, nugget=nugget)
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+ #   preds = gp.predict(x)
+
+    K = gp.kernel.kernel_f(x, x, theta[:-1])
+
+ #   var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+
+ #   assert_allclose(preds.unc, var_expect, atol=1.e-7)
+
+    preds = gp.predict(x, include_nugget=False)
+
+    var_expect = np.exp(theta[-2]) - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+
+    assert_allclose(preds.unc, var_expect, atol=1.e-7)
+
 
 def test_GaussianProcess_predict_variance():
     "confirm that caching factorized matrix produces stable variance predictions"
