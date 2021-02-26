@@ -770,13 +770,13 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
 
     gp.fit(theta)
 
- #   preds = gp.predict(x)
+    preds = gp.predict(x)
 
     K = gp.kernel.kernel_f(x, x, theta[:-1])
 
- #   var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+    var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
- #   assert_allclose(preds.unc, var_expect, atol=1.e-7)
+    assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
     preds = gp.predict(x, include_nugget=False)
 

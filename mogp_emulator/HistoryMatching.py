@@ -1,5 +1,5 @@
 import numpy as np
-from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
+from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
 
 class HistoryMatching(object):
     r"""
@@ -80,10 +80,10 @@ class HistoryMatching(object):
         numbers of these to allow the number of dimensions and/or number of coordinates to
         be computed also causes these to be set at this stage.
 
-        :param gp: (Optional) ``GaussianProcess`` object used to make predictions in
+        :param gp: (Optional) ``GaussianProcessBase`` object used to make predictions in
                    history matching. Optional, can instead provide predictions directly
                    via the ``expectations`` argument. Default is ``None``
-        :type gp: GaussianProcess or None
+        :type gp: GaussianProcessBase or None
         :param obs: (Optional) Observations against which the predictions will be
                     compared. If provided, must either be a float (assumes no
                     uncertainty in the observations) or a list of two floats
@@ -304,7 +304,7 @@ class HistoryMatching(object):
 
         :param gp: ``GaussianProcess`` object to use for history matching.
         :type gp: GaussianProcess
-        :returns: None
+        :returns:` None
         """
         if not self.check_gp(gp):
             raise TypeError("bad input for set_gp - expects a GaussianProcess object.")
@@ -438,17 +438,15 @@ class HistoryMatching(object):
         Checks if the provided argument is consistent with expectations for a GP.
 
         Returns a boolean that is True if the provided quantity is consistent with
-        the requirements for a gaussian process, i.e. is of type ``GaussianProcess``.
+        the requirements for a gaussian process, i.e. is of type ``GaussianProcessBase``.
 
         :param gp: Input GP object to be checked.
-        :type gp: GaussianProcess
+        :type gp: GaussianProcessBase
         :returns: Boolean indicating if provided object is a ``GaussianProcess``
         :rtype: bool
         """
-        if gp is None: return False
-        if isinstance(gp, GaussianProcess):
-            return True
-        return False
+        return isinstance(gp, GaussianProcessBase)
+
 
 
     def check_obs(self, obs):

@@ -12,7 +12,7 @@ from scipy.optimize import OptimizeResult
 
 import libgpgpu
 
-from mogp_emulator.GaussianProcess import PredictResult
+from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
 
 
 class NotImplementedError(RuntimeError):
@@ -20,7 +20,7 @@ class NotImplementedError(RuntimeError):
     pass
 
 
-class GaussianProcessGPU(object):
+class GaussianProcessGPU(GaussianProcessBase):
     """
     This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
