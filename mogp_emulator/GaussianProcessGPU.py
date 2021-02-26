@@ -274,7 +274,7 @@ class GaussianProcessGPU(object):
         )
 
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=False):
+    def predict(self, testing, unc=True, deriv=True, include_nugget=True):
         """
         Make a prediction for a set of input vectors for a single set of hyperparameters.
         This method implements the same interface as
@@ -294,14 +294,17 @@ class GaussianProcessGPU(object):
         assert D == self.D
 
         means = np.zeros(testing.shape[0])
-        variances = np.zeros(testing.shape[0])
-        deriv_result = np.zeros((testing.shape[0],self.D))
+
         if unc:
+            variances = np.zeros(testing.shape[0])
             self._densegp_gpu.predict_variance_batch(testing, means, variances)
+            if include_nugget:
+                variances += self._nugget
         else:
             self._densegp_gpu.predict_batch(testing, means)
             variances = None
         if deriv:
+            deriv_result = np.zeros((testing.shape[0],self.D))
             self._densegp_gpu.predict_deriv(testing, deriv_result)
         else:
             deriv_result = None
