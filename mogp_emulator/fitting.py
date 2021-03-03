@@ -194,7 +194,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
 
     # partial(fit_GP_MAP, )
 
-    if platform.system() == "Windows":
+    if platform.system() == "Windows" or gp.use_gpu:
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
                     for (emulator, t0) in zip(gp.emulators, theta0)]
     else:

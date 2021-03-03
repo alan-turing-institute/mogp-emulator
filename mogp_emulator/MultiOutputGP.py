@@ -169,7 +169,7 @@ class MultiOutputGP(object):
             processes = int(processes)
             assert processes > 0, "number of processes must be a positive integer"
 
-        if platform.system() == "Windows":
+        if platform.system() == "Windows" or self.use_gpu:
             predict_vals = [self.GPClass.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
         else:
             with Pool(processes) as p:
