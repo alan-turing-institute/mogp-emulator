@@ -101,7 +101,7 @@ enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 // By convention, members ending "_d" are allocated on the device
 class DenseGP_GPU {
     // batch size (for allocation)
-    const size_t xnew_size = 10000;
+    unsigned int xnew_size;
 
     // Number of training points, dimension of input
     unsigned int N, Ninput;
@@ -592,8 +592,9 @@ public:
         thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
     }
 
-  DenseGP_GPU(mat_ref xs_, vec_ref ts_)
-        : N(xs_.rows())
+    DenseGP_GPU(mat_ref xs_, vec_ref ts_, unsigned int xnew_size_)
+        : xnew_size(xnew_size_)
+        , N(xs_.rows())
 	, Ninput(xs_.cols())
         , invC_d(N * N, 0.0)
 	, chol_lower_d(N * N, 0.0)

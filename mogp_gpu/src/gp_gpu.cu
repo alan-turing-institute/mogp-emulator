@@ -7,7 +7,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
-        .def(py::init< mat_ref, vec_ref>())
+        .def(py::init<mat_ref, vec_ref, unsigned int>())
         .def("data_length", &DenseGP_GPU::data_length)
         .def("D", &DenseGP_GPU::D)
         .def("inputs", &DenseGP_GPU::inputs)

@@ -28,7 +28,7 @@ class GaussianProcessGPU(GaussianProcessBase):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict = {}, use_patsy=True):
+                 nugget="adaptive", inputdict = {}, use_patsy=True, max_batch_size=100):
         inputs = np.array(inputs)
         # cast into float64, just in case we were given integers and ensure contiguous (C type)
         inputs = np.ascontiguousarray(inputs.astype(np.float64))
@@ -42,6 +42,10 @@ class GaussianProcessGPU(GaussianProcessBase):
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
 
+        self._inputs = inputs
+        self._targets = targets
+        self._max_batch_size = max_batch_size
+        
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
@@ -52,10 +56,20 @@ class GaussianProcessGPU(GaussianProcessBase):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential")
         elif kernel and not isinstance(kernel, SquaredExponential):
                 raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
-        self.kernel=kernel
+        self.kernel = kernel
         self.nugget = nugget
-        # instantiate the C++ class
-        self._densegp_gpu = libgpgpu.DenseGP_GPU(inputs, targets)
+
+        self._theta = None
+ 
+        self._densegp_gpu = None
+        self.init_gpu()
+
+
+    def init_gpu(self):
+        if not self._densegp_gpu:
+            # instantiate the C++ class
+            self._densegp_gpu = libgpgpu.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
+
 
     @property
     def inputs(self):
@@ -207,15 +221,15 @@ class GaussianProcessGPU(GaussianProcessBase):
         Implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
         """
-        theta = np.array(theta)
+        self._theta = np.array(theta)
         nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
-        self._densegp_gpu.update_theta(theta, self._nugget_type, nugget_size)
+        self._densegp_gpu.update_theta(self._theta, self._nugget_type, nugget_size)
         if self.nugget_type == "adaptive":
             self._nugget = self._densegp_gpu.get_jitter()
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         self.invQt = invQt_result
-        self.current_logpost = self.logposterior(theta)
+        self.current_logpost = self.logposterior(self._theta)
 
     def logposterior(self, theta):
         """
