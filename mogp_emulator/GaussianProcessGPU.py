@@ -344,3 +344,23 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         return ("Gaussian Process with " + str(self.n) + " training examples and " +
                 str(self.D) + " input variables")
+
+
+    ## __setstate__ and __getstate__ for pickling: don't pickle "_dense_gp_gpu",
+    ## and instead reinitialize this when unpickling
+    ## (Pickling is required to use multiprocessing.)
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.init_gpu()
+        if self._theta is not None:
+            self.fit(self._theta)
+
+
+    def __getstate__(self):
+        copy_dict = self.__dict__.copy()
+        del copy_dict["_densegp_gpu"]
+        copy_dict["_densegp_gpu"] = None
+        return copy_dict
+
+
+ 
