@@ -19,3 +19,4 @@ mogp_emulator Implementation Details
    SequentialDesign
    HistoryMatching
    MCMC
+   linalg
