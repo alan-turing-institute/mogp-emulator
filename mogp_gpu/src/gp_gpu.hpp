@@ -209,6 +209,11 @@ public:
     // returns: prediction of value
     double predict_variance(mat_ref xnew, vec_ref var)
     {
+        if (var.size() < xnew.rows()) {
+            throw std::runtime_error("predict_variance: the result buffer passed was "
+                                     "too small to hold the variance");
+        }
+
         // value prediction
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Ninput);
         cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
@@ -251,9 +256,16 @@ public:
     {
         int Nbatch = xnew.rows();
 
-        // TODO
-        // assert result.size() == xnew.rows()
+        if (result.size() < xnew.rows()) {
+            throw std::runtime_error("predict_batch: the result buffer passed was "
+                                     "too small to hold the result");
+        }
 
+        if (Nbatch > xnew_size) {
+            throw std::runtime_error("predict_variance_batch: More test points were passed "
+                                     "than the maximum batch size");
+        }
+            
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
@@ -277,8 +289,19 @@ public:
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
-	int Nbatch = mean.size();
+        int Nbatch = xnew.rows();
 
+        if (var.size() < xnew.rows() || mean.size() < xnew.rows()) {
+            throw std::runtime_error("predict_variance_batch: The result buffer passed was "
+                                     "too small to hold the variance");
+        }
+        
+        if (Nbatch > xnew_size) {
+            throw std::runtime_error("predict_variance_batch: More test points were passed "
+                                     "than the maximum batch size");
+        }
+            
+        
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> mean_d(Nbatch);
 
@@ -331,8 +354,15 @@ public:
     void predict_deriv(mat_ref xnew, mat_ref result) {
         int Nbatch = xnew.rows();
 
-        // TODO
-        // assert result.size() == xnew.rows()
+        if (result.rows() < xnew.rows() || result.cols() != Ninput) {
+            throw std::runtime_error("predict_deriv: the result buffer passed was "
+                                     "the wrong shape to hold the result");
+        }
+
+        if (Nbatch > xnew_size) {
+            throw std::runtime_error("predict_variance_batch: More test points were passed "
+                                     "than the maximum batch size");
+        }       
 
         REAL zero(0.0);
         REAL one(1.0);
