@@ -18,6 +18,7 @@
 #include <thrust/functional.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/copy.h>
+#include <cub/cub.cuh>
 
 #include <Eigen/Dense>
 
@@ -27,6 +28,8 @@
 
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff
+
+#define USE_SHUFFLE_SUM_IMPL 0
 
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
@@ -43,7 +46,13 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
     }
 }
 
-// see https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
+#if USE_SHUFFLE_SUM_IMPL
+// ----------------------------------------
+// Implementation of sum_log_diag using warp reduction,
+// based on https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
+//
+// Will fail for N > 1024
+
 __inline__ __device__
 double warpReduceSum(double val) {
     for (int offset = WARP_SIZE/2; offset > 0; offset /= 2)
@@ -51,14 +60,9 @@ double warpReduceSum(double val) {
     return val;
 }
 
-// Invoke as
-// sumLogDiag<<<1, N>>>(N, A, result);
-//
 __global__
-void sumLogDiag(int N, double *A, double *result)
+void sum_log_diag_kernel(int N, double *A, double *result)
 {
-
-    // assumes a single block
     int i = threadIdx.x;
 
     static __shared__ double work[WARP_SIZE];
@@ -84,9 +88,36 @@ void sumLogDiag(int N, double *A, double *result)
     if (warpIdx == 0) log_diag = warpReduceSum(log_diag);
 
     if (i == 0) *result = 2.0 * log_diag;
-
-
 }
+
+// Unused arguments are needed for the CUB implementation
+void sum_log_diag(int N, double *A, double *result, double *, size_t)
+{
+    // The number of thread blocks *must* be 1
+    // N can be at most 1024 (WARP_SIZE**2)
+    int thread_blocks = 1;
+    int threads_per_block = N;
+    sum_log_diag_kernel<<<thread_blocks, threads_per_block>>>(N, A, result);
+}
+
+#else
+// ----------------------------------------
+// Implementation of sum_log_diag using cub::DeviceReduce
+
+struct LogSq : public thrust::unary_function<double, double>
+{
+  __host__ __device__ double operator()(double x) const { return 2.0 * log(x); }
+};
+
+void sum_log_diag(int N, double *A, double *result, double *work, size_t work_size)
+{
+    auto transform_it = thrust::make_transform_iterator(A, LogSq());
+    auto sr = make_strided_range(transform_it, transform_it + N*N, N+1);
+
+    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
+}
+
+#endif // USE_SHUFFLE_SUM_IMPL
 
 typedef int obs_kind;
 // typedef ivec vec_obs_kind;
@@ -150,6 +181,12 @@ class DenseGP_GPU {
 
     // buffer for Cholesky factorization
     thrust::device_vector<REAL> potrf_buffer_d;
+
+    // buffer for cub::DeviceReduce::Sum
+    thrust::device_vector<REAL> sum_buffer_d;
+
+    // size of sum_buffer_d
+    size_t sum_buffer_size_bytes;
 
     // more work arrays
     thrust::device_vector<REAL> xnew_d, work_mat_d, result_d, kappa_d, invCk_d;
@@ -513,7 +550,7 @@ public:
         // logdetC
         thrust::device_vector<double> logdetC_d(1);
 
-        sumLogDiag<<<1, N>>>(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d));
+        sum_log_diag(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
 
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
 
@@ -640,6 +677,7 @@ public:
         , xnew_d(Ninput * xnew_size, 0.0)
         , work_d(N, 0.0)
         , work_mat_d(N * xnew_size, 0.0)
+        , sum_buffer_size_bytes(0)
         , result_d(xnew_size, 0.0)
         , kappa_d(xnew_size, 0.0)
         , invCk_d(xnew_size * N, 0.0)
@@ -655,15 +693,19 @@ public:
             throw std::runtime_error("cuSolver initialization error\n");
         }
 
+        // CUBLAS potrf workspace
         int potrfBufferSize;
-
-
         cusolverDnDpotrf_bufferSize(cusolverHandle, CUBLAS_FILL_MODE_LOWER,
                                     N, dev_ptr(potrf_buffer_d), N,
                                     &potrfBufferSize);
-
         potrf_buffer_d.resize(potrfBufferSize);
-
+        
+        // The following call determines the size of the cub::DeviceReduce::Sum workspace:
+        // sum_buffer_size_bytes is 0 before this call, and the size of sum_buffer_d afterwards.
+        // The end iterators are supplied but are not used.
+        cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
+                               sum_buffer_d.end(), sum_buffer_d.end(), N);
+        sum_buffer_d.resize(sum_buffer_size_bytes);        
     }
 };
 
