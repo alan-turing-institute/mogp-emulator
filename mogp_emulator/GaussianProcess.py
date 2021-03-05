@@ -449,7 +449,11 @@ class GaussianProcess(object):
         :type theta: ndarray
         :returns: None
         """
-        self.fit(theta)
+        if theta is None:
+            self._theta = None
+            self.current_logpost = None
+        else:
+            self.fit(theta)
 
     @property
     def priors(self):

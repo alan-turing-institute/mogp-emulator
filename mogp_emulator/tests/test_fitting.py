@@ -54,7 +54,7 @@ def test_fit_GP_MAP_failures():
     gp = GaussianProcess(x, y, nugget=0.)
 
     with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, n_tries=1)
+        fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
 
     with pytest.raises(RuntimeError):
         fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
@@ -123,16 +123,16 @@ def test_fit_GP_MAP_MOGP_failures():
     
     # minimization fails
 
-    with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
+    gp = fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
+    assert gp.get_indices_not_fit() == [0, 1]
 
     gp = MultiOutputGP(x, y, nugget=0.)
 
-    with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, n_tries=1)
+    gp = fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
+    assert gp.get_indices_not_fit() == [0, 1]
 
-    with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp = fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    assert gp.get_indices_not_fit() == [0, 1]
 
     # bad inputs
 
@@ -193,16 +193,16 @@ def test_fit_single_GP_MAP_failures():
 
     # minimization fails
 
-    with pytest.raises(RuntimeError):
-        _fit_single_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
+    gp = _fit_single_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
+    assert gp.theta is None
 
     gp = GaussianProcess(x, y, nugget=0.)
 
-    with pytest.raises(RuntimeError):
-        _fit_single_GP_MAP(gp, n_tries=1)
+    gp = _fit_single_GP_MAP(gp, theta0 = np.array([0., 0., 0.]), n_tries=1)
+    assert gp.theta is None
 
-    with pytest.raises(RuntimeError):
-        _fit_single_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp =_fit_single_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    assert gp.theta is None
 
     # bad inputs
 
@@ -259,16 +259,16 @@ def test_fit_MOGP_MAP_failures():
     
     # minimization fails
 
-    with pytest.raises(RuntimeError):
-        _fit_MOGP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
-
+    gp = _fit_MOGP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
+    assert gp.get_indices_not_fit() == [0, 1]
+        
     gp = MultiOutputGP(x, y, nugget=0.)
 
-    with pytest.raises(RuntimeError):
-        _fit_MOGP_MAP(gp, n_tries=1)
+    gp = _fit_MOGP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
+    assert gp.get_indices_not_fit() == [0, 1]
 
-    with pytest.raises(RuntimeError):
-        _fit_MOGP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp = _fit_MOGP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    assert gp.get_indices_not_fit() == [0, 1]
 
     # bad inputs
 

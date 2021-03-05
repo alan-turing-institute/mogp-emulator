@@ -95,3 +95,19 @@ def test_MultiOutputGP_predict(x, y, dx):
         var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
         assert_allclose(var[i], var_expect)
+
+def test_MultiOutputGP_get_failures(x, y):
+    "test the methods of MultiOutputGP that extracts GPs that have not been fit"
+
+    gp = MultiOutputGP(x, y, nugget=0.)
+    theta = np.ones(gp.emulators[0].n_params)
+
+    gp.emulators[0].fit(theta)
+
+    assert gp.get_indices_not_fit() == [1]
+    assert len(gp.get_emulators_not_fit()) == 1
+
+    gp.emulators[1].fit(theta)
+
+    assert gp.get_indices_not_fit() == []
+    assert len(gp.get_emulators_not_fit()) == 0

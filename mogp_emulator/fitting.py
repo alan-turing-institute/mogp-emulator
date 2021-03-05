@@ -9,76 +9,109 @@ from functools import partial
 import platform
 
 def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
-    """
-    Fit one or more Gaussian Processes by attempting to minimize the negative log-posterior
+    """Fit one or more Gaussian Processes by attempting to minimize the
+    negative log-posterior
 
-    Fits the hyperparameters of one or more Gaussian Processes by attempting to minimize
-    the negative log-posterior multiple times from a given starting location and using
-    a particular minimization method. The best result found among all of the attempts is
-    returned, unless all attempts to fit the parameters result in an error (see below).
+    Fits the hyperparameters of one or more Gaussian Processes by
+    attempting to minimize the negative log-posterior multiple times
+    from a given starting location and using a particular minimization
+    method. The best result found among all of the attempts is
+    returned, unless all attempts to fit the parameters result in an
+    error (see below).
 
-    The arguments to the method can either be an existing ``GaussianProcess`` or
-    ``MultiOutputGP`` instance, or a list of arguments to be passed to the ``__init__``
-    method of ``GaussianProcess`` or ``MultiOutputGP`` if more than one output is detected.
-    Keyword arguments for creating a new ``GaussianProcess`` or ``MultiOutputGP`` object can
-    either be passed as part of the ``*args`` list or as keywords (if present in ``**kwargs``, they
-    will be extracted and passed separately to the ``__init__`` method).
+    The arguments to the method can either be an existing
+    ``GaussianProcess`` or ``MultiOutputGP`` instance, or a list of
+    arguments to be passed to the ``__init__`` method of
+    ``GaussianProcess`` or ``MultiOutputGP`` if more than one output
+    is detected.  Keyword arguments for creating a new
+    ``GaussianProcess`` or ``MultiOutputGP`` object can either be
+    passed as part of the ``*args`` list or as keywords (if present in
+    ``**kwargs``, they will be extracted and passed separately to the
+    ``__init__`` method).
 
-    If the method encounters an overflow (this can result because the parameter values stored are
-    the logarithm of the actual hyperparameters to enforce positivity) or a linear algebra error
-    (occurs when the covariance matrix cannot be inverted, even with additional noise added along
-    the diagonal if adaptive noise was selected), the iteration is skipped. If all attempts to find
-    optimal hyperparameters result in an error, then the method raises an exception.
+    If the method encounters an overflow (this can result because the
+    parameter values stored are the logarithm of the actual
+    hyperparameters to enforce positivity) or a linear algebra error
+    (occurs when the covariance matrix cannot be inverted, even with
+    additional noise added along the diagonal if adaptive noise was
+    selected), the iteration is skipped. If all attempts to find
+    optimal hyperparameters result in an error, then the emulator is
+    skipped and the parameters are reset to ``None``. A warning will
+    be printed to the console if this occurs for ``MultiOutputGP``
+    fitting, while an error will be raise for ``GaussianProcess``
+    fitting. This is because ``MultiOutputGP`` fitting is often done
+    in a situation where human review of all fit emulators is not
+    possible, so the fitting routine skips over failures and then
+    flags those that failed for further review.
 
-    The ``theta0`` parameter is the point at which the first iteration will start. If more than
-    one attempt is made, subsequent attempts will use random starting points. If you are fitting
-    Multiple Outputs, then this argument can take any of the following forms: (1) None (random
-    start points for all emulators), (2) a list of numpy arrays or ``NoneTypes`` with length
-    ``n_emulators``, (3) a numpy array of shape ``(n_params,)`` or ``(n_emulators, n_params)``
-    which with either use the same start point for all emulators or the specified start
-    point for all emulators. Note that if you us a numpy array, all emulators must have the
-    same number of parameters, while using a list allows more flexibility.
+    The ``theta0`` parameter is the point at which the first iteration
+    will start. If more than one attempt is made, subsequent attempts
+    will use random starting points. If you are fitting Multiple
+    Outputs, then this argument can take any of the following forms:
+    (1) None (random start points for all emulators), (2) a list of
+    numpy arrays or ``NoneTypes`` with length ``n_emulators``, (3) a
+    numpy array of shape ``(n_params,)`` or ``(n_emulators,
+    n_params)`` which with either use the same start point for all
+    emulators or the specified start point for all emulators. Note
+    that if you us a numpy array, all emulators must have the same
+    number of parameters, while using a list allows more flexibility.
 
-    The user can specify the details of the minimization method, using any of the gradient-based
-    optimizers available in ``scipy.optimize.minimize``. Any additional parameters beyond the method
-    specification can be passed as keyword arguments.
+    The user can specify the details of the minimization method, using
+    any of the gradient-based optimizers available in
+    ``scipy.optimize.minimize``. Any additional parameters beyond the
+    method specification can be passed as keyword arguments.
 
-    The function returns a fit ``GaussianProcess`` or ``MultiOutputGP`` instance, either the original
-    one passed to the function, or the new one created from the included arguments.
+    The function returns a fit ``GaussianProcess`` or
+    ``MultiOutputGP`` instance, either the original one passed to the
+    function, or the new one created from the included arguments.
 
-    :param ``*args``: Either a single ``GaussianProcess`` or ``MultiOutputGP`` instance,
-                      or arguments to be passed to the ``__init__`` method when creating a new
-                      ``GaussianProcess`` or ``MultiOutputGP`` instance.
-    :param n_tries: Number of attempts to minimize the negative log-posterior function.
-                    Must be a positive integer (optional, default is 15)
+    :param ``*args``: Either a single ``GaussianProcess`` or
+                      ``MultiOutputGP`` instance, or arguments to be
+                      passed to the ``__init__`` method when creating
+                      a new ``GaussianProcess`` or ``MultiOutputGP``
+                      instance.
+    :param n_tries: Number of attempts to minimize the negative
+                    log-posterior function.  Must be a positive
+                    integer (optional, default is 15)
     :type n_tries: int
-    :param theta0: Initial starting point for the first iteration. If present, must be
-                   array-like with shape ``(n_params,)`` based on the specific
-                   ``GaussianProcess`` being fit. If a ``MultiOutputGP`` is being fit
-                   it must be a list of length ``n_emulators`` with each entry as either
-                   ``None`` or a numpy array of shape ``(n_params,)``, or a numpy array
-                   with shape ``(n_emulators, n_params)`` (note that if the various emulators
-                   have different numbers of parameters, the numpy array option will not work).
-                   If ``None`` is given, then a random value is chosen. (Default is ``None``)
+    :param theta0: Initial starting point for the first iteration. If
+                   present, must be array-like with shape
+                   ``(n_params,)`` based on the specific
+                   ``GaussianProcess`` being fit. If a
+                   ``MultiOutputGP`` is being fit it must be a list of
+                   length ``n_emulators`` with each entry as either
+                   ``None`` or a numpy array of shape ``(n_params,)``,
+                   or a numpy array with shape ``(n_emulators,
+                   n_params)`` (note that if the various emulators
+                   have different numbers of parameters, the numpy
+                   array option will not work).  If ``None`` is given,
+                   then a random value is chosen. (Default is
+                   ``None``)
     :type theta0: None or ndarray
-    :param method: Minimization method to be used. Can be any gradient-based optimization
-                   method available in ``scipy.optimize.minimize``. (Default is ``'L-BFGS-B'``)
+    :param method: Minimization method to be used. Can be any
+                   gradient-based optimization method available in
+                   ``scipy.optimize.minimize``. (Default is
+                   ``'L-BFGS-B'``)
     :type method: str
-    :param ``**kwargs``: Additional keyword arguments to be passed to ``GaussianProcess.__init__``,
-                         ``MultiOutputGP.__init__``, or the minimization routine. Relevant parameters
-                         for the GP classes are automatically split out from those used in the
-                         minimization function. See available parameters in the corresponding functions
-                         for details.
+    :param ``**kwargs``: Additional keyword arguments to be passed to
+                         ``GaussianProcess.__init__``,
+                         ``MultiOutputGP.__init__``, or the
+                         minimization routine. Relevant parameters for
+                         the GP classes are automatically split out
+                         from those used in the minimization
+                         function. See available parameters in the
+                         corresponding functions for details.
     :returns: Fit GP or Multi-Output GP instance
     :rtype: GaussianProcess or MultiOutputGP
+
     """
 
     if len(args) == 1:
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
-            return _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
+            gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
         elif isinstance(gp, GaussianProcess):
-            return _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
+            gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
     elif len(args) < 2:
@@ -91,17 +124,31 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
                 del kwargs[key]
         try:
             gp = GaussianProcess(*args, **gp_kwargs)
-            return _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
+            gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
         except AssertionError:
-            gp = MultiOutputGP(*args, **gp_kwargs)
-            return _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
+            try:
+                gp = MultiOutputGP(*args, **gp_kwargs)
+                gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
+            except AssertionError:
+                raise ValueError("Bad values for *args in fit_GP_MAP")
 
+    if isinstance(gp, GaussianProcess):
+        if gp.theta is None:
+            raise RuntimeError("GP fitting failed")
+    else:
+        if len(gp.get_indices_not_fit()) > 0:
+            print("Fitting failed for emulators {}".format(gp.get_indices_not_fit()))
+
+    return gp
+
+        
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
-    """
-    Fit hyperparameters using MAP for a single GP
+    """Fit hyperparameters using MAP for a single GP
 
-    Returns a single GP object that has its hyperparameters fit to the MAP value.
-    Accepts keyword arguments passed to scipy's minimization routine.
+    Returns a single GP object that has its hyperparameters fit to the
+    MAP value.  Accepts keyword arguments passed to scipy's
+    minimization routine.
+
     """
 
     assert isinstance(gp, GaussianProcess)
@@ -136,12 +183,13 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
             print("Floating point error in optimization routine, skipping this iteration")
 
     if len(logpost_values) == 0:
-        raise RuntimeError("Minimization routine failed to return a value")
+        print("Minimization routine failed to return a value")
+        gp.theta = None
+    else:
+        logpost_values = np.array(logpost_values)
+        idx = np.argmin(logpost_values)
 
-    logpost_values = np.array(logpost_values)
-    idx = np.argmin(logpost_values)
-
-    gp.fit(theta_values[idx])
+        gp.fit(theta_values[idx])
 
     return gp
 
@@ -151,15 +199,17 @@ def _fit_single_GP_MAP_bound(gp, theta0, n_tries, method, **kwargs):
     return _fit_single_GP_MAP(gp, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
 
 def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
-    """
-    Fit hyperparameters using MAP for multiple GPs in parallel
+    """Fit hyperparameters using MAP for multiple GPs in parallel
 
-    Uses Python Multiprocessing to fit GPs in parallel by calling the above routine for a single
-    GP for each of the emulators in the MOGP class. Returns a MultiOutputGP object where all
-    emulators have been fit to the MAP value.
+    Uses Python Multiprocessing to fit GPs in parallel by calling the
+    above routine for a single GP for each of the emulators in the
+    MOGP class. Returns a MultiOutputGP object where all emulators
+    have been fit to the MAP value.
 
-    Accepts a ``processes`` argument (integer or None) as a keyword to control the number of
-    subprocesses used to fit the individual GPs in parallel. Must be positive. Default is ``None``.
+    Accepts a ``processes`` argument (integer or None) as a keyword to
+    control the number of subprocesses used to fit the individual GPs
+    in parallel. Must be positive. Default is ``None``.
+
     """
 
     assert isinstance(gp, MultiOutputGP)
@@ -189,8 +239,6 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
         assert processes > 0, "number of processes must be positive"
 
     n_tries = int(n_tries)
-
-    # partial(fit_GP_MAP, )
 
     if platform.system() == "Windows":
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
