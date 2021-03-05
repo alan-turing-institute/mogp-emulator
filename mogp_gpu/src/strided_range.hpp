@@ -1,12 +1,11 @@
-// From https://github.com/thrust/thrust/blob/master/examples/strided_range.cu
+#ifndef STRIDED_RANGE_HPP
+#define STRIDED_RANGE_HPP
 
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
 #include <thrust/functional.h>
-#include <thrust/fill.h>
 #include <thrust/device_vector.h>
-#include <thrust/copy.h>
 #include <iostream>
 
 // ----------------------------------------
@@ -75,3 +74,15 @@ class strided_range
     Iterator last;
     difference_type stride;
 };
+
+// ----------------------------------------
+
+template <typename Iterator>
+strided_range<Iterator> make_strided_range(
+    Iterator first, Iterator last,
+    typename thrust::iterator_difference<Iterator>::type stride)
+{
+    return strided_range<Iterator>(first, last, stride);
+}
+
+#endif // STRIDED_RANGE_HPP
