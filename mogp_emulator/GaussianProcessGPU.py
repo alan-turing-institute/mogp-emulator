@@ -294,6 +294,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         This method implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
         """
+        
         if self.theta is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
@@ -307,19 +308,29 @@ class GaussianProcessGPU(GaussianProcessBase):
         n_testing, D = np.shape(testing)
         assert D == self.D
 
-        means = np.zeros(testing.shape[0])
+        means = np.zeros(n_testing)
 
         if unc:
-            variances = np.zeros(testing.shape[0])
-            self._densegp_gpu.predict_variance_batch(testing, means, variances)
+            variances = np.zeros(n_testing)
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_variance_batch(
+                    testing[i:i+self._max_batch_size],
+                    means[i:i+self._max_batch_size],
+                    variances[i:i+self._max_batch_size])
             if include_nugget:
                 variances += self._nugget
         else:
-            self._densegp_gpu.predict_batch(testing, means)
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_batch(
+                    testing[i:i+self._max_batch_size],
+                    means[i:i+self._max_batch_size])
             variances = None
         if deriv:
-            deriv_result = np.zeros((testing.shape[0],self.D))
-            self._densegp_gpu.predict_deriv(testing, deriv_result)
+            deriv_result = np.zeros((n_testing,self.D))
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_deriv(
+                    testing[i:i+self._max_batch_size],
+                    deriv_result[i:i+self._max_batch_size])
         else:
             deriv_result = None
         return PredictResult(mean=means, unc=variances, deriv=deriv_result)
