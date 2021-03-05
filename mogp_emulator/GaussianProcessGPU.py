@@ -28,7 +28,7 @@ class GaussianProcessGPU(GaussianProcessBase):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict = {}, use_patsy=True, max_batch_size=100):
+                 nugget="adaptive", inputdict = {}, use_patsy=True, max_batch_size=2000):
         inputs = np.array(inputs)
         # cast into float64, just in case we were given integers and ensure contiguous (C type)
         inputs = np.ascontiguousarray(inputs.astype(np.float64))
