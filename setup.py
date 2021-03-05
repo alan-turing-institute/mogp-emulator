@@ -112,9 +112,9 @@ if len(cuda_config) > 0:
                     library_dirs=[cuda_config["lib64"]],
                     libraries=["cudart","cublas","cusolver"],
                     runtime_library_dirs=[cuda_config["lib64"]],
-                    extra_compile_args={"gcc":["-std=c++11"],
+                    extra_compile_args={"gcc":["-std=c++14"],
                                     "nvcc": ["--compiler-options",
-                                             "-O3,-Wall,-shared,-std=c++11,-fPIC",
+                                             "-O3,-Wall,-shared,-std=c++14,-fPIC",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
                     include_dirs=[numpy_include, cuda_config["include"],"mogp_gpu/src"])
