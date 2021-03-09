@@ -20,7 +20,35 @@ class NotImplementedError(RuntimeError):
     pass
 
 
+def ndarray_coerce_type_and_flags(arr):
+    """Helper function for the GaussianProcessGPU methods that call
+    CUDA/C++ functions (those wrapped by _dense_gpgpu) and that take
+    numpy arrays as arguments.  Ensures that an array is of the
+    correct type for this purpose.
+
+    Takes an array or array-like.
+
+    Returns an ndarray with the same data, that has:
+    - dtype of float64
+    - flags.writable
+    - flags.c_contiguous
+
+    The array returned may reference the original array, be a copy of
+    it, or be newly constructed from the argument.
+    """
+
+    arr = np.array(arr, copy=False)
+    
+    # cast into float64, just in case we were given integers and ensure contiguous (C type)
+    arr_contiguous_float64 = np.ascontiguousarray(arr.astype(np.float64, copy=False))
+    if not arr_contiguous_float64.flags['WRITEABLE']:
+        return np.copy(arr_contiguous_float64)
+    else:
+        return arr_contiguous_float64
+
+
 class GaussianProcessGPU(GaussianProcessBase):
+
     """
     This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
@@ -38,23 +66,19 @@ class GaussianProcessGPU(GaussianProcessBase):
             raise RuntimeError("Cannot construct GaussianProcessGPU: "
                                "A compatible GPU could not be found")
 
-        inputs = np.array(inputs)
-        # cast into float64, just in case we were given integers and ensure contiguous (C type)
-        inputs = np.ascontiguousarray(inputs.astype(np.float64))
+        inputs = ndarray_coerce_type_and_flags(inputs)
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
         assert inputs.ndim == 2
 
-        targets = np.array(targets)
-        # again, explicitly cast into float64
-        targets = targets.astype(np.float64)
+        targets = ndarray_coerce_type_and_flags(targets)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
 
         self._inputs = inputs
         self._targets = targets
         self._max_batch_size = max_batch_size
-        
+
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
@@ -230,11 +254,13 @@ class GaussianProcessGPU(GaussianProcessBase):
         Implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
         """
-        self._theta = np.array(theta)
+        self._theta = ndarray_coerce_type_and_flags(theta)
+
         nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
         self._densegp_gpu.update_theta(self._theta, self._nugget_type, nugget_size)
         if self.nugget_type == "adaptive":
             self._nugget = self._densegp_gpu.get_jitter()
+
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         self.invQt = invQt_result
@@ -268,7 +294,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                   hyperparameters (array with shape ``(n_params,)``)
         :rtype: ndarray
         """
-        theta = np.array(theta)
+        theta = np.array(theta, copy=False)
 
         assert theta.shape == (self.n_params,), "bad shape for new parameters"
 
@@ -307,7 +333,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         if self.theta is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
-        testing = np.array(testing)
+        testing = ndarray_coerce_type_and_flags(testing)
+
         if self.D == 1 and testing.ndim == 1:
             testing = np.reshape(testing, (-1, 1))
         elif testing.ndim == 1:
@@ -315,6 +342,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         assert testing.ndim == 2
 
         n_testing, D = np.shape(testing)
+
         assert D == self.D
 
         means = np.zeros(n_testing)
