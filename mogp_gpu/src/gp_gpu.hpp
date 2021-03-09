@@ -37,7 +37,8 @@ T *dev_ptr(thrust::device_vector<T>& dv)
     return dv.data().get();
 }
 
-inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
+inline void check_cusolver_status(cusolverStatus_t status, int info_h)
+{
     if (status || info_h) {
 	std::string msg;
 	std::stringstream smsg(msg);
@@ -54,7 +55,8 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h) {
 // Will fail for N > 1024
 
 __inline__ __device__
-double warpReduceSum(double val) {
+double warpReduceSum(double val)
+{
     for (int offset = WARP_SIZE/2; offset > 0; offset /= 2)
         val += __shfl_down_sync(FULL_MASK, val, offset);
     return val;
@@ -106,7 +108,7 @@ void sum_log_diag(int N, double *A, double *result, double *, size_t)
 
 struct LogSq : public thrust::unary_function<double, double>
 {
-  __host__ __device__ double operator()(double x) const { return 2.0 * log(x); }
+    __host__ __device__ double operator()(double x) const { return 2.0 * log(x); }
 };
 
 void sum_log_diag(int N, double *A, double *result, double *work, size_t work_size)
@@ -219,12 +221,12 @@ public:
 
     void get_theta(vec_ref theta)
     {
-      thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
+        thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
     }
 
     double get_jitter() const
     {
-      return jitter;
+        return jitter;
     }
 
     // length of xnew assumed to be Ninput
@@ -302,7 +304,7 @@ public:
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
-            
+
         REAL zero(0.0);
         REAL one(1.0);
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
@@ -332,13 +334,13 @@ public:
             throw std::runtime_error("predict_variance_batch: The result buffer passed was "
                                      "too small to hold the variance");
         }
-        
+
         if (Nbatch > xnew_size) {
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
-            
-        
+
+
         thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
         thrust::device_vector<REAL> mean_d(Nbatch);
 
@@ -388,7 +390,8 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
-    void predict_deriv(mat_ref xnew, mat_ref result) {
+    void predict_deriv(mat_ref xnew, mat_ref result)
+    {
         int Nbatch = xnew.rows();
 
         if (result.rows() < xnew.rows() || result.cols() != Ninput) {
@@ -399,7 +402,7 @@ public:
         if (Nbatch > xnew_size) {
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
-        }       
+        }
 
         REAL zero(0.0);
         REAL one(1.0);
@@ -422,8 +425,8 @@ public:
     }
 
 
-  // Assume at this point that work_mat_d contains the inverse covariance matrix invC_d
-  int calc_Cholesky_factors()
+    // Assume at this point that work_mat_d contains the inverse covariance matrix invC_d
+    int calc_Cholesky_factors()
     {
         thrust::device_vector<int> info_d(1);
         int info_h;
@@ -437,28 +440,25 @@ public:
 	thrust::copy(info_d.begin(), info_d.end(), &info_h);
 
 	if (status != CUSOLVER_STATUS_SUCCESS || info_h < 0) {
-	  std::string msg;
-	  std::stringstream smsg(msg);
-	  smsg << "Error in potrf: return code " << status << ", info " << info_h;
-	  throw std::runtime_error(smsg.str());
+            std::string msg;
+            std::stringstream smsg(msg);
+            smsg << "Error in potrf: return code " << status << ", info " << info_h;
+            throw std::runtime_error(smsg.str());
 
 	}
 	return info_h;
     }
 
-  // return the lower triangular matrix (actually it will be the whole matrix
-  // but only the lower triangle will be correct!)
-  void get_Cholesky_lower(mat_ref result) {
-
-    thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
-
-  }
+    // return the lower triangular matrix (actually it will be the whole matrix
+    // but only the lower triangle will be correct!)
+    void get_Cholesky_lower(mat_ref result)
+    {
+        thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
+    }
 
     // Update the hyperparameters, and invQ and invQt which depend on them
-
-  void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.)
+    void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
     {
-
         thrust::copy(theta.data(), theta.data() + Ninput + 2, theta_d.begin());
 
         cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
@@ -497,7 +497,7 @@ public:
 
 		factorisation_status = calc_Cholesky_factors();
 		if (factorisation_status == 0) {
-		  break;
+                    break;
 		}
 		jitter *= 10;
 		itry++;
@@ -516,14 +516,13 @@ public:
 
 	    factorisation_status = calc_Cholesky_factors();
 	    if (factorisation_status != 0) {
-	      throw std::runtime_error("Unable to factorize matrix using fixed nugget");
+                throw std::runtime_error("Unable to factorize matrix using fixed nugget");
 	    }
 
 	} else { //nugget == "fit"
-
 	    factorisation_status = calc_Cholesky_factors();
 	    if (factorisation_status != 0) {
-	      throw std::runtime_error("Unable to factorize matrix using fitted nugget");
+                throw std::runtime_error("Unable to factorize matrix using fitted nugget");
 	    }
 	}
 
@@ -541,8 +540,8 @@ public:
         // invCt
         thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
-	                         dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
-	                         dev_ptr(info_d));
+                                  dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
+                                  dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
@@ -558,12 +557,11 @@ public:
 	thrust::copy(work_mat_d.begin(), work_mat_d.begin()+N*N, chol_lower_d.begin());
 
 	//set the flag to say we have fitted theta
-
 	theta_fitted = true;
-
     }
 
-    bool theta_fit_status() {
+    bool theta_fit_status()
+    {
         return theta_fitted;
     }
 
@@ -699,13 +697,13 @@ public:
                                     N, dev_ptr(potrf_buffer_d), N,
                                     &potrfBufferSize);
         potrf_buffer_d.resize(potrfBufferSize);
-        
+
         // The following call determines the size of the cub::DeviceReduce::Sum workspace:
         // sum_buffer_size_bytes is 0 before this call, and the size of sum_buffer_d afterwards.
         // The end iterators are supplied but are not used.
         cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
                                sum_buffer_d.end(), sum_buffer_d.end(), N);
-        sum_buffer_d.resize(sum_buffer_size_bytes);        
+        sum_buffer_d.resize(sum_buffer_size_bytes);
     }
 };
 
