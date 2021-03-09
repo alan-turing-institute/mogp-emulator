@@ -110,6 +110,17 @@ def test_fit_GP_MAP_MOGP():
 
     gp = fit_GP_MAP(x, y, theta0=[None, np.zeros(3)])
 
+    # test re-fitting
+
+    gp = MultiOutputGP(x, y)
+    gp.emulators[0].fit(np.ones(3))
+
+    gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
+    assert_allclose(gp.emulators[0].theta, np.ones(3))
+    assert not gp.emulators[1].theta is None
+
+    gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
+    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
 
 def test_fit_GP_MAP_MOGP_failures():
     "test situations where mogp fitting should fail"
@@ -240,12 +251,24 @@ def test_fit_MOGP_MAP():
 
     # pass various theta0 arguments
 
-    gp = fit_GP_MAP(gp, theta0=np.zeros(3))
+    gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3))
 
-    gp = fit_GP_MAP(gp, theta0=np.zeros((2, 3)))
+    gp = _fit_MOGP_MAP(gp, theta0=np.zeros((2, 3)))
 
-    gp = fit_GP_MAP(gp, theta0=[None, np.zeros(3)])
+    gp = _fit_MOGP_MAP(gp, theta0=[None, np.zeros(3)])
 
+    # test re-fitting
+
+    gp = MultiOutputGP(x, y)
+    gp.emulators[0].fit(np.ones(3))
+
+    gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
+    assert_allclose(gp.emulators[0].theta, np.ones(3))
+    assert not gp.emulators[1].theta is None
+
+    gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
+    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
+    
 
 def test_fit_MOGP_MAP_failures():
     "test situations where fitting should fail"

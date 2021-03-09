@@ -8,7 +8,8 @@ from multiprocessing import Pool
 from functools import partial
 import platform
 
-def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
+def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
+               refit=False, **kwargs):
     """Fit one or more Gaussian Processes by attempting to minimize the
     negative log-posterior
 
@@ -43,6 +44,15 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
     in a situation where human review of all fit emulators is not
     possible, so the fitting routine skips over failures and then
     flags those that failed for further review.
+
+    For ``MultiOutputGP`` fitting, by default the routine assumes that
+    only GPs that currently do not have hyperparameters fit need to be
+    fit. This behavior is controlled by the ``refit`` keyword, which
+    is ``False`` by default. To fit all emulators regardless of their
+    current fitting status, pass ``refit=True``. The ``refit``
+    argument has no effect on fitting of single ``GaussianProcess``
+    objects -- standard ``GaussianProcess`` objects will be fit
+    regardless of the current value of the hyperparameters.
 
     The ``theta0`` parameter is the point at which the first iteration
     will start. If more than one attempt is made, subsequent attempts
@@ -93,6 +103,12 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
                    ``scipy.optimize.minimize``. (Default is
                    ``'L-BFGS-B'``)
     :type method: str
+    :param refit: Boolean indicating if previously fit emulators
+                  for ``MultiOutputGP`` objects should be fit again.
+                  Optional, default is ``False``. Has no effect on
+                  ``GaussianProcess`` fitting, which will be fit
+                  irrespective of the current hyperparameter values.
+    :type refit: bool
     :param ``**kwargs``: Additional keyword arguments to be passed to
                          ``GaussianProcess.__init__``,
                          ``MultiOutputGP.__init__``, or the
@@ -109,7 +125,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B", **kwargs):
     if len(args) == 1:
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
-            gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
+            gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
         elif isinstance(gp, GaussianProcess):
             gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
         else:
@@ -198,13 +214,18 @@ def _fit_single_GP_MAP_bound(gp, theta0, n_tries, method, **kwargs):
 
     return _fit_single_GP_MAP(gp, n_tries=n_tries, theta0=theta0, method=method, **kwargs)
 
-def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
+def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
+                  refit=False, **kwargs):
     """Fit hyperparameters using MAP for multiple GPs in parallel
 
     Uses Python Multiprocessing to fit GPs in parallel by calling the
     above routine for a single GP for each of the emulators in the
     MOGP class. Returns a MultiOutputGP object where all emulators
     have been fit to the MAP value.
+
+    Routine only fits GPs that have not previously been fit (indicated
+    by the hyperparameters being set to ``None`` by default. This can
+    be overridden by passing ``refit=True``.
 
     Accepts a ``processes`` argument (integer or None) as a keyword to
     control the number of subprocesses used to fit the individual GPs
@@ -240,14 +261,24 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
 
     n_tries = int(n_tries)
 
+    if refit:
+        emulators_to_fit = gp.emulators
+        indices_to_fit = list(range(len(gp.emulators)))
+        thetavals = theta0
+    else:
+        indices_to_fit = gp.get_indices_not_fit()
+        emulators_to_fit = gp.get_emulators_not_fit()
+        thetavals = [ theta0[idx] for idx in indices_to_fit]
+    
     if platform.system() == "Windows":
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
-                    for (emulator, t0) in zip(gp.emulators, theta0)]
+                    for (emulator, t0) in zip(emulators_to_fit, thetavals)]
     else:
         with Pool(processes) as p:
             fit_MOGP = p.starmap(partial(_fit_single_GP_MAP_bound, n_tries=n_tries, method=method, **kwargs),
-                                 [(emulator, t0) for (emulator, t0) in zip(gp.emulators, theta0)])
+                                 [(emulator, t0) for (emulator, t0) in zip(emulators_to_fit, thetavals)])
 
-    gp.emulators = fit_MOGP
+    for (idx, em) in zip(indices_to_fit, fit_MOGP):
+        gp.emulators[idx] = em
 
     return gp
