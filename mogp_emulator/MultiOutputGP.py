@@ -97,7 +97,7 @@ class MultiOutputGP(object):
 
 
     def predict(self, testing, unc=True, deriv=True, include_nugget=True,
-                allow_not_fit=True, processes=None):
+                allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
         Makes predictions for each of the emulators on a given set of
@@ -123,6 +123,14 @@ class MultiOutputGP(object):
         uncertainties should include the nugget. By default, this is
         set to ``True``.
 
+        The ``allow_not_fit`` flag determines how the object handles
+        any emulators that do not have fit hyperparameter values
+        (because fitting presumably failed). By default,
+        ``allow_not_fit=False`` and the method will raise an error
+        if any emulators are not fit. Passing ``allow_not_fit=True``
+        will override this and ``NaN`` will be returned from any
+        emulators that have not been fit.
+
         As with the fitting, this computation can be done
         independently for each emulator and thus can be done in
         parallel.
@@ -147,6 +155,12 @@ class MultiOutputGP(object):
                                 predictive variance. Only relevant if
                                 ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param allow_not_fit: (optional) Flag that allows predictions
+                              to be made even if not all emulators have
+                              been fit. Default is ``False`` which
+                              will raise an error if any unfitted
+                              emulators are present.
+        :type allow_not_fit: bool
         :param processes: (optional) Number of processes to use when
                           making the predictions.  Must be a positive
                           integer or ``None`` to use the number of
