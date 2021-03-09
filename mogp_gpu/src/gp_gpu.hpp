@@ -47,6 +47,8 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h)
     }
 }
 
+bool have_compatible_device(void);
+
 #if USE_SHUFFLE_SUM_IMPL
 // ----------------------------------------
 // Implementation of sum_log_diag using warp reduction,
