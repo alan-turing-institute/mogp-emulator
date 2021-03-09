@@ -5,12 +5,7 @@ from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
-FOUND_GPU = False
-try:
-    from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
-    FOUND_GPU = True
-except ModuleNotFoundError:
-    pass
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 
 
 class MultiOutputGP(object):
@@ -43,8 +38,6 @@ class MultiOutputGP(object):
         # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
         self.use_gpu = use_gpu
         if self.use_gpu:
-            if not FOUND_GPU:
-                raise RuntimeError("GPU library not found")
             self.GPClass = GaussianProcessGPU
         else:
             self.GPClass = GaussianProcess

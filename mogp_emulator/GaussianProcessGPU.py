@@ -10,7 +10,7 @@ from mogp_emulator.Priors import Prior
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 
-import libgpgpu
+import mogp_emulator.LibGPGPU as LibGPGPU
 
 from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
 
@@ -29,6 +29,15 @@ class GaussianProcessGPU(GaussianProcessBase):
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True, max_batch_size=2000):
+
+        if not LibGPGPU.HAVE_LIBGPGPU:
+            raise RuntimeError("Cannot construct GaussianProcessGPU: "
+                               "The GPU library (libgpgpu) could not be loaded")
+
+        elif not LibGPGPU.gpu_usable():
+            raise RuntimeError("Cannot construct GaussianProcessGPU: "
+                               "A compatible GPU could not be found")
+
         inputs = np.array(inputs)
         # cast into float64, just in case we were given integers and ensure contiguous (C type)
         inputs = np.ascontiguousarray(inputs.astype(np.float64))
@@ -68,7 +77,7 @@ class GaussianProcessGPU(GaussianProcessBase):
     def init_gpu(self):
         if not self._densegp_gpu:
             # instantiate the C++ class
-            self._densegp_gpu = libgpgpu.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
+            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
 
 
     @property
@@ -153,16 +162,16 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         if isinstance(nugget, str):
             if nugget == "adaptive":
-                self._nugget_type = libgpgpu.nugget_type(0)
+                self._nugget_type = LibGPGPU.nugget_type(0)
             elif nugget == "fit":
-                self._nugget_type = libgpgpu.nugget_type(1)
+                self._nugget_type = LibGPGPU.nugget_type(1)
             else:
                 raise ValueError("nugget must be a float set to 'adaptive', 'fit', or 'fixed'")
             self._nugget = None
         else:
             if nugget < 0.:
                 raise ValueError("nugget parameter must be non-negative")
-            self._nugget_type = libgpgpu.nugget_type(2) #fixed
+            self._nugget_type = LibGPGPU.nugget_type(2) #fixed
             self._nugget = float(nugget)
 
     @property
