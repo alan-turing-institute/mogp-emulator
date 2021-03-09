@@ -2,15 +2,12 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..GaussianProcess import GaussianProcess
+from ..GaussianProcessGPU import GaussianProcessGPU
+from ..LibGPGPU import gpu_usable
 from ..MultiOutputGP import MultiOutputGP
 from ..fitting import fit_GP_MAP, _fit_single_GP_MAP, _fit_MOGP_MAP
-found_gpu = False
-try:
-    from ..GaussianProcessGPU import GaussianProcessGPU
-    found_gpu = True
-except ModuleNotFoundError:
-    pass
 
+GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
 
 def minimize_mock(fun, x0, args=(), method=None, jac=None, hess=None, hessp=None, bounds=None, constraints=(), tol=None, callback=None, options=None):
     return {"x": np.array([1.6, -2.1, -0.8]),
@@ -45,7 +42,7 @@ def test_fit_GP_MAP(monkeypatch):
     assert_allclose(gp.current_logpost, logpost_exp)
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_fit_GP_MAP_GPU(monkeypatch):
     "test the fit_GP_MAP function"
 
@@ -103,7 +100,7 @@ def test_fit_GP_MAP_failures():
     with pytest.raises(AssertionError):
         fit_GP_MAP(gp, theta0=np.ones(1))
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_fit_GP_MAP_GPU_failures():
     "test failures of fit_GP_MAP using GaussianProcessGPU"
 

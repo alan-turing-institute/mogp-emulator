@@ -2,18 +2,15 @@ from tempfile import TemporaryFile
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ..LibGPGPU import gpu_usable
 from ..GaussianProcess import GaussianProcess, PredictResult
-try:
-    from ..GaussianProcessGPU import GaussianProcessGPU
-    found_gpu = True
-except(ModuleNotFoundError):
-    print("Did not find GPU library - will skip GaussianProcessGPU tests")
-    found_gpu=False
-
+from ..GaussianProcessGPU import GaussianProcessGPU
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import SquaredExponential, Matern52
 from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy import linalg
+
+GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
 
 @pytest.fixture
 def x():
@@ -55,7 +52,8 @@ def test_GaussianProcess_init(x, y):
 
     assert str(gp.mean) == "c + c*x[0]"
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_init(x, y):
     "Test function for correct functioning of the init method of GaussianProcess"
 
@@ -101,7 +99,7 @@ def test_GP_init_failures(x, y):
         gp = GaussianProcess(x, y, nugget="a")
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GPGPU_init_failures(x, y):
     "Tests that GaussianProcessGPU fails correctly with bad inputs"
 
@@ -137,7 +135,7 @@ def test_GaussianProcess_n_params(x, y):
     assert gp.n_params == 2 + x.shape[1] + 2
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_n_params(x, y):
     "test the get_n_params method of GaussianProcessGPU"
 
@@ -174,7 +172,7 @@ def test_GaussianProcess_nugget(x, y):
         gp.nugget = -1.
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_nugget(x, y):
     "Tests the get_nugget method of GaussianProcessGPU"
 
@@ -240,7 +238,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     assert_allclose(logpost_expect, gp.current_logpost)
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 @pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 0.)]) # ("fit", np.log(1.e-6))])
 def test_GaussianProcessGPU_theta(x, y, nugget, sn):
     "test the theta property of GaussianProcess (effectively the same as fit)"
@@ -380,7 +378,7 @@ def test_GaussianProcess_logposterior(x, y):
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_logposterior(x, y):
     "test logposterior method of GaussianProcessGPU"
 
@@ -430,7 +428,7 @@ def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
 
     assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-7, rtol=1.e-5)
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 @pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 1.),
                                             ("fit", np.log(1.e-6))])
 def test_GaussianProcessGPU_logpost_deriv(x, y, dx, nugget, sn):
@@ -645,7 +643,7 @@ def test_GaussianProcess_predict(x, y, dx):
 
     assert_allclose(gp(x_test), mu_expect)
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_predict(x, y, dx):
     "test the predict method of GaussianProcessGPU"
 
@@ -759,7 +757,7 @@ def test_GaussianProcess_predict_nugget(x, y):
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_predict_nugget(x, y):
     "test that the nugget works correctly when making predictions"
 
@@ -823,7 +821,7 @@ def test_GaussianProcess_predict_failures(x, y):
         gp.predict(np.array([[2., 4.]]))
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_predict_failures(x, y):
     "test situations where predict method of GaussianProcessGPU should fail"
 
@@ -849,7 +847,7 @@ def test_GaussianProcess_str(x, y):
     assert (str(gp) == "Gaussian Process with {} training examples and {} input variables".format(x.shape[0], x.shape[1]))
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_str(x, y):
     "Test function for string method"
 

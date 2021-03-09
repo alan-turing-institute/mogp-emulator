@@ -4,12 +4,10 @@ import pytest
 from ..HistoryMatching import HistoryMatching
 from ..fitting import fit_GP_MAP
 from ..GaussianProcess import GaussianProcess, PredictResult
-found_gpu = False
-try:
-    from ..GaussianProcessGPU import GaussianProcessGPU
-    found_gpu = True
-except ModuleNotFoundError:
-    pass
+from ..LibGPGPU import gpu_usable
+from ..GaussianProcessGPU import GaussianProcessGPU
+
+GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
 
 def get_y_simulated_1D(x):
     n_points = len(x)
@@ -138,7 +136,7 @@ def test_sanity_checks():
     I = hm.get_implausibility(7.)
 
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_sanity_checks_GPU():
     "test basic functioning of HistoryMatching"
 
@@ -464,7 +462,7 @@ def test_HistoryMatching_set_gp():
     with pytest.raises(TypeError):
         hm.set_gp(gp=1.)
 
-@pytest.mark.skipif(not found_gpu, reason="GPU library not found")
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_HistoryMatching_set_gpGPU():
     'test the set_gp method of HistoryMatching'
 
