@@ -837,10 +837,10 @@ class GaussianProcess(object):
             testing = np.reshape(testing, (-1, 1))
         elif testing.ndim == 1:
             testing = np.reshape(testing, (1, len(testing)))
-        assert testing.ndim == 2
+        assert testing.ndim == 2, "testing must be a 2D array"
 
         n_testing, D = np.shape(testing)
-        assert D == self.D
+        assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
 
         switch = self.mean.get_n_params(testing)
         mtest = self.mean.mean_f(testing, self.theta[:switch])
