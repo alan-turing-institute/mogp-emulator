@@ -96,7 +96,8 @@ class MultiOutputGP(object):
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=True, processes=None):
+    def predict(self, testing, unc=True, deriv=True, include_nugget=True,
+                allow_not_fit=True, processes=None):
         """Make a prediction for a set of input vectors
 
         Makes predictions for each of the emulators on a given set of
@@ -135,7 +136,6 @@ class MultiOutputGP(object):
                     are to be computed.  If ``False`` the method
                     returns ``None`` in place of the uncertainty
                     array. Default value is ``True``.
-
         :type unc: bool
         :param deriv: (optional) Flag indicating if the derivatives
                       are to be computed.  If ``False`` the method
@@ -143,9 +143,9 @@ class MultiOutputGP(object):
                       array. Default value is ``True``.
         :type deriv: bool
         :param include_nugget: (optional) Flag indicating if the
-                               nugget should be included in the
-                               predictive variance. Only relevant if
-                               ``unc = True``.  Default is ``True``.
+                                nugget should be included in the
+                                predictive variance. Only relevant if
+                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
         :param processes: (optional) Number of processes to use when
                           making the predictions.  Must be a positive
@@ -153,32 +153,45 @@ class MultiOutputGP(object):
                           processors on the computer (default is
                           ``None``)
         :type processes: int or None
-        :returns: Tuple of numpy arrays holding the predictions,
-                  uncertainties, and derivatives,
-                  respectively. Predictions and uncertainties have
-                  shape ``(n_emulators, n_predict)`` while the
-                  derivatives have shape ``(n_emulators, n_predict,
-                  D)``. If the ``do_unc`` or ``do_deriv`` flags are
-                  set to ``False``, then those arrays are replaced by
-                  ``None``.
-        :rtype: tuple
+        :returns: ``PredictResult`` object holding numpy arrays
+                  containing the predictions, uncertainties, and
+                  derivatives, respectively. Predictions and
+                  uncertainties have shape ``(n_emulators,
+                  n_predict)`` while the derivatives have shape
+                  ``(n_emulators, n_predict, D)``. If the ``do_unc``
+                  or ``do_deriv`` flags are set to ``False``, then
+                  those arrays are replaced by ``None``.
+        :rtype: PredictResult
 
         """
 
         testing = np.array(testing)
-        if testing.shape == (self.D,):
-            testing = np.reshape(testing, (1, self.D))
-        assert len(testing.shape) == 2, "testing must be a 2D array"
-        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
+        if self.D == 1 and testing.ndim == 1:
+            testing = np.reshape(testing, (-1, 1))
+        elif testing.ndim == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert testing.ndim == 2, "testing must be a 2D array"
+
+        n_testing, D = np.shape(testing)
+        assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
+
         if not processes is None:
             processes = int(processes)
             assert processes > 0, "number of processes must be a positive integer"
 
+        if allow_not_fit:
+            predict_method = _gp_predict_default_NaN
+        else:
+            predict_method = GaussianProcess.predict
+            
         if platform.system() == "Windows":
-            predict_vals = [GaussianProcess.predict(gp, testing, unc, deriv, include_nugget) for gp in self.emulators]
+            predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
+                            for gp in self.emulators]
         else:
             with Pool(processes) as p:
-                predict_vals = p.starmap(GaussianProcess.predict, [(gp, testing, unc, deriv, include_nugget) for gp in self.emulators])
+                predict_vals = p.starmap(predict_method,
+                                         [(gp, testing, unc, deriv, include_nugget)
+                                          for gp in self.emulators])
 
         # repackage predictions into numpy arrays
 
@@ -191,6 +204,17 @@ class MultiOutputGP(object):
 
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
+    def __call__(self, testing, process=None):
+        """Interface to predict means by calling the object
+
+        A MultiOutputGP object is callable, which makes predictions of
+        the mean only for a given set of inputs. Works similarly to
+        the same method of the base GP class.
+        """
+
+        return self.predict(testing, unc=False, deriv=False, processes=processes)[0]
+
+    
     def get_indices_fit(self):
         """Returns the indices of the emulators that have been fit
 
@@ -291,17 +315,6 @@ class MultiOutputGP(object):
                        self.emulators) if failed_fit]
 
         
-    def __call__(self, testing):
-        """Interface to predict means by calling the object
-
-        A MultiOutputGP object is callable, which makes predictions of
-        the mean only for a given set of inputs. Works similarly to
-        the same method of the base GP class. Predictions are made in
-        parallel using the number of available processors.
-        """
-
-        return self.predict(testing, unc=False, deriv=False, processes=None)[0]
-
     def __str__(self):
         """Returns a string representation of the model
 
@@ -315,3 +328,31 @@ class MultiOutputGP(object):
                  str(self.n)+" training examples\n"+
                  str(self.D)+" input variables")
 
+
+def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
+    """Wrapper function for the ``GaussianProcess`` predict method that
+    returns NaN if the GP is not fit. Allows ``MultiOutputGP`` objects
+    that do not have all emulators fit to still return predictions
+    with unfit emulator predictions replaced with NaN
+    """
+    
+    try:
+        return GaussianProcess.predict(gp, testing, unc, deriv,
+                                              include_nugget)
+    except ValueError:
+        
+        n_predict = testing.shape[0]
+        
+        if unc:
+            unc_array = np.array([np.nan]*n_predict)
+        else:
+            unc_array = None
+
+        if deriv:
+            deriv_array = np.reshape(np.array([np.nan]*n_predict*gp.D),
+                                     (n_predict, gp.D))
+        else:
+            deriv_array = None
+
+        return PredictResult(mean =np.array([np.nan]*n_predict),
+                             unc=unc_array, deriv=deriv_array)

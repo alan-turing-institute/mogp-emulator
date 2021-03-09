@@ -96,6 +96,22 @@ def test_MultiOutputGP_predict(x, y, dx):
 
         assert_allclose(var[i], var_expect)
 
+    gp.emulators[1].theta = None
+
+    mu, var, deriv = gp.predict(x_test)
+    assert np.all(np.isnan(mu[1]))
+    assert np.all(np.isnan(var[1]))
+    assert np.all(np.isnan(deriv[1]))
+
+    mu, var, deriv = gp.predict(x_test, unc=False, deriv=False)
+    assert np.all(np.isnan(mu[1]))
+    assert var is None
+    assert deriv is None
+
+    with pytest.raises(ValueError):
+        gp.predict(x_test, allow_not_fit=False)
+
+
 def test_MultiOutputGP_check(x, y):
     """test the methods of MultiOutputGP that extracts GPs that have or
     have not been fit (or their indices)
