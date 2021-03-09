@@ -191,6 +191,31 @@ class MultiOutputGP(object):
 
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
+    def get_indices_fit(self):
+        """Returns the indices of the emulators that have been fit
+
+        When a ``MultiOutputGP`` class is initialized, none of the
+        emulators are fit. Fitting is done by passing the object to an
+        external fitting routine, which modifies the object to fit the
+        hyperparameters. Any emulators where the fitting fails are
+        returned to the initialized state, and this method is used to
+        determine the indices of the emulators that have succesfully
+        been fit.
+
+        Returns a list of non-negative integers indicating the
+        indices of the emulators that have been fit.
+
+        :returns: List of integer indicies indicating the emulators
+                  that have been fit. If no emulators have been
+                  fit, returns an empty list.
+        :rtype: list of int
+
+        """
+
+        return [idx for (failed_fit, idx)
+                in zip([em.theta is None for em in self.emulators],
+                       list(range(len(self.emulators)))) if not failed_fit]
+    
     def get_indices_not_fit(self):
         """Returns the indices of the emulators that have not been fit
 
@@ -214,6 +239,31 @@ class MultiOutputGP(object):
         return [idx for (failed_fit, idx)
                 in zip([em.theta is None for em in self.emulators],
                        list(range(len(self.emulators)))) if failed_fit]
+
+    def get_emulators_fit(self):
+        """Returns the emulators that have been fit
+
+        When a ``MultiOutputGP`` class is initialized, none of the
+        emulators are fit. Fitting is done by passing the object to an
+        external fitting routine, which modifies the object to fit the
+        hyperparameters. Any emulators where the fitting fails are
+        returned to the initialized state, and this method is used to
+        obtain a list of emulators that have successfully been fit.
+
+        Returns a list of ``GaussianProcess`` objects which have been
+        fit (i.e. those which have a current valid set of
+        hyperparameters).
+
+        :returns: List of ``GaussianProcess`` objects indicating the
+                  emulators that have been fit. If no emulators
+                  have been fit, returns an empty list.
+        :rtype: list of ``GaussianProcess`` objects
+
+        """
+
+        return [gpem for (failed_fit, gpem)
+                in zip([em.theta is None for em in self.emulators],
+                       self.emulators) if not failed_fit]
 
     def get_emulators_not_fit(self):
         """Returns the indices of the emulators that have not been fit
