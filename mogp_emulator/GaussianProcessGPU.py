@@ -38,7 +38,7 @@ def ndarray_coerce_type_and_flags(arr):
     """
 
     arr = np.array(arr, copy=False)
-    
+
     # cast into float64, just in case we were given integers and ensure contiguous (C type)
     arr_contiguous_float64 = np.ascontiguousarray(arr.astype(np.float64, copy=False))
     if not arr_contiguous_float64.flags['WRITEABLE']:
@@ -51,8 +51,9 @@ class GaussianProcessGPU(GaussianProcessBase):
 
     """
     This class implements the same interface as
-    :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but with
-    particular methods overridden to use a GPU if it is available.
+    :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
+    Will raise a RuntimeError if a CUDA-compatible GPU, GPU-interface library libgpgpu
+    could not be found.
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
@@ -92,15 +93,15 @@ class GaussianProcessGPU(GaussianProcessBase):
         self.kernel = kernel
         self.nugget = nugget
 
-        self._theta = None
- 
         self._densegp_gpu = None
-        self.init_gpu()
+        self._init_gpu()
 
 
-    def init_gpu(self):
+    def _init_gpu(self):
+        """
+        Instantiate the DenseGP_GPU C++/CUDA class, if it doesn't already exist.
+        """
         if not self._densegp_gpu:
-            # instantiate the C++ class
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
 
 
@@ -174,6 +175,9 @@ class GaussianProcessGPU(GaussianProcessBase):
 
     @property
     def nugget(self):
+        """
+        See :function:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
+        """
         return self._nugget
 
     @nugget.setter
@@ -224,7 +228,11 @@ class GaussianProcessGPU(GaussianProcessBase):
         :type theta: ndarray
         :returns: None
         """
-        self.fit(theta)
+        if theta is None:
+            self._densegp_gpu.theta_reset_fit_status()
+            self.current_logpost = None
+        else:
+            self.fit(theta)
 
     @property
     def L(self):
@@ -254,17 +262,17 @@ class GaussianProcessGPU(GaussianProcessBase):
         Implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
         """
-        self._theta = ndarray_coerce_type_and_flags(theta)
+        theta = ndarray_coerce_type_and_flags(theta)
 
         nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
-        self._densegp_gpu.update_theta(self._theta, self._nugget_type, nugget_size)
+        self._densegp_gpu.update_theta(theta, self._nugget_type, nugget_size)
         if self.nugget_type == "adaptive":
             self._nugget = self._densegp_gpu.get_jitter()
 
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         self.invQt = invQt_result
-        self.current_logpost = self.logposterior(self._theta)
+        self.current_logpost = self.logposterior(theta)
 
     def logposterior(self, theta):
         """
@@ -329,7 +337,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         This method implements the same interface as
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
         """
-        
+
         if self.theta is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
@@ -409,6 +417,3 @@ class GaussianProcessGPU(GaussianProcessBase):
         del copy_dict["_densegp_gpu"]
         copy_dict["_densegp_gpu"] = None
         return copy_dict
-
-
- 
