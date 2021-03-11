@@ -346,8 +346,8 @@ def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
     """
 
     try:
-        return GaussianProcess.predict(gp, testing, unc, deriv,
-                                              include_nugget)
+        return gp.predict(testing, unc, deriv,
+                          include_nugget)
     except ValueError:
 
         n_predict = testing.shape[0]
