@@ -10,12 +10,13 @@ Benchmarks
    tsunami
    mcmc_benchmark
    mice_benchmark
+   pivot_benchmark
    gkdr_benchmark
    histmatch_benchmark
 
 The code includes a series of benchmarks that illustrate various pieces of the implementation. Benchmarks
 can be run from the ``mogp_emulator/tests`` directory by entering ``make all`` or ``make benchmarks`` to
-run all benchmarks, or ``make rosenbrock``, ``make branin``, ``make tsunami``, ``make mcmc``, ``make mice``, ``make gKDR``, or ``make histmatch`` to run the individual benchmarks.
+run all benchmarks, or ``make rosenbrock``, ``make branin``, ``make tsunami``, ``make mcmc``, ``make pivot``, ``make mice``, ``make gKDR``, or ``make histmatch`` to run the individual benchmarks.
 
 Single Emulator Convergence Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,6 +62,14 @@ A benchmark comparing the MICE Sequential design method to Latin Hypercube sampl
 This creates designs of a variety of sizes and computes the error on unseen data for the 2D Branin
 function. It compares the accuracy of the sequential design to the Latin Hypercube for both the
 predictions and uncertainties.
+
+Pivoted Cholesky Benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A benchmark shows how a duplicated input can degrade emulator performance
+and how using pivoting can fix this more effectively than adding a nugget.
+It compares the accuracy of the emulator and its uncertainty for pivoting
+and adaptive nugget handling to the 2D Branin function.
 
 Dimension Reduction Benchmark
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
