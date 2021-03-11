@@ -111,16 +111,16 @@ def test_fit_GP_MAP_GPU_failures():
 
     # minimization fails
 
-#    with pytest.raises(RuntimeError):
-#        fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
-#
-#    gp = GaussianProcessGPU(x, y, nugget=0.)
+    with pytest.raises(RuntimeError):
+        fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
 
-#    with pytest.raises(RuntimeError):
-#        fit_GP_MAP(gp, n_tries=1)
-#
-#    with pytest.raises(RuntimeError):
-#        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp = GaussianProcessGPU(x, y, nugget=0.)
+
+    with pytest.raises(RuntimeError):
+        fit_GP_MAP(gp, n_tries=1)
+
+    with pytest.raises(RuntimeError):
+        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
 
     # bad inputs
 
@@ -154,8 +154,6 @@ def test_fit_GP_MAP_MOGP():
     assert isinstance(gp, MultiOutputGP)
 
     np.random.seed(4335)
-
-    # same test, but pass args and kwargs rather than gp
 
     # same test, but pass args and kwargs rather than gp
 

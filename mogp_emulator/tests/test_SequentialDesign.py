@@ -6,8 +6,12 @@ import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..GaussianProcess import GaussianProcess
+from ..GaussianProcessGPU import GaussianProcessGPU
 from ..fitting import fit_GP_MAP
 from tempfile import TemporaryFile
+from ..LibGPGPU import gpu_usable
+
+GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
 
 def test_SequentialDesign_init():
     "test the init method of ExperimentalDesign"
@@ -858,6 +862,22 @@ def test_MICEDesign_estimate_next_target():
 
     with pytest.raises(AssertionError):
         md._estimate_next_target(np.zeros(2))
+
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
+def test_MICEDesign_estimate_next_target_GPU():
+    "test the estimate next target method for a MICE design"
+
+    ed = LatinHypercubeDesign(3)
+    md = MICEDesign(ed)
+
+    md.gp = GaussianProcessGPU(np.array([[1., 2., 3.], [4., 5., 6]]), np.array([2., 4.]))
+    md.gp.theta = np.zeros(md.gp.n_params)
+
+    assert_allclose(np.array([0.0018237589305011]), md._estimate_next_target(np.zeros(3)))
+
+    with pytest.raises(AssertionError):
+        md._estimate_next_target(np.zeros(2))
+
 
 def test_MICEDesign_MICE_criterion():
     "test the function to compute the MICE criterion"
