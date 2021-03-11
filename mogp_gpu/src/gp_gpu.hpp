@@ -567,6 +567,11 @@ public:
         return theta_fitted;
     }
 
+    void theta_reset_fit_status()
+    {
+        theta_fitted = false;
+    }
+
     void get_invQ(mat_ref invQ_h)
     {
         thrust::copy(invC_d.begin(), invC_d.end(), invQ_h.data());

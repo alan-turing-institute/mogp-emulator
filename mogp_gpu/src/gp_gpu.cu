@@ -31,6 +31,7 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("targets", &DenseGP_GPU::targets)
         .def("n_params", &DenseGP_GPU::n_params)
         .def("theta_fit_status", &DenseGP_GPU::theta_fit_status)
+        .def("theta_reset_fit_status", &DenseGP_GPU::theta_reset_fit_status)
         .def("get_theta", &DenseGP_GPU::get_theta)
         .def("predict", &DenseGP_GPU::predict)
         .def("predict_variance", &DenseGP_GPU::predict_variance)
