@@ -139,13 +139,13 @@ class DenseGP_GPU {
     unsigned int xnew_size;
 
     // Number of training points, dimension of input
-    unsigned int N, Ninput;
+    unsigned int n, D;
 
     // inputs
-    mat xs;
+    mat inputs;
 
     // targets
-    vec ts;
+    vec targets;
 
     // flag for whether we have fit hyperparameters
     bool theta_fitted;
@@ -171,16 +171,16 @@ class DenseGP_GPU {
     // hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
 
-    // xs, on the device, row major order
-    thrust::device_vector<REAL> xs_d;
+    // inputs, on the device, row major order
+    thrust::device_vector<REAL> inputs_d;
 
     // targets, on the device
-    thrust::device_vector<REAL> ts_d;
+    thrust::device_vector<REAL> targets_d;
 
     // precomputed product, used in the prediction
     thrust::device_vector<REAL> invCts_d;
 
-    // preallocated work array (length N) on the CUDA device
+    // preallocated work array (length n) on the CUDA device
     thrust::device_vector<REAL> work_d;
 
     // buffer for Cholesky factorization
@@ -196,29 +196,29 @@ class DenseGP_GPU {
     thrust::device_vector<REAL> xnew_d, work_mat_d, result_d, kappa_d, invCk_d;
 
 public:
-    int data_length(void) const
+    int get_n(void) const
     {
-        return N;
+        return n;
     }
 
-    int D(void) const
+    int get_D(void) const
     {
-        return Ninput;
+        return D;
     }
 
-    mat inputs(void) const
+    mat get_inputs(void) const
     {
-        return xs;
+        return inputs;
     }
 
-    vec targets(void) const
+    vec get_targets(void) const
     {
-        return ts;
+        return targets;
     }
 
-    int n_params(void) const
+    int get_n_params(void) const
     {
-        return Ninput + 2;
+        return D + 2;
     }
 
     void get_theta(vec_ref theta)
@@ -231,15 +231,15 @@ public:
         return jitter;
     }
 
-    // length of xnew assumed to be Ninput
+    // length of xnew assumed to be D
     double predict(mat_ref xnew)
     {
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Ninput);
-        cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + D);
+        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(xnew_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
-        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
                   &result);
 
         return double(result);
@@ -256,29 +256,29 @@ public:
         }
 
         // value prediction
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Ninput);
-        cov_all_gpu(dev_ptr(work_d), N, Ninput, dev_ptr(xnew_d), dev_ptr(xs_d),
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + D);
+        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(xnew_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
-        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
                   &result);
 
         // variance prediction
         thrust::device_vector<REAL> kappa_d(1);
-        cov_val_gpu(dev_ptr(kappa_d), Ninput, dev_ptr(xnew_d), dev_ptr(xnew_d),
+        cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(xnew_d), dev_ptr(xnew_d),
                     dev_ptr(theta_d));
 
         double zero(0.0);
         double one(1.0);
-        thrust::device_vector<REAL> invCk_d(N);
+        thrust::device_vector<REAL> invCk_d(n);
 
-        cublasDgemv(cublasHandle, CUBLAS_OP_N, N, N, &one, dev_ptr(invC_d), N,
+        cublasDgemv(cublasHandle, CUBLAS_OP_N, n, n, &one, dev_ptr(invC_d), n,
                     dev_ptr(work_d), 1, &zero, dev_ptr(invCk_d), 1);
 
-        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCts_d),
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d),
                   1, &result);
-        CUBLASDOT(cublasHandle, N, dev_ptr(work_d), 1, dev_ptr(invCk_d),
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCk_d),
                   1, var.data());
 
         double kappa;
@@ -291,7 +291,7 @@ public:
         return REAL(result);
     }
 
-    // assumes on input that xnew is Nbatch * Ninput, and that result
+    // assumes on input that xnew is Nbatch * D, and that result
     // contains space for Nbatch result values
     void predict_batch(mat_ref xnew, vec_ref result)
     {
@@ -309,14 +309,14 @@ public:
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch);
 
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput,
-                      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
+        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
+                      dev_ptr(xnew_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
                         dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
                         dev_ptr(result_d), 1);
 
@@ -343,42 +343,42 @@ public:
         }
 
 
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
         thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, N, Ninput, dev_ptr(xnew_d),
-                      dev_ptr(xs_d), dev_ptr(theta_d));
+        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(xnew_d),
+                      dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, N, &one,
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
                         dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
                         dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
-        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, Ninput, dev_ptr(xnew_d),
+        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(xnew_d),
                      dev_ptr(xnew_d), dev_ptr(theta_d));
 
         cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T,
-                    N,
+                    n,
                     Nbatch,
-                    N,
+                    n,
                     &one,
-                    dev_ptr(invC_d), N,
+                    dev_ptr(invC_d), n,
                     dev_ptr(work_mat_d), Nbatch,
                     &zero,
-                    dev_ptr(invCk_d), N);
+                    dev_ptr(invCk_d), n);
 
         // result accumulated into 'kappa'
         status = cublasDgemmStridedBatched(
             cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N,
             1, // m
             1, // n
-            N, // k
+            n, // k
             // A (m x k), B (k x n), C (m x n)
             &minus_one, // alpha
             dev_ptr(work_mat_d), Nbatch, 1, // A, lda, strideA
-            dev_ptr(invCk_d), N, N, // B, ldb, strideB (= covariances "k")
+            dev_ptr(invCk_d), n, n, // B, ldb, strideB (= covariances "k")
             &one,
             dev_ptr(kappa_d), 1, 1, // C, ldc, strideC
             Nbatch);
@@ -396,7 +396,7 @@ public:
     {
         int Nbatch = xnew.rows();
 
-        if (result.rows() < xnew.rows() || result.cols() != Ninput) {
+        if (result.rows() < xnew.rows() || result.cols() != D) {
             throw std::runtime_error("predict_deriv: the result buffer passed was "
                                      "the wrong shape to hold the result");
         }
@@ -408,16 +408,16 @@ public:
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * Ninput);
-        thrust::device_vector<REAL> result_d(Nbatch*Ninput);
+        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
+        thrust::device_vector<REAL> result_d(Nbatch*D);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), Ninput, Nbatch, N,
-			      dev_ptr(xnew_d), dev_ptr(xs_d), dev_ptr(theta_d));
+        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
+			      dev_ptr(xnew_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
-                        Ninput * Nbatch, N, // nrows, ncols
-                        &one, dev_ptr(work_mat_d), Ninput * Nbatch, // alpha, A, lda
+                        D * Nbatch, n, // nrows, ncols
+                        &one, dev_ptr(work_mat_d), D * Nbatch, // alpha, A, lda
                         dev_ptr(invCts_d), 1, // x, incx
                         &zero, dev_ptr(result_d), 1); // beta, y, incy
 
@@ -435,8 +435,8 @@ public:
         cusolverStatus_t status;
 
 	// compute Cholesky factors
-	status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N,
-				  dev_ptr(work_mat_d), N, dev_ptr(potrf_buffer_d),
+	status = cusolverDnDpotrf(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n,
+				  dev_ptr(work_mat_d), n, dev_ptr(potrf_buffer_d),
 				  potrf_buffer_d.size(), dev_ptr(info_d));
 
 	thrust::copy(info_d.begin(), info_d.end(), &info_h);
@@ -461,10 +461,10 @@ public:
     // Update the hyperparameters, and invQ and invQt which depend on them
     void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
     {
-        thrust::copy(theta.data(), theta.data() + Ninput + 2, theta_d.begin());
+        thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
-        cov_batch_gpu(dev_ptr(invC_d), N, N, Ninput, dev_ptr(xs_d),
-                      dev_ptr(xs_d), dev_ptr(theta_d));
+        cov_batch_gpu(dev_ptr(invC_d), n, n, D, dev_ptr(inputs_d),
+                      dev_ptr(inputs_d), dev_ptr(theta_d));
 
 	/// copy the covariance matrix invC_d into work_mat_d
 	thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
@@ -490,11 +490,11 @@ public:
 		    if (itry == 1) {
 			// find mean of (absolute) diagonal elements (diagonal
 			// elements should all be positive)
-			cublasDasum(cublasHandle, N, dev_ptr(invC_d), N+1, &mean_diag);
-			mean_diag /= N;
+			cublasDasum(cublasHandle, n, dev_ptr(invC_d), n+1, &mean_diag);
+			mean_diag /= n;
 			jitter = 1e-6 * mean_diag;
 		    }
-		    add_diagonal(N, jitter, dev_ptr(work_mat_d));
+		    add_diagonal(n, jitter, dev_ptr(work_mat_d));
 		}
 
 		factorisation_status = calc_Cholesky_factors();
@@ -514,7 +514,7 @@ public:
 	    }
 
 	} else if (nugget == NUG_FIXED) {
-	    add_diagonal(N, nugget_size, dev_ptr(work_mat_d));
+	    add_diagonal(n, nugget_size, dev_ptr(work_mat_d));
 
 	    factorisation_status = calc_Cholesky_factors();
 	    if (factorisation_status != 0) {
@@ -528,11 +528,11 @@ public:
 	    }
 	}
 
-        identity_device(N, dev_ptr(invC_d));
+        identity_device(n, dev_ptr(invC_d));
 
         // invC
-        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, N,
-                                  dev_ptr(work_mat_d), N, dev_ptr(invC_d), N,
+        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, n,
+                                  dev_ptr(work_mat_d), n, dev_ptr(invC_d), n,
                                   dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
@@ -540,9 +540,9 @@ public:
 
 
         // invCt
-        thrust::copy(ts_d.begin(), ts_d.end(), invCts_d.begin());
-        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, N, 1,
-                                  dev_ptr(work_mat_d), N, dev_ptr(invCts_d), N,
+        thrust::copy(targets_d.begin(), targets_d.end(), invCts_d.begin());
+        status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, 1,
+                                  dev_ptr(work_mat_d), n, dev_ptr(invCts_d), n,
                                   dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
@@ -551,23 +551,23 @@ public:
         // logdetC
         thrust::device_vector<double> logdetC_d(1);
 
-        sum_log_diag(N, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
+        sum_log_diag(n, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
 
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
 
 	//copy work_mat_d into the lower triangular Cholesky factor
-	thrust::copy(work_mat_d.begin(), work_mat_d.begin()+N*N, chol_lower_d.begin());
+	thrust::copy(work_mat_d.begin(), work_mat_d.begin()+n*n, chol_lower_d.begin());
 
 	//set the flag to say we have fitted theta
 	theta_fitted = true;
     }
 
-    bool theta_fit_status()
+    bool get_theta_fit_status()
     {
         return theta_fitted;
     }
 
-    void theta_reset_fit_status()
+    void reset_theta_fit_status()
     {
         theta_fitted = false;
     }
@@ -585,10 +585,10 @@ public:
     double get_logpost(void)
     {
         double result;
-        CUBLASDOT(cublasHandle, N, dev_ptr(ts_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invCts_d), 1,
                   &result);
 
-        result += logdetC + N * log(2.0 * M_PI);
+        result += logdetC + n * log(2.0 * M_PI);
 
         return 0.5 * result;
     }
@@ -600,17 +600,17 @@ public:
         double half(0.5);
         double m_half(-0.5);
 
-        const int Ntheta = Ninput + 1;
+        const int Ntheta = D + 1;
 
         // Compute
         //   \pderiv{C_{jk}}{theta_i}
         //
-        // The length of work_mat_d is N * xnew_size
-        // The derivative above has  N * N * Ntheta components
-        // The following assumes that xnew_size > Ntheta * N
+        // The length of work_mat_d is n * xnew_size
+        // The derivative above has  n * n * Ntheta components
+        // The following assumes that xnew_size > Ntheta * n
         cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
-				  Ninput, N, N,
-				  dev_ptr(xs_d), dev_ptr(xs_d),
+				  D, n, n,
+				  dev_ptr(inputs_d), dev_ptr(inputs_d),
 				  dev_ptr(theta_d));
 
         // Compute
@@ -633,8 +633,8 @@ public:
         //
         // Compute with gemv (y = \alpha A x + \beta y)
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
-                    N * N, Ntheta, // nrows, ncols (N.B. column-major order!)
-                    &half, dev_ptr(work_mat_d), N * N, // alpha, A, lda
+                    n * n, Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &half, dev_ptr(work_mat_d), n * n, // alpha, A, lda
                     dev_ptr(invC_d), 1, // x, incx
                     &zero, // beta
                     dev_ptr(result_d), 1); // y, incy
@@ -643,11 +643,11 @@ public:
         // First step:
         //   S_ij = \pderiv{C_{jk}}{\theta_i} invCts_k
         //
-        // Treat \pderiv{C_{jk}}{\theta_i} as (N * Ntheta) * N, treating 'ij' as a single index
+        // Treat \pderiv{C_{jk}}{\theta_i} as (n * Ntheta) * n, treating 'ij' as a single index
         // and take mat-vec product with invCts:
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
-                    N, N * Ntheta, // nrows, ncols (N.B. column-major order!)
-                    &one, dev_ptr(work_mat_d), N, // alpha, A, lda
+                    n, n * Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &one, dev_ptr(work_mat_d), n, // alpha, A, lda
                     dev_ptr(invCts_d), 1, // x, incx
                     &zero, // beta
                     dev_ptr(work_mat_d), 1); // y, incy
@@ -655,8 +655,8 @@ public:
         // Second step:
         //   R_i += 0.5 S_ij invCts_j
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
-                    N, Ntheta, // nrows, ncols (N.B. column-major order!)
-                    &m_half, dev_ptr(work_mat_d), N, // alpha, A, lda
+                    n, Ntheta, // nrows, ncols (N.B. column-major order!)
+                    &m_half, dev_ptr(work_mat_d), n, // alpha, A, lda
                     dev_ptr(invCts_d), 1, // x, incx
                     &one, // beta
                     dev_ptr(result_d), 1); // y, incy
@@ -664,28 +664,28 @@ public:
         thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
     }
 
-    DenseGP_GPU(mat_ref xs_, vec_ref ts_, unsigned int xnew_size_)
+    DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int xnew_size_)
         : xnew_size(xnew_size_)
-        , N(xs_.rows())
-        , Ninput(xs_.cols())
-        , invC_d(N * N, 0.0)
-        , chol_lower_d(N * N, 0.0)
-        , theta_d(Ninput + 2)
-        , xs(xs_)
-        , ts(ts_)
+        , n(inputs_.rows())
+        , D(inputs_.cols())
+        , invC_d(n * n, 0.0)
+        , chol_lower_d(n * n, 0.0)
+        , theta_d(D + 2)
+        , inputs(inputs_)
+        , targets(targets_)
         , theta_fitted(false)
-        , xs_d(xs_.data(), xs_.data() + Ninput * N)
-        , ts_d(ts_.data(), ts_.data() + N)
+        , inputs_d(inputs_.data(), inputs_.data() + D * n)
+        , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
         , jitter(0.0)
-        , invCts_d(N, 0.0)
-        , xnew_d(Ninput * xnew_size, 0.0)
-        , work_d(N, 0.0)
-        , work_mat_d(N * xnew_size, 0.0)
+        , invCts_d(n, 0.0)
+        , xnew_d(D * xnew_size, 0.0)
+        , work_d(n, 0.0)
+        , work_mat_d(n * xnew_size, 0.0)
         , sum_buffer_size_bytes(0)
         , result_d(xnew_size, 0.0)
         , kappa_d(xnew_size, 0.0)
-        , invCk_d(xnew_size * N, 0.0)
+        , invCk_d(xnew_size * n, 0.0)
     {
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
@@ -701,7 +701,7 @@ public:
         // CUBLAS potrf workspace
         int potrfBufferSize;
         cusolverDnDpotrf_bufferSize(cusolverHandle, CUBLAS_FILL_MODE_LOWER,
-                                    N, dev_ptr(potrf_buffer_d), N,
+                                    n, dev_ptr(potrf_buffer_d), n,
                                     &potrfBufferSize);
         potrf_buffer_d.resize(potrfBufferSize);
 
@@ -709,7 +709,7 @@ public:
         // sum_buffer_size_bytes is 0 before this call, and the size of sum_buffer_d afterwards.
         // The end iterators are supplied but are not used.
         cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
-                               sum_buffer_d.end(), sum_buffer_d.end(), N);
+                               sum_buffer_d.end(), sum_buffer_d.end(), n);
         sum_buffer_d.resize(sum_buffer_size_bytes);
     }
 };

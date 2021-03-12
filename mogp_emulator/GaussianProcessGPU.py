@@ -133,7 +133,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of training examples for the emulator object
         :rtype: int
         """
-        return self._densegp_gpu.data_length()
+        return self._densegp_gpu.n()
 
     @property
     def D(self):
@@ -229,7 +229,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: None
         """
         if theta is None:
-            self._densegp_gpu.theta_reset_fit_status()
+            self._densegp_gpu.reset_theta_fit_status()
             self.current_logpost = None
         else:
             self.fit(theta)
