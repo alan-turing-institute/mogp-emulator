@@ -136,7 +136,7 @@ enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 // By convention, members ending "_d" are allocated on the device
 class DenseGP_GPU {
     // batch size (for allocation)
-    unsigned int xnew_size;
+    unsigned int testing_size;
 
     // Number of training points, dimension of input
     unsigned int n, D;
@@ -193,7 +193,7 @@ class DenseGP_GPU {
     size_t sum_buffer_size_bytes;
 
     // more work arrays
-    thrust::device_vector<REAL> xnew_d, work_mat_d, result_d, kappa_d, invCk_d;
+    thrust::device_vector<REAL> testing_d, work_mat_d, result_d, kappa_d, invCk_d;
 
 public:
     int get_n(void) const
@@ -231,11 +231,11 @@ public:
         return jitter;
     }
 
-    // length of xnew assumed to be D
-    double predict(mat_ref xnew)
+    // length of testing assumed to be D
+    double predict(mat_ref testing)
     {
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(xnew_d), dev_ptr(inputs_d),
+        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
+        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
@@ -245,19 +245,19 @@ public:
         return double(result);
     }
 
-    // xnew (in): input point, to predict
+    // testing (in): input point, to predict
     // var (output): variance
     // returns: prediction of value
-    double predict_variance(mat_ref xnew, vec_ref var)
+    double predict_variance(mat_ref testing, vec_ref var)
     {
-        if (var.size() < xnew.rows()) {
+        if (var.size() < testing.rows()) {
             throw std::runtime_error("predict_variance: the result buffer passed was "
                                      "too small to hold the variance");
         }
 
         // value prediction
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(xnew_d), dev_ptr(inputs_d),
+        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
+        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
@@ -266,7 +266,7 @@ public:
 
         // variance prediction
         thrust::device_vector<REAL> kappa_d(1);
-        cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(xnew_d), dev_ptr(xnew_d),
+        cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(testing_d), dev_ptr(testing_d),
                     dev_ptr(theta_d));
 
         double zero(0.0);
@@ -291,29 +291,29 @@ public:
         return REAL(result);
     }
 
-    // assumes on input that xnew is Nbatch * D, and that result
+    // assumes on input that testing is Nbatch * D, and that result
     // contains space for Nbatch result values
-    void predict_batch(mat_ref xnew, vec_ref result)
+    void predict_batch(mat_ref testing, vec_ref result)
     {
-        int Nbatch = xnew.rows();
+        int Nbatch = testing.rows();
 
-        if (result.size() < xnew.rows()) {
+        if (result.size() < testing.rows()) {
             throw std::runtime_error("predict_batch: the result buffer passed was "
                                      "too small to hold the result");
         }
 
-        if (Nbatch > xnew_size) {
+        if (Nbatch > testing_size) {
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
+        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch);
 
         cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
-                      dev_ptr(xnew_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+                      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
@@ -325,29 +325,29 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
-    void predict_variance_batch(mat_ref xnew, vec_ref mean, vec_ref var)
+    void predict_variance_batch(mat_ref testing, vec_ref mean, vec_ref var)
     {
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
-        int Nbatch = xnew.rows();
+        int Nbatch = testing.rows();
 
-        if (var.size() < xnew.rows() || mean.size() < xnew.rows()) {
+        if (var.size() < testing.rows() || mean.size() < testing.rows()) {
             throw std::runtime_error("predict_variance_batch: The result buffer passed was "
                                      "too small to hold the variance");
         }
 
-        if (Nbatch > xnew_size) {
+        if (Nbatch > testing_size) {
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
 
 
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
+        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(xnew_d),
+        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
                       dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
@@ -356,8 +356,8 @@ public:
                         dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
-        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(xnew_d),
-                     dev_ptr(xnew_d), dev_ptr(theta_d));
+        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
+                     dev_ptr(testing_d), dev_ptr(theta_d));
 
         cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T,
                     n,
@@ -392,27 +392,27 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
-    void predict_deriv(mat_ref xnew, mat_ref result)
+    void predict_deriv(mat_ref testing, mat_ref result)
     {
-        int Nbatch = xnew.rows();
+        int Nbatch = testing.rows();
 
-        if (result.rows() < xnew.rows() || result.cols() != D) {
+        if (result.rows() < testing.rows() || result.cols() != D) {
             throw std::runtime_error("predict_deriv: the result buffer passed was "
                                      "the wrong shape to hold the result");
         }
 
-        if (Nbatch > xnew_size) {
+        if (Nbatch > testing_size) {
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> xnew_d(xnew.data(), xnew.data() + Nbatch * D);
+        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch*D);
 
         cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
-			      dev_ptr(xnew_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
@@ -605,9 +605,9 @@ public:
         // Compute
         //   \pderiv{C_{jk}}{theta_i}
         //
-        // The length of work_mat_d is n * xnew_size
+        // The length of work_mat_d is n * testing_size
         // The derivative above has  n * n * Ntheta components
-        // The following assumes that xnew_size > Ntheta * n
+        // The following assumes that testing_size > Ntheta * n
         cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
 				  D, n, n,
 				  dev_ptr(inputs_d), dev_ptr(inputs_d),
@@ -664,8 +664,8 @@ public:
         thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
     }
 
-    DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int xnew_size_)
-        : xnew_size(xnew_size_)
+    DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_)
+        : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
         , invC_d(n * n, 0.0)
@@ -679,13 +679,13 @@ public:
         , logdetC(0.0)
         , jitter(0.0)
         , invCts_d(n, 0.0)
-        , xnew_d(D * xnew_size, 0.0)
+        , testing_d(D * testing_size, 0.0)
         , work_d(n, 0.0)
-        , work_mat_d(n * xnew_size, 0.0)
+        , work_mat_d(n * testing_size, 0.0)
         , sum_buffer_size_bytes(0)
-        , result_d(xnew_size, 0.0)
-        , kappa_d(xnew_size, 0.0)
-        , invCk_d(xnew_size * n, 0.0)
+        , result_d(testing_size, 0.0)
+        , kappa_d(testing_size, 0.0)
+        , invCk_d(testing_size * n, 0.0)
     {
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
