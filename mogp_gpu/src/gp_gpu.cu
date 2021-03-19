@@ -52,4 +52,15 @@ PYBIND11_MODULE(libgpgpu, m) {
         .value("fit", NUG_FIT);
 
     m.def("have_compatible_device", &have_compatible_device);
+
+    m.doc() = R"(
+The libgpgpu library
+--------------------
+
+.. currentmodule:: libgpgpu
+
+.. autoclass:: libgpgpu.DenseGP_GPU
+    :members:
+
+)";
 }
