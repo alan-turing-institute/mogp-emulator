@@ -265,7 +265,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         theta = ndarray_coerce_type_and_flags(theta)
 
         nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
-        self._densegp_gpu.update_theta(theta, self._nugget_type, nugget_size)
+        self._densegp_gpu.fit(theta, self._nugget_type, nugget_size)
         if self.nugget_type == "adaptive":
             self._nugget = self._densegp_gpu.get_jitter()
 
@@ -310,7 +310,7 @@ class GaussianProcessGPU(GaussianProcessBase):
             self.fit(theta)
 
         result = np.zeros(self.n_params)
-        self._densegp_gpu.dloglik_dtheta(result)
+        self._densegp_gpu.logpost_deriv(result)
         return result
 
     def logpost_hessian(self, theta):

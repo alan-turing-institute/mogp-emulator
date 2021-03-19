@@ -157,7 +157,7 @@ class DenseGP_GPU {
     cusolverDnHandle_t cusolverHandle;
 
     // inverse covariance matrix on device
-    thrust::device_vector<REAL> invC_d;
+    thrust::device_vector<REAL> invQ_d;
 
     // lower triangular Cholesky factor on device
     thrust::device_vector<REAL> chol_lower_d;
@@ -178,7 +178,7 @@ class DenseGP_GPU {
     thrust::device_vector<REAL> targets_d;
 
     // precomputed product, used in the prediction
-    thrust::device_vector<REAL> invCts_d;
+    thrust::device_vector<REAL> invQt_d;
 
     // preallocated work array (length n) on the CUDA device
     thrust::device_vector<REAL> work_d;
@@ -193,7 +193,7 @@ class DenseGP_GPU {
     size_t sum_buffer_size_bytes;
 
     // more work arrays
-    thrust::device_vector<REAL> testing_d, work_mat_d, result_d, kappa_d, invCk_d;
+    thrust::device_vector<REAL> testing_d, work_mat_d, result_d, kappa_d, invQk_d;
 
 public:
     int get_n(void) const
@@ -239,7 +239,7 @@ public:
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
-        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 
         return double(result);
@@ -261,7 +261,7 @@ public:
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
-        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 
         // variance prediction
@@ -271,14 +271,14 @@ public:
 
         double zero(0.0);
         double one(1.0);
-        thrust::device_vector<REAL> invCk_d(n);
+        thrust::device_vector<REAL> invQk_d(n);
 
-        cublasDgemv(cublasHandle, CUBLAS_OP_N, n, n, &one, dev_ptr(invC_d), n,
-                    dev_ptr(work_d), 1, &zero, dev_ptr(invCk_d), 1);
+        cublasDgemv(cublasHandle, CUBLAS_OP_N, n, n, &one, dev_ptr(invQ_d), n,
+                    dev_ptr(work_d), 1, &zero, dev_ptr(invQk_d), 1);
 
-        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCts_d),
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d),
                   1, &result);
-        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invCk_d),
+        CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQk_d),
                   1, var.data());
 
         double kappa;
@@ -317,7 +317,7 @@ public:
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
-                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invQt_d), 1, &zero,
                         dev_ptr(result_d), 1);
 
         cudaDeviceSynchronize();
@@ -352,7 +352,7 @@ public:
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
-                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invCts_d), 1, &zero,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invQt_d), 1, &zero,
                         dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
@@ -364,10 +364,10 @@ public:
                     Nbatch,
                     n,
                     &one,
-                    dev_ptr(invC_d), n,
+                    dev_ptr(invQ_d), n,
                     dev_ptr(work_mat_d), Nbatch,
                     &zero,
-                    dev_ptr(invCk_d), n);
+                    dev_ptr(invQk_d), n);
 
         // result accumulated into 'kappa'
         status = cublasDgemmStridedBatched(
@@ -378,7 +378,7 @@ public:
             // A (m x k), B (k x n), C (m x n)
             &minus_one, // alpha
             dev_ptr(work_mat_d), Nbatch, 1, // A, lda, strideA
-            dev_ptr(invCk_d), n, n, // B, ldb, strideB (= covariances "k")
+            dev_ptr(invQk_d), n, n, // B, ldb, strideB (= covariances "k")
             &one,
             dev_ptr(kappa_d), 1, 1, // C, ldc, strideC
             Nbatch);
@@ -418,7 +418,7 @@ public:
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
                         D * Nbatch, n, // nrows, ncols
                         &one, dev_ptr(work_mat_d), D * Nbatch, // alpha, A, lda
-                        dev_ptr(invCts_d), 1, // x, incx
+                        dev_ptr(invQt_d), 1, // x, incx
                         &zero, dev_ptr(result_d), 1); // beta, y, incy
 
         cudaDeviceSynchronize();
@@ -427,7 +427,7 @@ public:
     }
 
 
-    // Assume at this point that work_mat_d contains the inverse covariance matrix invC_d
+    // Assume at this point that work_mat_d contains the inverse covariance matrix invQ_d
     int calc_Cholesky_factors()
     {
         thrust::device_vector<int> info_d(1);
@@ -459,15 +459,15 @@ public:
     }
 
     // Update the hyperparameters, and invQ and invQt which depend on them
-    void update_theta(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
+    void fit(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
     {
         thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
-        cov_batch_gpu(dev_ptr(invC_d), n, n, D, dev_ptr(inputs_d),
+        cov_batch_gpu(dev_ptr(invQ_d), n, n, D, dev_ptr(inputs_d),
                       dev_ptr(inputs_d), dev_ptr(theta_d));
 
-	/// copy the covariance matrix invC_d into work_mat_d
-	thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
+	/// copy the covariance matrix invQ_d into work_mat_d
+	thrust::copy(invQ_d.begin(), invQ_d.end(), work_mat_d.begin());
 
         thrust::device_vector<int> info_d(1);
         int info_h;
@@ -479,9 +479,9 @@ public:
 	    const int max_tries = 5;
 	    int itry = 0;
 	    while (itry < max_tries) {
-		// invC_d holds the covariance matrix - work with a copy
+		// invQ_d holds the covariance matrix - work with a copy
 		// in work_mat_d, in case the factorization fails
-		thrust::copy(invC_d.begin(), invC_d.end(), work_mat_d.begin());
+		thrust::copy(invQ_d.begin(), invQ_d.end(), work_mat_d.begin());
 
 		// if the first attempt at factorization failed, add a
 		// small term to the diagonal, increasing each iteration
@@ -490,7 +490,7 @@ public:
 		    if (itry == 1) {
 			// find mean of (absolute) diagonal elements (diagonal
 			// elements should all be positive)
-			cublasDasum(cublasHandle, n, dev_ptr(invC_d), n+1, &mean_diag);
+			cublasDasum(cublasHandle, n, dev_ptr(invQ_d), n+1, &mean_diag);
 			mean_diag /= n;
 			jitter = 1e-6 * mean_diag;
 		    }
@@ -528,21 +528,21 @@ public:
 	    }
 	}
 
-        identity_device(n, dev_ptr(invC_d));
+        identity_device(n, dev_ptr(invQ_d));
 
-        // invC
+        // invQ
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, n,
-                                  dev_ptr(work_mat_d), n, dev_ptr(invC_d), n,
+                                  dev_ptr(work_mat_d), n, dev_ptr(invQ_d), n,
                                   dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
 
 
-        // invCt
-        thrust::copy(targets_d.begin(), targets_d.end(), invCts_d.begin());
+        // invQt
+        thrust::copy(targets_d.begin(), targets_d.end(), invQt_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, 1,
-                                  dev_ptr(work_mat_d), n, dev_ptr(invCts_d), n,
+                                  dev_ptr(work_mat_d), n, dev_ptr(invQt_d), n,
                                   dev_ptr(info_d));
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
@@ -574,18 +574,18 @@ public:
 
     void get_invQ(mat_ref invQ_h)
     {
-        thrust::copy(invC_d.begin(), invC_d.end(), invQ_h.data());
+        thrust::copy(invQ_d.begin(), invQ_d.end(), invQ_h.data());
     }
 
     void get_invQt(mat_ref invQt_h)
     {
-        thrust::copy(invCts_d.begin(), invCts_d.end(), invQt_h.data());
+        thrust::copy(invQt_d.begin(), invQt_d.end(), invQt_h.data());
     }
 
     double get_logpost(void)
     {
         double result;
-        CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invCts_d), 1,
+        CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 
         result += logdetC + n * log(2.0 * M_PI);
@@ -593,7 +593,7 @@ public:
         return 0.5 * result;
     }
 
-    void dloglik_dtheta(vec_ref result)
+    void logpost_deriv(vec_ref result)
     {
         double zero(0.0);
         double one(1.0);
@@ -616,7 +616,7 @@ public:
         // Compute
         //   \deriv{logpost}{theta_i}
         //     =   0.5 Tr(inv(C)*\pderiv{C}{\theta_i}           (Term 1)
-        //       - 0.5 (invC_ts)^T \pderiv{C}{\theta_i} invCts  (Term 2)
+        //       - 0.5 (invQ_ts)^T \pderiv{C}{\theta_i} invQt  (Term 2)
 
         // Working memory on device:
         //   result_d:
@@ -635,29 +635,29 @@ public:
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
                     n * n, Ntheta, // nrows, ncols (N.B. column-major order!)
                     &half, dev_ptr(work_mat_d), n * n, // alpha, A, lda
-                    dev_ptr(invC_d), 1, // x, incx
+                    dev_ptr(invQ_d), 1, // x, incx
                     &zero, // beta
                     dev_ptr(result_d), 1); // y, incy
 
         // ***** Term 2 *****
         // First step:
-        //   S_ij = \pderiv{C_{jk}}{\theta_i} invCts_k
+        //   S_ij = \pderiv{C_{jk}}{\theta_i} invQt_k
         //
         // Treat \pderiv{C_{jk}}{\theta_i} as (n * Ntheta) * n, treating 'ij' as a single index
-        // and take mat-vec product with invCts:
+        // and take mat-vec product with invQt:
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
                     n, n * Ntheta, // nrows, ncols (N.B. column-major order!)
                     &one, dev_ptr(work_mat_d), n, // alpha, A, lda
-                    dev_ptr(invCts_d), 1, // x, incx
+                    dev_ptr(invQt_d), 1, // x, incx
                     &zero, // beta
                     dev_ptr(work_mat_d), 1); // y, incy
 
         // Second step:
-        //   R_i += 0.5 S_ij invCts_j
+        //   R_i += 0.5 S_ij invQt_j
         cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
                     n, Ntheta, // nrows, ncols (N.B. column-major order!)
                     &m_half, dev_ptr(work_mat_d), n, // alpha, A, lda
-                    dev_ptr(invCts_d), 1, // x, incx
+                    dev_ptr(invQt_d), 1, // x, incx
                     &one, // beta
                     dev_ptr(result_d), 1); // y, incy
 
@@ -668,7 +668,7 @@ public:
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
-        , invC_d(n * n, 0.0)
+        , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
         , theta_d(D + 2)
         , inputs(inputs_)
@@ -678,14 +678,14 @@ public:
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
         , jitter(0.0)
-        , invCts_d(n, 0.0)
+        , invQt_d(n, 0.0)
         , testing_d(D * testing_size, 0.0)
         , work_d(n, 0.0)
         , work_mat_d(n * testing_size, 0.0)
         , sum_buffer_size_bytes(0)
         , result_d(testing_size, 0.0)
         , kappa_d(testing_size, 0.0)
-        , invCk_d(testing_size * n, 0.0)
+        , invQk_d(testing_size * n, 0.0)
     {
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)

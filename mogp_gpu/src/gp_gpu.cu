@@ -38,13 +38,13 @@ PYBIND11_MODULE(libgpgpu, m) {
         .def("predict_batch", &DenseGP_GPU::predict_batch)
         .def("predict_variance_batch", &DenseGP_GPU::predict_variance_batch)
         .def("predict_deriv", &DenseGP_GPU::predict_deriv)
-        .def("update_theta", &DenseGP_GPU::update_theta)
+        .def("fit", &DenseGP_GPU::fit)
         .def("get_invQ", &DenseGP_GPU::get_invQ)
         .def("get_invQt", &DenseGP_GPU::get_invQt)
         .def("get_logpost", &DenseGP_GPU::get_logpost)
         .def("get_jitter", &DenseGP_GPU::get_jitter)
         .def("get_Cholesky_lower", &DenseGP_GPU::get_Cholesky_lower)
-        .def("dloglik_dtheta", &DenseGP_GPU::dloglik_dtheta);
+        .def("logpost_deriv", &DenseGP_GPU::logpost_deriv);
 
     py::enum_<nugget_type>(m, "nugget_type")
         .value("adaptive", NUG_ADAPTIVE)
