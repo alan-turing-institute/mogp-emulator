@@ -176,7 +176,7 @@ class GaussianProcessGPU(GaussianProcessBase):
     @property
     def nugget(self):
         """
-        See :function:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
         """
         return self._nugget
 
