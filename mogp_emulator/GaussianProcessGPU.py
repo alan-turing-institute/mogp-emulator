@@ -295,10 +295,11 @@ class GaussianProcessGPU(GaussianProcessBase):
         Calculate the partial derivatives of the negative log-posterior
 
         See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logpost_deriv`
+
         :param theta: Value of the hyperparameters. Must be array-like with shape ``(n_params,)``
         :type theta: ndarray
         :returns: partial derivatives of the negative log-posterior with respect to the
-            hyperparameters (array with shape ``(n_params,)``)
+                  hyperparameters (array with shape ``(n_params,)``)
         :rtype: ndarray
         """
         theta = np.array(theta, copy=False)
