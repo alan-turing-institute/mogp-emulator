@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-std=c++11 -O3
+CXXFLAGS=-std=c++14 -O3
 NVCCFLAGS=--compiler-options -Wall,-Wextra --generate-code arch=compute_60,code=sm_60
 CUDA_INC=/usr/local/cuda/include
 PYBIND_INC=$(shell python3 -m pybind11 --includes)
