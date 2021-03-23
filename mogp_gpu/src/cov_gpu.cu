@@ -124,7 +124,6 @@ void cov_deriv_x_batch_gpu(
     REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
     const REAL *ys_d, const REAL *theta_d)
 {
-    // TODO determine correct size of thread block
     const int Bx = 16, By = 16;
     dim3 threads_per_block(Bx, By);
     dim3 blocks((Nx + Bx - 1)/Bx, (Ny + By - 1)/By);
@@ -175,7 +174,6 @@ void cov_deriv_theta_batch_gpu(
     REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
     const REAL *ys_d, const REAL *theta_d)
 {
-    // TODO determine correct size of thread block
     const int Bx = 16, By = 16;
     dim3 threads_per_block(Bx, By);
     dim3 blocks((Nx + Bx - 1)/Bx, (Ny + By - 1)/By);
