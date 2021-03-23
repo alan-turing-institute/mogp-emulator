@@ -31,12 +31,16 @@
 
 #define USE_SHUFFLE_SUM_IMPL 0
 
+
+/// Extract the raw pointer from the 
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
 {
     return dv.data().get();
 }
 
+
+/// Fail if a recent cusolver call did not succeed
 inline void check_cusolver_status(cusolverStatus_t status, int info_h)
 {
     if (status || info_h) {
@@ -47,17 +51,21 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h)
     }
 }
 
+/// Can a usable CUDA capable device be found?
 bool have_compatible_device(void);
+
 
 #if USE_SHUFFLE_SUM_IMPL
 // ----------------------------------------
+
 // Implementation of sum_log_diag using warp reduction,
 // based on https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
 //
 // Will fail for N > 1024
 
+
 __inline__ __device__
-double warpReduceSum(double val)
+double warp_reduce_sum(double val)
 {
     for (int offset = WARP_SIZE/2; offset > 0; offset /= 2)
         val += __shfl_down_sync(FULL_MASK, val, offset);
@@ -81,7 +89,7 @@ void sum_log_diag_kernel(int N, double *A, double *result)
     int warpIdx = i / WARP_SIZE;
 
     __syncthreads();
-    log_diag = warpReduceSum(log_diag);
+    log_diag = warp_reduce_sum(log_diag);
 
     if (laneIdx == 0) work[warpIdx] = log_diag;
 
@@ -89,12 +97,14 @@ void sum_log_diag_kernel(int N, double *A, double *result)
 
     log_diag = work[laneIdx];
 
-    if (warpIdx == 0) log_diag = warpReduceSum(log_diag);
+    if (warpIdx == 0) log_diag = warp_reduce_sum(log_diag);
 
     if (i == 0) *result = 2.0 * log_diag;
 }
 
-// Unused arguments are needed for the CUB implementation
+// 
+// 
+// The unused arguments are needed for the CUB implementation
 void sum_log_diag(int N, double *A, double *result, double *, size_t)
 {
     // The number of thread blocks *must* be 1
@@ -106,6 +116,7 @@ void sum_log_diag(int N, double *A, double *result, double *, size_t)
 
 #else
 // ----------------------------------------
+
 // Implementation of sum_log_diag using cub::DeviceReduce
 
 struct LogSq : public thrust::unary_function<double, double>
@@ -226,14 +237,16 @@ public:
         thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
     }
 
-    double get_jitter() const
+    double get_jitter(void) const
     {
         return jitter;
     }
 
-    // length of testing assumed to be D
     double predict(mat_ref testing)
     {
+        // On entry: the number of points to predict (number of rows
+        // of testing) is assumed to be D
+
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
         cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
@@ -245,9 +258,6 @@ public:
         return double(result);
     }
 
-    // testing (in): input point, to predict
-    // var (output): variance
-    // returns: prediction of value
     double predict_variance(mat_ref testing, vec_ref var)
     {
         if (var.size() < testing.rows()) {
@@ -291,10 +301,11 @@ public:
         return REAL(result);
     }
 
-    // assumes on input that testing is Nbatch * D, and that result
-    // contains space for Nbatch result values
     void predict_batch(mat_ref testing, vec_ref result)
     {
+        // Assumes on entry that testing has shape (Nbatch, D), and that result
+        // contains space for Nbatch result values
+
         int Nbatch = testing.rows();
 
         if (result.size() < testing.rows()) {
@@ -426,10 +437,10 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
-
-    // Assume at this point that work_mat_d contains the inverse covariance matrix invQ_d
-    int calc_Cholesky_factors()
+    int calc_cholesky_factors(void)
     {
+        // On entry: assumes that work_mat_d contains the inverse covariance matrix invQ_d
+        
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
@@ -453,7 +464,7 @@ public:
 
     // return the lower triangular matrix (actually it will be the whole matrix
     // but only the lower triangle will be correct!)
-    void get_Cholesky_lower(mat_ref result)
+    void get_cholesky_lower(mat_ref result)
     {
         thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
     }
@@ -497,7 +508,7 @@ public:
 		    add_diagonal(n, jitter, dev_ptr(work_mat_d));
 		}
 
-		factorisation_status = calc_Cholesky_factors();
+		factorisation_status = calc_cholesky_factors();
 		if (factorisation_status == 0) {
                     break;
 		}
@@ -516,13 +527,13 @@ public:
 	} else if (nugget == NUG_FIXED) {
 	    add_diagonal(n, nugget_size, dev_ptr(work_mat_d));
 
-	    factorisation_status = calc_Cholesky_factors();
+	    factorisation_status = calc_cholesky_factors();
 	    if (factorisation_status != 0) {
                 throw std::runtime_error("Unable to factorize matrix using fixed nugget");
 	    }
 
 	} else { //nugget == "fit"
-	    factorisation_status = calc_Cholesky_factors();
+	    factorisation_status = calc_cholesky_factors();
 	    if (factorisation_status != 0) {
                 throw std::runtime_error("Unable to factorize matrix using fitted nugget");
 	    }
@@ -562,12 +573,12 @@ public:
 	theta_fitted = true;
     }
 
-    bool get_theta_fit_status()
+    bool get_theta_fit_status(void)
     {
         return theta_fitted;
     }
 
-    void reset_theta_fit_status()
+    void reset_theta_fit_status(void)
     {
         theta_fitted = false;
     }

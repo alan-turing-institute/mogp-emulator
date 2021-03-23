@@ -21,7 +21,8 @@ class NotImplementedError(RuntimeError):
 
 
 def ndarray_coerce_type_and_flags(arr):
-    """Helper function for the GaussianProcessGPU methods that call
+    """
+    Helper function for the GaussianProcessGPU methods that call
     CUDA/C++ functions (those wrapped by _dense_gpgpu) and that take
     numpy arrays as arguments.  Ensures that an array is of the
     correct type for this purpose.
@@ -242,7 +243,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: np.array
         """
         result = np.zeros((self.n, self.n))
-        self._densegp_gpu.get_Cholesky_lower(result)
+        self._densegp_gpu.get_cholesky_lower(result)
         return np.tril(result.transpose())
 
     def get_K_matrix(self):
