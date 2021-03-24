@@ -356,29 +356,31 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         means = np.zeros(n_testing)
 
-        if unc:
-            variances = np.zeros(n_testing)
+        if deriv:
+            deriv_result = np.zeros((n_testing,self.D))
             for i in range(0, n_testing, self._max_batch_size):
-                self._densegp_gpu.predict_variance_batch(
+                self._densegp_gpu.predict_deriv_batch(
                     testing[i:i+self._max_batch_size],
                     means[i:i+self._max_batch_size],
-                    variances[i:i+self._max_batch_size])
-            if include_nugget:
-                variances += self._nugget
+                    deriv_result[i:i+self._max_batch_size])
         else:
             for i in range(0, n_testing, self._max_batch_size):
                 self._densegp_gpu.predict_batch(
                     testing[i:i+self._max_batch_size],
                     means[i:i+self._max_batch_size])
-            variances = None
-        if deriv:
-            deriv_result = np.zeros((n_testing,self.D))
-            for i in range(0, n_testing, self._max_batch_size):
-                self._densegp_gpu.predict_deriv(
-                    testing[i:i+self._max_batch_size],
-                    deriv_result[i:i+self._max_batch_size])
-        else:
             deriv_result = None
+
+        if unc:
+            variances = np.zeros(n_testing)
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_variance_batch(
+                    testing[i:i+self._max_batch_size],
+                    variances[i:i+self._max_batch_size])
+            if include_nugget:
+                variances += self._nugget
+        else:
+            variances = None
+
         return PredictResult(mean=means, unc=variances, deriv=deriv_result)
 
 

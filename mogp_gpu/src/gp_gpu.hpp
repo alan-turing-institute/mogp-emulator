@@ -32,7 +32,7 @@
 #define USE_SHUFFLE_SUM_IMPL 0
 
 
-/// Extract the raw pointer from the 
+/// Extract the raw pointer from the
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
 {
@@ -102,8 +102,8 @@ void sum_log_diag_kernel(int N, double *A, double *result)
     if (i == 0) *result = 2.0 * log_diag;
 }
 
-// 
-// 
+//
+//
 // The unused arguments are needed for the CUB implementation
 void sum_log_diag(int N, double *A, double *result, double *, size_t)
 {
@@ -247,7 +247,7 @@ public:
         // On entry: the number of points to predict (number of rows
         // of testing) is assumed to be D
 
-        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
+      thrust::copy(testing.data(), testing.data() + D, testing_d.begin());
         cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
@@ -266,7 +266,8 @@ public:
         }
 
         // value prediction
-        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
+        thrust::copy(testing.data(), testing.data() + D, testing_d.begin());
+
         cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
@@ -320,8 +321,7 @@ public:
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
-        thrust::device_vector<REAL> result_d(Nbatch);
+        thrust::copy( testing.data(), testing.data() + Nbatch * D, testing_d.begin());
 
         cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
                       dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
@@ -336,14 +336,14 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
-    void predict_variance_batch(mat_ref testing, vec_ref mean, vec_ref var)
+    void predict_variance_batch(mat_ref testing, vec_ref var)
     {
         REAL zero(0.0);
         REAL one(1.0);
         REAL minus_one(-1.0);
         int Nbatch = testing.rows();
 
-        if (var.size() < testing.rows() || mean.size() < testing.rows()) {
+        if (var.size() < testing.rows()) {
             throw std::runtime_error("predict_variance_batch: The result buffer passed was "
                                      "too small to hold the variance");
         }
@@ -353,18 +353,7 @@ public:
                                      "than the maximum batch size");
         }
 
-
-        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
-        thrust::device_vector<REAL> mean_d(Nbatch);
-
-        // compute predictive means for the batch
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
-                      dev_ptr(inputs_d), dev_ptr(theta_d));
-
-        cublasStatus_t status =
-            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
-                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invQt_d), 1, &zero,
-                        dev_ptr(mean_d), 1);
+	thrust::copy( testing.data(), testing.data() + Nbatch * D, testing_d.begin());
 
         // compute predictive variances for the batch
         cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
@@ -396,14 +385,11 @@ public:
 
         cudaDeviceSynchronize();
 
-        // copy back means
-        thrust::copy(mean_d.begin(), mean_d.end(), mean.data());
-
         // copy back variances
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
-    void predict_deriv(mat_ref testing, mat_ref result)
+    void predict_deriv_batch(mat_ref testing, vec_ref mean, mat_ref deriv)
     {
         int Nbatch = testing.rows();
 
@@ -419,28 +405,37 @@ public:
 
         REAL zero(0.0);
         REAL one(1.0);
-        thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
-        thrust::device_vector<REAL> result_d(Nbatch*D);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
+	// now computes means (in first part of work_mat_d) and variances (in following part)
+        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d),dev_ptr(work_mat_d)+Nbatch, D, Nbatch, n,
 			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
+	// calculate mean
+        cublasStatus_t status =
+            cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
+                        dev_ptr(work_mat_d), Nbatch, dev_ptr(invQt_d), 1, &zero,
+                        dev_ptr(result_d), 1);
+
+
+	// calculate deriv
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
                         D * Nbatch, n, // nrows, ncols
-                        &one, dev_ptr(work_mat_d), D * Nbatch, // alpha, A, lda
+                        &one, dev_ptr(work_mat_d)+Nbatch, D * Nbatch, // alpha, A, lda
                         dev_ptr(invQt_d), 1, // x, incx
-                        &zero, dev_ptr(result_d), 1); // beta, y, incy
+                        &zero, dev_ptr(result_d)+Nbatch, 1); // beta, y, incy
 
         cudaDeviceSynchronize();
-
-        thrust::copy(result_d.begin(), result_d.end(), result.data());
+	// copy first part of result_d to mean vector
+	thrust::copy(result_d.begin(), result_d.begin()+Nbatch, mean.data());
+	// copy next bit of result_d to deriv
+        thrust::copy(result_d.begin()+Nbatch, result_d.begin()+Nbatch+Nbatch*D, deriv.data());
     }
 
     int calc_cholesky_factors(void)
     {
         // On entry: assumes that work_mat_d contains the inverse covariance matrix invQ_d
-        
+
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
@@ -694,7 +689,7 @@ public:
         , work_d(n, 0.0)
         , work_mat_d(n * testing_size, 0.0)
         , sum_buffer_size_bytes(0)
-        , result_d(testing_size, 0.0)
+        , result_d((D+1) * testing_size, 0.0)
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {

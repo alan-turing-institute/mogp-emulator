@@ -50,7 +50,7 @@ PYBIND11_MODULE(libgpgpu, m) {
              "Returns the emulator hyperparameters")
 
         .def("predict", &DenseGP_GPU::predict,
-             R"(Single point predictive mean.  
+             R"(Single point predictive mean.
 
 :param arg0: The input point
 
@@ -59,7 +59,7 @@ PYBIND11_MODULE(libgpgpu, m) {
 Currently unused by :class`GaussianProcessGPU`, but useful for testing)")
 
         .def("predict_variance", &DenseGP_GPU::predict_variance,
-             R"(Single point combined predictive mean and variance.  
+             R"(Single point combined predictive mean and variance.
 
 :param arg0: The input point, to predict
 :param arg1: The variance prediction is written to `arg1[0]`
@@ -73,9 +73,10 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
              "Batched predictive means")
 
         .def("predict_variance_batch", &DenseGP_GPU::predict_variance_batch,
-             "Batched predictive means")
+             "Batched predictive variances")
 
-        .def("predict_deriv", &DenseGP_GPU::predict_deriv)
+        .def("predict_deriv_batch", &DenseGP_GPU::predict_deriv_batch,
+	   "Batched predictive means and derivatives")
 
         .def("fit", &DenseGP_GPU::fit)
 
