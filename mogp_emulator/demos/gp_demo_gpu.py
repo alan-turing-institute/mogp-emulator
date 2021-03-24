@@ -4,6 +4,22 @@ from projectile import simulator, print_results
 
 # GP example using the projectile demo on a GPU
 
+# To run this demo you must be on a machine with an Nvidia GPU, and with
+# CUDA libraries available.  There are also dependencies on eigen and pybind11
+# If you are working on a managed cluster, these may be available via commands
+#
+# module load cuda/11.2
+# module load py-pybind11-2.2.4-gcc-5.4.0-tdtz6iq
+# module load gcc/7
+# module load eigen
+#
+# You should then be able to compile the cuda code at the same time as installing the mogp_emulator package, by doing (from the main mogp_emulator/ directory:
+# pip install .
+# (note that if you don't have write access to the global directory
+# (e.g. if you are on a cluster such as CSD3), you should add the
+# `--user` flag to this command)
+
+
 # define some common variables
 
 n_samples = 20
