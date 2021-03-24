@@ -249,8 +249,9 @@ class GaussianProcessGPU(GaussianProcessBase):
     def get_K_matrix(self):
         """
         Returns current value of the inverse covariance matrix as a numpy array.
-        Does not include the nugget
-        parameter, as this is dependent on how the nugget is fit.
+
+        Does not include the nugget parameter, as this is dependent on how the 
+        nugget is fit.
         """
         result = np.zeros((self.n, self.n))
         self._densegp_gpu.get_invQ(result)
