@@ -87,7 +87,7 @@ void cov_batch_gpu(REAL *result_d, int Nnew, int N, int Ninput, REAL *xsnew_d,
 
 
 ////////////////////
-__device__ void cov_deriv_x(REAL *result_d, int Ninput,
+__device__ void cov_deriv_x(REAL *mean_result_d, REAL *deriv_result_d, int Ninput,
 			    const REAL *x_d, const REAL *y_d,
 			    const REAL *theta_d)
 {
@@ -96,39 +96,48 @@ __device__ void cov_deriv_x(REAL *result_d, int Ninput,
     {
         REAL d_i = x_d[i] - y_d[i];
         REAL a = d_i * exp(theta_d[i]);
-	result_d[i] = a;
+	deriv_result_d[i] = a;
         s += d_i * a;
     }
     REAL c = -exp(-0.5*s + theta_d[Ninput]);
+    *mean_result_d = -1.0 * c;
     for (unsigned int i=0; i < Ninput; i++)
     {
-        result_d[i] *= c;
+        deriv_result_d[i] *= c;
     }
 }
 
 __global__ void cov_deriv_x_batch_kernel(
-    REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
-    const REAL *ys_d, const REAL *theta_d)
+					 REAL *mean_result_d,
+					 REAL *deriv_result_d,
+					 int Ninput,
+					 int Nx, int Ny, const REAL *xs_d,
+					 const REAL *ys_d, const REAL *theta_d)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     if (i < Nx && j < Ny)
     {
-        cov_deriv_x(result_d + Ninput * (Nx * j + i),
-		    Ninput, xs_d + Ninput * i, ys_d + Ninput * j,
-		    theta_d);
+      cov_deriv_x(mean_result_d, deriv_result_d + Ninput * (Nx * j + i),
+		  Ninput, xs_d + Ninput * i, ys_d + Ninput * j,
+		  theta_d);
     }
 }
 
 void cov_deriv_x_batch_gpu(
-    REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
-    const REAL *ys_d, const REAL *theta_d)
+			   REAL *mean_result_d, REAL *deriv_result_d,
+			   int Ninput, int Nx, int Ny,
+			   const REAL *xs_d,
+			   const REAL *ys_d, const REAL *theta_d)
 {
     const int Bx = 16, By = 16;
     dim3 threads_per_block(Bx, By);
     dim3 blocks((Nx + Bx - 1)/Bx, (Ny + By - 1)/By);
     cov_deriv_x_batch_kernel<<<blocks, threads_per_block>>>(
-        result_d, Ninput, Nx, Ny, xs_d, ys_d, theta_d);
+							    mean_result_d,
+							    deriv_result_d,
+							    Ninput, Nx, Ny,
+							    xs_d, ys_d, theta_d);
 }
 
 
