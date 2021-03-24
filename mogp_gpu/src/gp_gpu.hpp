@@ -1,6 +1,19 @@
 #ifndef GP_GPU_HPP
 #define GP_GPU_HPP
 
+/*
+This file contains the C++ implementation of the Gaussian Process class.
+(The corresponding .cu file contains the pybind11 bindings allowing the functions
+to be called from Python).
+
+The key methods of the DenseGP_GPU class are:
+  fit:  update the theta hyperparameters
+  predict_batch:  make a prediction on a set of testing points
+  predict_variance_batch: make a prediction on a set of testing points, including variance
+  predict_deriv: get the derivative of prediction on a set of testing points.
+These in turn use CUDA kernels defined in the file cov_gpu.cu
+*/
+
 #include <iostream>
 
 #include <algorithm>
@@ -31,8 +44,10 @@
 
 #define USE_SHUFFLE_SUM_IMPL 0
 
+// ----------------------------------------------
+// ----   Utility functions ---------------------
 
-/// Extract the raw pointer from the 
+/// Extract the raw pointer from a device vector
 template <typename T>
 T *dev_ptr(thrust::device_vector<T>& dv)
 {
@@ -54,10 +69,14 @@ inline void check_cusolver_status(cusolverStatus_t status, int info_h)
 /// Can a usable CUDA capable device be found?
 bool have_compatible_device(void);
 
+// ----------------------------------------------
+
+
+// --------------------------------------------------------
+// CUDA kernel for summing log diagonal elements of a matrix.
+// Two methods implemented - warp reduction or cub::DeviceReduce
 
 #if USE_SHUFFLE_SUM_IMPL
-// ----------------------------------------
-
 // Implementation of sum_log_diag using warp reduction,
 // based on https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
 //
@@ -102,8 +121,7 @@ void sum_log_diag_kernel(int N, double *A, double *result)
     if (i == 0) *result = 2.0 * log_diag;
 }
 
-// 
-// 
+//
 // The unused arguments are needed for the CUB implementation
 void sum_log_diag(int N, double *A, double *result, double *, size_t)
 {
@@ -131,19 +149,28 @@ void sum_log_diag(int N, double *A, double *result, double *work, size_t work_si
 
     cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
 }
-
+// ----------------------------------------
 #endif // USE_SHUFFLE_SUM_IMPL
 
+
+// ----------------------------------------
+// ------- Some useful typedefs for vectors and matrices
+
 typedef int obs_kind;
-// typedef ivec vec_obs_kind;
 typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> mat;
 typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > mat_ref;
 typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, 1> vec;
 typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, 1> > vec_ref;
-
+// ----------------------------------------
+// enum to allow the python code to select the type of "nugget"
 enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 
-// The GP class
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+////////////////////////// The Gaussian Process  class ///////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
 // By convention, members ending "_d" are allocated on the device
 class DenseGP_GPU {
     // batch size (for allocation)
@@ -242,6 +269,7 @@ public:
         return jitter;
     }
 
+    // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
     double predict(mat_ref testing)
     {
         // On entry: the number of points to predict (number of rows
@@ -258,6 +286,7 @@ public:
         return double(result);
     }
 
+    // variance of a single prediction (mainly for testing - most use-cases will use predict_variance_batch)
     double predict_variance(mat_ref testing, vec_ref var)
     {
         if (var.size() < testing.rows()) {
@@ -301,6 +330,7 @@ public:
         return REAL(result);
     }
 
+    // Use the GP emulator to calculate a prediction on testing points, without calculating variance or derivative
     void predict_batch(mat_ref testing, vec_ref result)
     {
         // Assumes on entry that testing has shape (Nbatch, D), and that result
@@ -336,6 +366,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
+    // Use the GP emulator to calculate a prediction on testing points, also calculating variance
     void predict_variance_batch(mat_ref testing, vec_ref mean, vec_ref var)
     {
         REAL zero(0.0);
@@ -403,6 +434,7 @@ public:
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
 
+    // Use the GP emulator to calculate derivative of  prediction on testing points
     void predict_deriv(mat_ref testing, mat_ref result)
     {
         int Nbatch = testing.rows();
@@ -437,10 +469,11 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
     }
 
+    // perform Cholesky factorization of the matrix currently stored in work_mat_d
     int calc_cholesky_factors(void)
     {
         // On entry: assumes that work_mat_d contains the inverse covariance matrix invQ_d
-        
+
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
@@ -485,6 +518,8 @@ public:
         cusolverStatus_t status;
 	int factorisation_status;
 
+	// for adaptive nugget start with a nugget of zero and increase by small amount
+	// until we find a value where factorization succeeds.
 	if (nugget == NUG_ADAPTIVE) {
 	    double mean_diag;
 	    const int max_tries = 5;
@@ -523,7 +558,7 @@ public:
 		smsg << "All attempts at factorization failed. Last return code " << factorisation_status;
 		throw std::runtime_error(smsg.str());
 	    }
-
+	// for fixed nugget, add "nugget_size" to the diagonal of the matrix.
 	} else if (nugget == NUG_FIXED) {
 	    add_diagonal(n, nugget_size, dev_ptr(work_mat_d));
 
@@ -675,6 +710,7 @@ public:
         thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
     }
 
+    // constructor
     DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_)
         : testing_size(testing_size_)
         , n(inputs_.rows())
