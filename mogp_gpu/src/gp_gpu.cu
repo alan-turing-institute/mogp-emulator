@@ -177,6 +177,7 @@ state of the emulator accordingly.
 
 ////////////////////////////////////////
         .def("get_logpost", &DenseGP_GPU::get_logpost,
+             "Returns the value of the log-posterior"
             )
 
 ////////////////////////////////////////
