@@ -64,7 +64,7 @@ PYBIND11_MODULE(libgpgpu, m) {
 
 ////////////////////////////////////////
         .def("predict", &DenseGP_GPU::predict,
-             R"(Single point predictive mean.  
+             R"(Single point predictive mean.
 
 :param testing: The input point
 
@@ -75,7 +75,7 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing)",
 
 ////////////////////////////////////////
         .def("predict_variance", &DenseGP_GPU::predict_variance,
-             R"(Single point combined predictive mean and variance.  
+             R"(Single point combined predictive mean and variance.
 
 :param testing: The input point to predict, with shape `(Nbatch, D)`
                 (`Nbatch` is determined from the shape of the input).
@@ -138,7 +138,7 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
              py::arg("result"))
 
 ////////////////////////////////////////
-             
+
         .def("fit", &DenseGP_GPU::fit,
              R"(Sets theta and the nugget parameters, and updates the internal
 state of the emulator accordingly.
@@ -153,7 +153,7 @@ state of the emulator accordingly.
              py::arg("nugget"),
              py::arg("nugget_size")
             )
-             
+
 
 ////////////////////////////////////////
         .def("get_invQ", &DenseGP_GPU::get_invQ,
@@ -177,7 +177,7 @@ state of the emulator accordingly.
 
 ////////////////////////////////////////
         .def("get_logpost", &DenseGP_GPU::get_logpost,
-             "Returns the value of the log-posterior"
+	     "Return the log posterior"
             )
 
 ////////////////////////////////////////
@@ -198,10 +198,10 @@ to the factor; the upper triangular entries contain junk values.
  )",
              py::arg("result"))
 
-        
+
 ////////////////////////////////////////
         .def("logpost_deriv", &DenseGP_GPU::logpost_deriv,
-             R"(Calculate the partial derivatives of the negative log-posterior 
+             R"(Calculate the partial derivatives of the negative log-posterior
 likelihood of the hyperparameters, from the current state of the emulator.)
 
 :param result: (Output) the resulting derivatives, shape ``(D+1,)``
