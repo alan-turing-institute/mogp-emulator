@@ -101,10 +101,12 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 cuda_config = get_cuda_config()
-numpy_include = np.get_include()
 # we only want to add the mogp_gpu extension if we have cuda compiler
 ext_modules = []
 if len(cuda_config) > 0:
+    import pybind11
+    pybind_include = pybind11.get_include()
+    numpy_include = np.get_include()
     ext = Extension("libgpgpu",
                     sources=["mogp_gpu/src/gp_gpu.cu",
                              "mogp_gpu/src/cov_gpu.cu",
@@ -117,7 +119,7 @@ if len(cuda_config) > 0:
                                              "-O3,-Wall,-shared,-std=c++14,-fPIC",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
-                    include_dirs=[numpy_include, cuda_config["include"],"mogp_gpu/src"])
+                    include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src"])
     ext_modules.append(ext)
 
 setuptools.setup(name='mogp_emulator',
