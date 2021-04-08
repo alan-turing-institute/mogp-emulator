@@ -5,6 +5,7 @@ from distutils.extension import Extension
 from distutils.command.build_ext import build_ext
 
 import numpy as np
+import pybind11
 
 # version information
 MAJOR = 0
@@ -101,6 +102,7 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 cuda_config = get_cuda_config()
+
 # we only want to add the mogp_gpu extension if we have cuda compiler
 ext_modules = []
 if len(cuda_config) > 0:
