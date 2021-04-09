@@ -5,7 +5,6 @@ from distutils.extension import Extension
 from distutils.command.build_ext import build_ext
 
 import numpy as np
-import pybind11
 
 # version information
 MAJOR = 0
