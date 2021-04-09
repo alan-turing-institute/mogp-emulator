@@ -1,6 +1,6 @@
 CXX=g++
 CXXFLAGS=-std=c++14 -O3
-NVCCFLAGS=--compiler-options -Wall,-Wextra --generate-code arch=compute_60,code=sm_60
+NVCCFLAGS=--compiler-options -Wall,-Wextra -arch=sm_60 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_37,code=sm_37
 CUDA_INC=/usr/local/cuda/include
 PYBIND_INC=$(shell python3 -m pybind11 --includes)
 

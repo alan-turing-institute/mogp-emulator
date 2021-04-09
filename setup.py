@@ -119,6 +119,8 @@ if len(cuda_config) > 0:
                     extra_compile_args={"gcc":["-std=c++14"],
                                     "nvcc": ["--compiler-options",
                                              "-O3,-Wall,-shared,-std=c++14,-fPIC",
+                                             "-arch=sm_60",
+                                             "--generate-code","arch=compute_37,code=sm_37",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
                     include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src"])
