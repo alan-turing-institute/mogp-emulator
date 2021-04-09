@@ -12,13 +12,6 @@ bool have_compatible_device(void)
 
     return (err == cudaSuccess && device_count > 0);
 
-    // TODO
-    // Check whether device_prop.major, device_prop.minor meet our requirements
-
-    // cudaDeviceProp device_prop;
-
-    // Use the default device (device 0) only, for now
-    // cudaGetDeviceProp(&device_prop, 0);
 }
 
 
