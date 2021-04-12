@@ -9,7 +9,7 @@ from functools import partial
 import platform
 
 def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
-               refit=False, **kwargs):
+               skip_failures=True, refit=False, **kwargs):
     """Fit one or more Gaussian Processes by attempting to minimize the
     negative log-posterior
 
@@ -37,13 +37,16 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
     additional noise added along the diagonal if adaptive noise was
     selected), the iteration is skipped. If all attempts to find
     optimal hyperparameters result in an error, then the emulator is
-    skipped and the parameters are reset to ``None``. A warning will
-    be printed to the console if this occurs for ``MultiOutputGP``
-    fitting, while an error will be raise for ``GaussianProcess``
-    fitting. This is because ``MultiOutputGP`` fitting is often done
-    in a situation where human review of all fit emulators is not
-    possible, so the fitting routine skips over failures and then
-    flags those that failed for further review.
+    skipped and the parameters are reset to ``None``. By default, a
+    warning will be printed to the console if this occurs for
+    ``MultiOutputGP`` fitting, while an error will be raise for
+    ``GaussianProcess`` fitting. This behavior can be changed to raise
+    an error for ``MultiOutputGP`` fitting by passing the kwarg
+    ``skip_failures=False``. This default behavior is chosen because
+    ``MultiOutputGP`` fitting is often done in a situation where human
+    review of all fit emulators is not possible, so the fitting
+    routine skips over failures and then flags those that failed for
+    further review.
 
     For ``MultiOutputGP`` fitting, by default the routine assumes that
     only GPs that currently do not have hyperparameters fit need to be
@@ -103,6 +106,18 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                    ``scipy.optimize.minimize``. (Default is
                    ``'L-BFGS-B'``)
     :type method: str
+    :param skip_failures: Boolean controlling how to handle failures
+                          in ``MultiOutputGP`` fitting. If set to
+                          ``True``, emulator fits will fail silently
+                          without raising an error and provide
+                          information on the emulators that failed
+                          and the end of fitting. If ``False``, any
+                          failed fit will raise a ``RuntimeError``.
+                          Has no effect on fitting a single
+                          ``GaussianProcess``, which will always
+                          raise an error. Optional, default is
+                          ``True``.
+    :type skip_failures: bool
     :param refit: Boolean indicating if previously fit emulators
                   for ``MultiOutputGP`` objects should be fit again.
                   Optional, default is ``False``. Has no effect on
@@ -153,7 +168,12 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
             raise RuntimeError("GP fitting failed")
     else:
         if len(gp.get_indices_not_fit()) > 0:
-            print("Fitting failed for emulators {}".format(gp.get_indices_not_fit()))
+            failure_string = "Fitting failed for emulators {}".format(
+                    gp.get_indices_not_fit())
+            if skip_failures:
+                print(failure_string)
+            else:
+                raise RuntimeError(failure_string)
 
     return gp
 

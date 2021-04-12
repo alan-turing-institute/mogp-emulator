@@ -137,13 +137,25 @@ def test_fit_GP_MAP_MOGP_failures():
     gp = fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
     assert gp.get_indices_not_fit() == [0, 1]
 
+    with pytest.raises(RuntimeError):
+        gp = fit_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3),
+                        skip_failures=False, refit=True)
+
     gp = MultiOutputGP(x, y, nugget=0.)
 
     gp = fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
 
+    with pytest.raises(RuntimeError):
+        gp = fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1,
+                        skip_failures=False, refit=True)
+
     gp = fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
+
+    with pytest.raises(RuntimeError):
+        gp = fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1,
+                        skip_failures=False, refit=True)
 
     # bad inputs
 
