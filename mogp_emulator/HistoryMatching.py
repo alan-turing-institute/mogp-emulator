@@ -304,7 +304,7 @@ class HistoryMatching(object):
 
         :param gp: ``GaussianProcess`` object to use for history matching.
         :type gp: GaussianProcess
-        :returns:` None
+        :returns: None
         """
         if not self.check_gp(gp):
             raise TypeError("bad input for set_gp - expects a GaussianProcess object.")
