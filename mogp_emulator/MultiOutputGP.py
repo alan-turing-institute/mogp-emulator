@@ -106,7 +106,7 @@ class MultiOutputGP(object):
 
 
     def predict(self, testing, unc=True, deriv=True, include_nugget=True,
-                allow_not_fit=True, processes=None):
+                allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
         Makes predictions for each of the emulators on a given set of
@@ -132,6 +132,14 @@ class MultiOutputGP(object):
         uncertainties should include the nugget. By default, this is
         set to ``True``.
 
+        The ``allow_not_fit`` flag determines how the object handles
+        any emulators that do not have fit hyperparameter values
+        (because fitting presumably failed). By default,
+        ``allow_not_fit=False`` and the method will raise an error
+        if any emulators are not fit. Passing ``allow_not_fit=True``
+        will override this and ``NaN`` will be returned from any
+        emulators that have not been fit.
+
         As with the fitting, this computation can be done
         independently for each emulator and thus can be done in
         parallel.
@@ -156,6 +164,12 @@ class MultiOutputGP(object):
                                 predictive variance. Only relevant if
                                 ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param allow_not_fit: (optional) Flag that allows predictions
+                              to be made even if not all emulators have
+                              been fit. Default is ``False`` which
+                              will raise an error if any unfitted
+                              emulators are present.
+        :type allow_not_fit: bool
         :param processes: (optional) Number of processes to use when
                           making the predictions.  Must be a positive
                           integer or ``None`` to use the number of
@@ -339,15 +353,54 @@ class MultiOutputGP(object):
 
 
 def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
-    """Wrapper function for the ``GaussianProcess`` predict method that
+    """Prediction method for GPs that defaults to NaN for unfit GPs
+
+    Wrapper function for the ``GaussianProcess`` predict method that
     returns NaN if the GP is not fit. Allows ``MultiOutputGP`` objects
     that do not have all emulators fit to still return predictions
-    with unfit emulator predictions replaced with NaN
+    with unfit emulator predictions replaced with NaN.
+
+    The first argument to this function is the GP that will be used
+    for prediction. All other arguments are the same as the
+    arguments for the ``predict`` method of ``GaussianProcess``.
+
+    :param gp: The ``GaussianProcess`` object (or related class) for
+               which predictions will be made.
+    :type gp: GaussianProcess
+    :param testing: Array-like object holding the points where
+                    predictions will be made.  Must have shape
+                    ``(n_predict, D)`` or ``(D,)`` (for a single
+                    prediction)
+    :type testing: ndarray
+    :param unc: (optional) Flag indicating if the uncertainties
+                are to be computed.  If ``False`` the method
+                returns ``None`` in place of the uncertainty
+                array. Default value is ``True``.
+    :type unc: bool
+    :param deriv: (optional) Flag indicating if the derivatives
+                  are to be computed.  If ``False`` the method
+                  returns ``None`` in place of the derivative
+                  array. Default value is ``True``.
+    :type deriv: bool
+    :param include_nugget: (optional) Flag indicating if the
+                           nugget should be included in the
+                           predictive variance. Only relevant if
+                           ``unc = True``.  Default is ``True``.
+    :type include_nugget: bool
+    :returns: Tuple of numpy arrays holding the predictions,
+              uncertainties, and derivatives,
+              respectively. Predictions and uncertainties have
+              shape ``(n_predict,)`` while the derivatives have
+              shape ``(n_predict, D)``. If the ``unc`` or
+              ``deriv`` flags are set to ``False``, then those
+              arrays are replaced by ``None``.
+    :rtype: tuple
     """
+    
+    assert isinstance(gp, GaussianProcessBase)
 
     try:
-        return gp.predict(testing, unc, deriv,
-                          include_nugget)
+        return gp.predict(testing, unc, deriv, include_nugget)
     except ValueError:
 
         n_predict = testing.shape[0]
