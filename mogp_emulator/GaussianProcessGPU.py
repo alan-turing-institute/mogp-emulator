@@ -4,11 +4,7 @@ extends GaussianProcess with an (optional) GPU implementation
 
 import os
 import numpy as np
-from mogp_emulator.MeanFunction import MeanFunction, MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
-from scipy import linalg
-from scipy.optimize import OptimizeResult
+from mogp_emulator.Kernel import SquaredExponential
 
 import mogp_emulator.LibGPGPU as LibGPGPU
 
