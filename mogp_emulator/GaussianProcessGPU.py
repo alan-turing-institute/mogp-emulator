@@ -15,7 +15,7 @@ import mogp_emulator.LibGPGPU as LibGPGPU
 from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
 
 
-class NotImplementedError(RuntimeError):
+class GPUUnavailableError(RuntimeError):
     """Exception type to use when a GPU, or the GPU library, is unavailable"""
     pass
 
@@ -250,7 +250,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         Returns current value of the inverse covariance matrix as a numpy array.
 
-        Does not include the nugget parameter, as this is dependent on how the 
+        Does not include the nugget parameter, as this is dependent on how the
         nugget is fit.
         """
         result = np.zeros((self.n, self.n))
@@ -328,7 +328,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                   ``(n_params, n_params)``)
         :rtype: ndarray
         """
-        raise NotImplementedError(
+        raise GPUUnavailableError(
             "The Hessian calculation is not currently implemented in the GPU version of MOGP."
         )
 
