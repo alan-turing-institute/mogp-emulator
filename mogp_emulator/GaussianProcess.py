@@ -6,7 +6,12 @@ from scipy import linalg
 from scipy.optimize import OptimizeResult
 from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_cho_solve
 
-class GaussianProcess(object):
+
+class GaussianProcessBase(object):
+    pass
+
+
+class GaussianProcess(GaussianProcessBase):
     """Implementation of a Gaussian Process Emulator.
 
     This class provides a representation of a Gaussian Process

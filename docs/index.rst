@@ -35,6 +35,7 @@ details, and some included benchmarks.
    demos/mice_demos
    demos/historymatch_demos
    demos/kdr_demos
+   demos/gp_demoGPU
    demos/gp_demoR
    demos/excalibur_workshop_demo
 

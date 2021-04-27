@@ -2,11 +2,13 @@ import numpy as np
 import scipy.stats
 from scipy.linalg import LinAlgError
 from scipy.optimize import minimize
-from mogp_emulator.GaussianProcess import GaussianProcess
-from mogp_emulator.MultiOutputGP import MultiOutputGP
 from multiprocessing import Pool
 from functools import partial
 import platform
+
+from mogp_emulator.GaussianProcess import GaussianProcessBase, GaussianProcess
+from mogp_emulator.MultiOutputGP import MultiOutputGP
+
 
 def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                skip_failures=True, refit=False, **kwargs):
@@ -140,9 +142,10 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
     if len(args) == 1:
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
-            gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
-        elif isinstance(gp, GaussianProcess):
+            gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
+        elif isinstance(gp, GaussianProcessBase):
             gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
+
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
     elif len(args) < 2:
@@ -163,7 +166,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
             except AssertionError:
                 raise ValueError("Bad values for *args in fit_GP_MAP")
 
-    if isinstance(gp, GaussianProcess):
+    if isinstance(gp, GaussianProcessBase):
         if gp.theta is None:
             raise RuntimeError("GP fitting failed")
     else:
@@ -177,7 +180,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
 
     return gp
 
-        
+
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """Fit hyperparameters using MAP for a single GP
 
@@ -187,7 +190,7 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
 
     """
 
-    assert isinstance(gp, GaussianProcess)
+    assert isinstance(gp, GaussianProcessBase)
 
     n_tries = int(n_tries)
     assert n_tries > 0, "number of attempts must be positive"
@@ -281,6 +284,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
 
     n_tries = int(n_tries)
 
+
     if refit:
         emulators_to_fit = gp.emulators
         indices_to_fit = list(range(len(gp.emulators)))
@@ -289,8 +293,9 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         indices_to_fit = gp.get_indices_not_fit()
         emulators_to_fit = gp.get_emulators_not_fit()
         thetavals = [ theta0[idx] for idx in indices_to_fit]
-    
-    if platform.system() == "Windows":
+
+    if platform.system() == "Windows" or gp.use_gpu:
+
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
                     for (emulator, t0) in zip(emulators_to_fit, thetavals)]
     else:
