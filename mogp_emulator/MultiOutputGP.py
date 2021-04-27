@@ -1,11 +1,16 @@
 from multiprocessing import Pool
 import platform
 import numpy as np
-from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
+from mogp_emulator.GaussianProcess import (
+    GaussianProcessBase,
+    GaussianProcess,
+    PredictResult
+)
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
+
 
 
 class MultiOutputGP(object):
@@ -396,7 +401,7 @@ def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
               arrays are replaced by ``None``.
     :rtype: tuple
     """
-    
+
     assert isinstance(gp, GaussianProcessBase)
 
     try:
