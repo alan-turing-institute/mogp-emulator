@@ -114,7 +114,7 @@ def test_MultiOutputGP_predict(x, y, dx):
         assert_allclose(var[i], var_expect)
 
     # test behavior if not all emulators are fit
-    
+
     gp.emulators[1].theta = None
 
     mu, var, deriv = gp.predict(x_test, allow_not_fit=True)
@@ -200,12 +200,12 @@ def test_MultiOutputGP_GPU_predict(x, y, dx):
 
     gp.emulators[1].theta = None
 
-    mu, var, deriv = gp.predict(x_test)
+    mu, var, deriv = gp.predict(x_test, allow_not_fit=True)
     assert np.all(np.isnan(mu[1]))
     assert np.all(np.isnan(var[1]))
     assert np.all(np.isnan(deriv[1]))
 
-    mu, var, deriv = gp.predict(x_test, unc=False, deriv=False)
+    mu, var, deriv = gp.predict(x_test, unc=False, deriv=False, allow_not_fit=True)
     assert np.all(np.isnan(mu[1]))
     assert var is None
     assert deriv is None
