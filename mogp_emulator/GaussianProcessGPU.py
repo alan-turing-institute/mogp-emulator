@@ -264,9 +264,8 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
         self._densegp_gpu.fit(theta, self._nugget_type, nugget_size)
-        if self.nugget_type == "adaptive":
+        if self.nugget_type == "adaptive" or self.nugget_type == "fit":
             self._nugget = self._densegp_gpu.get_jitter()
-
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         self.invQt = invQt_result

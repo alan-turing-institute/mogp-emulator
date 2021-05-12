@@ -567,12 +567,16 @@ public:
                 throw std::runtime_error("Unable to factorize matrix using fixed nugget");
 	    }
 
-	} else { //nugget == "fit"
+	} else if (nugget == NUG_FIT) {
+	    // set to exp(last-element-of-theta)
+	    jitter = exp( theta(theta.size()-1) );
+
+	    add_diagonal(n, jitter, dev_ptr(work_mat_d));
 	    factorisation_status = calc_cholesky_factors();
 	    if (factorisation_status != 0) {
                 throw std::runtime_error("Unable to factorize matrix using fitted nugget");
 	    }
-	}
+	} else throw std::runtime_error("Unrecognized nugget_type");
 
         identity_device(n, dev_ptr(invQ_d));
 
