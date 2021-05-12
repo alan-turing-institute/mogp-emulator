@@ -147,6 +147,15 @@ state of the emulator accordingly.
              py::arg("nugget_size")
             )
 
+////////////////////////////////////////
+        .def("get_K", &DenseGP_GPU::get_K,
+             R"(The current covariance matrix
+
+:param K_h: (Output) The matrix, of shape ``(n, n)``.
+
+:returns: None
+)",
+             py::arg("K_h"))
 
 ////////////////////////////////////////
         .def("get_invQ", &DenseGP_GPU::get_invQ,

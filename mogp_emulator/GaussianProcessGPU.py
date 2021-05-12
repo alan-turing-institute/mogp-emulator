@@ -250,8 +250,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         nugget is fit.
         """
         result = np.zeros((self.n, self.n))
-        self._densegp_gpu.get_invQ(result)
-        return np.linalg.inv(result)
+        self._densegp_gpu.get_K(result)
+        return result
 
     def fit(self, theta):
         """

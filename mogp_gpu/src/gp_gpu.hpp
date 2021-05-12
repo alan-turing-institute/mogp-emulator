@@ -194,6 +194,9 @@ class DenseGP_GPU {
     // handle for cuSOLVER calls
     cusolverDnHandle_t cusolverHandle;
 
+    // covariance matrix on device
+    thrust::device_vector<REAL> K_d;
+
     // inverse covariance matrix on device
     thrust::device_vector<REAL> invQ_d;
 
@@ -502,16 +505,17 @@ public:
         thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
     }
 
-    // Update the hyperparameters, and invQ and invQt which depend on them
+    // Update the hyperparameters, and K, invQ and invQt which depend on them
     void fit(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
     {
         thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
-        cov_batch_gpu(dev_ptr(invQ_d), n, n, D, dev_ptr(inputs_d),
+	// calculate covariance matrix, put result into K_d
+        cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
                       dev_ptr(inputs_d), dev_ptr(theta_d));
 
-	/// copy the covariance matrix invQ_d into work_mat_d
-	thrust::copy(invQ_d.begin(), invQ_d.end(), work_mat_d.begin());
+	/// copy the covariance matrix K_d into work_mat_d
+	thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
 
         thrust::device_vector<int> info_d(1);
         int info_h;
@@ -525,9 +529,9 @@ public:
 	    const int max_tries = 5;
 	    int itry = 0;
 	    while (itry < max_tries) {
-		// invQ_d holds the covariance matrix - work with a copy
+		// K_d holds the covariance matrix - work with a copy
 		// in work_mat_d, in case the factorization fails
-		thrust::copy(invQ_d.begin(), invQ_d.end(), work_mat_d.begin());
+		thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
 
 		// if the first attempt at factorization failed, add a
 		// small term to the diagonal, increasing each iteration
@@ -536,7 +540,7 @@ public:
 		    if (itry == 1) {
 			// find mean of (absolute) diagonal elements (diagonal
 			// elements should all be positive)
-			cublasDasum(cublasHandle, n, dev_ptr(invQ_d), n+1, &mean_diag);
+			cublasDasum(cublasHandle, n, dev_ptr(K_d), n+1, &mean_diag);
 			mean_diag /= n;
 			jitter = 1e-6 * mean_diag;
 		    }
@@ -578,9 +582,12 @@ public:
 	    }
 	} else throw std::runtime_error("Unrecognized nugget_type");
 
+        // get the inverse covariance matrix invQ by solving the system of linear eqns
+	//    work_mat_d . invQ_d = I
+	// where work_mat_d is holding the current covariance matrix.
+
         identity_device(n, dev_ptr(invQ_d));
 
-        // invQ
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, n,
                                   dev_ptr(work_mat_d), n, dev_ptr(invQ_d), n,
                                   dev_ptr(info_d));
@@ -589,7 +596,7 @@ public:
         check_cusolver_status(status, info_h);
 
 
-        // invQt
+        // invQt - product of inverse covariance matrix with the target values
         thrust::copy(targets_d.begin(), targets_d.end(), invQt_d.begin());
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, 1,
                                   dev_ptr(work_mat_d), n, dev_ptr(invQt_d), n,
@@ -620,6 +627,11 @@ public:
     void reset_theta_fit_status(void)
     {
         theta_fitted = false;
+    }
+
+    void get_K(mat_ref K_h)
+    {
+        thrust::copy(K_d.begin(), K_d.end(), K_h.data());
     }
 
     void get_invQ(mat_ref invQ_h)
@@ -719,6 +731,7 @@ public:
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
+        , K_d(n * n, 0.0)
         , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
         , theta_d(D + 2)
