@@ -149,6 +149,15 @@ void sum_log_diag(int N, double *A, double *result, double *work, size_t work_si
 
     cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
 }
+
+// Implementation of trace using cub::DeviceReduce
+
+void trace(int N, double *A, double *result, double *work, size_t work_size)
+{
+    auto sr = make_strided_range(A, A + N*N, N+1);
+    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
+}
+
 // ----------------------------------------
 #endif // USE_SHUFFLE_SUM_IMPL
 
@@ -184,6 +193,9 @@ class DenseGP_GPU {
 
     // targets
     vec targets;
+
+    // is the nugget adapted, fixed, or fitted?
+    nugget_type nug_type;
 
     // flag for whether we have fit hyperparameters
     bool theta_fitted;
@@ -508,6 +520,8 @@ public:
     // Update the hyperparameters, and K, invQ and invQt which depend on them
     void fit(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
     {
+
+        nug_type = nugget;
         thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
 	// calculate covariance matrix, put result into K_d
@@ -524,7 +538,7 @@ public:
 
 	// for adaptive nugget start with a nugget of zero and increase by small amount
 	// until we find a value where factorization succeeds.
-	if (nugget == NUG_ADAPTIVE) {
+	if (nug_type == NUG_ADAPTIVE) {
 	    double mean_diag;
 	    const int max_tries = 5;
 	    int itry = 0;
@@ -563,7 +577,7 @@ public:
 		throw std::runtime_error(smsg.str());
 	    }
 	// for fixed nugget, add "nugget_size" to the diagonal of the matrix.
-	} else if (nugget == NUG_FIXED) {
+	} else if (nug_type == NUG_FIXED) {
 	    add_diagonal(n, nugget_size, dev_ptr(work_mat_d));
 
 	    factorisation_status = calc_cholesky_factors();
@@ -571,7 +585,7 @@ public:
                 throw std::runtime_error("Unable to factorize matrix using fixed nugget");
 	    }
 
-	} else if (nugget == NUG_FIT) {
+	} else if (nug_type == NUG_FIT) {
 	    // set to exp(last-element-of-theta)
 	    jitter = exp( theta(theta.size()-1) );
 
@@ -581,6 +595,7 @@ public:
                 throw std::runtime_error("Unable to factorize matrix using fitted nugget");
 	    }
 	} else throw std::runtime_error("Unrecognized nugget_type");
+
 
         // get the inverse covariance matrix invQ by solving the system of linear eqns
 	//    work_mat_d . invQ_d = I
@@ -605,7 +620,7 @@ public:
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
 
-        // logdetC
+        // logdetC - sum the log of the diagonal elements of the Cholesky factor of covariance matrix (in work_mat_d)
         thrust::device_vector<double> logdetC_d(1);
 
         sum_log_diag(n, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
@@ -724,6 +739,24 @@ public:
                     dev_ptr(result_d), 1); // y, incy
 
         thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
+
+	// fitted nugget - last element of theta is log(nugget)
+	// partial deriv is 0.5*nugget*(trace(invQ) - invQt.invQt)
+	if (nug_type == NUG_FIT) {
+
+	  // trace of invQ
+	  REAL tr_invQ = 0.;
+	  thrust::device_vector<double> tr_invQ_d(1);
+	  trace(n, dev_ptr(invQ_d), dev_ptr(tr_invQ_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
+	  thrust::copy(tr_invQ_d.begin(), tr_invQ_d.end(), &tr_invQ);
+	  // invQt dot invQt
+	  REAL invQtSq = std::numeric_limits<double>::quiet_NaN();
+	  CUBLASDOT(cublasHandle, n, dev_ptr(invQt_d), 1, dev_ptr(invQt_d), 1,
+		    &invQtSq);
+
+	  // set the last element of result, putting it all together
+	  result(result.size()-1) = 0.5 * jitter * (tr_invQ - invQtSq);
+	}
     }
 
     // constructor
@@ -737,6 +770,7 @@ public:
         , theta_d(D + 2)
         , inputs(inputs_)
         , targets(targets_)
+	, nug_type(NUG_ADAPTIVE)
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)

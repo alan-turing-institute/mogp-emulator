@@ -47,9 +47,30 @@ void test_device_vector_copy()
     std::cout << "\n";
 }
 
+void test_cov()
+{
+  const size_t N=3;
+  const size_t Ninput=1;
+  const size_t Ntheta=Ninput+1;
+  std::vector<REAL> x{1.0, 2.0, 3.0};
+  std::vector<REAL> result(N*N);
+
+  thrust::device_vector<REAL> result_d(N*N, 0.0);
+  thrust::device_vector<REAL> x_d(x);
+  thrust::device_vector<REAL> theta_d(Ntheta, -1.0);
+  /// calculate the covariance matrix between the inputs x
+  cov_batch_gpu(dev_ptr(result_d), N, N, Ninput, dev_ptr(x_d),
+                dev_ptr(x_d), dev_ptr(theta_d));
+
+  thrust::copy(result_d.begin(), result_d.end(), result.begin());
+  std::cout<<"Covariance matrix: "<<std::endl;
+  for (size_t i=0; i<result.size(); i++)
+    std::cout << result[i] << " ";
+  std::cout << "\n";
+}
+
 void test_cov_deriv()
 {
-    const size_t N=2;
     const size_t Ninput=3;
     const size_t Ntheta=Ninput+1;
 
@@ -98,11 +119,73 @@ void test_deriv_x() {
 }
 
 
+void test_sum_log_diag()
+{
+
+  size_t n=3;
+  std::vector<REAL> x{1.0, 2.0, 3.0, 4., 5., 6., 7., 8., 9.};
+  thrust::device_vector<REAL> x_d(x);
+  // determine the size of the buffer for cub::device reduce
+
+
+  // buffer for cub::DeviceReduce::Sum
+  thrust::device_vector<REAL> sum_buffer_d;
+
+    // size of sum_buffer_d
+  size_t sum_buffer_size_bytes;
+  // The following call determines the size of the cub::DeviceReduce::Sum workspace:
+  // sum_buffer_size_bytes is 0 before this call, and the size of sum_buffer_d afterwards.
+  // The end iterators are supplied but are not used.
+  cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
+			 sum_buffer_d.end(), sum_buffer_d.end(), n);
+  sum_buffer_d.resize(sum_buffer_size_bytes);
+
+  double result;
+  thrust::device_vector<double> result_d(1);
+  // call sum_log_diag
+  sum_log_diag(n, dev_ptr(x_d), dev_ptr(result_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
+  thrust::copy(result_d.begin(), result_d.end(), &result);
+
+  std::cout<<"Result of sum_log_diag is "<<result<<std::endl;
+}
+
+void test_trace()
+{
+
+  size_t n=3;
+  std::vector<REAL> x{1.0, 2.0, 3.0, 4., 5., 6., 7., 8., 9.};
+  thrust::device_vector<REAL> x_d(x);
+  // determine the size of the buffer for cub::device reduce
+
+  // buffer for cub::DeviceReduce::Sum
+  thrust::device_vector<REAL> sum_buffer_d;
+
+    // size of sum_buffer_d
+  size_t sum_buffer_size_bytes;
+  // The following call determines the size of the cub::DeviceReduce::Sum workspace:
+  // sum_buffer_size_bytes is 0 before this call, and the size of sum_buffer_d afterwards.
+  // The end iterators are supplied but are not used.
+  cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
+			 sum_buffer_d.end(), sum_buffer_d.end(), n);
+  sum_buffer_d.resize(sum_buffer_size_bytes);
+
+  double result;
+  thrust::device_vector<double> result_d(1);
+  // call trace
+  trace(n, dev_ptr(x_d), dev_ptr(result_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
+  thrust::copy(result_d.begin(), result_d.end(), &result);
+
+  std::cout<<"Result of trace is "<<result<<std::endl;
+}
+
+
 int main(void)
 {
     test_device_vector_copy();
+    test_cov();
     test_cov_deriv();
     test_deriv_x();
-
+    test_sum_log_diag();
+    test_trace();
     return 0;
 }
