@@ -17,7 +17,7 @@ bool have_compatible_device(void)
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
-        .def(py::init<mat_ref, vec_ref, unsigned int>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, kernel_type>())
 
 ////////////////////////////////////////
         .def("n", &DenseGP_GPU::get_n,
@@ -212,7 +212,9 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 )",
              py::arg("result"));
 
-
+    py::enum_<kernel_type>(m, "kernel_type")
+        .value("SquaredExponential", SQUARED_EXPONENTIAL)
+        .value("Matern52", MATERN52);
 
     py::enum_<nugget_type>(m, "nugget_type")
         .value("adaptive", NUG_ADAPTIVE)

@@ -1,3 +1,4 @@
+// Create an NxN Identity matrix A on the device
 __global__ void identity_kernel(int N, double *A)
 {
     int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -13,6 +14,7 @@ void identity_device(int N, double *A)
     identity_kernel<<<blocks, threads_per_block>>>(N, A);
 }
 
+// Add b to the diagonal of NxN matrix A
 __global__ void add_diagonal_kernel(int N, double b, double *A)
 {
     int i = blockDim.x*blockIdx.x + threadIdx.x;

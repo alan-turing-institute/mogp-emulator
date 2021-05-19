@@ -80,16 +80,19 @@ class GaussianProcessGPU(GaussianProcessBase):
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
-        if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            else:
-                raise ValueError("GPU implementation requires kernel to be SquaredExponential")
-        elif kernel and not isinstance(kernel, SquaredExponential):
-                raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
-        self.kernel = kernel
         self.nugget = nugget
 
+        # set the kernel
+        if (isinstance(kernel, str) and kernel == "SquaredExponential") \
+           or isinstance(kernel, SquaredExponential):
+            self.kernel = LibGPGPU.kernel_type.SquaredExponential
+        elif (isinstance(kernel, str) and kernel == "Matern52") \
+           or isinstance(kernel, Matern52):
+            self.kernel = LibGPGPU.kernel_type.Matern52
+        else:
+            raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
+
+        # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
         self._init_gpu()
 
@@ -99,7 +102,10 @@ class GaussianProcessGPU(GaussianProcessBase):
         Instantiate the DenseGP_GPU C++/CUDA class, if it doesn't already exist.
         """
         if not self._densegp_gpu:
-            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
+            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
+                                                     self._targets,
+                                                     self._max_batch_size,
+                                                     self.kernel)
 
 
     @property

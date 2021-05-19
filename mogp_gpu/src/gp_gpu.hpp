@@ -36,7 +36,8 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include <Eigen/Dense>
 
 #include "strided_range.hpp"
-#include "cov_gpu.hpp"
+#include "kernel.hpp"
+//#include "cov_gpu.hpp"
 #include "util.hpp"
 
 #define WARP_SIZE 32
@@ -174,6 +175,8 @@ typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, 1> > vec_ref;
 // enum to allow the python code to select the type of "nugget"
 enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 
+// enum to allow python code to select Kernel function
+enum kernel_type {SQUARED_EXPONENTIAL, MATERN52};
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -193,6 +196,12 @@ class DenseGP_GPU {
 
     // targets
     vec targets;
+
+    // what Kernel are we using?
+    kernel_type kern_type;
+
+    // pointer to the Kernel
+    BaseKernel* kernel;
 
     // is the nugget adapted, fixed, or fitted?
     nugget_type nug_type;
@@ -291,8 +300,8 @@ public:
         // of testing) is assumed to be D
 
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
-                    dev_ptr(theta_d));
+        kernel->cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
+			    dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
         CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
@@ -311,7 +320,7 @@ public:
 
         // value prediction
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
+        kernel->cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
@@ -320,7 +329,7 @@ public:
 
         // variance prediction
         thrust::device_vector<REAL> kappa_d(1);
-        cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(testing_d), dev_ptr(testing_d),
+        kernel->cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(testing_d), dev_ptr(testing_d),
                     dev_ptr(theta_d));
 
         double zero(0.0);
@@ -368,8 +377,8 @@ public:
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch);
 
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
-                      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
+			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
@@ -404,7 +413,7 @@ public:
         thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
+        kernel->cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
                       dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
@@ -413,8 +422,8 @@ public:
                         dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
-        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
-                     dev_ptr(testing_d), dev_ptr(theta_d));
+        kernel->cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
+			     dev_ptr(testing_d), dev_ptr(theta_d));
 
         cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T,
                     n,
@@ -469,8 +478,8 @@ public:
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch*D);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
-			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
+				      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
@@ -525,8 +534,8 @@ public:
         thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
 	// calculate covariance matrix, put result into K_d
-        cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
-                      dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
+			      dev_ptr(inputs_d), dev_ptr(theta_d));
 
 	/// copy the covariance matrix K_d into work_mat_d
 	thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
@@ -685,10 +694,10 @@ public:
         // The length of work_mat_d is n * testing_size
         // The derivative above has  n * n * Ntheta components
         // The following assumes that testing_size > Ntheta * n
-        cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
-				  D, n, n,
-				  dev_ptr(inputs_d), dev_ptr(inputs_d),
-				  dev_ptr(theta_d));
+        kernel->cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
+					  D, n, n,
+					  dev_ptr(inputs_d), dev_ptr(inputs_d),
+					  dev_ptr(theta_d));
 
         // Compute
         //   \deriv{logpost}{theta_i}
@@ -760,7 +769,7 @@ public:
     }
 
     // constructor
-    DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_)
+  DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_, kernel_type kern=SQUARED_EXPONENTIAL)
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
@@ -770,6 +779,8 @@ public:
         , theta_d(D + 2)
         , inputs(inputs_)
         , targets(targets_)
+	, kern_type(kern)
+        , kernel(0)
 	, nug_type(NUG_ADAPTIVE)
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
@@ -809,6 +820,14 @@ public:
         cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
                                sum_buffer_d.end(), sum_buffer_d.end(), n);
         sum_buffer_d.resize(sum_buffer_size_bytes);
+
+	if (kern_type == SQUARED_EXPONENTIAL) {
+	  kernel = new SquaredExponentialKernel();
+	  std::cout<<"SQUARED EXPONENTIAL kernel"<<std::endl;
+	}
+	else if (kern_type == MATERN52) std::cout<<"MATERN52 kernel"<<std::endl;
+	else std::cout<<"unknown kernel_type"<<std::endl;
+
     }
 };
 
