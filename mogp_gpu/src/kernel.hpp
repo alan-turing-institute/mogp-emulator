@@ -76,8 +76,8 @@ public:
 
 };
 
-/*
-class Matern52Kernel : public Kernel {
+
+class Matern52Kernel : public BaseKernel {
 public:
 
   // Squared exponential covariance function
@@ -110,5 +110,5 @@ public:
 			     const REAL *theta_d);
 
 };
-*/
+
 #endif
