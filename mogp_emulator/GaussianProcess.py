@@ -626,7 +626,7 @@ class GaussianProcess(GaussianProcessBase):
         this function is normally used only when fitting the
         hyperparameters, and it is not needed to make predictions.
 
-        During normal use, the ``loglike_deriv`` method is called
+        During normal use, the ``logpost_deriv`` method is called
         after evaluating the ``logposterior`` method. The
         implementation takes advantage of this by reusing cached
         results, as the factorized covariance matrix is expensive to
