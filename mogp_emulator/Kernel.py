@@ -30,7 +30,7 @@ class Kernel(object):
     Note that the Kernel object just collates all of the methods together; the class itself
     does not hold any information on the data point or hyperparamters, which are passed
     directly to the appropriate methods. Thus, no information needs to be provided when
-    creating a new ``Kernal`` instance.
+    creating a new ``Kernel`` instance.
     """
     def __str__(self):
         r"""
@@ -116,10 +116,12 @@ class Kernel(object):
         Calculate distance between all pairs of points
 
         This method computes the scaled Euclidean distance between all pairs of points
-        in ``x1`` and ``x2``. Each component distance is multiplied by the corresponding
-        hyperparameter prior to summing and taking the square root. For example, if
+        in ``x1`` and ``x2``. Each component distance is multiplied by the exponential of
+        the corresponding hyperparameter, prior to summing and taking the square root.
+        For example, if
         ``x1 = [1.]``, ``x2`` = [2.], and ``params = [2., 2.]`` then ``calc_r`` would
-        return :math:`{\sqrt{2(1 - 2)^2}=\sqrt{2}}` as an array with shape ``(1,1)``.
+        return :math:`{\sqrt{exp(2)*(1 - 2)^2}=\sqrt{exp(2)}}`
+        as an array with shape ``(1,1)``.
 
         :param x1: First input array. Must be a 1-D or 2-D array, with the length of
                    the last dimension matching the last dimension of ``x2`` and
@@ -723,5 +725,3 @@ class Matern52(Kernel):
         :rtype: str
         """
         return "Matern 5/2 Kernel"
-
-
