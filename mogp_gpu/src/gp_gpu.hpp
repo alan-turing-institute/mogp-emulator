@@ -536,7 +536,6 @@ public:
 	// calculate covariance matrix, put result into K_d
         kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
 			      dev_ptr(inputs_d), dev_ptr(theta_d));
-
 	/// copy the covariance matrix K_d into work_mat_d
 	thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
 
@@ -796,6 +795,7 @@ public:
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {
+
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
@@ -823,10 +823,9 @@ public:
 
 	if (kern_type == SQUARED_EXPONENTIAL) {
 	  kernel = new SquaredExponentialKernel();
-	  std::cout<<"SQUARED EXPONENTIAL kernel"<<std::endl;
-	}
-	else if (kern_type == MATERN52) std::cout<<"MATERN52 kernel"<<std::endl;
-	else std::cout<<"unknown kernel_type"<<std::endl;
+	} else if (kern_type == MATERN52) {
+	  kernel = new Matern52Kernel();
+	} else throw std::runtime_error("Unrecognized kernel type\n");
 
     }
 };
