@@ -59,10 +59,10 @@ void test_cov_deriv(kernel_type kernel)
     if (kernel == SQUARED_EXPONENTIAL)
       kern = new SquaredExponentialKernel();
     else if (kernel == MATERN52)
-      kern = new SquaredExponentialKernel();
+      kern = new Matern52Kernel();
     const size_t Ninput=3;
     const size_t Ntheta=Ninput+1;
-
+    /// Test data - single points, 3 dimensions.
     std::vector<REAL> x{1.0, 2.0, 3.0};
     std::vector<REAL> y{4.0, 5.0, 6.0};
 
@@ -74,6 +74,7 @@ void test_cov_deriv(kernel_type kernel)
     thrust::device_vector<REAL> theta_d(Ntheta, -1.0);
 
     // x, y
+
     kern->cov_deriv_theta_batch_gpu(dev_ptr(result_d), Ninput, 1, 1, dev_ptr(x_d), dev_ptr(y_d), dev_ptr(theta_d));
     thrust::copy(result_d.begin(), result_d.end(), result.begin());
 

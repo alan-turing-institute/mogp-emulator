@@ -226,6 +226,16 @@ __global__ void mat_cov_val_kernel(REAL *result_d, int Ninput, REAL *x_d,
     *result_d = mat_cov_val_d(Ninput, x_d, y_d, theta_d);
 }
 
+////////////////////
+__global__ void mat_cov_diag_kernel(REAL *result_d, int N, int Ninput, REAL *xnew_d,
+                                REAL *xs, REAL *theta_d)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N) {
+        result_d[i] = mat_cov_val_d(Ninput, xnew_d + Ninput * i, xs + Ninput * i,
+				    theta_d);
+    }
+}
 
 ////////////////////
 __global__ void mat_cov_all_kernel(REAL *result_d, int N, int Ninput, REAL *xnew_d,
@@ -269,7 +279,7 @@ __device__ void mat_cov_deriv_x(REAL *result_d, int Ninput,
     REAL r = sqrt(s);
     if (r > 0.) {
       REAL dkdr = -5./3.*r*(1+sqrt(5.)*r)*exp(-1.*sqrt(5.)*r);
-      dkdr *= exp(theta_d[Ninput-1]);
+      dkdr *= exp(theta_d[Ninput]);
       for (unsigned int i=0; i < Ninput; i++)
 	{
 	  result_d[i] = dkdr * result_d[i] / r;
@@ -291,6 +301,51 @@ __global__ void mat_cov_deriv_x_batch_kernel(
     }
 }
 
+////////////////////
+__device__ void mat_cov_deriv_theta(REAL *result_d, int result_stride, int Ninput,
+                          const REAL *x_d, const REAL *y_d,
+                          const REAL *theta_d)
+{
+
+    //dK/dtheta = exp(thetaN) * dK/dr * dr/dtheta
+    REAL exp_thetaN = exp(theta_d[Ninput]);
+    REAL s = 0.0;
+    for (unsigned int i=0; i < Ninput; i++)
+    {
+        REAL d_i = x_d[i] - y_d[i];
+        REAL a = d_i * d_i * exp(theta_d[i]);
+	result_d[i * result_stride] = 0.5 * a;
+        s += a;
+    }
+    REAL r = sqrt(s);
+    REAL dkdr = 0.;
+    if (r > 0.) {
+      dkdr = -5./3.*r*(1+sqrt(5.)*r)*exp(-1.*sqrt(5.)*r);
+      dkdr *= exp_thetaN;
+    }
+
+    for (unsigned int i=0; i < Ninput; i++)
+    {
+      if (r > 0.) result_d[i * result_stride] = dkdr * result_d[i * result_stride] / r;
+    }
+    result_d[Ninput * result_stride] = (1 + r*sqrt(5.) + (5./3.)*s) *  exp(theta_d[Ninput] - sqrt(5.)*r);
+}
+
+__global__ void mat_cov_deriv_theta_batch_kernel(
+    REAL *result_d, int Ninput, int Nx, int Ny, const REAL *xs_d,
+    const REAL *ys_d, const REAL *theta_d)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    const int result_stride = Nx * Ny;
+    if (i < Nx && j < Ny)
+    {
+        mat_cov_deriv_theta(result_d + Ny * i + j,
+			      result_stride,
+			      Ninput, xs_d + Ninput * j, ys_d + Ninput * i,
+			      theta_d);
+    }
+}
 
 /// implementation of Matern52 kernel
 
@@ -313,7 +368,7 @@ void Matern52Kernel::cov_diag_gpu(REAL *result_d, int N, int Ninput, REAL *xnew_
                   REAL *theta_d)
 {
     const int threads_per_block = 256;
-    sqexp_cov_diag_kernel<<<10, threads_per_block>>>(
+    mat_cov_diag_kernel<<<10, threads_per_block>>>(
         result_d, N, Ninput, xnew_d, xs_d, theta_d);
 }
 
@@ -348,6 +403,6 @@ void Matern52Kernel::cov_deriv_theta_batch_gpu(
     const int Bx = 16, By = 16;
     dim3 threads_per_block(Bx, By);
     dim3 blocks((Nx + Bx - 1)/Bx, (Ny + By - 1)/By);
-    sqexp_cov_deriv_theta_batch_kernel<<<blocks, threads_per_block>>>(
+    mat_cov_deriv_theta_batch_kernel<<<blocks, threads_per_block>>>(
         result_d, Ninput, Nx, Ny, xs_d, ys_d, theta_d);
 }
