@@ -8,6 +8,7 @@ mogp_emulator Implementation Details
    :caption: Class and Function Implementation Details:
 
    GaussianProcess
+   GaussianProcessGPU
    MultiOutputGP
    fitting
    MeanFunction

@@ -1,10 +1,17 @@
 from multiprocessing import Pool
 import platform
 import numpy as np
-from mogp_emulator.GaussianProcess import GaussianProcess, PredictResult
+from mogp_emulator.GaussianProcess import (
+    GaussianProcessBase,
+    GaussianProcess,
+    PredictResult
+)
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
+
+
 
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
@@ -32,10 +39,17 @@ class MultiOutputGP(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True):
+                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
         """
         Create a new multi-output GP Emulator
         """
+
+        # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
+        self.use_gpu = use_gpu
+        if self.use_gpu:
+            self.GPClass = GaussianProcessGPU
+        else:
+            self.GPClass = GaussianProcess
 
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
@@ -92,7 +106,7 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n, inputdict, use_patsy)
+        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
@@ -196,9 +210,9 @@ class MultiOutputGP(object):
         if allow_not_fit:
             predict_method = _gp_predict_default_NaN
         else:
-            predict_method = GaussianProcess.predict
-            
-        if platform.system() == "Windows":
+            predict_method = self.GPClass.predict
+
+        if platform.system() == "Windows" or self.use_gpu:
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
                             for gp in self.emulators]
         else:
@@ -228,7 +242,7 @@ class MultiOutputGP(object):
 
         return self.predict(testing, unc=False, deriv=False, processes=processes)[0]
 
-    
+
     def get_indices_fit(self):
         """Returns the indices of the emulators that have been fit
 
@@ -253,7 +267,7 @@ class MultiOutputGP(object):
         return [idx for (failed_fit, idx)
                 in zip([em.theta is None for em in self.emulators],
                        list(range(len(self.emulators)))) if not failed_fit]
-    
+
     def get_indices_not_fit(self):
         """Returns the indices of the emulators that have not been fit
 
@@ -328,7 +342,7 @@ class MultiOutputGP(object):
                 in zip([em.theta is None for em in self.emulators],
                        self.emulators) if failed_fit]
 
-        
+
     def __str__(self):
         """Returns a string representation of the model
 
@@ -387,15 +401,15 @@ def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
               arrays are replaced by ``None``.
     :rtype: tuple
     """
-    
-    assert isinstance(gp, GaussianProcess)
+
+    assert isinstance(gp, GaussianProcessBase)
 
     try:
         return gp.predict(testing, unc, deriv, include_nugget)
     except ValueError:
-        
+
         n_predict = testing.shape[0]
-        
+
         if unc:
             unc_array = np.array([np.nan]*n_predict)
         else:
