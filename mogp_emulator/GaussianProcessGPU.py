@@ -4,7 +4,7 @@ extends GaussianProcess with an (optional) GPU implementation
 
 import os
 import numpy as np
-from mogp_emulator.Kernel import SquaredExponential
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 
 import mogp_emulator.LibGPGPU as LibGPGPU
 
@@ -85,10 +85,12 @@ class GaussianProcessGPU(GaussianProcessBase):
         # set the kernel
         if (isinstance(kernel, str) and kernel == "SquaredExponential") \
            or isinstance(kernel, SquaredExponential):
-            self.kernel = LibGPGPU.kernel_type.SquaredExponential
+            self.kernel_type = LibGPGPU.kernel_type.SquaredExponential
+            self.kernel = LibGPGPU.SquaredExponential()
         elif (isinstance(kernel, str) and kernel == "Matern52") \
            or isinstance(kernel, Matern52):
-            self.kernel = LibGPGPU.kernel_type.Matern52
+            self.kernel_type = LibGPGPU.kernel_type.Matern52
+            self.kernel = LibGPGPU.Matern52()
         else:
             raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
 
@@ -105,7 +107,7 @@ class GaussianProcessGPU(GaussianProcessBase):
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
                                                      self._targets,
                                                      self._max_batch_size,
-                                                     self.kernel)
+                                                     self.kernel_type)
 
 
     @property

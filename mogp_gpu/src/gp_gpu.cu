@@ -5,15 +5,6 @@
 
 namespace py = pybind11;
 
-bool have_compatible_device(void)
-{
-    int device_count = 0;
-    cudaError_t err = cudaGetDeviceCount(&device_count);
-
-    return (err == cudaSuccess && device_count > 0);
-
-}
-
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
@@ -211,6 +202,17 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 :returns: `None`
 )",
              py::arg("result"));
+
+    py::class_<SquaredExponentialKernel>(m, "SquaredExponential")
+      .def(py::init<>())
+
+////////////////////////////////////////
+        .def("kernel_f", &SquaredExponentialKernel::kernel_f,
+             "Calculate the covariance matrix")
+        .def("kernel_deriv", &SquaredExponentialKernel::kernel_deriv,
+             "Calculate the derivative of the covariance matrix wrt hyperparameters")
+        .def("kernel_inputderiv", &SquaredExponentialKernel::kernel_inputderiv,
+	     "Derivative of covariance matrix wrt inputs");
 
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
