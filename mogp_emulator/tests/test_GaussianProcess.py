@@ -3,8 +3,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..LibGPGPU import gpu_usable, kernel_type
-from ..LibGPGPU import SquaredExponential as SquaredExponentialGPU
-from ..LibGPGPU import Matern52 as Matern52GPU
 from ..GaussianProcess import GaussianProcess, PredictResult
 from ..GaussianProcessGPU import GaussianProcessGPU
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
@@ -75,7 +73,7 @@ def test_GaussianProcessGPU_init(x, y):
     gp = GaussianProcessGPU(x, y, kernel="SquaredExponential")
     assert isinstance(gp.kernel_type, kernel_type)
     assert gp.kernel_type is kernel_type.SquaredExponential
-    assert isinstance(gp.kernel, SquaredExponentialGPU)
+    assert isinstance(gp.kernel, SquaredExponential)
 
 
 def test_GP_init_failures(x, y):
