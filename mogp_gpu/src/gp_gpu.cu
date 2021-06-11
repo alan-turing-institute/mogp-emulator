@@ -203,7 +203,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 )",
              py::arg("result"));
 
-    py::class_<SquaredExponentialKernel>(m, "SquaredExponential")
+    py::class_<SquaredExponentialKernel>(m, "SquaredExponentialKernel")
       .def(py::init<>())
 
 ////////////////////////////////////////
@@ -212,6 +212,17 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_deriv", &SquaredExponentialKernel::kernel_deriv,
              "Calculate the derivative of the covariance matrix wrt hyperparameters")
         .def("kernel_inputderiv", &SquaredExponentialKernel::kernel_inputderiv,
+	     "Derivative of covariance matrix wrt inputs");
+
+    py::class_<Matern52Kernel>(m, "Matern52Kernel")
+      .def(py::init<>())
+
+////////////////////////////////////////
+        .def("kernel_f", &Matern52Kernel::kernel_f,
+             "Calculate the covariance matrix")
+        .def("kernel_deriv", &Matern52Kernel::kernel_deriv,
+             "Calculate the derivative of the covariance matrix wrt hyperparameters")
+        .def("kernel_inputderiv", &Matern52Kernel::kernel_inputderiv,
 	     "Derivative of covariance matrix wrt inputs");
 
     py::enum_<kernel_type>(m, "kernel_type")
