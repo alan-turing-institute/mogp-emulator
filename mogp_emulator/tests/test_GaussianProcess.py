@@ -2,7 +2,7 @@ from tempfile import TemporaryFile
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..LibGPGPU import gpu_usable, kernel_type
+from ..LibGPGPU import gpu_usable
 from ..GaussianProcess import GaussianProcess, PredictResult
 from ..GaussianProcessGPU import GaussianProcessGPU
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
@@ -69,7 +69,7 @@ def test_GaussianProcessGPU_init(x, y):
 
     gp = GaussianProcessGPU(x, y, nugget=1.e-12)
     assert_allclose(gp.nugget, 1.e-12)
-
+    from ..LibGPGPU import kernel_type
     gp = GaussianProcessGPU(x, y, kernel="SquaredExponential")
     assert isinstance(gp.kernel_type, kernel_type)
     assert gp.kernel_type is kernel_type.SquaredExponential
