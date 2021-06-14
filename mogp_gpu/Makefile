@@ -49,4 +49,8 @@ bin/test/gpu_cholesky: test/gpu_cholesky.cu
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcusolver -lcublas $< -o $@
 
+bin/test/gpu_meanfunc: test/gpu_meanfunc.cu
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
+
 .PHONY: all clean
