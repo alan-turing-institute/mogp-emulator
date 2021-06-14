@@ -225,6 +225,19 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_inputderiv", &Matern52Kernel::kernel_inputderiv,
 	     "Derivative of covariance matrix wrt inputs");
 
+    py::class_<ConstMeanFunc>(m, "ConstMeanFunc")
+      .def(py::init<>())
+
+////////////////////////////////////////
+        .def("mean_f", &ConstMeanFunc::mean_f,
+             "Evaluate the mean function at input points")
+        .def("mean_deriv", &ConstMeanFunc::mean_deriv,
+             "Calculate the derivative of the mean function wrt hyperparameters")
+        .def("mean_inputderiv", &ConstMeanFunc::mean_inputderiv,
+	     "Derivative of mean function wrt inputs")
+        .def("get_n_params", &ConstMeanFunc::get_n_params,
+	     "Number of paramaters of mean function");
+
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
         .value("Matern52", MATERN52);

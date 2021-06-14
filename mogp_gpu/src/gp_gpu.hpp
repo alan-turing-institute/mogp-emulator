@@ -24,6 +24,7 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 
 #include "util.hpp"
 #include "kernel.hpp"
+#include "meanfunc.hpp"
 
 
 
