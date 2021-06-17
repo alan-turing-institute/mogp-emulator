@@ -35,6 +35,40 @@ public:
 
 };
 
+class ZeroMeanFunc : public BaseMeanFunc {
+public:
+
+  // Zero mean function
+
+  ZeroMeanFunc() {};
+
+  virtual ~ZeroMeanFunc() {};
+
+  inline virtual int get_n_params(mat_ref xs) { return 0; }
+
+
+  inline virtual vec mean_f(mat_ref xs,
+			    vec_ref params) {
+    vec result = vec::Constant(xs.rows(),1, 0.);
+    return result;
+  }
+
+  inline virtual vec mean_deriv(mat_ref xs,
+				vec_ref params) {
+    vec result = vec::Constant(xs.rows(),1, 0.);
+    return result;
+  }
+
+  inline virtual mat mean_inputderiv(mat_ref xs,
+				     vec_ref params) {
+    mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
+    return result;
+  }
+
+
+};
+
+
 
 class ConstMeanFunc : public BaseMeanFunc {
 public:

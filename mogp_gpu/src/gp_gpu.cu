@@ -8,7 +8,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
-      .def(py::init<mat_ref, vec_ref, unsigned int, kernel_type>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, kernel_type, meanfunc_type>())
 
 ////////////////////////////////////////
         .def("n", &DenseGP_GPU::get_n,
@@ -238,6 +238,19 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("get_n_params", &ConstMeanFunc::get_n_params,
 	     "Number of paramaters of mean function");
 
+    py::class_<ZeroMeanFunc>(m, "ZeroMeanFunc")
+      .def(py::init<>())
+
+////////////////////////////////////////
+        .def("mean_f", &ZeroMeanFunc::mean_f,
+             "Evaluate the mean function at input points")
+        .def("mean_deriv", &ZeroMeanFunc::mean_deriv,
+             "Calculate the derivative of the mean function wrt hyperparameters")
+        .def("mean_inputderiv", &ZeroMeanFunc::mean_inputderiv,
+	     "Derivative of mean function wrt inputs")
+        .def("get_n_params", &ZeroMeanFunc::get_n_params,
+	     "Number of paramaters of mean function");
+
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
         .value("Matern52", MATERN52);
@@ -246,6 +259,10 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .value("adaptive", NUG_ADAPTIVE)
         .value("fixed", NUG_FIXED)
         .value("fit", NUG_FIT);
+
+    py::enum_<meanfunc_type>(m, "meanfunc_type")
+        .value("ZeroMean", ZERO_MEAN)
+        .value("ConstMean", CONST_MEAN);
 
     m.def("have_compatible_device", &have_compatible_device);
 

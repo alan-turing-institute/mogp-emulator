@@ -82,7 +82,19 @@ class GaussianProcessGPU(GaussianProcessBase):
         self._max_batch_size = max_batch_size
 
         if mean:
-            raise ValueError("GPU implementation requires mean to be None")
+            if not (isinstance(mean, LibGPGPU.ConstMeanFunc) or \
+                    isinstance(mean, LibGPGPU.ZeroMeanFunc)):
+                raise ValueError("""
+                GPU implementation requires mean to be None, ZeroMeanFunc, or ConstMeanFunc
+                """
+                )
+            self.mean = mean
+            self.mean_type = LibGPGPU.meanfunc_type.ConstMean \
+                if isinstance(mean, LibGPGPU.ConstMeanFunc) \
+                else LibGPGPU.meanfunc_type.ZeroMean
+        else:
+            self.mean = LibGPGPU.ZeroMeanFunc()
+            self.mean_type = LibGPGPU.meanfunc_type.ZeroMean
 
         self.nugget = nugget
 
@@ -115,7 +127,8 @@ class GaussianProcessGPU(GaussianProcessBase):
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
                                                      self._targets,
                                                      self._max_batch_size,
-                                                     self.kernel_type)
+                                                     self.kernel_type,
+                                                     self.mean_type)
 
 
     @property
@@ -170,7 +183,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of hyperparameters
         :rtype: int
         """
-        return self._densegp_gpu.n_params()
+        return self._densegp_gpu.n_params()+ self.mean.get_n_params(self.inputs)
 
     @property
     def nugget_type(self):
