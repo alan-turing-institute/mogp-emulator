@@ -107,6 +107,9 @@ class DenseGP_GPU {
     // preallocated work array (length n) on the CUDA device
     thrust::device_vector<REAL> work_d;
 
+    // device vector for derivative of mean function
+    thrust::device_vector<REAL> meanfunc_deriv_d;
+
     // buffer for Cholesky factorization
     thrust::device_vector<REAL> potrf_buffer_d;
 
@@ -572,6 +575,7 @@ public:
         double one(1.0);
         double half(0.5);
         double m_half(-0.5);
+	double minusone(-1.0);
 
         const int Ntheta = D + 1;
 
@@ -634,9 +638,22 @@ public:
                     &one, // beta
                     dev_ptr(result_d), 1); // y, incy
 
-	int param_switch_index = meanfunc_params.rows();
-
-        thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data()+param_switch_index);
+	// first elements of result (up to meanfunc_nparam) will be from meanfunc,
+	// then the next (D+1) from the Kernel.
+	int meanfunc_nparam = meanfunc_params.rows();
+	if (mean_type != ZERO_MEAN) { // only copy data to device and do calculation if we need to.
+	  vec meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
+	  thrust::copy(meanfunc_deriv.data(), meanfunc_deriv.data() + (n * meanfunc_nparam), meanfunc_deriv_d.begin());
+	  // product of meanfunc_deriv with invQt
+	  cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
+		      n, n * meanfunc_nparam, // nrows, ncols (N.B. column-major order!)
+                    &minusone, dev_ptr(meanfunc_deriv_d), n, // alpha, A, lda
+                    dev_ptr(invQt_d), 1, // x, incx
+                    &zero, // beta
+                    dev_ptr(meanfunc_deriv_d), 1); // y, incy
+	  thrust::copy(meanfunc_deriv_d.begin(), meanfunc_deriv_d.begin() + (meanfunc_nparam), result.data());
+	}
+        thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data()+(meanfunc_nparam));
 
 	// fitted nugget - last element of theta is log(nugget)
 	// partial deriv is 0.5*nugget*(trace(invQ) - invQt.invQt)
@@ -732,6 +749,8 @@ public:
 	} else throw std::runtime_error("Unrecognized meanfunc type\n");
 	// resize meanfunc_params vector here
 	meanfunc_params.resize(meanfunc->get_n_params(inputs),1);
+	// resize the device vector that will store derivative of mean function
+	meanfunc_deriv_d.resize(meanfunc->get_n_params(inputs) * inputs.rows());
     }
 };
 
