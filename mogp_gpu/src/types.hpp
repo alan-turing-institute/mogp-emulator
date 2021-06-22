@@ -32,6 +32,6 @@ enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 enum kernel_type {SQUARED_EXPONENTIAL, MATERN52};
 
 // enum to allow python code to select mean function
-enum meanfunc_type {ZERO_MEAN, CONST_MEAN};
+enum meanfunc_type {ZERO_MEAN, FIXED_MEAN, CONST_MEAN, POLY_MEAN};
 
 #endif
