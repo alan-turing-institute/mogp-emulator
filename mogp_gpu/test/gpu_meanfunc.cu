@@ -50,10 +50,44 @@ void test_const_meanfunc()
     delete mf;
 }
 
+void test_poly_meanfunc()
+{
+  // 1D case - 2nd order polynomial
+  // mean f should be 2.2 + 4.4*x + 3.3*x^2
+    const size_t N=5;
+    vec x(5);
+    x << 1.0, 2.0, 3.0, 4.0, 5.0;
+
+    vec params(3);
+    params << 4.4, 3,3, 2.2;
+
+    std::vector< std::pair<int, int> > dims_powers;
+    dims_powers.push_back(std::make_pair<int, int>(0,1));
+    dims_powers.push_back(std::make_pair<int, int>(0,2));
+    PolyMeanFunc* mf = new PolyMeanFunc(dims_powers);
+    vec mean = mf->mean_f(x,params);
+    vec deriv = mf->mean_deriv(x,params);
+    vec inputderiv = mf->mean_inputderiv(x,params);
+
+    std::cout<<" mean: ";
+    for (int i=0; i<N; i++)
+        std::cout << mean [i] << " ";
+    std::cout << "\n deriv: ";
+    for (int i=0; i<N; i++)
+        std::cout << deriv [i] << " ";
+    std::cout << "\n inputderiv: ";
+    for (int i=0; i<N; i++)
+        std::cout << inputderiv [i] << " ";
+    std::cout << "\n";
+
+    delete mf;
+}
+
 
 
 int main(void)
 {
     test_const_meanfunc();
+    test_poly_meanfunc();
     return 0;
 }
