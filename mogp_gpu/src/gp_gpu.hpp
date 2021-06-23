@@ -53,9 +53,6 @@ class DenseGP_GPU {
     // pointer to the Kernel
     BaseKernel* kernel;
 
-    // what MeanFunc are we using?
-    meanfunc_type mean_type;
-
     // pointer to the Mean Function
     BaseMeanFunc* meanfunc;
 
@@ -89,11 +86,8 @@ class DenseGP_GPU {
     // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
 
-
-    // mean function hyperparameters on the device
+    // mean function hyperparameters
     vec meanfunc_params;
-    // mean function hyperparameters on the device
-  //    thrust::device_vector<REAL> meanfunc_params_d;
 
     // inputs, on the device, row major order
     thrust::device_vector<REAL> inputs_d;
@@ -176,7 +170,6 @@ public:
                   &result);
 	// evaluate the mean function and add to the result
         vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
-	std::cout<<" meanfunc values for predict(one value) "<<meanfunc_vals<<std::endl;
         return double(result + meanfunc_vals(0));
     }
 
@@ -262,7 +255,6 @@ public:
 
 	// evaluate the mean function and add to the result
 	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
-	std::cout<<" meanfunc values for predict_batch "<<meanfunc_vals<<std::endl;
 	result += meanfunc_vals;
     }
 
@@ -369,9 +361,10 @@ public:
         cudaDeviceSynchronize();
 
         thrust::copy(result_d.begin(), result_d.end(), result.data());
+
 	// evaluate deriv of meanfunc wrt test points, and add to result
 	mat meanfunc_inputderiv = meanfunc->mean_inputderiv(testing, meanfunc_params);
-	result += meanfunc_inputderiv;
+	result += meanfunc_inputderiv.transpose();
     }
 
     // perform Cholesky factorization of the matrix currently stored in work_mat_d
@@ -641,8 +634,8 @@ public:
 	// first elements of result (up to meanfunc_nparam) will be from meanfunc,
 	// then the next (D+1) from the Kernel.
 	int meanfunc_nparam = meanfunc_params.rows();
-	if (mean_type != ZERO_MEAN) { // only copy data to device and do calculation if we need to.
-	  vec meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
+	if (meanfunc_nparam > 0) { // only copy data to device and do calculation if we need to.
+	  mat meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
 	  thrust::copy(meanfunc_deriv.data(), meanfunc_deriv.data() + (n * meanfunc_nparam), meanfunc_deriv_d.begin());
 	  // product of meanfunc_deriv with invQt
 	  cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
@@ -678,8 +671,8 @@ public:
   DenseGP_GPU(mat_ref inputs_,
 	      vec_ref targets_,
 	      unsigned int testing_size_,
-	      kernel_type kern_=SQUARED_EXPONENTIAL,
-	      meanfunc_type mean_=ZERO_MEAN)
+	      BaseMeanFunc* mean_,
+	      kernel_type kern_=SQUARED_EXPONENTIAL)
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
@@ -692,8 +685,7 @@ public:
         , targets(targets_)
 	, kern_type(kern_)
         , kernel(0)
-	, mean_type(mean_)
-	, meanfunc(0)
+	, meanfunc(mean_)
 	, nug_type(NUG_ADAPTIVE)
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
@@ -741,12 +733,6 @@ public:
 	  kernel = new Matern52Kernel();
 	} else throw std::runtime_error("Unrecognized kernel type\n");
 
-
-	if (mean_type == ZERO_MEAN) {
-	  meanfunc = new ZeroMeanFunc();
-	} else if (mean_type == CONST_MEAN) {
-	  meanfunc = new ConstMeanFunc();
-	} else throw std::runtime_error("Unrecognized meanfunc type\n");
 	// resize meanfunc_params vector here
 	meanfunc_params.resize(meanfunc->get_n_params(inputs),1);
 	// resize the device vector that will store derivative of mean function

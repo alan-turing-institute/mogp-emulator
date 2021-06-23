@@ -7,7 +7,7 @@ import re
 import numpy as np
 
 from mogp_emulator.Kernel import SquaredExponential, Matern52
-from mogp_emulator.MeanFunction import MeanFunction
+from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 
 import mogp_emulator.LibGPGPU as LibGPGPU
 
@@ -158,20 +158,6 @@ class GaussianProcessGPU(GaussianProcessBase):
                 GPU implementation was unable to parse mean function formula {}.
                 """.format(mean.__str__())
                 )
-        # set the mean_type depending on what class our mean is
-        if isinstance( self.mean, LibGPGPU.ZeroMeanFunc):
-            self.mean_type = LibGPGPU.meanfunc_type.ZeroMean
-        elif isinstance( self.mean, LibGPGPU.FixedMeanFunc):
-            self.mean_type = LibGPGPU.meanfunc_type.FixedMean
-        elif isinstance( self.mean, LibGPGPU.ConstMeanFunc):
-            self.mean_type = LibGPGPU.meanfunc_type.ConstMean
-        elif isinstance( self.mean, LibGPGPU.PolyMeanFunc):
-            self.mean_type = LibGPGPU.meanfunc_type.PolyMean
-        else:
-            raise NotImplementedError("""
-            Only zero, fixed, const, or polynomial mean functions are implemented in GPU version.
-            """)
-
 
         self.nugget = nugget
 
@@ -204,8 +190,9 @@ class GaussianProcessGPU(GaussianProcessBase):
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
                                                      self._targets,
                                                      self._max_batch_size,
-                                                     self.kernel_type,
-                                                     self.mean_type)
+                                                     self.mean,
+                                                     self.kernel_type) #,
+#                                                     self.mean_type)
 
 
     @property

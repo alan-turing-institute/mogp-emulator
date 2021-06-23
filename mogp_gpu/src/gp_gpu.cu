@@ -8,7 +8,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
-      .def(py::init<mat_ref, vec_ref, unsigned int, kernel_type, meanfunc_type>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, BaseMeanFunc*, kernel_type>())
 
 ////////////////////////////////////////
         .def("n", &DenseGP_GPU::get_n,
@@ -203,10 +203,9 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 )",
              py::arg("result"));
 
+////////////////////////////////////////
     py::class_<SquaredExponentialKernel>(m, "SquaredExponentialKernel")
       .def(py::init<>())
-
-////////////////////////////////////////
         .def("kernel_f", &SquaredExponentialKernel::kernel_f,
              "Calculate the covariance matrix")
         .def("kernel_deriv", &SquaredExponentialKernel::kernel_deriv,
@@ -214,10 +213,9 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_inputderiv", &SquaredExponentialKernel::kernel_inputderiv,
 	     "Derivative of covariance matrix wrt inputs");
 
+////////////////////////////////////////
     py::class_<Matern52Kernel>(m, "Matern52Kernel")
       .def(py::init<>())
-
-////////////////////////////////////////
         .def("kernel_f", &Matern52Kernel::kernel_f,
              "Calculate the covariance matrix")
         .def("kernel_deriv", &Matern52Kernel::kernel_deriv,
@@ -225,10 +223,12 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_inputderiv", &Matern52Kernel::kernel_inputderiv,
 	     "Derivative of covariance matrix wrt inputs");
 
-    py::class_<ConstMeanFunc>(m, "ConstMeanFunc")
-      .def(py::init<>())
+////////////////////////////////////////
+    py::class_<BaseMeanFunc>(m, "BaseMeanFunc");
 
 ////////////////////////////////////////
+    py::class_<ConstMeanFunc, BaseMeanFunc>(m, "ConstMeanFunc")
+      .def(py::init<>())
         .def("mean_f", &ConstMeanFunc::mean_f,
              "Evaluate the mean function at input points")
         .def("mean_deriv", &ConstMeanFunc::mean_deriv,
@@ -236,12 +236,35 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("mean_inputderiv", &ConstMeanFunc::mean_inputderiv,
 	     "Derivative of mean function wrt inputs")
         .def("get_n_params", &ConstMeanFunc::get_n_params,
-	     "Number of paramaters of mean function");
-
-    py::class_<ZeroMeanFunc>(m, "ZeroMeanFunc")
-      .def(py::init<>())
+	     "Number of parameters of mean function");
 
 ////////////////////////////////////////
+    py::class_<PolyMeanFunc, BaseMeanFunc>(m, "PolyMeanFunc")
+      .def(py::init<std::vector< std::pair<int, int> > >())
+        .def("mean_f", &PolyMeanFunc::mean_f,
+             "Evaluate the mean function at input points")
+        .def("mean_deriv", &PolyMeanFunc::mean_deriv,
+             "Calculate the derivative of the mean function wrt hyperparameters")
+        .def("mean_inputderiv", &PolyMeanFunc::mean_inputderiv,
+	     "Derivative of mean function wrt inputs")
+        .def("get_n_params", &PolyMeanFunc::get_n_params,
+	     "Number of parameters of mean function");
+
+////////////////////////////////////////
+    py::class_<FixedMeanFunc, BaseMeanFunc>(m, "FixedMeanFunc")
+      .def(py::init<REAL>())
+        .def("mean_f", &FixedMeanFunc::mean_f,
+             "Evaluate the mean function at input points")
+        .def("mean_deriv", &FixedMeanFunc::mean_deriv,
+             "Calculate the derivative of the mean function wrt hyperparameters")
+        .def("mean_inputderiv", &FixedMeanFunc::mean_inputderiv,
+	     "Derivative of mean function wrt inputs")
+        .def("get_n_params", &FixedMeanFunc::get_n_params,
+	     "Number of parameters of mean function");
+
+////////////////////////////////////////
+    py::class_<ZeroMeanFunc, BaseMeanFunc>(m, "ZeroMeanFunc")
+      .def(py::init<>())
         .def("mean_f", &ZeroMeanFunc::mean_f,
              "Evaluate the mean function at input points")
         .def("mean_deriv", &ZeroMeanFunc::mean_deriv,
@@ -249,7 +272,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("mean_inputderiv", &ZeroMeanFunc::mean_inputderiv,
 	     "Derivative of mean function wrt inputs")
         .def("get_n_params", &ZeroMeanFunc::get_n_params,
-	     "Number of paramaters of mean function");
+	     "Number of parameters of mean function");
 
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
@@ -259,10 +282,6 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .value("adaptive", NUG_ADAPTIVE)
         .value("fixed", NUG_FIXED)
         .value("fit", NUG_FIT);
-
-    py::enum_<meanfunc_type>(m, "meanfunc_type")
-        .value("ZeroMean", ZERO_MEAN)
-        .value("ConstMean", CONST_MEAN);
 
     m.def("have_compatible_device", &have_compatible_device);
 
