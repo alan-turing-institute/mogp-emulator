@@ -1,3 +1,6 @@
+#include "util.hpp"
+
+// Create an NxN Identity matrix A on the device
 __global__ void identity_kernel(int N, double *A)
 {
     int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -13,6 +16,7 @@ void identity_device(int N, double *A)
     identity_kernel<<<blocks, threads_per_block>>>(N, A);
 }
 
+// Add b to the diagonal of NxN matrix A
 __global__ void add_diagonal_kernel(int N, double b, double *A)
 {
     int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -26,4 +30,28 @@ void add_diagonal(int N, double b, double *A)
     dim3 threads_per_block(Nx, Ny);
     dim3 blocks((N + Nx - 1)/Nx, (N + Ny - 1)/Ny);
     add_diagonal_kernel<<<blocks, threads_per_block>>>(N, b, A);
+}
+
+// CUDA kernel for summing log diagonal elements of a matrix,
+// using cub::DeviceReduce
+
+struct LogSq : public thrust::unary_function<double, double>
+{
+    __host__ __device__ double operator()(double x) const { return 2.0 * log(x); }
+};
+
+void sum_log_diag(int N, double *A, double *result, double *work, size_t work_size)
+{
+    auto transform_it = thrust::make_transform_iterator(A, LogSq());
+    auto sr = make_strided_range(transform_it, transform_it + N*N, N+1);
+
+    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
+}
+
+// Implementation of trace using cub::DeviceReduce
+
+void trace(int N, double *A, double *result, double *work, size_t work_size)
+{
+    auto sr = make_strided_range(A, A + N*N, N+1);
+    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
 }

@@ -69,8 +69,10 @@ def test_GaussianProcessGPU_init(x, y):
 
     gp = GaussianProcessGPU(x, y, nugget=1.e-12)
     assert_allclose(gp.nugget, 1.e-12)
-
+    from ..LibGPGPU import kernel_type
     gp = GaussianProcessGPU(x, y, kernel="SquaredExponential")
+    assert isinstance(gp.kernel_type, kernel_type)
+    assert gp.kernel_type is kernel_type.SquaredExponential
     assert isinstance(gp.kernel, SquaredExponential)
 
 

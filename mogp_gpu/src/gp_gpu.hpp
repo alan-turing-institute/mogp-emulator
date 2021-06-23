@@ -21,158 +21,10 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include <sstream>
 #include <assert.h>
 #include <stdexcept>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-#include <thrust/device_ptr.h>
-#include <thrust/device_malloc.h>
-#include <thrust/device_free.h>
-#include <thrust/device_vector.h>
-#include <thrust/functional.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/copy.h>
-#include <cub/cub.cuh>
 
-#include <Eigen/Dense>
-
-#include "strided_range.hpp"
-#include "cov_gpu.hpp"
 #include "util.hpp"
+#include "kernel.hpp"
 
-#define WARP_SIZE 32
-#define FULL_MASK 0xffffffff
-
-#define USE_SHUFFLE_SUM_IMPL 0
-
-// ----------------------------------------------
-// ----   Utility functions ---------------------
-
-/// Extract the raw pointer from a device vector
-template <typename T>
-T *dev_ptr(thrust::device_vector<T>& dv)
-{
-    return dv.data().get();
-}
-
-
-/// Fail if a recent cusolver call did not succeed
-inline void check_cusolver_status(cusolverStatus_t status, int info_h)
-{
-    if (status || info_h) {
-	std::string msg;
-	std::stringstream smsg(msg);
-	smsg << "Error in potrf: return code " << status << ", info " << info_h;
-	throw std::runtime_error(smsg.str());
-    }
-}
-
-/// Can a usable CUDA capable device be found?
-bool have_compatible_device(void);
-
-// ----------------------------------------------
-
-
-// --------------------------------------------------------
-// CUDA kernel for summing log diagonal elements of a matrix.
-// Two methods implemented - warp reduction or cub::DeviceReduce
-
-#if USE_SHUFFLE_SUM_IMPL
-// Implementation of sum_log_diag using warp reduction,
-// based on https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
-//
-// Will fail for N > 1024
-
-
-__inline__ __device__
-double warp_reduce_sum(double val)
-{
-    for (int offset = WARP_SIZE/2; offset > 0; offset /= 2)
-        val += __shfl_down_sync(FULL_MASK, val, offset);
-    return val;
-}
-
-__global__
-void sum_log_diag_kernel(int N, double *A, double *result)
-{
-    int i = threadIdx.x;
-
-    static __shared__ double work[WARP_SIZE];
-    double log_diag = 0.0;
-
-    if (i < WARP_SIZE) work[i] = 0.0;
-    if (i < N) {
-        log_diag = log(A[i * (N+1)]);
-    }
-
-    int laneIdx = i % WARP_SIZE;
-    int warpIdx = i / WARP_SIZE;
-
-    __syncthreads();
-    log_diag = warp_reduce_sum(log_diag);
-
-    if (laneIdx == 0) work[warpIdx] = log_diag;
-
-    __syncthreads();
-
-    log_diag = work[laneIdx];
-
-    if (warpIdx == 0) log_diag = warp_reduce_sum(log_diag);
-
-    if (i == 0) *result = 2.0 * log_diag;
-}
-
-//
-// The unused arguments are needed for the CUB implementation
-void sum_log_diag(int N, double *A, double *result, double *, size_t)
-{
-    // The number of thread blocks *must* be 1
-    // N can be at most 1024 (WARP_SIZE**2)
-    int thread_blocks = 1;
-    int threads_per_block = N;
-    sum_log_diag_kernel<<<thread_blocks, threads_per_block>>>(N, A, result);
-}
-
-#else
-// ----------------------------------------
-
-// Implementation of sum_log_diag using cub::DeviceReduce
-
-struct LogSq : public thrust::unary_function<double, double>
-{
-    __host__ __device__ double operator()(double x) const { return 2.0 * log(x); }
-};
-
-void sum_log_diag(int N, double *A, double *result, double *work, size_t work_size)
-{
-    auto transform_it = thrust::make_transform_iterator(A, LogSq());
-    auto sr = make_strided_range(transform_it, transform_it + N*N, N+1);
-
-    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
-}
-
-// Implementation of trace using cub::DeviceReduce
-
-void trace(int N, double *A, double *result, double *work, size_t work_size)
-{
-    auto sr = make_strided_range(A, A + N*N, N+1);
-    cub::DeviceReduce::Sum(work, work_size, sr.begin(), result, N);
-}
-
-// ----------------------------------------
-#endif // USE_SHUFFLE_SUM_IMPL
-
-
-// ----------------------------------------
-// ------- Some useful typedefs for vectors and matrices
-
-typedef int obs_kind;
-typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> mat;
-typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > mat_ref;
-typedef typename Eigen::Matrix<REAL, Eigen::Dynamic, 1> vec;
-typedef typename Eigen::Ref<Eigen::Matrix<REAL, Eigen::Dynamic, 1> > vec_ref;
-// ----------------------------------------
-// enum to allow the python code to select the type of "nugget"
-enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 
 
 
@@ -193,6 +45,12 @@ class DenseGP_GPU {
 
     // targets
     vec targets;
+
+    // what Kernel are we using?
+    kernel_type kern_type;
+
+    // pointer to the Kernel
+    BaseKernel* kernel;
 
     // is the nugget adapted, fixed, or fitted?
     nugget_type nug_type;
@@ -291,8 +149,8 @@ public:
         // of testing) is assumed to be D
 
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
-                    dev_ptr(theta_d));
+        kernel->cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
+			    dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
         CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
@@ -311,7 +169,7 @@ public:
 
         // value prediction
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + D);
-        cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
+        kernel->cov_all_gpu(dev_ptr(work_d), n, D, dev_ptr(testing_d), dev_ptr(inputs_d),
                     dev_ptr(theta_d));
 
         REAL result = std::numeric_limits<double>::quiet_NaN();
@@ -320,7 +178,7 @@ public:
 
         // variance prediction
         thrust::device_vector<REAL> kappa_d(1);
-        cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(testing_d), dev_ptr(testing_d),
+        kernel->cov_val_gpu(dev_ptr(kappa_d), D, dev_ptr(testing_d), dev_ptr(testing_d),
                     dev_ptr(theta_d));
 
         double zero(0.0);
@@ -368,8 +226,8 @@ public:
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch);
 
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
-                      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D,
+			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N, Nbatch, n, &one,
@@ -404,7 +262,7 @@ public:
         thrust::device_vector<REAL> mean_d(Nbatch);
 
         // compute predictive means for the batch
-        cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
+        kernel->cov_batch_gpu(dev_ptr(work_mat_d), Nbatch, n, D, dev_ptr(testing_d),
                       dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
@@ -413,8 +271,8 @@ public:
                         dev_ptr(mean_d), 1);
 
         // compute predictive variances for the batch
-        cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
-                     dev_ptr(testing_d), dev_ptr(theta_d));
+        kernel->cov_diag_gpu(dev_ptr(kappa_d), Nbatch, D, dev_ptr(testing_d),
+			     dev_ptr(testing_d), dev_ptr(theta_d));
 
         cublasDgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T,
                     n,
@@ -469,8 +327,8 @@ public:
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> result_d(Nbatch*D);
 
-        cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
-			      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_deriv_x_batch_gpu(dev_ptr(work_mat_d), D, Nbatch, n,
+				      dev_ptr(testing_d), dev_ptr(inputs_d), dev_ptr(theta_d));
 
         cublasStatus_t status =
             cublasDgemv(cublasHandle, CUBLAS_OP_N,
@@ -525,9 +383,8 @@ public:
         thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
 
 	// calculate covariance matrix, put result into K_d
-        cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
-                      dev_ptr(inputs_d), dev_ptr(theta_d));
-
+        kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
+			      dev_ptr(inputs_d), dev_ptr(theta_d));
 	/// copy the covariance matrix K_d into work_mat_d
 	thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
 
@@ -685,10 +542,10 @@ public:
         // The length of work_mat_d is n * testing_size
         // The derivative above has  n * n * Ntheta components
         // The following assumes that testing_size > Ntheta * n
-        cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
-				  D, n, n,
-				  dev_ptr(inputs_d), dev_ptr(inputs_d),
-				  dev_ptr(theta_d));
+        kernel->cov_deriv_theta_batch_gpu(dev_ptr(work_mat_d),
+					  D, n, n,
+					  dev_ptr(inputs_d), dev_ptr(inputs_d),
+					  dev_ptr(theta_d));
 
         // Compute
         //   \deriv{logpost}{theta_i}
@@ -760,7 +617,7 @@ public:
     }
 
     // constructor
-    DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_)
+  DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_, kernel_type kern=SQUARED_EXPONENTIAL)
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
@@ -770,6 +627,8 @@ public:
         , theta_d(D + 2)
         , inputs(inputs_)
         , targets(targets_)
+	, kern_type(kern)
+        , kernel(0)
 	, nug_type(NUG_ADAPTIVE)
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
@@ -785,6 +644,7 @@ public:
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {
+
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
@@ -809,6 +669,13 @@ public:
         cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
                                sum_buffer_d.end(), sum_buffer_d.end(), n);
         sum_buffer_d.resize(sum_buffer_size_bytes);
+
+	if (kern_type == SQUARED_EXPONENTIAL) {
+	  kernel = new SquaredExponentialKernel();
+	} else if (kern_type == MATERN52) {
+	  kernel = new Matern52Kernel();
+	} else throw std::runtime_error("Unrecognized kernel type\n");
+
     }
 };
 

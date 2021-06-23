@@ -33,9 +33,13 @@ obj/%.o: src/%.cu src/%.hpp
 	mkdir -p obj
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) -c $< -o $@
 
-bin/test/gpu_basic: test/gpu_basic.cu obj/cov_gpu.o obj/util.o
+bin/test/gpu_basic: test/gpu_basic.cu  obj/util.o
 	mkdir -p bin/test
-	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< obj/cov_gpu.o obj/util.o -o $@
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
+
+bin/test/gpu_kernel: test/gpu_kernel.cu  obj/kernel.o obj/util.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/kernel.o obj/util.o -o $@
 
 bin/test/gpu_test_utils: test/gpu_test_utils.cu obj/util.o
 	mkdir -p bin/test

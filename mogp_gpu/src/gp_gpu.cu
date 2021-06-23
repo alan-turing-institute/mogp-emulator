@@ -5,19 +5,10 @@
 
 namespace py = pybind11;
 
-bool have_compatible_device(void)
-{
-    int device_count = 0;
-    cudaError_t err = cudaGetDeviceCount(&device_count);
-
-    return (err == cudaSuccess && device_count > 0);
-
-}
-
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
-        .def(py::init<mat_ref, vec_ref, unsigned int>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, kernel_type>())
 
 ////////////////////////////////////////
         .def("n", &DenseGP_GPU::get_n,
@@ -212,7 +203,31 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 )",
              py::arg("result"));
 
+    py::class_<SquaredExponentialKernel>(m, "SquaredExponentialKernel")
+      .def(py::init<>())
 
+////////////////////////////////////////
+        .def("kernel_f", &SquaredExponentialKernel::kernel_f,
+             "Calculate the covariance matrix")
+        .def("kernel_deriv", &SquaredExponentialKernel::kernel_deriv,
+             "Calculate the derivative of the covariance matrix wrt hyperparameters")
+        .def("kernel_inputderiv", &SquaredExponentialKernel::kernel_inputderiv,
+	     "Derivative of covariance matrix wrt inputs");
+
+    py::class_<Matern52Kernel>(m, "Matern52Kernel")
+      .def(py::init<>())
+
+////////////////////////////////////////
+        .def("kernel_f", &Matern52Kernel::kernel_f,
+             "Calculate the covariance matrix")
+        .def("kernel_deriv", &Matern52Kernel::kernel_deriv,
+             "Calculate the derivative of the covariance matrix wrt hyperparameters")
+        .def("kernel_inputderiv", &Matern52Kernel::kernel_inputderiv,
+	     "Derivative of covariance matrix wrt inputs");
+
+    py::enum_<kernel_type>(m, "kernel_type")
+        .value("SquaredExponential", SQUARED_EXPONENTIAL)
+        .value("Matern52", MATERN52);
 
     py::enum_<nugget_type>(m, "nugget_type")
         .value("adaptive", NUG_ADAPTIVE)

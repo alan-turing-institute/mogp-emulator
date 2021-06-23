@@ -4,7 +4,7 @@ extends GaussianProcess with an (optional) GPU implementation
 
 import os
 import numpy as np
-from mogp_emulator.Kernel import SquaredExponential
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 
 import mogp_emulator.LibGPGPU as LibGPGPU
 
@@ -51,6 +51,10 @@ class GaussianProcessGPU(GaussianProcessBase):
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
     Will raise a RuntimeError if a CUDA-compatible GPU, GPU-interface library libgpgpu
     could not be found.
+    Note that while the class uses a C++/CUDA implementation of the SquaredExponential or
+    Matern52 kernels for the "fit" and "predict" methods, the 'kernel' data member (and
+    hence the results of e.g. 'gp.kernel.kernel_f(theta)' will be the pure Python versions,
+    for compatibility with the interface of the GaussianProcess class.
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
@@ -80,16 +84,25 @@ class GaussianProcessGPU(GaussianProcessBase):
         if mean:
             raise ValueError("GPU implementation requires mean to be None")
 
-        if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            else:
-                raise ValueError("GPU implementation requires kernel to be SquaredExponential")
-        elif kernel and not isinstance(kernel, SquaredExponential):
-                raise ValueError("GPU implementation requires kernel to be SquaredExponential()")
-        self.kernel = kernel
         self.nugget = nugget
 
+        # set the kernel.
+        # Note that for the "kernel" data member, we use the Python instance
+        # rather than the C++/CUDA one (for consistency in interface with
+        # GaussianProcess class).  However the C++/CUDA version of the kernel is
+        # used when calling fit() or predict()
+        if (isinstance(kernel, str) and kernel == "SquaredExponential") \
+           or isinstance(kernel, SquaredExponential):
+            self.kernel_type = LibGPGPU.kernel_type.SquaredExponential
+            self.kernel = SquaredExponential()
+        elif (isinstance(kernel, str) and kernel == "Matern52") \
+           or isinstance(kernel, Matern52):
+            self.kernel_type = LibGPGPU.kernel_type.Matern52
+            self.kernel = Matern52()
+        else:
+            raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
+
+        # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
         self._init_gpu()
 
@@ -99,7 +112,10 @@ class GaussianProcessGPU(GaussianProcessBase):
         Instantiate the DenseGP_GPU C++/CUDA class, if it doesn't already exist.
         """
         if not self._densegp_gpu:
-            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs, self._targets, self._max_batch_size)
+            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
+                                                     self._targets,
+                                                     self._max_batch_size,
+                                                     self.kernel_type)
 
 
     @property

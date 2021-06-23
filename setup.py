@@ -110,7 +110,7 @@ if len(cuda_config) > 0:
     numpy_include = np.get_include()
     ext = Extension("libgpgpu",
                     sources=["mogp_gpu/src/gp_gpu.cu",
-                             "mogp_gpu/src/cov_gpu.cu",
+                             "mogp_gpu/src/kernel.cu",
                              "mogp_gpu/src/util.cu"],
                     library_dirs=[cuda_config["lib64"]],
                     libraries=["cudart","cublas","cusolver"],
