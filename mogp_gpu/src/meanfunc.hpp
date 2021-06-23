@@ -1,6 +1,7 @@
 #ifndef MEANFUNC_HPP
 #define MEANFUNC_HPP
 
+#include <string>
 #include <vector>
 #include <utility>
 
@@ -53,18 +54,24 @@ public:
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     vec result = vec::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -86,18 +93,24 @@ public:
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     vec result = vec::Constant(xs.rows(),1, value);
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -123,18 +136,24 @@ public:
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     vec result = vec::Constant(xs.rows(),1,params(0));
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.rows(),1, 1.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -167,6 +186,8 @@ public:
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length " +  std::to_string(get_n_params(xs)));
     vec result(xs.rows());
     for (unsigned int i=0; i< xs.rows(); ++i) {
       // have the const term as the first parameter
@@ -174,7 +195,7 @@ public:
       for (unsigned int j=0; j< dims_powers.size(); ++j) {
 	int dim_index = dims_powers[j].first;
 	int power = dims_powers[j].second;
-	if (dim_index > xs.cols()-1) throw std::runtime_error("Dimension index must be less than D");
+	if (dim_index > xs.cols()-1) throw std::runtime_error("Dimension index must be less than "+ std::to_string(xs.cols()));
 	val += params(j+1) * pow(xs(i,dim_index), power);
       }
 
@@ -185,7 +206,8 @@ public:
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
-
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params(xs)));
     mat result(params.rows(), xs.rows());
     for (unsigned int i=0; i< xs.rows(); ++i) {
       // deriv wrt the first param (the const term) is always 1.
@@ -203,8 +225,8 @@ public:
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
-    //sanity check - number of parameters should be one per term (plus const term).
-    if (params.rows() != dims_powers.size() + 1) throw std::runtime_error("Incorrect number of parameters for this formula.");
+    if ( params.rows() != get_n_params(xs))
+      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params(xs)));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     // loop through all inputs
     for (unsigned int i=0; i< xs.rows(); ++i) {
