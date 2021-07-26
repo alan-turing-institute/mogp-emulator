@@ -33,24 +33,38 @@ obj/%.o: src/%.cu src/%.hpp
 	mkdir -p obj
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) -c $< -o $@
 
-bin/test/gpu_basic: test/gpu_basic.cu  obj/util.o
+bin/test/test_gpu_basic: test/test_gpu_basic.cu  obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
 
-bin/test/gpu_kernel: test/gpu_kernel.cu  obj/kernel.o obj/util.o
+bin/test/test_gpu_kernel: test/test_gpu_kernel.cu  obj/kernel.o obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/kernel.o obj/util.o -o $@
 
-bin/test/gpu_test_utils: test/gpu_test_utils.cu obj/util.o
+bin/test/test_gpu_utils: test/test_gpu_utils.cu obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< obj/util.o -o $@
 
-bin/test/gpu_cholesky: test/gpu_cholesky.cu
+bin/test/test_gpu_cholesky: test/test_gpu_cholesky.cu
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcusolver -lcublas $< -o $@
 
-bin/test/gpu_meanfunc: test/gpu_meanfunc.cu obj/util.o
+bin/test/test_basic_fitting: test/test_basic_fitting.cu
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lnlopt $< -o $@
+
+bin/test/test_meanfunc: test/test_meanfunc.cu obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
+
+bin/test/test_gp_gpu: test/test_gp_gpu.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
+
+bin/test/test_gp_fitting: test/test_gp_fitting.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lnlopt -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
+
+
 
 .PHONY: all clean
