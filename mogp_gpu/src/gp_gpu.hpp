@@ -80,6 +80,9 @@ class DenseGP_GPU {
     // log determinant of covariance matrix (on host)
     double logdetC;
 
+    // current value of log-posterior
+    double current_logpost;
+
     // adaptive nugget jitter
     double jitter;
 
@@ -526,6 +529,16 @@ public:
 	theta_fitted = true;
     }
 
+    nugget_type get_nugget_type(void)
+    {
+        return nug_type;
+    }
+
+    void set_nugget_type(nugget_type ntype)
+    {
+        nug_type = ntype;
+    }
+
     bool get_theta_fit_status(void)
     {
         return theta_fitted;
@@ -551,15 +564,26 @@ public:
         thrust::copy(invQt_d.begin(), invQt_d.end(), invQt_h.data());
     }
 
-    double get_logpost(void)
+    double get_logpost(vec_ref new_theta)
     {
-        double result;
+        // check if theta has changed
+      bool theta_close = (new_theta - theta).norm() < 1e-15;
+      if (theta_close) {
+	std::cout<<"theta hasn't changed"<<std::endl;
+	return current_logpost;
+      } else {
+	std::cout<<"theta HAS changed"<<std::endl;
+
+	fit(new_theta, nug_type);
+
+	double result;
         CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 
         result += logdetC + n * log(2.0 * M_PI);
 
-        return 0.5 * result;
+        current_logpost = 0.5 * result;
+	return current_logpost;
     }
 
     void logpost_deriv(vec_ref result)
@@ -571,6 +595,7 @@ public:
 	double minusone(-1.0);
 
         const int Ntheta = D + 1;
+
 
         // Compute
         //   \pderiv{C_{jk}}{theta_i}
@@ -691,6 +716,7 @@ public:
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
+        , current_logpost(0.0)
         , jitter(0.0)
         , invQt_d(n, 0.0)
         , testing_d(D * testing_size, 0.0)

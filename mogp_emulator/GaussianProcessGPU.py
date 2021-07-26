@@ -320,7 +320,6 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         if theta is None:
             self._densegp_gpu.reset_theta_fit_status()
-            self.current_logpost = None
         else:
             self.fit(theta)
 
@@ -362,7 +361,6 @@ class GaussianProcessGPU(GaussianProcessBase):
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         self.invQt = invQt_result
-        self.current_logpost = self.logposterior(theta)
 
     def logposterior(self, theta):
         """
@@ -375,10 +373,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: negative log-posterior
         :rtype: float
         """
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
-            self.fit(theta)
 
-        return self._densegp_gpu.get_logpost()
+        return self._densegp_gpu.get_logpost(theta)
 
     def logpost_deriv(self, theta):
         """
