@@ -1,4 +1,6 @@
 #include "gp_gpu.hpp"
+#include "fitting.hpp"
+
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "pybind11/eigen.h"
@@ -284,6 +286,8 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .value("fit", NUG_FIT);
 
     m.def("have_compatible_device", &have_compatible_device);
+
+    m.def("fit_GP_MAP", &fit_GP_MAP, py::return_value_policy::reference);
 
     m.doc() = R"(
 The libgpgpu library
