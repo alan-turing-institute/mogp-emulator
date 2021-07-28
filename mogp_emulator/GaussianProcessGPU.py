@@ -191,8 +191,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self._targets,
                                                      self._max_batch_size,
                                                      self.mean,
-                                                     self.kernel_type) #,
-#                                                     self.mean_type)
+                                                     self.kernel_type) 
 
 
     @property
@@ -303,8 +302,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         if not self._densegp_gpu.theta_fit_status():
             return None
-        theta = np.zeros(self.n_params)
-        self._densegp_gpu.get_theta(theta)
+        theta = self._densegp_gpu.get_theta()
         return theta
 
     @theta.setter
