@@ -62,6 +62,22 @@ def get_cuda_config():
         "lib64": lib64
     }
 
+def find_nlopt():
+    nlopt_include_dir = None
+    nlopt_lib_dir = None
+    base_path = os.environ["HOME"]
+    for root, dirs, files in os.walk(base_path):
+        if "libnlopt.so.0" in files:
+            nlopt_lib_dir = root
+        elif "nlopt.hpp" in files:
+            nlopt_include_dir = root
+        if nlopt_include_dir and nlopt_lib_dir:
+            break
+        pass
+    if not (nlopt_include_dir and nlopt_lib_dir):
+        print("Unable to find library or include file for nlopt")
+    return nlopt_lib_dir, nlopt_include_dir
+
 
 def customize_compiler_for_nvcc(self):
     """
@@ -108,12 +124,14 @@ if len(cuda_config) > 0:
     import pybind11
     pybind_include = pybind11.get_include()
     numpy_include = np.get_include()
+    
+    nlopt_lib_dir, nlopt_include_dir = find_nlopt()
     ext = Extension("libgpgpu",
                     sources=["mogp_gpu/src/gp_gpu.cu",
                              "mogp_gpu/src/kernel.cu",
                              "mogp_gpu/src/util.cu"],
-                    library_dirs=[cuda_config["lib64"]],
-                    libraries=["cudart","cublas","cusolver"],
+                    library_dirs=[cuda_config["lib64"], nlopt_lib_dir],
+                    libraries=["cudart","cublas","cusolver","nlopt"],
                     runtime_library_dirs=[cuda_config["lib64"]],
                     extra_compile_args={"gcc":["-std=c++14"],
                                     "nvcc": ["--compiler-options",
@@ -122,7 +140,7 @@ if len(cuda_config) > 0:
                                              "--generate-code","arch=compute_37,code=sm_37",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
-                    include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src"])
+                    include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src",nlopt_include_dir])
     ext_modules.append(ext)
 
 setuptools.setup(name='mogp_emulator',

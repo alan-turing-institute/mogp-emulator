@@ -1,4 +1,4 @@
-#include "gp_gpu.hpp"
+//#include "gp_gpu.hpp"
 #include "fitting.hpp"
 
 #include "pybind11/pybind11.h"

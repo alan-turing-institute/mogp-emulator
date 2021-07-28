@@ -580,7 +580,7 @@ public:
     double get_logpost(vec_ref new_theta)
     {
 
-        bool theta_close = (new_theta - current_theta).norm() < 1e-15;
+        bool theta_close = (new_theta - current_theta).norm() < 1e-8;
 	    if (theta_close) {
 	        return current_logpost;
 	    }

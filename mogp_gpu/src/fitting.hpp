@@ -1,3 +1,5 @@
+#ifndef FITTING_HPP
+#define FITTING_HPP
 
 #include <stdio.h>
 #include <iostream>
@@ -10,7 +12,6 @@
 #include <math.h>
 #include <nlopt.hpp>
 
-#include "types.hpp"
 #include "gp_gpu.hpp"
 
 
@@ -31,15 +32,15 @@ double objective_function(const std::vector<double> &x, std::vector<double> &gra
 }
 
 
-DenseGP_GPU* fit_GP_MAP(DenseGP_GPU* gp, int n_tries=15, std::string method="L-BFGS-B") {
+void fit_GP_MAP(DenseGP_GPU& gp, int n_tries=15, std::string method="L-BFGS-B") {
   // Fit the hyperparameters of a Gaussian Process by minimizing the
   // negative log-posterior.
 
-  nlopt::opt optimizer(nlopt::LD_LBFGS, gp->get_n_params());
- 
-  optimizer.set_min_objective(objective_function, gp);
+  nlopt::opt optimizer(nlopt::LD_LBFGS, gp.get_n_params());
+
+  optimizer.set_min_objective(objective_function, &gp);
   
-  optimizer.set_xtol_rel(1e-6);
+  optimizer.set_xtol_rel(1e-8);
   // generate random starting values for theta
   std::random_device rd;
   std::mt19937 e2(rd());
@@ -48,7 +49,7 @@ DenseGP_GPU* fit_GP_MAP(DenseGP_GPU* gp, int n_tries=15, std::string method="L-B
 
   std::vector< std::vector<double> > all_params;
   for (int itry=0; itry<n_tries; ++itry) {
-    std::vector<REAL> v(gp->get_n_params());
+    std::vector<REAL> v(gp.get_n_params());
     std::generate(v.begin(), v.end(), [&dist, &e2](){ return dist(e2);});
    
     all_params.push_back(v);
@@ -64,7 +65,7 @@ DenseGP_GPU* fit_GP_MAP(DenseGP_GPU* gp, int n_tries=15, std::string method="L-B
       std::cout << "found minimum at f(" << (*it)[0] << "," << (*it)[1] << ") = "
           << std::setprecision(10) << minf << std::endl;
       minvals.push_back(minf);
-      thetavals.push_back(gp->get_theta());
+      thetavals.push_back(gp.get_theta());
     }
     catch(std::exception &e) {
       std::cout << "nlopt failed: " << e.what() << std::endl;
@@ -76,9 +77,17 @@ DenseGP_GPU* fit_GP_MAP(DenseGP_GPU* gp, int n_tries=15, std::string method="L-B
   } else {
       int minvalIndex = std::min_element(minvals.begin(),minvals.end()) - minvals.begin();
       vec best_theta = thetavals.at(minvalIndex);
-      nugget_type nug_type = gp->get_nugget_type();
-      gp->fit(best_theta, nug_type);
+      nugget_type nug_type = gp.get_nugget_type();
+      gp.fit(best_theta, nug_type);
   }
-  std::cout<<" theta is now "<<gp->get_theta()<<std::endl;
-  return gp;
+  std::cout<<" theta is now "<<gp.get_theta()<<std::endl;
+
+  //ZeroMeanFunc* meanfunc = new ZeroMeanFunc();
+
+// DenseGP_GPU* newgp = new DenseGP_GPU(gp->get_inputs(), gp->get_targets(), 2000, meanfunc);
+  //return gp;
+  return;
 }
+
+
+#endif
