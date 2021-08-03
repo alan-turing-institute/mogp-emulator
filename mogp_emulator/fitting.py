@@ -7,6 +7,8 @@ from functools import partial
 import platform
 
 from mogp_emulator.GaussianProcess import GaussianProcessBase, GaussianProcess
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
+from mogp_emulator import LibGPGPU
 from mogp_emulator.MultiOutputGP import MultiOutputGP
 
 
@@ -143,9 +145,10 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
             gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
-        elif isinstance(gp, GaussianProcessBase):
+        elif isinstance(gp, GaussianProcess):
             gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
-
+        elif LibGPGPU.gpu_usable() and isinstance(gp, GaussianProcessGPU):
+            gp = _fit_single_GPGPU_MAP(gp, n_tries, theta0, method, **kwargs)
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
     elif len(args) < 2:
@@ -180,6 +183,17 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
 
     return gp
 
+def _fit_single_GPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
+    """Fit hyperparameters using MAP for a single GP in the C++/CUDA implementation
+       The optimization is done in C++, this Python function is a wrapper for that.
+        Returns a single GP object that has its hyperparameters fit to the MAP value.
+    """
+    if method not in ["L-BFGS", "L-BFGS-B"]:
+        raise NotImplementedError("Unknown method for optimizer - only L-BFGS implemented for GPU")
+    if theta0 is None or len(theta0)==0:
+        theta0=np.array([])
+    LibGPGPU.fit_GP_MAP(gp._densegp_gpu, n_tries, theta0)
+    return gp
 
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """Fit hyperparameters using MAP for a single GP
