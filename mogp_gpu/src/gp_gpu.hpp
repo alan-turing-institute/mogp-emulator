@@ -151,7 +151,6 @@ public:
     vec get_theta(void)
     {
         return current_theta;
-     
     }
 
     double get_nugget_size(void) const
@@ -162,6 +161,16 @@ public:
     void set_nugget_size(double nugget_size) 
     {
         nug_size = nugget_size;
+    }
+
+    void set_nugget_type(nugget_type nugtype)
+    {
+        nug_type = nugtype;
+    }
+
+    nugget_type get_nugget_type(void)
+    {
+        return nug_type;
     }
 
     // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
@@ -435,7 +444,6 @@ public:
         int info_h;
         cusolverStatus_t status;
 	    int factorisation_status;
-
 	    // for adaptive nugget start with a nugget of zero and increase by small amount
 	    // until we find a value where factorization succeeds.
 	    if (nug_type == NUG_ADAPTIVE) {
@@ -554,16 +562,6 @@ public:
     void reset_theta_fit_status(void)
     {
         theta_fitted = false;
-    }
-
-    void set_nugget_type(nugget_type nugtype)
-    {
-        nug_type = nugtype;
-    }
-
-    nugget_type get_nugget_type(void)
-    {
-        return nug_type;
     }
 
     void get_K(mat_ref K_h)

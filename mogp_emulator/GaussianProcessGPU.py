@@ -178,7 +178,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
         self._init_gpu()
-
+        # set the nugget type and (if fixed nugget) size
         self.nugget = nugget        
 
 
@@ -192,8 +192,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self._targets,
                                                      self._max_batch_size,
                                                      self.mean,
-                                                     self.kernel_type) 
-
+                                                     self.kernel_type)
 
     @property
     def inputs(self):
@@ -297,6 +296,8 @@ class GaussianProcessGPU(GaussianProcessBase):
                 raise ValueError("nugget parameter must be non-negative")
             self._nugget_type = LibGPGPU.nugget_type(2) #fixed
             self._densegp_gpu.set_nugget_size(nugget)
+        # set the nugget type on the C++ object
+        self._densegp_gpu.set_nugget_type(self._nugget_type)
 
     @property
     def theta(self):
@@ -346,7 +347,7 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         :returns: np.array
         """
-        if not self.theta_fit_status():
+        if not self._densegp_gpu.theta_fit_status():
             return None
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)

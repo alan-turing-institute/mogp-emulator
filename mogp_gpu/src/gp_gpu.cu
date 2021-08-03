@@ -178,6 +178,15 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
           "Set the value of the nugget.")
 
 ////////////////////////////////////////
+        .def("get_nugget_type", &DenseGP_GPU::get_nugget_type,
+          "Get the type of the nugget.")
+
+////////////////////////////////////////
+        .def("set_nugget_type", &DenseGP_GPU::set_nugget_type,
+          "Set the type of the nugget.")
+
+
+////////////////////////////////////////
         .def("get_cholesky_lower", &DenseGP_GPU::get_cholesky_lower,
              R"(Return the (lower) Cholesky factor of the covariance matrix.
 
