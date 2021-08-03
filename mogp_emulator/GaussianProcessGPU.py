@@ -158,9 +158,6 @@ class GaussianProcessGPU(GaussianProcessBase):
                 GPU implementation was unable to parse mean function formula {}.
                 """.format(mean.__str__())
                 )
-
-        self.nugget = nugget
-
         # set the kernel.
         # Note that for the "kernel" data member, we use the Python instance
         # rather than the C++/CUDA one (for consistency in interface with
@@ -180,6 +177,9 @@ class GaussianProcessGPU(GaussianProcessBase):
         # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
         self._init_gpu()
+
+        self.nugget = nugget        
+
 
 
     def _init_gpu(self):
@@ -266,8 +266,12 @@ class GaussianProcessGPU(GaussianProcessBase):
     def nugget(self):
         """
         See :func:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
+
+        Use the value cached in the C++ class, as we can't rely on the Python fit()
+        function being called.
         """
-        return self._nugget
+        return self._densegp_gpu.get_nugget_size()
+
 
     @nugget.setter
     def nugget(self, nugget):
@@ -283,13 +287,15 @@ class GaussianProcessGPU(GaussianProcessBase):
             elif nugget == "fit":
                 self._nugget_type = LibGPGPU.nugget_type(1)
             else:
-                raise ValueError("nugget must be a float set to 'adaptive', 'fit', or 'fixed'")
-            self._nugget = None
+                raise ValueError("nugget must be a string set to 'adaptive', 'fit', or a float")
+            self._densegp_gpu.set_nugget_size(0.)
+
         else:
+            # nugget is fixed
             if nugget < 0.:
                 raise ValueError("nugget parameter must be non-negative")
             self._nugget_type = LibGPGPU.nugget_type(2) #fixed
-            self._nugget = float(nugget)
+            self._densegp_gpu.set_nugget_size(nugget)
 
     @property
     def theta(self):
@@ -332,6 +338,19 @@ class GaussianProcessGPU(GaussianProcessBase):
         self._densegp_gpu.get_cholesky_lower(result)
         return np.tril(result.transpose())
 
+    @property 
+    def invQt(self):
+        """
+        Return the product of inverse covariance matrix with the target values     
+
+        :returns: np.array
+        """
+        if not self.theta_fit_status():
+            return None
+        invQt_result = np.zeros(self.n)
+        self._densegp_gpu.get_invQt(invQt_result)
+        return invQt_result
+
     def get_K_matrix(self):
         """
         Returns current value of the inverse covariance matrix as a numpy array.
@@ -352,13 +371,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         theta = ndarray_coerce_type_and_flags(theta)
 
-        nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
-        self._densegp_gpu.fit(theta, self._nugget_type, nugget_size)
-        if self.nugget_type == "adaptive" or self.nugget_type == "fit":
-            self._nugget = self._densegp_gpu.get_jitter()
-        invQt_result = np.zeros(self.n)
-        self._densegp_gpu.get_invQt(invQt_result)
-        self.invQt = invQt_result
+        self._densegp_gpu.fit(theta)
+        
 
     def logposterior(self, theta):
         """
@@ -447,7 +461,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                     means[i:i+self._max_batch_size],
                     variances[i:i+self._max_batch_size])
             if include_nugget:
-                variances += self._nugget
+                variances += self.nugget
         else:
             for i in range(0, n_testing, self._max_batch_size):
                 self._densegp_gpu.predict_batch(

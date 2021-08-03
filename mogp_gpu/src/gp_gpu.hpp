@@ -86,8 +86,8 @@ class DenseGP_GPU {
     // current value of log posterior (on host)
     double current_logpost;
 
-    // adaptive nugget jitter
-    double jitter;
+    // adaptive nugget jitter, or specified fixed, or fitted, nugget size
+    double nug_size;
 
     // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
@@ -154,9 +154,14 @@ public:
      
     }
 
-    double get_jitter(void) const
+    double get_nugget_size(void) const
     {
-        return jitter;
+        return nug_size;
+    }
+
+    void set_nugget_size(double nugget_size) 
+    {
+        nug_size = nugget_size;
     }
 
     // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
@@ -405,10 +410,9 @@ public:
     }
 
     // Update the hyperparameters, and K, invQ and invQt which depend on them
-    void fit(vec_ref theta, nugget_type nugget, double nugget_size=0.0)
+    void fit(vec_ref theta)
     {
 
-        nug_type = nugget;
 	    int param_switch_index = meanfunc->get_n_params(inputs);
 	    meanfunc_params = theta.block(0,0,param_switch_index,1);
 
@@ -422,8 +426,8 @@ public:
 		         theta_d.begin());
 
 	    // calculate covariance matrix, put result into K_d
-            kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
-			      dev_ptr(inputs_d), dev_ptr(theta_d));
+        kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
+		    	      dev_ptr(inputs_d), dev_ptr(theta_d));
 	    /// copy the covariance matrix K_d into work_mat_d
 	    thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
 
@@ -452,16 +456,16 @@ public:
 			            // elements should all be positive)
 		    	        cublasDasum(cublasHandle, n, dev_ptr(K_d), n+1, &mean_diag);
 			            mean_diag /= n;
-			            jitter = 1e-6 * mean_diag;
+			            nug_size = 1e-6 * mean_diag;
 		            }
-		            add_diagonal(n, jitter, dev_ptr(work_mat_d));
+		            add_diagonal(n, nug_size, dev_ptr(work_mat_d));
 		        }
 
 		        factorisation_status = calc_cholesky_factors();
 		        if (factorisation_status == 0) {
                     break;
 		        }
-		        jitter *= 10;
+		        nug_size *= 10;
 		        itry++;
 	        }
 
@@ -474,7 +478,7 @@ public:
 	        }
 	    // for fixed nugget, add "nugget_size" to the diagonal of the matrix.
 	    } else if (nug_type == NUG_FIXED) {
-	        add_diagonal(n, nugget_size, dev_ptr(work_mat_d));
+	        add_diagonal(n, nug_size, dev_ptr(work_mat_d));
 	        factorisation_status = calc_cholesky_factors();
 	        if (factorisation_status != 0) {
                 throw std::runtime_error("Unable to factorize matrix using fixed nugget");
@@ -482,9 +486,9 @@ public:
 
 	    } else if (nug_type == NUG_FIT) {
 	        // set to exp(last-element-of-theta)
-	        jitter = exp( theta(theta.size()-1) );
+	        nug_size = exp( theta(theta.size()-1) );
 
-	        add_diagonal(n, jitter, dev_ptr(work_mat_d));
+	        add_diagonal(n, nug_size, dev_ptr(work_mat_d));
 	        factorisation_status = calc_cholesky_factors();
 	        if (factorisation_status != 0) {
                 throw std::runtime_error("Unable to factorize matrix using fitted nugget");
@@ -586,7 +590,7 @@ public:
 	    }
 	    
         //theta has changed - refit
-	    fit(new_theta, nug_type);
+	    fit(new_theta);
 
 	    return current_logpost;
     }
@@ -691,7 +695,7 @@ public:
 		        &invQtSq);
 
 	        // set the last element of result, putting it all together
-	        result(result.size()-1) = 0.5 * jitter * (tr_invQ - invQtSq);
+	        result(result.size()-1) = 0.5 * nug_size * (tr_invQ - invQtSq);
 	    }
     }
 
@@ -721,7 +725,7 @@ public:
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
 	    , current_logpost(0.0)
-        , jitter(0.0)
+        , nug_size(0.0)
         , invQt_d(n, 0.0)
         , testing_d(D * testing_size, 0.0)
         , work_d(n, 0.0)

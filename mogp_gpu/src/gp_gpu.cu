@@ -126,19 +126,13 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
 ////////////////////////////////////////
 
         .def("fit", &DenseGP_GPU::fit,
-             R"(Sets theta and the nugget parameters, and updates the internal
-state of the emulator accordingly.
+             R"(Sets theta, and updates the internal state of the emulator accordingly.
 
 :param theta: Values for the hyperparameters (length ``n_params``)
-:param nugget: The interpretation of the nugget: adaptive, fixed or fit
-:param nugget_size: The (initial) nugget value
 
 :returns: None
 )",
-             py::arg("theta"),
-             py::arg("nugget"),
-             py::arg("nugget_size")
-            )
+             py::arg("theta"))
 
 ////////////////////////////////////////
         .def("get_K", &DenseGP_GPU::get_K,
@@ -176,8 +170,12 @@ state of the emulator accordingly.
             )
 
 ////////////////////////////////////////
-        .def("get_jitter", &DenseGP_GPU::get_jitter,
-             "The value of jitter used for an adaptive nugget.")
+        .def("get_nugget_size", &DenseGP_GPU::get_nugget_size,
+          "Get the value of the nugget.")
+
+////////////////////////////////////////
+        .def("set_nugget_size", &DenseGP_GPU::set_nugget_size,
+          "Set the value of the nugget.")
 
 ////////////////////////////////////////
         .def("get_cholesky_lower", &DenseGP_GPU::get_cholesky_lower,
