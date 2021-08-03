@@ -124,14 +124,15 @@ if len(cuda_config) > 0:
     import pybind11
     pybind_include = pybind11.get_include()
     numpy_include = np.get_include()
-    
-    nlopt_lib_dir, nlopt_include_dir = find_nlopt()
+    dlib_dir="/usr/local/software/dlib/19.17/lib64"
+    dlib_include="/usr/local/software/dlib/19.17/include"
+    #nlopt_lib_dir, nlopt_include_dir = find_nlopt()
     ext = Extension("libgpgpu",
                     sources=["mogp_gpu/src/gp_gpu.cu",
                              "mogp_gpu/src/kernel.cu",
                              "mogp_gpu/src/util.cu"],
-                    library_dirs=[cuda_config["lib64"], nlopt_lib_dir],
-                    libraries=["cudart","cublas","cusolver","nlopt"],
+                    library_dirs=[cuda_config["lib64"], dlib_dir],
+                    libraries=["cudart","cublas","cusolver","dlib","openblas"],
                     runtime_library_dirs=[cuda_config["lib64"]],
                     extra_compile_args={"gcc":["-std=c++14"],
                                     "nvcc": ["--compiler-options",
@@ -140,7 +141,7 @@ if len(cuda_config) > 0:
                                              "--generate-code","arch=compute_37,code=sm_37",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
-                    include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src",nlopt_include_dir])
+                    include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src", dlib_include])
     ext_modules.append(ext)
 
 setuptools.setup(name='mogp_emulator',
