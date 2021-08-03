@@ -9,7 +9,6 @@
 #include <stdexcept>
 
 #include <math.h>
-#include <nlopt.h>
 
 #include "../src/fitting.hpp"
 #include "../src/meanfunc.hpp"
@@ -29,13 +28,13 @@ void testFit() {
 
   ZeroMeanFunc* meanfunc = new ZeroMeanFunc();
 
-  DenseGP_GPU* gp = new DenseGP_GPU(inputs, targets, max_batch_size, meanfunc);
+  DenseGP_GPU gp(inputs, targets, max_batch_size, meanfunc);
 
   //vec theta = vec::Constant(gp.get_n_params(),1, -1.0);
 
   /// gp.fit(theta, NUG_ADAPTIVE);
 
-  gp = fit_GP_MAP(gp);
+  fit_GP_MAP(gp);
 
 }
 

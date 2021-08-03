@@ -10,82 +10,116 @@
 #include <random>
 
 #include <math.h>
-#include <nlopt.hpp>
+#include <dlib/optimization.h>
+#include <dlib/global_optimization.h>
 
 #include "gp_gpu.hpp"
 
+typedef dlib::matrix<double,0,1> column_vector;
 
-double objective_function(const std::vector<double> &x, std::vector<double> &grad, void* f_data) {
+class GPWrapper {
+  // class that will translate dlib column vectors into eigen vectors and vice
+  // versa, such that the gp's logpost and logpost_deriv methods can be used
+  // with dlib.
 
-  DenseGP_GPU* gp = (DenseGP_GPU*)f_data;
+private:
+  DenseGP_GPU gp;
 
-  nugget_type nug_type = gp->get_nugget_type();
-  std::vector<double> xcopy = x;
-  double* ptr = &xcopy[0];
-  vec theta_vec = Eigen::Map<vec>(ptr, xcopy.size());
-  // get the gradients
-  vec lpd(gp->get_n_params());
-  gp->logpost_deriv(lpd);
-  Eigen::VectorXd::Map(&grad[0], lpd.size()) = lpd;
-  
-  return gp->get_logpost(theta_vec);
-}
+public: 
+// constructor
+  GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {}
+  double logpost(column_vector theta) {
+    std::vector<REAL> new_theta(theta.begin(), theta.end());
+    double* ptr = &new_theta[0];
+    vec theta_vec = Eigen::Map<vec>(ptr, new_theta.size());
+    return gp.get_logpost(theta_vec);
+  }
+
+  column_vector logpost_deriv(column_vector theta) {
+    std::vector<REAL> new_theta(theta.begin(), theta.end());
+    double* ptr = &new_theta[0];
+    vec theta_vec = Eigen::Map<vec>(ptr, new_theta.size());
+    vec deriv(theta_vec.size());
+    gp.logpost_deriv(deriv);
+    std::vector<double> lpderiv(deriv.data(), deriv.data()+deriv.size());
+    //column_vector logpostderiv;
+    column_vector logpostderiv(lpderiv.size());
+    for (unsigned int i=0; i<lpderiv.size(); ++i) logpostderiv(i) = lpderiv[i];
+    return logpostderiv;
+  }
+
+  vec theta() {
+    return gp.get_theta();
+  }
+
+};
 
 
-void fit_GP_MAP(DenseGP_GPU& gp, int n_tries=15, std::string method="L-BFGS-B") {
+void fit_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
   // Fit the hyperparameters of a Gaussian Process by minimizing the
   // negative log-posterior.
 
-  nlopt::opt optimizer(nlopt::LD_LBFGS, gp.get_n_params());
+  GPWrapper gpw(gp);
 
-  optimizer.set_min_objective(objective_function, &gp);
-  
-  optimizer.set_xtol_rel(1e-8);
+  std::vector< std::vector<double> > all_params;  
+  // if we're given an initial set of theta values, put this at the start of all_params
+  if (theta0.size() > 0) {
+    if (theta0.size() != gp.get_n_params()) 
+      throw std::runtime_error("length of theta0 must equal n_params of GP.");
+    all_params.push_back(theta0);
+  }
+
   // generate random starting values for theta
   std::random_device rd;
   std::mt19937 e2(rd());
 
   std::uniform_real_distribution<> dist(-2.5, 2.5);
 
-  std::vector< std::vector<double> > all_params;
-  for (int itry=0; itry<n_tries; ++itry) {
+  
+  for (int itry=all_params.size(); itry<n_tries; ++itry) {
     std::vector<REAL> v(gp.get_n_params());
     std::generate(v.begin(), v.end(), [&dist, &e2](){ return dist(e2);});
    
     all_params.push_back(v);
   }
-  std::cout<<"here we go..."<<std::endl;
+  
   std::vector<double> minvals;
   std::vector<vec> thetavals;
   for (auto it = all_params.begin(); it != all_params.end(); it++) {
     
     double minf; // minimum objective function from optimizer
-    try{
-      nlopt::result result = optimizer.optimize((*it), minf);
-      std::cout << "found minimum at f(" << (*it)[0] << "," << (*it)[1] << ") = "
-          << std::setprecision(10) << minf << std::endl;
+    /// copy the std::vector into dlib column_matrix
+    column_vector theta((*it).size());
+    for (unsigned int i=0; i<(*it).size(); ++i) theta(i) = (*it)[i];
+    try {
+      minf = find_min(dlib::bfgs_search_strategy(),  // Use BFGS search algorithm
+             dlib::objective_delta_stop_strategy(1e-9), // Stop when the change in func value is less than 1e-7
+             [&gpw](const column_vector& a) {
+              return gpw.logpost(a);
+            },
+            [&gpw](const column_vector& b) {
+              return gpw.logpost_deriv(b);
+            },
+            theta, -1);
+
+      //std::cout << "found minimum at f(" << (*it)[0] << "," << (*it)[1] << ") = "
+      //          << std::setprecision(10) << minf << std::endl;
       minvals.push_back(minf);
-      thetavals.push_back(gp.get_theta());
+      thetavals.push_back(gpw.theta());    
+    } catch(std::exception &e) {
+      std::cout << "dlib optimization failed: " << e.what() << std::endl;
     }
-    catch(std::exception &e) {
-      std::cout << "nlopt failed: " << e.what() << std::endl;
-    }
-    
   }
+  
   if (minvals.size() == 0) {
     std::cout<<"All minimization tries failed"<<std::endl;
   } else {
       int minvalIndex = std::min_element(minvals.begin(),minvals.end()) - minvals.begin();
       vec best_theta = thetavals.at(minvalIndex);
-      nugget_type nug_type = gp.get_nugget_type();
-      gp.fit(best_theta, nug_type);
+      gp.fit(best_theta);
+
   }
-  std::cout<<" theta is now "<<gp.get_theta()<<std::endl;
-
-  //ZeroMeanFunc* meanfunc = new ZeroMeanFunc();
-
-// DenseGP_GPU* newgp = new DenseGP_GPU(gp->get_inputs(), gp->get_targets(), 2000, meanfunc);
-  //return gp;
+  
   return;
 }
 

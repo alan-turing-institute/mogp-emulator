@@ -19,6 +19,7 @@ EXTRAFLAGS=-Xcompiler -fPIC
 
 CUDA_INC=/usr/local/cuda/include
 PYBIND_INC=$(shell python3 -m pybind11 --includes)
+DLIB_INC=-I/usr/local/software/dlib/19.17/include
 
 all: lib/libgpgpu.so
 
@@ -51,7 +52,7 @@ bin/test/test_gpu_cholesky: test/test_gpu_cholesky.cu
 
 bin/test/test_basic_fitting: test/test_basic_fitting.cu
 	mkdir -p bin/test
-	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lnlopt $< -o $@
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(DLIB_INC) -lopenblas $< -o $@
 
 bin/test/test_meanfunc: test/test_meanfunc.cu obj/util.o
 	mkdir -p bin/test
@@ -63,7 +64,7 @@ bin/test/test_gp_gpu: test/test_gp_gpu.cu obj/util.o obj/kernel.o
 
 bin/test/test_gp_fitting: test/test_gp_fitting.cu obj/util.o obj/kernel.o
 	mkdir -p bin/test
-	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lnlopt -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(DLIB_INC) -lopenblas -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
 
 
 
