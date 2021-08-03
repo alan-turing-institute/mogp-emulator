@@ -62,21 +62,27 @@ def get_cuda_config():
         "lib64": lib64
     }
 
-def find_nlopt():
-    nlopt_include_dir = None
-    nlopt_lib_dir = None
-    base_path = os.environ["HOME"]
-    for root, dirs, files in os.walk(base_path):
-        if "libnlopt.so.0" in files:
-            nlopt_lib_dir = root
-        elif "nlopt.hpp" in files:
-            nlopt_include_dir = root
-        if nlopt_include_dir and nlopt_lib_dir:
+def find_dlib():
+    """
+    Find the dlib directory in LD_LIBRARY_PATH and return a 
+    dict with keys "include" and "lib64" containing the appropriate paths.
+    """
+    
+    path = os.environ["LD_LIBRARY_PATH"]
+    base_dir = None
+    for location in path.split(os.pathsep):
+        if "dlib" in location:
+            base_dir = os.path.dirname(location)
             break
-        pass
-    if not (nlopt_include_dir and nlopt_lib_dir):
-        print("Unable to find library or include file for nlopt")
-    return nlopt_lib_dir, nlopt_include_dir
+    if not base_dir:
+        print("unable to find dlib in LD_LIBRARY_PATH")
+        return {}
+    include = os.path.join(base_dir,"include")
+    lib64 = os.path.join(base_dir, "lib64")
+    return {
+        "include": include,
+        "lib64": lib64
+    }
 
 
 def customize_compiler_for_nvcc(self):
@@ -124,9 +130,10 @@ if len(cuda_config) > 0:
     import pybind11
     pybind_include = pybind11.get_include()
     numpy_include = np.get_include()
-    dlib_dir="/usr/local/software/dlib/19.17/lib64"
-    dlib_include="/usr/local/software/dlib/19.17/include"
-    #nlopt_lib_dir, nlopt_include_dir = find_nlopt()
+    dlib_location = find_dlib()
+    dlib_dir = dlib_location["lib64"]
+    dlib_include = dlib_location["include"]
+    
     ext = Extension("libgpgpu",
                     sources=["mogp_gpu/src/gp_gpu.cu",
                              "mogp_gpu/src/kernel.cu",
