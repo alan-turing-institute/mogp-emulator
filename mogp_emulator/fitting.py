@@ -190,6 +190,8 @@ def _fit_single_GPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwar
     """
     if method not in ["L-BFGS", "L-BFGS-B"]:
         raise NotImplementedError("Unknown method for optimizer - only L-BFGS implemented for GPU")
+    n_tries = int(n_tries)
+    assert n_tries > 0, "number of attempts must be positive"
     if theta0 is None or len(theta0)==0:
         theta0=np.array([])
     LibGPGPU.fit_GP_MAP(gp._densegp_gpu, n_tries, theta0)
