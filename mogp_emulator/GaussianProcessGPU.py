@@ -60,6 +60,7 @@ def parse_meanfunc_formula(formula):
        or None if the formula could not be parsed, or is not currently implemented in C++ code.
     :rtype: LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFun or None
     """
+    # convert to a raw string
     if formula == "c":
         return LibGPGPU.ConstMeanFunc()
     else:
@@ -72,11 +73,11 @@ def parse_meanfunc_formula(formula):
     # if we got here, we hopefully have a parse-able formula
     terms = formula.split("+")
     def find_index_and_power(term):
-        variables = re.findall("x\[[\d+]\]",term)
+        variables = re.findall(r"x\[[\d+]\]",term)
         if len(variables) == 0:
             # didn't find a non-const term
             return None
-        indices = [int(re.search("\[([\d+])\]", v).groups()[0]) for v in variables]
+        indices = [int(re.search(r"\[([\d+])\]", v).groups()[0]) for v in variables]
         if indices.count(indices[0]) != len(indices):
             raise NotImplementedError("Cross terms, e.g. x[0]*x[1] not implemented in GPU version.")
         # first guess at the power to which the index is raised is how many times it appears
@@ -84,8 +85,8 @@ def parse_meanfunc_formula(formula):
         power = len(indices)
         # however, it's also possible to write 'x[0]^2' or even, 'x[0]*x[0]^2' or even 'x[0]^2*x[0]^2'
         # so look at all the numbers appearing after a '^'.
-        more_powers = re.findall("\^[\d]+",term)
-        more_powers = [int(re.search("\^([\d]+)",p).groups()[0]) for p in more_powers]
+        more_powers = re.findall(r"\^[\d]+",term)
+        more_powers = [int(re.search(r"\^([\d]+)",p).groups()[0]) for p in more_powers]
         # now add these on to the original power number
         # (subtracting one each time, as we already have x^1 implicitly)
         for p in more_powers:
@@ -350,6 +351,15 @@ class GaussianProcessGPU(GaussianProcessBase):
         invQt_result = np.zeros(self.n)
         self._densegp_gpu.get_invQt(invQt_result)
         return invQt_result
+        
+    @property
+    def current_logpost(self):
+        """
+        Return the current value of the log posterior.  This is cached in the C++ class.
+
+        :returns: double
+        """
+        return self.logposterior(self.theta)
 
     def get_K_matrix(self):
         """
