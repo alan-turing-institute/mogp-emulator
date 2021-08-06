@@ -3,8 +3,11 @@ extends GaussianProcess with an (optional) GPU implementation
 """
 
 import os
+import re
 import numpy as np
+
 from mogp_emulator.Kernel import SquaredExponential, Matern52
+from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 
 import mogp_emulator.LibGPGPU as LibGPGPU
 
@@ -44,6 +47,61 @@ def ndarray_coerce_type_and_flags(arr):
         return arr_contiguous_float64
 
 
+def parse_meanfunc_formula(formula):
+    """
+    Assuming the formula has already been parsed by the Python MeanFunction interface,
+    we expect it to be in a standard form, with parameters denoted by 'c' and variables
+    denoted by 'x[dim_index]' where dim_index < D.
+
+    :param formula: string representing the desired mean function formula
+    :type formula: str
+
+    :returns: Instance of LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFunc implementing formula,
+       or None if the formula could not be parsed, or is not currently implemented in C++ code.
+    :rtype: LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFun or None
+    """
+    if formula == "c":
+        return LibGPGPU.ConstMeanFunc()
+    else:
+        # see if the formula is a string representation of a number
+        try:
+            m = float(formula)
+            return LibGPGPU.FixedMeanFunc(m)
+        except:
+            pass
+    # if we got here, we hopefully have a parse-able formula
+    terms = formula.split("+")
+    def find_index_and_power(term):
+        variables = re.findall("x\[[\d+]\]",term)
+        if len(variables) == 0:
+            # didn't find a non-const term
+            return None
+        indices = [int(re.search("\[([\d+])\]", v).groups()[0]) for v in variables]
+        if indices.count(indices[0]) != len(indices):
+            raise NotImplementedError("Cross terms, e.g. x[0]*x[1] not implemented in GPU version.")
+        # first guess at the power to which the index is raised is how many times it appears
+        # e.g. if written as x[0]*x[0]
+        power = len(indices)
+        # however, it's also possible to write 'x[0]^2' or even, 'x[0]*x[0]^2' or even 'x[0]^2*x[0]^2'
+        # so look at all the numbers appearing after a '^'.
+        more_powers = re.findall("\^[\d]+",term)
+        more_powers = [int(re.search("\^([\d]+)",p).groups()[0]) for p in more_powers]
+        # now add these on to the original power number
+        # (subtracting one each time, as we already have x^1 implicitly)
+        for p in more_powers:
+            power += p - 1
+        return [indices[0], power]
+    indices_powers = []
+    for term in terms:
+        ip = find_index_and_power(term)
+        if ip:
+            indices_powers.append(ip)
+    if len(indices_powers) > 0:
+        return LibGPGPU.PolyMeanFunc(indices_powers)
+    else:
+        return None
+
+
 class GaussianProcessGPU(GaussianProcessBase):
 
     """
@@ -81,8 +139,25 @@ class GaussianProcessGPU(GaussianProcessBase):
         self._targets = targets
         self._max_batch_size = max_batch_size
 
-        if mean:
-            raise ValueError("GPU implementation requires mean to be None")
+        if mean is None:
+            self.mean = LibGPGPU.ZeroMeanFunc()
+        else:
+            if not issubclass(type(mean), MeanBase):
+                if isinstance(mean, str):
+                    mean = MeanFunction(mean, inputdict, use_patsy)
+                else:
+                    raise ValueError("provided mean function must be a subclass of MeanBase,"+
+                                     " a string formula, or None")
+
+            # at this point, mean will definitely be a MeanBase.  We can call its __str__ and
+            # parse this to create an instance of a C++ MeanFunction
+            self.mean = parse_meanfunc_formula(mean.__str__())
+            # if we got None back from that function, something went wrong
+            if not mean:
+                raise ValueError("""
+                GPU implementation was unable to parse mean function formula {}.
+                """.format(mean.__str__())
+                )
 
         self.nugget = nugget
 
@@ -115,7 +190,9 @@ class GaussianProcessGPU(GaussianProcessBase):
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
                                                      self._targets,
                                                      self._max_batch_size,
-                                                     self.kernel_type)
+                                                     self.mean,
+                                                     self.kernel_type) #,
+#                                                     self.mean_type)
 
 
     @property
@@ -170,7 +247,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of hyperparameters
         :rtype: int
         """
-        return self._densegp_gpu.n_params()
+        return self._densegp_gpu.n_params()+ self.mean.get_n_params(self.inputs)
 
     @property
     def nugget_type(self):

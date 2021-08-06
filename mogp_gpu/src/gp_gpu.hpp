@@ -24,6 +24,7 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 
 #include "util.hpp"
 #include "kernel.hpp"
+#include "meanfunc.hpp"
 
 
 
@@ -52,6 +53,9 @@ class DenseGP_GPU {
     // pointer to the Kernel
     BaseKernel* kernel;
 
+    // pointer to the Mean Function
+    BaseMeanFunc* meanfunc;
+
     // is the nugget adapted, fixed, or fitted?
     nugget_type nug_type;
 
@@ -79,8 +83,11 @@ class DenseGP_GPU {
     // adaptive nugget jitter
     double jitter;
 
-    // hyperparameters on the device
+    // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
+
+    // mean function hyperparameters
+    vec meanfunc_params;
 
     // inputs, on the device, row major order
     thrust::device_vector<REAL> inputs_d;
@@ -93,6 +100,9 @@ class DenseGP_GPU {
 
     // preallocated work array (length n) on the CUDA device
     thrust::device_vector<REAL> work_d;
+
+    // device vector for derivative of mean function
+    thrust::device_vector<REAL> meanfunc_deriv_d;
 
     // buffer for Cholesky factorization
     thrust::device_vector<REAL> potrf_buffer_d;
@@ -134,7 +144,10 @@ public:
 
     void get_theta(vec_ref theta)
     {
-        thrust::copy(theta_d.begin(), theta_d.end(), theta.data());
+      // mean function params then kernel params
+        int param_switch_index = meanfunc_params.rows();
+	theta.block(0,0,param_switch_index,1) = meanfunc_params;
+        thrust::copy(theta_d.begin(), theta_d.end(), theta.data()+param_switch_index);
     }
 
     double get_jitter(void) const
@@ -155,8 +168,9 @@ public:
         REAL result = std::numeric_limits<double>::quiet_NaN();
         CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
                   &result);
-
-        return double(result);
+	// evaluate the mean function and add to the result
+        vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
+        return double(result + meanfunc_vals(0));
     }
 
     // variance of a single prediction (mainly for testing - most use-cases will use predict_variance_batch)
@@ -199,8 +213,9 @@ public:
         cudaDeviceSynchronize();
 
         var = kappa - var.array();
-
-        return REAL(result);
+	// evaluate the mean function and add to the result
+	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
+        return REAL(result + meanfunc_vals(0));
     }
 
     // Use the GP emulator to calculate a prediction on testing points, without calculating variance or derivative
@@ -237,6 +252,10 @@ public:
         cudaDeviceSynchronize();
 
         thrust::copy(result_d.begin(), result_d.end(), result.data());
+
+	// evaluate the mean function and add to the result
+	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
+	result += meanfunc_vals;
     }
 
     // Use the GP emulator to calculate a prediction on testing points, also calculating variance
@@ -302,7 +321,9 @@ public:
 
         // copy back means
         thrust::copy(mean_d.begin(), mean_d.end(), mean.data());
-
+	// evaluate the mean function and add to the mean
+	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
+	mean += meanfunc_vals;
         // copy back variances
         thrust::copy(kappa_d.begin(), kappa_d.begin() + Nbatch, var.data());
     }
@@ -340,6 +361,10 @@ public:
         cudaDeviceSynchronize();
 
         thrust::copy(result_d.begin(), result_d.end(), result.data());
+
+	// evaluate deriv of meanfunc wrt test points, and add to result
+	mat meanfunc_inputderiv = meanfunc->mean_inputderiv(testing, meanfunc_params);
+	result += meanfunc_inputderiv.transpose();
     }
 
     // perform Cholesky factorization of the matrix currently stored in work_mat_d
@@ -380,7 +405,17 @@ public:
     {
 
         nug_type = nugget;
-        thrust::copy(theta.data(), theta.data() + D + 2, theta_d.begin());
+	int param_switch_index = meanfunc->get_n_params(inputs);
+	meanfunc_params = theta.block(0,0,param_switch_index,1);
+
+	// evaluate the mean function at the input values and subtract from targets
+	vec new_targets = targets - meanfunc->mean_f(inputs, meanfunc_params);
+	thrust::copy(new_targets.data(), new_targets.data() + n, targets_d.begin());
+
+	// copy all the parameters _after_ those for the mean function to the device vector theta_d
+        thrust::copy(theta.data() + param_switch_index,
+		     theta.data() + D + 2 + param_switch_index,
+		     theta_d.begin());
 
 	// calculate covariance matrix, put result into K_d
         kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
@@ -533,6 +568,7 @@ public:
         double one(1.0);
         double half(0.5);
         double m_half(-0.5);
+	double minusone(-1.0);
 
         const int Ntheta = D + 1;
 
@@ -595,7 +631,22 @@ public:
                     &one, // beta
                     dev_ptr(result_d), 1); // y, incy
 
-        thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data());
+	// first elements of result (up to meanfunc_nparam) will be from meanfunc,
+	// then the next (D+1) from the Kernel.
+	int meanfunc_nparam = meanfunc_params.rows();
+	if (meanfunc_nparam > 0) { // only copy data to device and do calculation if we need to.
+	  mat meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
+	  thrust::copy(meanfunc_deriv.data(), meanfunc_deriv.data() + (n * meanfunc_nparam), meanfunc_deriv_d.begin());
+	  // product of meanfunc_deriv with invQt
+	  cublasDgemv(cublasHandle, CUBLAS_OP_T, // handle, op (transpose)
+		      n, n * meanfunc_nparam, // nrows, ncols (N.B. column-major order!)
+                    &minusone, dev_ptr(meanfunc_deriv_d), n, // alpha, A, lda
+                    dev_ptr(invQt_d), 1, // x, incx
+                    &zero, // beta
+                    dev_ptr(meanfunc_deriv_d), 1); // y, incy
+	  thrust::copy(meanfunc_deriv_d.begin(), meanfunc_deriv_d.begin() + (meanfunc_nparam), result.data());
+	}
+        thrust::copy(result_d.begin(), result_d.begin() + Ntheta, result.data()+(meanfunc_nparam));
 
 	// fitted nugget - last element of theta is log(nugget)
 	// partial deriv is 0.5*nugget*(trace(invQ) - invQt.invQt)
@@ -617,7 +668,11 @@ public:
     }
 
     // constructor
-  DenseGP_GPU(mat_ref inputs_, vec_ref targets_, unsigned int testing_size_, kernel_type kern=SQUARED_EXPONENTIAL)
+  DenseGP_GPU(mat_ref inputs_,
+	      vec_ref targets_,
+	      unsigned int testing_size_,
+	      BaseMeanFunc* mean_,
+	      kernel_type kern_=SQUARED_EXPONENTIAL)
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
@@ -625,10 +680,12 @@ public:
         , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
         , theta_d(D + 2)
+	, meanfunc_params(1) // resize later if necessary
         , inputs(inputs_)
         , targets(targets_)
-	, kern_type(kern)
+	, kern_type(kern_)
         , kernel(0)
+	, meanfunc(mean_)
 	, nug_type(NUG_ADAPTIVE)
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
@@ -676,6 +733,10 @@ public:
 	  kernel = new Matern52Kernel();
 	} else throw std::runtime_error("Unrecognized kernel type\n");
 
+	// resize meanfunc_params vector here
+	meanfunc_params.resize(meanfunc->get_n_params(inputs),1);
+	// resize the device vector that will store derivative of mean function
+	meanfunc_deriv_d.resize(meanfunc->get_n_params(inputs) * inputs.rows());
     }
 };
 
