@@ -12,6 +12,7 @@ MINOR = 5
 MICRO = 0
 PRERELEASE = 3
 ISRELEASED = False
+
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:
@@ -31,7 +32,6 @@ version = '{}'
         fh.write(version_file)
 
 write_version_file(version)
-
 
 with open("README.md", "r") as fh:
     long_description = fh.read()

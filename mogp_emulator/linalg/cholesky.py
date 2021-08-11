@@ -104,7 +104,7 @@ def pivot_cholesky(A):
               integers indicating the pivoting order needed to produce the
               factorization.
     :rtype: tuple containing an ndarray of shape `(n,n)` of floats and a
-            ndarray of shape `(n,)` of integers. 
+            ndarray of shape `(n,)` of integers.
     """
 
     A = _check_cholesky_inputs(A)
@@ -112,18 +112,18 @@ def pivot_cholesky(A):
     A = np.ascontiguousarray(A)
     L, P, rank, info = lapack.dpstrf(A, lower = 1)
     L = np.tril(L)
-    
+
     if info < 0:
         raise linalg.LinAlgError("Illegal value in covariance matrix")
-    
+
     n = A.shape[0]
 
     idx = np.arange(rank, n)
     divs = np.cumprod(np.arange(rank+1, n+1, dtype=np.float64))
     L[idx, idx] = L[rank-1, rank-1]/divs
-    
+
     return L, P-1
-    
+
 def _pivot_transpose(P):
     """
     Invert a pivot matrix by taking its transpose
@@ -181,7 +181,7 @@ def pivot_cho_solve(L, P, b):
     """
 
     assert len(P) == L.shape[0], "Length of pivot matrix must match linear system"
-    
+
     try:
         return cho_solve((L, True), b[P])[_pivot_transpose(P)]
     except (IndexError, ValueError):

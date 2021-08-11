@@ -448,7 +448,6 @@ class HistoryMatching(object):
         return isinstance(gp, GaussianProcessBase)
 
 
-
     def check_obs(self, obs):
         r"""
         Checks if the provided argument is consistent with expectations for

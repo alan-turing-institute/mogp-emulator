@@ -52,7 +52,7 @@ class GaussianProcess(GaussianProcessBase):
     number of training examples ``n``, the number of input parameters
     ``D``, and the number of hyperparameters ``n_params``. These
     parameters can be obtained externally by accessing these
-    attributes
+    attributes.
 
     Example: ::
 
@@ -476,7 +476,6 @@ class GaussianProcess(GaussianProcessBase):
         hyperparameter is not fit, the prior for the nugget will
         automatically be set to ``None`` even if a distribution is
         provided.
-
         """
         return self._priors
 
