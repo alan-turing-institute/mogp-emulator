@@ -12,7 +12,7 @@ def test_GPParams_init():
     assert gpp.n_corr == 1
     assert gpp.n_cov == 1
     assert gpp.n_nugget == 1
-    assert_allclose(gpp.data, np.zeros(3))
+    assert gpp.data is None
 
     gpp = GPParams(n_mean=2, n_corr=3, nugget=False, data=np.ones(6))
     
@@ -51,9 +51,16 @@ def test_GPParams_mean():
     gpp = GPParams()
     
     assert gpp.n_mean == 0
-    assert len(gpp.mean) == 0
+    assert gpp.mean is None
+    
+    with pytest.raises(ValueError):
+        gpp.mean = []
+    
+    gpp.data = np.zeros(gpp.n_params)
     
     gpp.mean = []
+
+    assert len(gpp.mean) == 0
     
     with pytest.raises(AssertionError):
         gpp.mean = [1.]
@@ -74,6 +81,10 @@ def test_GPParams_mean():
         
     gpp = GPParams(n_mean=1)
     
+    assert gpp.mean is None
+    
+    gpp.data = np.zeros(gpp.n_params)
+    
     gpp.mean = 1.
     
     assert_allclose(gpp.mean, np.ones(1))
@@ -84,6 +95,13 @@ def test_GPParams_corr():
     gpp = GPParams()
     
     assert gpp.n_corr == 1
+    assert gpp.corr is None
+    assert gpp.corr_raw is None
+    
+    with pytest.raises(ValueError):
+        gpp.corr_raw = 2.
+    
+    gpp.data = np.zeros(gpp.n_params)
     assert_allclose(gpp.corr, np.ones(1))
     assert_allclose(gpp.corr_raw, np.zeros(1))
 
@@ -147,6 +165,13 @@ def test_GPParams_cov():
     gpp = GPParams()
     
     assert gpp.n_cov == 1
+    assert gpp.cov is None
+    assert gpp.cov_raw is None
+    
+    with pytest.raises(ValueError):
+        gpp.cov_raw = 2.
+    
+    gpp.data = np.zeros(gpp.n_params)
     assert_allclose(gpp.cov, np.ones(1))
     assert_allclose(gpp.cov_raw, np.zeros(1))
 
@@ -215,6 +240,13 @@ def test_GPParams_nugget():
     gpp = GPParams()
     
     assert gpp.n_nugget == 1
+    assert gpp.nugget is None
+    assert gpp.nugget_raw is None
+    
+    with pytest.raises(ValueError):
+        gpp.nugget_raw = 2.
+    
+    gpp.data = np.zeros(gpp.n_params)
     assert_allclose(gpp.nugget, np.ones(1))
     assert_allclose(gpp.nugget_raw, np.zeros(1))
 
@@ -256,6 +288,9 @@ def test_GPParams_nugget():
     gpp = GPParams(nugget=False)
     
     assert gpp.n_nugget == 0
+    assert gpp.nugget is None
+    
+    gpp.data = np.zeros(gpp.n_params)
     assert len(gpp.nugget) == 0
     assert len(gpp.nugget_raw) == 0
 
@@ -263,6 +298,10 @@ def test_GPParams_data():
     "Test the data getter and setter methods"
     
     gpp = GPParams()
+    
+    assert gpp.get_data() is None
+    
+    gpp.data = np.zeros(gpp.n_params)
     
     assert_allclose(gpp.get_data(), np.zeros(3))
     
@@ -273,7 +312,7 @@ def test_GPParams_data():
     with pytest.raises(AssertionError):
         gpp.set_data(np.ones(4))
         
-    gpp = GPParams(n_mean=2, n_corr=3)
+    gpp = GPParams(n_mean=2, n_corr=3, data = np.zeros(7))
     
     assert_allclose(gpp.get_data(), np.zeros(7))
     
