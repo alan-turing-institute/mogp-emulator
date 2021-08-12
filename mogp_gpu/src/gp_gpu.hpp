@@ -701,7 +701,7 @@ public:
     DenseGP_GPU(mat_ref inputs_,
 	      vec_ref targets_,
 	      unsigned int testing_size_,
-	      BaseMeanFunc* mean_,
+	      BaseMeanFunc* mean_ = NULL,
 	      kernel_type kern_=SQUARED_EXPONENTIAL)
         : testing_size(testing_size_)
         , n(inputs_.rows())
@@ -757,6 +757,9 @@ public:
         cub::DeviceReduce::Sum(dev_ptr(sum_buffer_d), sum_buffer_size_bytes,
                                sum_buffer_d.end(), sum_buffer_d.end(), n);
         sum_buffer_d.resize(sum_buffer_size_bytes);
+
+        // if mean function is not provided, assume zero everywhere.
+        if (!meanfunc) meanfunc = new ZeroMeanFunc();
 
 	    if (kern_type == SQUARED_EXPONENTIAL) {
 	        kernel = new SquaredExponentialKernel();
