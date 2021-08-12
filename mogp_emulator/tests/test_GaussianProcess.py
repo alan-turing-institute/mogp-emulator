@@ -7,6 +7,7 @@ from ..GaussianProcess import GaussianProcess, PredictResult
 from ..GaussianProcessGPU import GaussianProcessGPU
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import SquaredExponential, Matern52
+from ..GPParams import GPParams
 from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy import linalg
 
@@ -217,9 +218,13 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     # zero mean, zero nugget
 
     gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
+    
+    with pytest.raises(AssertionError):
+        gp.theta = np.ones(gp.n_params + 1)
 
     theta = np.ones(gp.n_params)
-    theta[-1] = sn
+    if not nugget == "pivot":
+        theta[-1] = sn
 
     gp.theta = theta
 
@@ -231,7 +236,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[switch:-1]) + noise
+    Q = gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D + 1)]) + noise
     ym = y - gp.mean.mean_f(x, theta[:switch])
 
     L_expect = np.linalg.cholesky(Q)
@@ -243,6 +248,20 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     assert_allclose(L_expect, gp.L)
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
+
+def test_GaussianProcess_theta_GPParams(x, y):
+    "test that we can set parameters using a GPParams object"
+    
+    gp = GaussianProcess(x, y)
+    
+    gpp = GPParams(n_corr=3, data=np.ones(gp.n_params))
+    
+    gp.theta = gpp
+    
+    assert_allclose(gp.theta.data, np.ones(gp.n_params))
+    
+    with pytest.raises(AssertionError):
+        gp.theta = GPParams()
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 @pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 0.)]) # ("fit", np.log(1.e-6))])
@@ -291,7 +310,7 @@ def test_GaussianProcess_theta_pivot():
     gp2 = GaussianProcess(x2, y2, nugget="pivot")
 
     gp1.theta = np.zeros(3)
-    gp2.theta = np.zeros(3)
+    gp2.theta = np.zeros(2)
 
     assert_allclose(gp1.L, gp2.L)
     assert_allclose(gp1.invQt, gp2.invQt[gp2.P])
@@ -314,26 +333,26 @@ def test_GaussianProcess_priors(x, y):
     assert gp.priors == [None, None, None, None, None]
 
     priors = [None, None, None, None, None]
-    gp = GausianProcess(x, y)
+    gp = GaussianProcess(x, y)
 
     assert gp.priors == priors
 
     priors = [None, NormalPrior(2., 2.), None, None, NormalPrior(3., 1.)]
-    gp = GausianProcess(x, y, priors=priors)
+    gp = GaussianProcess(x, y, priors=priors)
 
     assert gp.priors[:-1] == priors[:-1]
     assert gp.priors[-1] is None
 
     priors = [None, NormalPrior(2., 2.), None, None]
-    gp = GausianProcess(x, y, priors=priors)
+    gp = GaussianProcess(x, y, priors=priors)
 
     assert gp.priors[:-1] == priors
     assert gp.priors[-1] is None
 
     priors = [None, None, None]
 
-    with pytest.raises(AssertionError):
-        GausianProcess(x, y, priors=priors)
+    with pytest.raises(ValueError):
+        GaussianProcess(x, y, priors=priors)
 
     with pytest.raises(TypeError):
         GaussianProcess(x, y, priors=1.)
@@ -352,9 +371,13 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     # zero mean, zero nugget
 
     gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
+    
+    with pytest.raises(AssertionError):
+        gp.theta = np.ones(gp.n_params + 1)
 
     theta = np.ones(gp.n_params)
-    theta[-1] = sn
+    if not nugget == "pivot":
+        theta[-1] = sn
 
     gp.fit(theta)
 
@@ -366,7 +389,7 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[switch:-1]) + noise
+    Q = gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D + 1)]) + noise
     ym = y - gp.mean.mean_f(x, theta[:switch])
 
     L_expect = np.linalg.cholesky(Q)
@@ -405,6 +428,14 @@ def test_GaussianProcess_logposterior(x, y):
     assert_allclose(gp.L, L_expect)
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
+    
+    # check we can set theta back to none correctly
+    
+    gp.theta = None
+    assert gp.theta.data is None
+    assert gp.L is None
+    assert gp.P is None
+    assert gp.current_logpost is None
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_logposterior(x, y):
@@ -829,7 +860,7 @@ def test_GaussianProcess_predict_pivot():
     gp2 = GaussianProcess(x2, y2, nugget="pivot")
 
     gp1.theta = np.zeros(3)
-    gp2.theta = np.zeros(3)
+    gp2.theta = np.zeros(2)
 
     xpred = np.linspace(0., 5.)
 

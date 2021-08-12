@@ -101,13 +101,13 @@ class GPParams:
         if self.data is None:
             return None
         else:
-            return np.exp(2.*self.cov_raw)
+            return np.exp(self.cov_raw)
         
     @cov.setter
     def cov(self, new_cov):
         new_cov = np.reshape(np.array(new_cov), (-1,))
         assert new_cov[0] > 0., "Covariance parameter must be positive"
-        self.cov_raw = 0.5*np.log(new_cov)
+        self.cov_raw = np.log(new_cov)
 
     @property
     def nugget_raw(self):
@@ -133,20 +133,37 @@ class GPParams:
         if self.data is None:
             return None
         else:
-            return np.exp(2.*self.nugget_raw)
+            return np.exp(self.nugget_raw)
         
     @nugget.setter
     def nugget(self, new_nugget):
         new_nugget = np.reshape(np.array(new_nugget), (-1,))
         assert new_nugget[0] >= 0., "New nugget value must be non-negative" 
-        self.nugget_raw = 0.5*np.log(new_nugget)
+        self.nugget_raw = np.log(new_nugget)
 
     def get_data(self):
         return self.data
 
     def set_data(self, new_params):
-        assert self.data.shape == new_params.shape, "Bad shape for new data; expected {} parameters".format(self.n_params)
-        self.data = np.copy(new_params)
+        if new_params is None:
+            self.data = None
+        else:
+            new_params = np.array(new_params)
+            assert new_params.shape == (self.n_params,), "Bad shape for new data; expected {} parameters".format(self.n_params)
+            self.data = np.copy(new_params)
+        
+    def same_shape(self, other):
+        "Test if two GPParams objects have the same shape"
+        
+        if isinstance(other, np.ndarray):
+            return other.shape == (self.n_params,)
+        elif isinstance(other, GPParams):
+            return (self.n_mean == other.n_mean and
+                    self.n_corr == other.n_corr and
+                    self.n_nugget == other.n_nugget and
+                    self.n_params == other.n_params)
+        else:
+            raise ValueError("other must be a numpy array or another GPParams object in GPParams.same_shape")
 
     def __str__(self):
         outstr = "GPParams with:"

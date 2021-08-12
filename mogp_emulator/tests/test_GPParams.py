@@ -178,12 +178,12 @@ def test_GPParams_cov():
     gpp.cov = 2.
     
     assert_allclose(gpp.cov, np.array([2.]))
-    assert_allclose(gpp.cov_raw, 0.5*np.log(2.))
+    assert_allclose(gpp.cov_raw, np.log(2.))
 
     gpp.cov = np.array([3.])
     
     assert_allclose(gpp.cov, np.array([3.]))
-    assert_allclose(gpp.cov_raw, 0.5*np.log(3.))
+    assert_allclose(gpp.cov_raw, np.log(3.))
     
     gpp.cov_raw = 0.
     
@@ -192,7 +192,7 @@ def test_GPParams_cov():
     
     gpp.cov_raw = np.array([3.])
     
-    assert_allclose(gpp.cov, np.exp(2.*np.array([3.])))
+    assert_allclose(gpp.cov, np.exp(np.array([3.])))
     assert_allclose(gpp.cov_raw, 3.)
 
     with pytest.raises(AssertionError):
@@ -207,7 +207,7 @@ def test_GPParams_cov():
     gpp = GPParams(data=np.array([0., 2., 0.]))
     
     assert gpp.n_cov == 1
-    assert_allclose(gpp.cov, np.exp(2.*np.array([2.])))
+    assert_allclose(gpp.cov, np.exp(np.array([2.])))
     assert_allclose(gpp.cov_raw, np.array([2.]))
 
     gpp.cov = np.ones(1)
@@ -222,7 +222,7 @@ def test_GPParams_cov():
     
     gpp.cov_raw = np.ones(1)
     
-    assert_allclose(gpp.cov, np.exp(2.*np.ones(1)))
+    assert_allclose(gpp.cov, np.exp(np.ones(1)))
     assert_allclose(gpp.cov_raw, np.ones(1))
 
     with pytest.raises(AssertionError):
@@ -253,12 +253,12 @@ def test_GPParams_nugget():
     gpp.nugget = 2.
     
     assert_allclose(gpp.nugget, np.array([2.]))
-    assert_allclose(gpp.nugget_raw, 0.5*np.log(2.))
+    assert_allclose(gpp.nugget_raw, np.log(2.))
 
     gpp.nugget = np.array([3.])
     
     assert_allclose(gpp.nugget, np.array([3.]))
-    assert_allclose(gpp.nugget_raw, 0.5*np.log(3.))
+    assert_allclose(gpp.nugget_raw, np.log(3.))
     
     gpp.nugget_raw = 0.
     
@@ -267,7 +267,7 @@ def test_GPParams_nugget():
     
     gpp.nugget_raw = np.array([3.])
     
-    assert_allclose(gpp.nugget, np.exp(2.*np.array([3.])))
+    assert_allclose(gpp.nugget, np.exp(np.array([3.])))
     assert_allclose(gpp.nugget_raw, 3.)
 
     with pytest.raises(AssertionError):
@@ -282,7 +282,7 @@ def test_GPParams_nugget():
     gpp = GPParams(data=np.array([0., 0., 2.]))
     
     assert gpp.n_nugget == 1
-    assert_allclose(gpp.nugget, np.exp(2.*np.array([2.])))
+    assert_allclose(gpp.nugget, np.exp(np.array([2.])))
     assert_allclose(gpp.nugget_raw, np.array([2.]))
 
     gpp = GPParams(nugget=False)
@@ -320,6 +320,33 @@ def test_GPParams_data():
     
     assert_allclose(gpp.data, np.ones(7))
     
+    gpp.set_data(None)
+    
+    assert gpp.data is None
+
+def test_GPParams_same_shape():
+    
+    gpp = GPParams()
+    
+    assert gpp.same_shape(GPParams())
+    assert not gpp.same_shape(GPParams(n_mean=1))
+    assert not gpp.same_shape(GPParams(n_corr=2))
+    assert not gpp.same_shape(GPParams(nugget=False))
+    assert gpp.same_shape(np.zeros(3))
+    assert not gpp.same_shape(np.zeros(4))
+
+    gpp = GPParams(n_mean=2, n_corr=3, nugget=False)
+    
+    assert gpp.same_shape(GPParams(n_mean=2, n_corr=3, nugget=False))
+    assert not gpp.same_shape(GPParams(n_mean=1, n_corr=3, nugget=False))
+    assert not gpp.same_shape(GPParams(n_mean=2, n_corr=2, nugget=False))
+    assert not gpp.same_shape(GPParams(n_mean=2, n_corr=3, nugget=True))
+    assert gpp.same_shape(np.zeros(6))
+    assert not gpp.same_shape(np.zeros(7))
+    
+    with pytest.raises(ValueError):
+        gpp.same_shape([])
+
 def test_GPParams_str():
     "Test the str method of GPParams doesn't raise an error"
     
