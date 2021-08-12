@@ -31,14 +31,14 @@ def test_fit_GP_MAP(monkeypatch):
     gp = fit_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.data, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
     # same test, but pass args and kwargs rather than gp
 
     gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B")
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.data, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
 
@@ -61,7 +61,7 @@ def test_fit_GP_MAP_GPU(monkeypatch):
     gp = fit_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcessGPU)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.data, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
 
@@ -179,11 +179,11 @@ def test_fit_GP_MAP_MOGP():
     gp.emulators[0].fit(np.ones(3))
 
     gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
-    assert_allclose(gp.emulators[0].theta, np.ones(3))
+    assert_allclose(gp.emulators[0].theta.data, np.ones(3))
     assert not gp.emulators[1].theta is None
 
     gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
-    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
+    assert not np.allclose(gp.emulators[0].theta.data, np.ones(3))
 
 def test_fit_GP_MAP_MOGP_failures():
     "test situations where mogp fitting should fail"
@@ -265,7 +265,7 @@ def test_fit_single_GP_MAP(monkeypatch):
     gp = _fit_single_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.data, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
 
@@ -280,15 +280,15 @@ def test_fit_single_GP_MAP_failures():
     # minimization fails
 
     gp = _fit_single_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
-    assert gp.theta is None
+    assert gp.theta.data is None
 
     gp = GaussianProcess(x, y, nugget=0.)
 
     gp = _fit_single_GP_MAP(gp, theta0 = np.array([0., 0., 0.]), n_tries=1)
-    assert gp.theta is None
+    assert gp.theta.data is None
 
     gp =_fit_single_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
-    assert gp.theta is None
+    assert gp.theta.data is None
 
     # bad inputs
 
@@ -338,11 +338,11 @@ def test_fit_MOGP_MAP():
     gp.emulators[0].fit(np.ones(3))
 
     gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
-    assert_allclose(gp.emulators[0].theta, np.ones(3))
-    assert not gp.emulators[1].theta is None
+    assert_allclose(gp.emulators[0].theta.data, np.ones(3))
+    assert not gp.emulators[1].theta.data is None
 
     gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
-    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
+    assert not np.allclose(gp.emulators[0].theta.data, np.ones(3))
 
 
 def test_fit_MOGP_MAP_failures():

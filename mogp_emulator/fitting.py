@@ -167,7 +167,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                 raise ValueError("Bad values for *args in fit_GP_MAP")
 
     if isinstance(gp, GaussianProcessBase):
-        if gp.theta is None:
+        if gp.theta.data is None:
             raise RuntimeError("GP fitting failed")
     else:
         if len(gp.get_indices_not_fit()) > 0:

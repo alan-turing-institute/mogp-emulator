@@ -265,7 +265,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.data is None for em in self.emulators],
                        list(range(len(self.emulators)))) if not failed_fit]
 
     def get_indices_not_fit(self):
@@ -289,7 +289,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.data is None for em in self.emulators],
                        list(range(len(self.emulators)))) if failed_fit]
 
     def get_emulators_fit(self):
@@ -314,7 +314,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.data is None for em in self.emulators],
                        self.emulators) if not failed_fit]
 
     def get_emulators_not_fit(self):
@@ -339,7 +339,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.data is None for em in self.emulators],
                        self.emulators) if failed_fit]
 
 
