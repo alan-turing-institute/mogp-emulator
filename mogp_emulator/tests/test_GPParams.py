@@ -108,12 +108,12 @@ def test_GPParams_corr():
     gpp.corr = 2.
     
     assert_allclose(gpp.corr, np.array([2.]))
-    assert_allclose(gpp.corr_raw, -0.5*np.log(2.))
+    assert_allclose(gpp.corr_raw, -2.*np.log(2.))
 
     gpp.corr = np.array([3.])
     
     assert_allclose(gpp.corr, np.array([3.]))
-    assert_allclose(gpp.corr_raw, -0.5*np.log(3.))
+    assert_allclose(gpp.corr_raw, -2.*np.log(3.))
     
     gpp.corr_raw = 0.
     
@@ -122,7 +122,7 @@ def test_GPParams_corr():
     
     gpp.corr_raw = np.array([3.])
     
-    assert_allclose(gpp.corr, np.exp(-2.*np.array([3.])))
+    assert_allclose(gpp.corr, np.exp(-0.5*np.array([3.])))
     assert_allclose(gpp.corr_raw, 3.)
 
     with pytest.raises(AssertionError):
@@ -137,7 +137,7 @@ def test_GPParams_corr():
     gpp = GPParams(n_corr=3, data=np.array([2., 3., 2., 0., 0.]))
     
     assert gpp.n_corr == 3
-    assert_allclose(gpp.corr, np.exp(-2.*np.array([2., 3., 2.])))
+    assert_allclose(gpp.corr, np.exp(-0.5*np.array([2., 3., 2.])))
     assert_allclose(gpp.corr_raw, np.array([2., 3., 2.]))
 
     gpp.corr = np.ones(3)
@@ -147,7 +147,7 @@ def test_GPParams_corr():
     
     gpp.corr_raw = np.ones(3)
     
-    assert_allclose(gpp.corr, np.exp(-2.*np.ones(3)))
+    assert_allclose(gpp.corr, np.exp(-0.5*np.ones(3)))
     assert_allclose(gpp.corr_raw, np.ones(3))
 
     with pytest.raises(AssertionError):
