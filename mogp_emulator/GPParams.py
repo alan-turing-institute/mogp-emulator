@@ -346,7 +346,7 @@ class GPParams:
             self.data = None
         else:
             new_params = np.array(new_params)
-            assert self.same_shape(new_params) "Bad shape for new data; expected {} parameters".format(self.n_params)
+            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_params)
             self.data = np.copy(new_params)
         
     def same_shape(self, other):
