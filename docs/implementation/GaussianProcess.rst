@@ -19,3 +19,10 @@ The ``PredictResult`` Class
 
 .. autoclass:: mogp_emulator.GaussianProcess.PredictResult
     :members:
+    
+**********************************
+The ``GPParams`` Class
+**********************************
+
+.. autoclass:: mogp_emulator.GPParams.GPParams
+    :members:
