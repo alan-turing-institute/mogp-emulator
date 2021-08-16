@@ -1,8 +1,8 @@
-.. _MCMC:
+.. _linalg:
 
 **********************************
-The ``MCMC`` Module
+The ``linalg`` Module
 **********************************
 
-.. automodule:: mogp_emulator.MCMC
+.. automodule:: mogp_emulator.linalg.cholesky
     :members:

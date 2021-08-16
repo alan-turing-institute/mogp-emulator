@@ -1,0 +1,509 @@
+"""
+extends GaussianProcess with an (optional) GPU implementation
+"""
+
+import os
+import re
+import numpy as np
+
+from mogp_emulator.Kernel import SquaredExponential, Matern52
+from mogp_emulator.MeanFunction import MeanFunction, MeanBase
+
+import mogp_emulator.LibGPGPU as LibGPGPU
+
+from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
+
+
+class GPUUnavailableError(RuntimeError):
+    """Exception type to use when a GPU, or the GPU library, is unavailable"""
+    pass
+
+
+def ndarray_coerce_type_and_flags(arr):
+    """
+    Helper function for the GaussianProcessGPU methods that call
+    CUDA/C++ functions (those wrapped by _dense_gpgpu) and that take
+    numpy arrays as arguments.  Ensures that an array is of the
+    correct type for this purpose.
+
+    Takes an array or array-like.
+
+    Returns an ndarray with the same data, that has:
+    - dtype of float64
+    - flags.writable
+    - flags.c_contiguous
+
+    The array returned may reference the original array, be a copy of
+    it, or be newly constructed from the argument.
+    """
+
+    arr = np.array(arr, copy=False)
+
+    # cast into float64, just in case we were given integers and ensure contiguous (C type)
+    arr_contiguous_float64 = np.ascontiguousarray(arr.astype(np.float64, copy=False))
+    if not arr_contiguous_float64.flags['WRITEABLE']:
+        return np.copy(arr_contiguous_float64)
+    else:
+        return arr_contiguous_float64
+
+
+def parse_meanfunc_formula(formula):
+    """
+    Assuming the formula has already been parsed by the Python MeanFunction interface,
+    we expect it to be in a standard form, with parameters denoted by 'c' and variables
+    denoted by 'x[dim_index]' where dim_index < D.
+
+    :param formula: string representing the desired mean function formula
+    :type formula: str
+
+    :returns: Instance of LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFunc implementing formula,
+       or None if the formula could not be parsed, or is not currently implemented in C++ code.
+    :rtype: LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFun or None
+    """
+    if formula == "c":
+        return LibGPGPU.ConstMeanFunc()
+    else:
+        # see if the formula is a string representation of a number
+        try:
+            m = float(formula)
+            return LibGPGPU.FixedMeanFunc(m)
+        except:
+            pass
+    # if we got here, we hopefully have a parse-able formula
+    terms = formula.split("+")
+    def find_index_and_power(term):
+        variables = re.findall("x\[[\d+]\]",term)
+        if len(variables) == 0:
+            # didn't find a non-const term
+            return None
+        indices = [int(re.search("\[([\d+])\]", v).groups()[0]) for v in variables]
+        if indices.count(indices[0]) != len(indices):
+            raise NotImplementedError("Cross terms, e.g. x[0]*x[1] not implemented in GPU version.")
+        # first guess at the power to which the index is raised is how many times it appears
+        # e.g. if written as x[0]*x[0]
+        power = len(indices)
+        # however, it's also possible to write 'x[0]^2' or even, 'x[0]*x[0]^2' or even 'x[0]^2*x[0]^2'
+        # so look at all the numbers appearing after a '^'.
+        more_powers = re.findall("\^[\d]+",term)
+        more_powers = [int(re.search("\^([\d]+)",p).groups()[0]) for p in more_powers]
+        # now add these on to the original power number
+        # (subtracting one each time, as we already have x^1 implicitly)
+        for p in more_powers:
+            power += p - 1
+        return [indices[0], power]
+    indices_powers = []
+    for term in terms:
+        ip = find_index_and_power(term)
+        if ip:
+            indices_powers.append(ip)
+    if len(indices_powers) > 0:
+        return LibGPGPU.PolyMeanFunc(indices_powers)
+    else:
+        return None
+
+
+class GaussianProcessGPU(GaussianProcessBase):
+
+    """
+    This class implements the same interface as
+    :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
+    Will raise a RuntimeError if a CUDA-compatible GPU, GPU-interface library libgpgpu
+    could not be found.
+    Note that while the class uses a C++/CUDA implementation of the SquaredExponential or
+    Matern52 kernels for the "fit" and "predict" methods, the 'kernel' data member (and
+    hence the results of e.g. 'gp.kernel.kernel_f(theta)' will be the pure Python versions,
+    for compatibility with the interface of the GaussianProcess class.
+    """
+
+    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
+                 nugget="adaptive", inputdict = {}, use_patsy=True, max_batch_size=2000):
+
+        if not LibGPGPU.HAVE_LIBGPGPU:
+            raise RuntimeError("Cannot construct GaussianProcessGPU: "
+                               "The GPU library (libgpgpu) could not be loaded")
+
+        elif not LibGPGPU.gpu_usable():
+            raise RuntimeError("Cannot construct GaussianProcessGPU: "
+                               "A compatible GPU could not be found")
+
+        inputs = ndarray_coerce_type_and_flags(inputs)
+        if inputs.ndim == 1:
+            inputs = np.reshape(inputs, (-1, 1))
+        assert inputs.ndim == 2
+
+        targets = ndarray_coerce_type_and_flags(targets)
+        assert targets.ndim == 1
+        assert targets.shape[0] == inputs.shape[0]
+
+        self._inputs = inputs
+        self._targets = targets
+        self._max_batch_size = max_batch_size
+
+        if mean is None:
+            self.mean = LibGPGPU.ZeroMeanFunc()
+        else:
+            if not issubclass(type(mean), MeanBase):
+                if isinstance(mean, str):
+                    mean = MeanFunction(mean, inputdict, use_patsy)
+                else:
+                    raise ValueError("provided mean function must be a subclass of MeanBase,"+
+                                     " a string formula, or None")
+
+            # at this point, mean will definitely be a MeanBase.  We can call its __str__ and
+            # parse this to create an instance of a C++ MeanFunction
+            self.mean = parse_meanfunc_formula(mean.__str__())
+            # if we got None back from that function, something went wrong
+            if not mean:
+                raise ValueError("""
+                GPU implementation was unable to parse mean function formula {}.
+                """.format(mean.__str__())
+                )
+
+        self.nugget = nugget
+
+        # set the kernel.
+        # Note that for the "kernel" data member, we use the Python instance
+        # rather than the C++/CUDA one (for consistency in interface with
+        # GaussianProcess class).  However the C++/CUDA version of the kernel is
+        # used when calling fit() or predict()
+        if (isinstance(kernel, str) and kernel == "SquaredExponential") \
+           or isinstance(kernel, SquaredExponential):
+            self.kernel_type = LibGPGPU.kernel_type.SquaredExponential
+            self.kernel = SquaredExponential()
+        elif (isinstance(kernel, str) and kernel == "Matern52") \
+           or isinstance(kernel, Matern52):
+            self.kernel_type = LibGPGPU.kernel_type.Matern52
+            self.kernel = Matern52()
+        else:
+            raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
+
+        # instantiate the DenseGP_GPU class
+        self._densegp_gpu = None
+        self._init_gpu()
+
+
+    def _init_gpu(self):
+        """
+        Instantiate the DenseGP_GPU C++/CUDA class, if it doesn't already exist.
+        """
+        if not self._densegp_gpu:
+            self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
+                                                     self._targets,
+                                                     self._max_batch_size,
+                                                     self.mean,
+                                                     self.kernel_type) #,
+#                                                     self.mean_type)
+
+
+    @property
+    def inputs(self):
+        """
+        Returns inputs for the emulator as a numpy array
+
+        :returns: Emulator inputs, 2D array with shape ``(n, D)``
+        :rtype: ndarray
+        """
+        return self._densegp_gpu.inputs()
+
+    @property
+    def targets(self):
+        """
+        Returns targets for the emulator as a numpy array
+
+        :returns: Emulator targets, 1D array with shape ``(n,)``
+        :rtype: ndarray
+        """
+        return self._densegp_gpu.targets()
+
+    @property
+    def n(self):
+        """
+        Returns number of training examples for the emulator
+
+        :returns: Number of training examples for the emulator object
+        :rtype: int
+        """
+        return self._densegp_gpu.n()
+
+    @property
+    def D(self):
+        """
+        Returns number of inputs (dimensions) for the emulator
+
+        :returns: Number of inputs for the emulator object
+        :rtype: int
+        """
+        return self._densegp_gpu.D()
+
+    @property
+    def n_params(self):
+        """
+        Returns number of hyperparameters
+
+        Returns the number of hyperparameters for the emulator. The number depends on the
+        choice of mean function, covariance function, and nugget strategy, and possibly the
+        number of inputs for certain choices of the mean function.
+
+        :returns: Number of hyperparameters
+        :rtype: int
+        """
+        return self._densegp_gpu.n_params()+ self.mean.get_n_params(self.inputs)
+
+    @property
+    def nugget_type(self):
+        """
+        Returns method used to select nugget parameter
+
+        Returns a string indicating how the nugget parameter is treated, either ``"adaptive"``,
+        ``"fit"``, or ``"fixed"``. This is automatically set when changing the ``nugget``
+        property.
+
+        :returns: Current nugget fitting method
+        :rtype: str
+        """
+        return self._nugget_type.__str__().split(".")[1]
+
+    @property
+    def nugget(self):
+        """
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
+        """
+        return self._nugget
+
+    @nugget.setter
+    def nugget(self, nugget):
+        if not isinstance(nugget, (str, float)):
+            try:
+                nugget = float(nugget)
+            except TypeError:
+                raise TypeError("nugget parameter must be a string or a non-negative float")
+
+        if isinstance(nugget, str):
+            if nugget == "adaptive":
+                self._nugget_type = LibGPGPU.nugget_type(0)
+            elif nugget == "fit":
+                self._nugget_type = LibGPGPU.nugget_type(1)
+            else:
+                raise ValueError("nugget must be a float set to 'adaptive', 'fit', or 'fixed'")
+            self._nugget = None
+        else:
+            if nugget < 0.:
+                raise ValueError("nugget parameter must be non-negative")
+            self._nugget_type = LibGPGPU.nugget_type(2) #fixed
+            self._nugget = float(nugget)
+
+    @property
+    def theta(self):
+        """
+        Returns emulator hyperparameters
+        see
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.theta`
+
+        :type theta: ndarray
+        """
+        if not self._densegp_gpu.theta_fit_status():
+            return None
+        theta = np.zeros(self.n_params)
+        self._densegp_gpu.get_theta(theta)
+        return theta
+
+    @theta.setter
+    def theta(self, theta):
+        """
+        Fits the emulator and sets the parameters (property-based setter
+        alias for ``fit``)
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.theta`
+
+        :type theta: ndarray
+        :returns: None
+        """
+        if theta is None:
+            self._densegp_gpu.reset_theta_fit_status()
+            self.current_logpost = None
+        else:
+            self.fit(theta)
+
+    @property
+    def L(self):
+        """
+        Return the lower triangular Cholesky factor.
+
+        :returns: np.array
+        """
+        result = np.zeros((self.n, self.n))
+        self._densegp_gpu.get_cholesky_lower(result)
+        return np.tril(result.transpose())
+
+    def get_K_matrix(self):
+        """
+        Returns current value of the inverse covariance matrix as a numpy array.
+
+        Does not include the nugget parameter, as this is dependent on how the
+        nugget is fit.
+        """
+        result = np.zeros((self.n, self.n))
+        self._densegp_gpu.get_K(result)
+        return result
+
+    def fit(self, theta):
+        """
+        Fits the emulator and sets the parameters.
+
+        Implements the same interface as
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.fit`
+        """
+        theta = ndarray_coerce_type_and_flags(theta)
+
+        nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
+        self._densegp_gpu.fit(theta, self._nugget_type, nugget_size)
+        if self.nugget_type == "adaptive" or self.nugget_type == "fit":
+            self._nugget = self._densegp_gpu.get_jitter()
+        invQt_result = np.zeros(self.n)
+        self._densegp_gpu.get_invQt(invQt_result)
+        self.invQt = invQt_result
+        self.current_logpost = self.logposterior(theta)
+
+    def logposterior(self, theta):
+        """
+        Calculate the negative log-posterior at a particular value of the hyperparameters
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logposterior`
+
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(n_params,)``
+        :type theta: ndarray
+        :returns: negative log-posterior
+        :rtype: float
+        """
+        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+            self.fit(theta)
+
+        return self._densegp_gpu.get_logpost()
+
+    def logpost_deriv(self, theta):
+        """
+        Calculate the partial derivatives of the negative log-posterior
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logpost_deriv`
+
+        :param theta: Value of the hyperparameters. Must be array-like with shape ``(n_params,)``
+        :type theta: ndarray
+        :returns: partial derivatives of the negative log-posterior with respect to the
+                  hyperparameters (array with shape ``(n_params,)``)
+        :rtype: ndarray
+        """
+        theta = np.array(theta, copy=False)
+
+        assert theta.shape == (self.n_params,), "bad shape for new parameters"
+
+        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+            self.fit(theta)
+
+        result = np.zeros(self.n_params)
+        self._densegp_gpu.logpost_deriv(result)
+        return result
+
+    def logpost_hessian(self, theta):
+        """
+        Calculate the Hessian of the negative log-posterior
+
+        See :func:`mogp_emulator.GaussianProcess.GaussianProcess.logpost_hessian`
+
+        :param theta: Value of the hyperparameters. Must be array-like with shape
+                      ``(n_params,)``
+        :type theta: ndarray
+        :returns: Hessian of the negative log-posterior (array with shape
+                  ``(n_params, n_params)``)
+        :rtype: ndarray
+        """
+        raise GPUUnavailableError(
+            "The Hessian calculation is not currently implemented in the GPU version of MOGP."
+        )
+
+
+    def predict(self, testing, unc=True, deriv=True, include_nugget=True):
+        """
+        Make a prediction for a set of input vectors for a single set of hyperparameters.
+        This method implements the same interface as
+        :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
+        """
+
+        if self.theta is None:
+            raise ValueError("hyperparameters have not been fit for this Gaussian Process")
+
+        testing = ndarray_coerce_type_and_flags(testing)
+
+        if self.D == 1 and testing.ndim == 1:
+            testing = np.reshape(testing, (-1, 1))
+        elif testing.ndim == 1:
+            testing = np.reshape(testing, (1, len(testing)))
+        assert testing.ndim == 2
+
+        n_testing, D = np.shape(testing)
+
+        assert D == self.D
+
+        means = np.zeros(n_testing)
+
+        if unc:
+            variances = np.zeros(n_testing)
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_variance_batch(
+                    testing[i:i+self._max_batch_size],
+                    means[i:i+self._max_batch_size],
+                    variances[i:i+self._max_batch_size])
+            if include_nugget:
+                variances += self._nugget
+        else:
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_batch(
+                    testing[i:i+self._max_batch_size],
+                    means[i:i+self._max_batch_size])
+            variances = None
+        if deriv:
+            deriv_result = np.zeros((n_testing,self.D))
+            for i in range(0, n_testing, self._max_batch_size):
+                self._densegp_gpu.predict_deriv(
+                    testing[i:i+self._max_batch_size],
+                    deriv_result[i:i+self._max_batch_size])
+        else:
+            deriv_result = None
+        return PredictResult(mean=means, unc=variances, deriv=deriv_result)
+
+
+    def __call__(self, testing):
+        """A Gaussian process object is callable: calling it is the same as
+        calling `predict` without uncertainty and derivative
+        predictions, and extracting the zeroth component for the
+        'mean' prediction.
+        """
+        return (self.predict(testing, unc=False, deriv=False)[0])
+
+
+    def __str__(self):
+        """
+        Returns a string representation of the model
+
+        :returns: A string representation of the model
+        (indicates number of training examples and inputs)
+        :rtype: str
+        """
+        return ("Gaussian Process with " + str(self.n) + " training examples and " +
+                str(self.D) + " input variables")
+
+
+    ## __setstate__ and __getstate__ for pickling: don't pickle "_dense_gp_gpu",
+    ## and instead reinitialize this when unpickling
+    ## (Pickling is required to use multiprocessing.)
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.init_gpu()
+        if self._theta is not None:
+            self.fit(self._theta)
+
+
+    def __getstate__(self):
+        copy_dict = self.__dict__.copy()
+        del copy_dict["_densegp_gpu"]
+        copy_dict["_densegp_gpu"] = None
+        return copy_dict

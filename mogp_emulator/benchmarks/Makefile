@@ -7,14 +7,15 @@
 help : Makefile
 	@sed -n 's/^##//p' $<
 
-## all        : Run unit tests and benchmarks
+## all        : Run all benchmarks
 .PHONY: all
 all: benchmarks
 
 ## benchmarks : Run the Branin, Rosenbrock (convergence), Tsunami (performance),
-##            : MICE, and History Matching benchmarks
+##            : Pivoted Cholesky, MICE, dimension reduction,
+##            : and History Matching benchmarks
 .PHONY: benchmarks
-benchmarks: branin tsunami rosenbrock mice mcmc gKDR histmatch
+benchmarks: branin tsunami rosenbrock pivot mice gKDR histmatch
 
 ## branin     : Run the 2D Branin tests of convergence. Produces the plots
 ##            : branin_2d_error.png and branin_2d_unc.png
@@ -41,15 +42,15 @@ mice: mice_error.png mice_unc.png
 .PHONY: histmatch
 histmatch: histmatch_1D.png histmatch_2D.png
 
-## mcmc       : Run the MCMC sampling benchmark
-##            : Produces the plot MCMC_histogram.png
-.PHONY: mcmc
-mcmc: MCMC_histogram.png
-
 ## gKDR       : Run the dimension reduction benchmark
 ##            : Produces the plot benchmark_kdr_GP_loss.pdf
 .PHONY: gKDR
 gKDR: benchmark_kdr_GP_loss.pdf
+
+## pivot      : Run the pivoted Cholesky decomposition benchmark
+##            : Produces the plots pivot_error.png and pivot_unc.png
+.PHONY: pivot
+pivot: pivot_error.png pivot_unc.png
 
 # commands above are shortcuts to the targets below
 
@@ -71,5 +72,5 @@ histmatch_1D.png histmatch_2D.png: benchmark_historymatching.py
 benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
 	python3 benchmark_kdr_GP.py
 
-MCMC_histogram.png: benchmark_MCMC.py
-	python3 benchmark_MCMC.py
+pivot_error.png pivot_unc.png: benchmark_pivot.py
+	python3 benchmark_pivot.py
