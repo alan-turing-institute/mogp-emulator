@@ -10,7 +10,7 @@ import numpy as np
 MAJOR = 0
 MINOR = 5
 MICRO = 0
-PRERELEASE = 3
+PRERELEASE = 4
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
@@ -139,7 +139,7 @@ setuptools.setup(name='mogp_emulator',
       author='Alan Turing Institute Research Engineering Group',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
-      license=['MIT'],
+      license='MIT',
       ext_modules=ext_modules,
       cmdclass={"build_ext": custom_build_ext},
       install_requires=['numpy', 'scipy'],
