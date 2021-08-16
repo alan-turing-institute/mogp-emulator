@@ -10,7 +10,7 @@ import numpy as np
 MAJOR = 0
 MINOR = 6
 MICRO = 0
-PRERELEASE = 0
+PRERELEASE = 1
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
@@ -31,7 +31,6 @@ version = '{}'
         fh.write(version_file)
 
 write_version_file(version)
-
 
 with open("README.md", "r") as fh:
     long_description = fh.read()

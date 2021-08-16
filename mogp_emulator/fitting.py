@@ -145,7 +145,6 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
             gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
         elif isinstance(gp, GaussianProcessBase):
             gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
-
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
     elif len(args) < 2:
@@ -191,7 +190,6 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     """
 
     assert isinstance(gp, GaussianProcessBase)
-
     n_tries = int(n_tries)
     assert n_tries > 0, "number of attempts must be positive"
 
@@ -283,7 +281,6 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         assert processes > 0, "number of processes must be positive"
 
     n_tries = int(n_tries)
-
 
     if refit:
         emulators_to_fit = gp.emulators

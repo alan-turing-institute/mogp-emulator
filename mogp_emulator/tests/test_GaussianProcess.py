@@ -897,7 +897,6 @@ def test_GaussianProcessGPU_predict_failures(x, y):
     with pytest.raises(AssertionError):
         gp.predict(np.array([[2., 4.]]))
 
-
 def test_GaussianProcess_str(x, y):
     "Test function for string method"
 
