@@ -173,6 +173,21 @@ public:
         return nug_type;
     }
 
+    BaseMeanFunc* get_meanfunc(void)
+    {
+        return meanfunc;
+    }
+
+    BaseKernel* get_kernel(void)
+    {
+        return kernel;
+    }
+
+    kernel_type get_kernel_type(void)
+    {
+        return kern_type;
+    }
+
     // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
     double predict(mat_ref testing)
     {
@@ -231,8 +246,8 @@ public:
         cudaDeviceSynchronize();
 
         var = kappa - var.array();
-	// evaluate the mean function and add to the result
-	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
+	    // evaluate the mean function and add to the result
+	    vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
         return REAL(result + meanfunc_vals(0));
     }
 

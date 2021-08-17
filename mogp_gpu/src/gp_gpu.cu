@@ -1,5 +1,6 @@
 //#include "gp_gpu.hpp"
 #include "fitting.hpp"
+#include "multioutputgp_gpu.hpp"
 
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
@@ -185,6 +186,17 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
         .def("set_nugget_type", &DenseGP_GPU::set_nugget_type,
           "Set the type of the nugget.")
 
+////////////////////////////////////////
+        .def("get_kernel_type", &DenseGP_GPU::get_kernel_type,
+          "Get the type of the kernel.")
+
+////////////////////////////////////////
+          .def("get_kernel", &DenseGP_GPU::get_kernel,
+          "Get the kernel object.")
+
+////////////////////////////////////////
+        .def("get_meanfunc", &DenseGP_GPU::get_meanfunc,
+          "Get the mean function object.")
 
 ////////////////////////////////////////
         .def("get_cholesky_lower", &DenseGP_GPU::get_cholesky_lower,
@@ -211,6 +223,57 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 :returns: `None`
 )",
              py::arg("result"));
+
+py::class_<DummyThing>(m, "DummyThing")
+     .def(py::init<>()) ;            
+////////////////////////////////////////
+     py::class_<MultiOutputGP_GPU>(m, "MultiOutputGP_GPU")
+     .def(py::init<mat_ref, std::vector<vec>&, unsigned int>())
+       .def("predict_batch", &MultiOutputGP_GPU::predict_batch,
+         R"(Batched predictive means.
+          :param testing: The input point to predict, with shape `(Nbatch, D)`
+                          (`Nbatch` is determined from the shape of the input).
+                          `Nbatch` must be less than `testing_size`.
+          :param result: (Output) The predicted mean at each `testing` point.
+                         Shape `(Nbatch, D)`.
+          
+          :returns: None
+          )",
+                       py::arg("testing"),
+                       py::arg("result"))
+       .def("inputs", &MultiOutputGP_GPU::get_inputs,
+                       "Return the inputs to the GP") 
+       .def("emulator", &MultiOutputGP_GPU::get_emulator,
+                       "Return the emulator at specified index",
+                         py::arg("index"))  
+       .def("targets", &MultiOutputGP_GPU::get_targets,
+                         "Return the targets of the GP at specified index",
+                         py::arg("index"))
+       .def("fit_emulator", &MultiOutputGP_GPU::fit_emulator,
+                         "Set hyperparameters of the GP at specified index",
+                         py::arg("index"),
+                         py::arg("theta"))  
+       .def("fit", &MultiOutputGP_GPU::fit,
+                         "Set hyperparameters of all emulators",
+                         py::arg("theta"))  
+       .def("predict", &MultiOutputGP_GPU::predict,
+                         "Predict single value on all emulators",
+                         py::arg("testing"))  
+       .def("predict_batch", &MultiOutputGP_GPU::predict_batch,
+                         "Predict multiple values on all emulators",
+                         py::arg("testing"),
+                         py::arg("results"))  
+       .def("predict_variance_batch", &MultiOutputGP_GPU::predict_variance_batch,
+                         "Predict multiple values on all emulators with variances",
+                         py::arg("testing"),
+                         py::arg("means"),
+                         py::arg("vars"))  
+       .def("predict_deriv", &MultiOutputGP_GPU::predict_deriv,
+                         "Derivatives of predictions on all emulators",
+                         py::arg("testing"),
+                         py::arg("results"))  
+       .def("n_emulators", &MultiOutputGP_GPU::n_emulators,
+               "Return the number of emulators being used");                 
 
 ////////////////////////////////////////
     py::class_<SquaredExponentialKernel>(m, "SquaredExponentialKernel")

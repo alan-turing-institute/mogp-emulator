@@ -15,7 +15,7 @@
 CXX=g++
 CXXFLAGS=-std=c++14 -O3
 NVCCFLAGS=--compiler-options -Wall,-Wextra -arch=sm_60 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_37,code=sm_37
-EXTRAFLAGS=-Xcompiler -fPIC
+EXTRAFLAGS=-Xcompiler "-fPIC -fopenmp"
 
 CUDA_INC=/usr/local/cuda/include
 PYBIND_INC=$(shell python3 -m pybind11 --includes)
@@ -66,6 +66,8 @@ bin/test/test_gp_fitting: test/test_gp_fitting.cu obj/util.o obj/kernel.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(DLIB_INC) -lopenblas -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
 
-
+bin/test/test_openmp: test/test_openmp.cu  obj/util.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) $<  obj/util.o -o $@
 
 .PHONY: all clean
