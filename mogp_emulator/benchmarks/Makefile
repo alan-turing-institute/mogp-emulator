@@ -74,4 +74,3 @@ benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
 
 pivot_error.png pivot_unc.png: benchmark_pivot.py
 	python3 benchmark_pivot.py
-

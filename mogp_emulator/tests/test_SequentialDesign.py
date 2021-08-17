@@ -6,7 +6,6 @@ import types
 from ..ExperimentalDesign import LatinHypercubeDesign
 from ..SequentialDesign import SequentialDesign, MICEDesign, MICEFastGP
 from ..GaussianProcess import GaussianProcess
-from ..GaussianProcessGPU import GaussianProcessGPU
 from ..fitting import fit_GP_MAP
 from tempfile import TemporaryFile
 from ..LibGPGPU import gpu_usable

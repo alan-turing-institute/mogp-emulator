@@ -12,7 +12,6 @@ from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
 
 
-
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
 
