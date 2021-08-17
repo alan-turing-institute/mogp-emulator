@@ -181,6 +181,17 @@ class GaussianProcessGPU(GaussianProcessBase):
         # set the nugget type and (if fixed nugget) size
         self.nugget = nugget        
 
+    @classmethod
+    def from_cpp(cls, denseGP_GPU):
+        inputs = denseGP_GPU.inputs()
+        targets = denseGP_GPU.targets()
+        obj = cls.__new__(cls)
+        obj._densegp_gpu = denseGP_GPU
+        obj._inputs = inputs,
+        obj._targets = targets
+        obj._nugget_type = denseGP_GPU.get_nugget_type()
+        return obj
+
 
 
     def _init_gpu(self):
