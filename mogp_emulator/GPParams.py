@@ -1,6 +1,34 @@
 import numpy as np
+        
+class CorrTransform(object):
+    r"Class representing correlation length transforms"
+    @staticmethod
+    def transform(x):
+        "convert raw parameter to scaled"
+        return np.exp(-0.5*x)
+    @staticmethod
+    def inv_transform(x):
+        "convert scaled parameter to raw"
+        return -2.*np.log(x)
+    @staticmethod
+    def dscaled_draw(x):
+        return -0.5*np.exp(-0.5*x)
+    
+class CovTransform(object):
+    r"Class representing covariance/nugget transforms"
+    @staticmethod
+    def transform(x):
+        "convert raw parameter to scaled"
+        return np.exp(x)
+    @staticmethod
+    def inv_transform(x):
+        "convert scaled parameter to raw"
+        return np.log(x)
+    @staticmethod
+    def dscaled_draw(x):
+        return np.exp(x)
 
-class GPParams:
+class GPParams(object):
     r"""
     Class representing parameters for a GaussianProcess object
     
@@ -189,13 +217,13 @@ class GPParams:
         if self.data is None:
             return None
         else:
-            return np.exp(-0.5*self.corr_raw)
+            return CorrTransform.transform(self.corr_raw)
         
     @corr.setter
     def corr(self, new_corr):
         new_corr = np.array(new_corr)
         assert np.all(new_corr > 0.), "Correlation parameters must all be positive"
-        self.corr_raw = -2.*np.log(new_corr)
+        self.corr_raw = CorrTransform.inv_transform(new_corr)
 
     @property
     def cov_raw(self):
@@ -245,13 +273,13 @@ class GPParams:
         if self.data is None:
             return None
         else:
-            return np.exp(self.cov_raw)
+            return CovTransform.transform(self.cov_raw)
         
     @cov.setter
     def cov(self, new_cov):
         new_cov = np.reshape(np.array(new_cov), (-1,))
         assert new_cov[0] > 0., "Covariance parameter must be positive"
-        self.cov_raw = np.log(new_cov)
+        self.cov_raw = CovTransform.inv_transform(new_cov)
 
     @property
     def nugget_raw(self):
@@ -307,13 +335,13 @@ class GPParams:
         if self.data is None:
             return None
         else:
-            return np.exp(self.nugget_raw)
+            return CovTransform.transform(self.nugget_raw)
         
     @nugget.setter
     def nugget(self, new_nugget):
         new_nugget = np.reshape(np.array(new_nugget), (-1,))
         assert new_nugget[0] >= 0., "New nugget value must be non-negative" 
-        self.nugget_raw = np.log(new_nugget)
+        self.nugget_raw = CovTransform.inv_transform(new_nugget)
 
     def get_data(self):
         r"""
