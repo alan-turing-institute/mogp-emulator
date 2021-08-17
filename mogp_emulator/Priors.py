@@ -1,9 +1,71 @@
 import numpy as np
 from scipy.special import gamma
 
-class Prior(object):
+class GPPriors(object):
     """
-    Generic Prior Object
+    Class representing prior distributions on GP Hyperparameters
+    
+    Currently just a limited implementation of a list to remain compatible
+    with the previous implementation. As new features are added to the
+    GP class, this class will be fleshed out more.
+    """
+    def __init__(self, priors, n_params, n_mean, nugget_type):
+        
+        assert nugget_type in ["adaptive", "fixed", "pivot", "fit"]
+        
+        if priors is None:
+            priors = []
+        else:
+            priors = list(priors)
+
+        if not isinstance(priors, list):
+            raise TypeError("priors must be a list of Prior-derived objects")
+
+        if len(priors) == 0:
+            priors = n_params*[None]
+
+        if nugget_type in ["adaptive", "fixed"]:
+            if len(priors) == n_params - 1:
+                priors.append(None)
+
+        if not len(priors) == n_params:
+            raise ValueError("bad length for priors; must have length n_params")
+
+        if nugget_type in ["adaptive", "fixed"]:
+            if not priors[-1] is None:
+                priors[-1] = None
+
+        for p in priors:
+            if not p is None and not issubclass(type(p), PriorDist):
+                raise TypeError("priors must be a list of Prior-derived objects")
+
+        self._priors = list(priors)
+        assert n_mean >= 0
+        self.n_mean = n_mean
+    
+    def __len__(self):
+        return len(self._priors)
+        
+    def __getitem__(self, index):
+        return self._priors[index]
+        
+    def __iter__(self):
+        self.index = 0
+        return self
+
+    def __next__(self):
+        if self.index < len(self._priors):
+            self.index += 1 
+            return self._priors[self.index - 1]
+        else:
+            raise StopIteration
+            
+    def __str__(self):
+        return str(self._priors)
+
+class PriorDist(object):
+    """
+    Generic Prior Distribution Object
     """
     def logp(self, x):
         """
@@ -22,12 +84,15 @@ class Prior(object):
         Computes second derivative of log probability at a given value
         """
         raise NotImplementedError
+        
 
-class NormalPrior(Prior):
+class NormalPrior(PriorDist):
     """
     Normal Distribution Prior object
 
-    Admits input values from -inf/+inf, and no transformations are assumed. Thus, for mean function
+    Admits input values from -inf/+inf. 
+    
+    Thus, for mean function
     hyperparameters this produces a normal distribution with given mean and variance, and for
     covariance/nugget hyperparameters this produces a lognormal distribution with given log mean and
     variance.
@@ -57,7 +122,7 @@ class NormalPrior(Prior):
         """
         return -self.std**(-2)
 
-class GammaPrior(Prior):
+class GammaPrior(PriorDist):
     r"""
     Gamma Distribution Prior object
 
@@ -95,7 +160,7 @@ class GammaPrior(Prior):
         """
         return -np.exp(x)/self.scale
 
-class InvGammaPrior(Prior):
+class InvGammaPrior(PriorDist):
     r"""
     Inverse Gamma Distribution Prior object
 

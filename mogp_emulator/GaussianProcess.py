@@ -1,7 +1,7 @@
 import numpy as np
 from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
+from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams
 from scipy import linalg
 from scipy.optimize import OptimizeResult
@@ -446,7 +446,9 @@ class GaussianProcess(GaussianProcessBase):
 
     @theta.setter
     def theta(self, theta):
-        """Fits the emulator and sets the parameters (property-based setter alias for ``fit``)
+        """
+        Fits the emulator and sets the parameters (property-based setter
+        alias for ``fit``)
 
         Pre-calculates the matrices needed to compute the
         log-likelihood and its derivatives and make subsequent
@@ -469,6 +471,7 @@ class GaussianProcess(GaussianProcessBase):
         :type theta: ndarray
         :returns: None
         """
+        
         if theta is None:
             self._theta.set_data(theta)
             self.current_logpost = None
@@ -479,69 +482,29 @@ class GaussianProcess(GaussianProcessBase):
 
     @property
     def priors(self):
-        """The current list priors used in computing the log posterior
+        """
+        Sets the priors using a list of prior objects/None
 
-        To set the priors, must be a list or ``None``. Entries can be
+        Sets the priors, must be a list or ``None``, by constructing
+        a new ``GPPriors`` object. Entries in the list can be
         ``None`` or a subclass of ``Prior``.  ``None`` indicates weak
         prior information. An empty list or ``None`` means all
         uninformative priors. Otherwise list should have the same
         length as the number of hyperparameters, or alternatively can
         be one shorter than the number of hyperparameters if
-        ``nugget_type`` is ``"adaptive"``, ``"pivot"`` or ``"fixed"``
-        meaning that the nugget hyperparameter is not fit but is
-        instead fixed or found adaptively. If the nugget
-        hyperparameter is not fit, the prior for the nugget will
-        automatically be set to ``None`` even if a distribution is
-        provided.
-
+        ``nugget_type`` is ``"adaptive"`` or ``"fixed"``
+        meaning that the nugget hyperparameter exists but is not fit.
+        If the nugget hyperparameter is not fit, the prior for the
+        nugget parameter (if it exists) will automatically be set to
+        ``None`` even if a distribution is provided.
         """
         return self._priors
 
     @priors.setter
     def priors(self, priors):
-        """Sets the priors to a list of prior objects/None
 
-        Sets the priors, must be a list or ``None``. Entries can be
-        ``None`` or a subclass of ``Prior``.  ``None`` indicates weak
-        prior information. An empty list or ``None`` means all
-        uninformative priors. Otherwise list should have the same
-        length as the number of hyperparameters, or alternatively can
-        be one shorter than the number of hyperparameters if
-        ``nugget_type`` is ``"adaptive"``,``"pivot"``, or ``"fixed"``
-        meaning that the nugget hyperparameter is not fit but is
-        instead fixed or found adaptively. If the nugget
-        hyperparameter is not fit, the prior for the nugget will
-        automatically be set to ``None`` even if a distribution is
-        provided.
-        """
-
-        if priors is None:
-            priors = []
-        else:
-            priors = list(priors)
-
-        if not isinstance(priors, list):
-            raise TypeError("priors must be a list of Prior-derived objects")
-
-        if len(priors) == 0:
-            priors = self.n_params*[None]
-
-        if self.nugget_type in ["adaptive", "fixed"]:
-            if len(priors) == self.n_params - 1:
-                priors.append(None)
-
-        if not len(priors) == self.n_params:
-            raise ValueError("bad length for priors; must have length n_params")
-
-        if self.nugget_type in ["adaptive", "fixed"]:
-            if not priors[-1] is None:
-                priors[-1] = None
-
-        for p in priors:
-            if not p is None and not issubclass(type(p), Prior):
-                raise TypeError("priors must be a list of Prior-derived objects")
-
-        self._priors = list(priors)
+        self._priors = GPPriors(priors, self.n_params, self.theta.n_mean,
+                                self.nugget_type)
 
 
     def get_K_matrix(self):

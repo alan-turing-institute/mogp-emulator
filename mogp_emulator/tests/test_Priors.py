@@ -1,8 +1,71 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ..Priors import GPPriors
 from ..Priors import NormalPrior, GammaPrior, InvGammaPrior
 from scipy.stats import norm, gamma, invgamma
+
+def test_GPPrior():
+    "test the GPPrior class"
+    
+    gpp = GPPriors(None, n_params=4, n_mean=0, nugget_type="fixed")
+    
+    # check indexing works
+    
+    assert gpp[0] is None
+    
+    # check iteration works
+    
+    out = []
+    
+    for p in gpp:
+        out.append(p)
+    
+    assert out == [None, None, None, None]
+    
+    # check len works
+    
+    assert len(gpp) == 4
+    
+    gpp = GPPriors([NormalPrior(2., 3.), NormalPrior(2., 3.), NormalPrior(2., 3.)], n_params=3, n_mean=0,
+                   nugget_type="pivot")
+    
+    # check indexing works
+    
+    assert isinstance(gpp[0], NormalPrior)
+    
+    # check iteration works
+    
+    out = []
+    
+    for p in gpp:
+        out.append(p)
+    
+    assert all([isinstance(o, NormalPrior) for o in out])
+    
+    # check len works
+    
+    assert len(gpp) == 3
+    
+    gpp = GPPriors([NormalPrior(2., 3.), NormalPrior(2., 3.), NormalPrior(2., 3.)], n_params=4, n_mean=0,
+                   nugget_type="fixed")
+
+    # check indexing works
+
+    assert isinstance(gpp[0], NormalPrior)
+
+    # check iteration works
+
+    out = []
+
+    for p in gpp:
+        out.append(p)
+
+    assert all([isinstance(o, NormalPrior) if o is not None else o is None for o in out])
+
+    # check len works
+
+    assert len(gpp) == 4
 
 @pytest.fixture
 def dx():
