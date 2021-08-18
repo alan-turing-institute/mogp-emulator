@@ -361,7 +361,10 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 
     m.def("have_compatible_device", &have_compatible_device);
 
-    m.def("fit_GP_MAP", &fit_GP_MAP, py::return_value_policy::reference);
+    m.def("fit_GP_MAP", py::overload_cast<DenseGP_GPU&, const int, const std::vector<double>>(&fit_single_GP_MAP), 
+          py::return_value_policy::reference);
+    m.def("fit_GP_MAP", py::overload_cast<MultiOutputGP_GPU&, const int, const std::vector<double>>(&fit_GP_MAP), 
+          py::return_value_policy::reference);
 
     m.doc() = R"(
 The libgpgpu library

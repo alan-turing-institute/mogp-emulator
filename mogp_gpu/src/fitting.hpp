@@ -14,6 +14,7 @@
 #include <dlib/global_optimization.h>
 
 #include "densegp_gpu.hpp"
+#include "multioutputgp_gpu.hpp"
 
 typedef dlib::matrix<double,0,1> column_vector;
 
@@ -23,11 +24,12 @@ class GPWrapper {
   // with dlib.
 
 private:
-  DenseGP_GPU gp;
+  DenseGP_GPU& gp;
 
 public: 
 // constructor
   GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {}
+
   double logpost(column_vector theta) {
     std::vector<REAL> new_theta(theta.begin(), theta.end());
     double* ptr = &new_theta[0];
@@ -42,8 +44,9 @@ public:
     vec deriv(theta_vec.size());
     gp.logpost_deriv(deriv);
     std::vector<double> lpderiv(deriv.data(), deriv.data()+deriv.size());
-    //column_vector logpostderiv;
+    
     column_vector logpostderiv(lpderiv.size());
+    // (is there really no better way of initializing dlib vector??)
     for (unsigned int i=0; i<lpderiv.size(); ++i) logpostderiv(i) = lpderiv[i];
     return logpostderiv;
   }
@@ -55,10 +58,10 @@ public:
 };
 
 
-void fit_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
+
+void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
   // Fit the hyperparameters of a Gaussian Process by minimizing the
   // negative log-posterior.
-
   GPWrapper gpw(gp);
 
   std::vector< std::vector<double> > all_params;  
@@ -123,5 +126,12 @@ void fit_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double>
   return;
 }
 
+void fit_GP_MAP(MultiOutputGP_GPU& mogp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
+  #pragma omp parallel for
+  for (unsigned int i=0; i< mogp.n_emulators(); ++i) {
+    fit_single_GP_MAP(*(mogp.get_emulator(i)), n_tries, theta0);
+  }
+  return;
+}
 
 #endif
