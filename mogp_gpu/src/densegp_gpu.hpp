@@ -713,9 +713,9 @@ public:
     }
 
     // destructor - just to see when it is being called
-    ~DenseGP_GPU() {
-        std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
-    }
+    //~DenseGP_GPU() {
+    //    std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
+   // }
 
     // constructor
     DenseGP_GPU(mat_ref inputs_,
