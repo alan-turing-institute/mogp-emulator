@@ -26,7 +26,7 @@ all: lib/libgpgpu.so
 clean:
 	rm -rf obj lib bin
 
-lib/libgpgpu.so:  src/gp_gpu.cu obj/cov_gpu.o obj/util.o
+lib/libgpgpu.so:  src/densegp_gpu.cu obj/cov_gpu.o obj/util.o
 	mkdir -p lib
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) -shared $(PYBIND_INC) $< obj/cov_gpu.o obj/util.o -o $@ -lcusolver -lcublas -lcudart
 
@@ -58,7 +58,7 @@ bin/test/test_meanfunc: test/test_meanfunc.cu obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
 
-bin/test/test_gp_gpu: test/test_gp_gpu.cu obj/util.o obj/kernel.o
+bin/test/test_densegp_gpu: test/test_densegp_gpu.cu obj/util.o obj/kernel.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
 
