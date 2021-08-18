@@ -1,5 +1,7 @@
 import numpy as np
+from scipy.optimize import root
 from scipy.special import gamma
+import scipy.stats
 
 class GPPriors(object):
     """
@@ -63,6 +65,99 @@ class GPPriors(object):
     def __str__(self):
         return str(self._priors)
 
+
+def default_prior(min_val, max_val, dist="invgamma"):
+    r"""
+    Computes default priors given a min and max val between which
+    99% of the mass should be found.
+    
+    Both min and max must be positive as the supported distributions
+    are defined over :math:`[0, +\inf]`
+    
+    This stabilizes the solution, as it prevents the algorithm
+    from getting stuck outside these ranges as the likelihood tends
+    to be flat on those areas.
+    
+    Optionally, can change the distribution to be a lognormal or
+    gamma distribution by specifying the ``dist`` argument.
+    
+    Note that the function assumes only a single input dimension is
+    provided. Thus, any input array will be flattened before processing.
+    
+    If the root-finding algorithm fails, then the function will return
+    ``None`` to revert to a flat prior.
+    """
+    
+    if dist.lower() == "invgamma":
+        dist_obj = scipy.stats.invgamma
+        out_obj = InvGammaPrior
+    elif dist.lower() == "gamma":
+        dist_obj = scipy.stats.gamma
+        out_obj = GammaPrior
+    elif dist.lower() == "lognormal":
+        dist_obj = scipy.stats.lognorm
+        out_obj = LogNormalPrior
+    else:
+        raise ValueError("Bad value of distribution argument to default_prior")
+        
+    if dist.lower() in ["invgamma", "gamma", "lognormal"]:
+        assert min_val > 0., "min_val must be positive for InvGamma, Gamma, or LogNormal distributions"
+        assert max_val > 0., "max_val must be positive for InvGamma, Gamma, or LogNormal distributions"
+        
+    assert min_val < max_val, "min_val must be less than max_val"
+    
+    def f(x):
+        assert len(x) == 2
+        if np.any(x <= 0.):
+            return np.array([-0.005, -0.995])
+        cdf = dist_obj(x[0], scale=x[1]).cdf
+        return np.array([cdf(min_val) - 0.005, cdf(max_val) - 0.995])
+        
+    result = root(f, np.ones(2))
+    
+    if not result["success"]:
+        print("Default prior solver failed to converge; reverting to flat priors")
+        return None
+    else:
+        return out_obj(result["x"][0], result["x"][1])
+
+def max_spacing(input):
+    """
+    Computes the maximum spacing of a particular input
+    """
+    
+    input = np.unique(np.array(input).flatten())
+    
+    if len(input) <= 1:
+        return 0.
+    
+    input_sorted = np.sort(input)
+    return input_sorted[-1] - input_sorted[0]
+
+def min_spacing(input):
+    """
+    Computes the minimum spacing of a particular input
+    """
+    
+    input = np.unique(np.array(input).flatten())
+    
+    if len(input) <= 2:
+        return 0.
+    
+    return np.min(np.diff(np.sort(input)))
+
+def default_prior_corr(inputs, dist="invgamma"):
+    "Compute default priors on a set of inputs for the correlation length"
+        
+    min_val = min_spacing(inputs)
+    max_val = max_spacing(inputs)
+    
+    if min_val == 0. or max_val == 0.:
+        print("Too few unique inputs; defaulting to flat priors")
+        return None
+        
+    return default_prior(min_val, max_val, dist)
+
 class PriorDist(object):
     """
     Generic Prior Distribution Object
@@ -90,12 +185,7 @@ class NormalPrior(PriorDist):
     """
     Normal Distribution Prior object
 
-    Admits input values from -inf/+inf. 
-    
-    Thus, for mean function
-    hyperparameters this produces a normal distribution with given mean and variance, and for
-    covariance/nugget hyperparameters this produces a lognormal distribution with given log mean and
-    variance.
+    Admits input values from -inf/+inf.
 
     Take two parameters: mean and std. mean can take any numeric value, while std must be positive.
     """
@@ -122,6 +212,34 @@ class NormalPrior(PriorDist):
         """
         return -self.std**(-2)
 
+class LogNormalPrior(PriorDist):
+    """
+    Normal Distribution Prior object
+
+    Admits input values from 0/+inf.
+
+    Take two parameters: shape and scale, both of which must be positive
+    """
+    def __init__(self, shape, scale):
+        assert shape > 0., "shape must be greater than zero"
+        assert scale > 0., "scale must be greater than zero"
+        self.shape = shape
+        self.scale = scale
+        
+    def logp(self, x):
+        assert x > 0
+        return (-0.5*(np.log(x/self.scale)/self.shape)**2
+                - np.log(np.sqrt(2.*np.pi)) - np.log(x) - np.log(self.shape))
+                
+    def dlogpdtheta(self, x):
+        assert x > 0.
+        return -np.log(x/self.scale)/self.shape**2/x - 1./x
+        
+    def d2logpdtheta2(self, x):
+        assert x > 0.
+        return (-1./self.shape**2 + np.log(x/self.scale)/self.shape**2 + 1.)/x**2
+    
+
 class GammaPrior(PriorDist):
     r"""
     Gamma Distribution Prior object
@@ -133,7 +251,7 @@ class GammaPrior(PriorDist):
     Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
     and they are defined such that
 
-    :math:`{p(x) = \frac{\beta^{-\alpha}x^{\beta - 1}}{\Gamma(/alpha)} \exp(-x/\beta)}`
+    :math:`{p(x) = \frac{\beta^{-\alpha}x^{\alpha - 1}}{\Gamma(/alpha)} \exp(-x/\beta)}`
     """
     def __init__(self, shape, scale):
         assert shape > 0., "shape parameter must be positive"
@@ -171,7 +289,7 @@ class InvGammaPrior(PriorDist):
     Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
     and they are defined such that
 
-    :math:`{p(x) = \frac{\beta^{\alpha}x^{-\beta - 1}}{\Gamma(/alpha)} \exp(-\beta/x)}`
+    :math:`{p(x) = \frac{\beta^{\alpha}x^{-\alpha - 1}}{\Gamma(/alpha)} \exp(-\beta/x)}`
     """
     def __init__(self, shape, scale):
         assert shape > 0., "shape parameter must be positive"
