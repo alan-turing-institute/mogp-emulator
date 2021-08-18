@@ -13,7 +13,7 @@
 #include <dlib/optimization.h>
 #include <dlib/global_optimization.h>
 
-#include "gp_gpu.hpp"
+#include "densegp_gpu.hpp"
 
 typedef dlib::matrix<double,0,1> column_vector;
 
