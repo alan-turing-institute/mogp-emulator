@@ -24,22 +24,7 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include "util.hpp"
 #include "kernel.hpp"
 #include "meanfunc.hpp"
-#include "gp_gpu.hpp"
-
-class DummyThing {
-    private:
-        double mynumber;
-
-    public:
-    DummyThing() {
-        std::cout<<"in DummyThing constructor"<<std::endl;
-        mynumber = 27.2;
-    }
-    ~DummyThing() {
-        std::cout<<"in DummyThing destructor"<<std::endl;
-    }
-
-};
+#include "densegp_gpu.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The MOGP class ///////////////////////////////
@@ -64,7 +49,6 @@ class MultiOutputGP_GPU {
     nugget_type nug_type;
 
     std::vector<DenseGP_GPU*> emulators;
-    //std::vector<DummyThing*> emulators;
 
 public:
 
@@ -73,9 +57,19 @@ public:
         return inputs;
     }
 
-    vec get_targets(int index) const
+    vec get_targets_at_index(int index) const
     {
         return targets[index];
+    }
+
+    std::vector<vec> get_targets(void) const
+    {
+        return targets;
+    }
+
+    int get_D(void) const
+    {
+        return inputs.cols();
     }
 
     int n_emulators(void) const
