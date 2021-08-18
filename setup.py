@@ -135,7 +135,7 @@ if len(cuda_config) > 0:
     dlib_include = dlib_location["include"]
     
     ext = Extension("libgpgpu",
-                    sources=["mogp_gpu/src/gp_gpu.cu",
+                    sources=["mogp_gpu/src/bindings.cu",
                              "mogp_gpu/src/kernel.cu",
                              "mogp_gpu/src/util.cu"],
                     library_dirs=[cuda_config["lib64"], dlib_dir],
