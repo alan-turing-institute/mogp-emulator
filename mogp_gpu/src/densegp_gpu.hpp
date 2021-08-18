@@ -1,5 +1,5 @@
-#ifndef GP_GPU_HPP
-#define GP_GPU_HPP
+#ifndef DENSEGP_GPU_HPP
+#define DENSEGP_GPU_HPP
 
 /*
 This file contains the C++ implementation of the Gaussian Process class.
@@ -710,6 +710,11 @@ public:
 	        // set the last element of result, putting it all together
 	        result(result.size()-1) = 0.5 * nug_size * (tr_invQ - invQtSq);
 	    }
+    }
+
+    // destructor - just to see when it is being called
+    ~DenseGP_GPU() {
+        std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
     }
 
     // constructor

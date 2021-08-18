@@ -1,4 +1,3 @@
-//#include "gp_gpu.hpp"
 #include "fitting.hpp"
 #include "multioutputgp_gpu.hpp"
 
@@ -10,8 +9,9 @@ namespace py = pybind11;
 
 
 PYBIND11_MODULE(libgpgpu, m) {
-    py::class_<DenseGP_GPU>(m, "DenseGP_GPU")
+    py::class_<DenseGP_GPU, std::unique_ptr<DenseGP_GPU, py::nodelete>>(m, "DenseGP_GPU")
       .def(py::init<mat_ref, vec_ref, unsigned int, BaseMeanFunc*, kernel_type>())
+//      py::return_value_policy::reference)
 
 ////////////////////////////////////////
         .def("n", &DenseGP_GPU::get_n,
@@ -223,9 +223,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 :returns: `None`
 )",
              py::arg("result"));
-
-py::class_<DummyThing>(m, "DummyThing")
-     .def(py::init<>()) ;            
+           
 ////////////////////////////////////////
      py::class_<MultiOutputGP_GPU>(m, "MultiOutputGP_GPU")
      .def(py::init<mat_ref, std::vector<vec>&, unsigned int>())
@@ -246,7 +244,13 @@ py::class_<DummyThing>(m, "DummyThing")
        .def("emulator", &MultiOutputGP_GPU::get_emulator,
                        "Return the emulator at specified index",
                          py::arg("index"))  
+       .def("D", &MultiOutputGP_GPU::get_D,
+                     "Return the number of dimensions of the GP")
+       .def("n_emulators", &MultiOutputGP_GPU::n_emulators,
+                     "Return the number of GP emulators")
        .def("targets", &MultiOutputGP_GPU::get_targets,
+                         "Return the targets of the GP") 
+       .def("targets_at_index", &MultiOutputGP_GPU::get_targets_at_index,
                          "Return the targets of the GP at specified index",
                          py::arg("index"))
        .def("fit_emulator", &MultiOutputGP_GPU::fit_emulator,
@@ -255,7 +259,7 @@ py::class_<DummyThing>(m, "DummyThing")
                          py::arg("theta"))  
        .def("fit", &MultiOutputGP_GPU::fit,
                          "Set hyperparameters of all emulators",
-                         py::arg("theta"))  
+                         py::arg("thetas"))  
        .def("predict", &MultiOutputGP_GPU::predict,
                          "Predict single value on all emulators",
                          py::arg("testing"))  
