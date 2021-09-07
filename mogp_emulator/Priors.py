@@ -45,6 +45,24 @@ class GPPriors(object):
         self._priors = list(priors)
         assert n_mean >= 0
         self.n_mean = n_mean
+        
+    @classmethod
+    def default_priors(cls, inputs, n_mean, nugget_type, dist="invgamma"):
+        "create priors with defaults for correlation length priors"
+        
+        assert n_mean >= 0
+        
+        priors = [None]*n_mean
+        
+        for param in np.transpose(inputs):
+            priors.append(default_prior_corr(param, dist))
+            
+        priors.append(None)
+        
+        if nugget_type == "fit":
+            priors.append(None)
+            
+        return cls(priors, len(priors), n_mean, nugget_type)
     
     def __len__(self):
         return len(self._priors)

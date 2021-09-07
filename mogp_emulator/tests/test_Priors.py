@@ -215,6 +215,26 @@ def test_default_prior_corr():
     assert default_prior_corr([1., 1., 1.]) is None
     assert default_prior_corr([1., 2.]) is None
 
+def test_default_priors():
+    "test class method creating default priors"
+    
+    gpp = GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
+                                             n_mean=1, nugget_type="fit")
+                                             
+    assert gpp._priors[0] is None
+    assert isinstance(gpp._priors[1], InvGammaPrior)
+    assert isinstance(gpp._priors[2], InvGammaPrior)
+    assert gpp._priors[3] is None
+    assert gpp._priors[4] is None
+    
+    for dist in gpp._priors[1:3]:
+        assert_allclose(invgamma.cdf(1., dist.shape, scale=dist.scale), 0.005)
+        assert_allclose(invgamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
+        
+    with pytest.raises(AssertionError):
+        GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
+                                n_mean=-1, nugget_type="fit")
+
 
 @pytest.fixture
 def dx():
