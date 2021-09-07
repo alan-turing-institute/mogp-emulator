@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.optimize import root
-from scipy.special import gamma
+from scipy.special import gammaln
 import scipy.stats
+from mogp_emulator.GPParams import CovTransform, CorrTransform
 
 class GPPriors(object):
     """
@@ -62,6 +63,64 @@ class GPPriors(object):
         else:
             raise StopIteration
             
+    def logp(self, theta):
+        
+        logposterior = 0.
+        
+        for i in range(len(self._priors)):
+            if not self._priors[i] is None:
+                if i < theta.n_mean:
+                    priorarg = theta.data[i]
+                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
+                    priorarg = CorrTransform.transform(theta.data[i])
+                else:
+                    priorarg = CovTransform.transform(theta.data[i])
+                logposterior += self._priors[i].logp(priorarg)
+                
+        return logposterior
+        
+    def dlogpdtheta(self, theta):
+        
+        partials = np.zeros(len(self._priors))
+        
+        for i in range(len(self._priors)):
+            if not self._priors[i] is None:
+                if i < theta.n_mean:
+                    priorarg = theta.data[i]
+                    priorderiv = 1.
+                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
+                    priorarg = CorrTransform.transform(theta.data[i])
+                    priorderiv = CorrTransform.dscaled_draw(theta.data[i])
+                else:
+                    priorarg = CovTransform.transform(theta.data[i])
+                    priorderiv = CovTransform.dscaled_draw(theta.data[i])
+                partials[i] = self._priors[i].dlogpdtheta(priorarg)*priorderiv
+                
+        return partials
+        
+    def d2logpdtheta2(self, theta):
+        
+        hessian = np.zeros(len(self._priors))
+        
+        for i in range(len(self._priors)):
+            if not self._priors[i] is None:
+                if i < theta.n_mean:
+                    priorarg = theta.data[i]
+                    priorderiv = 1.
+                    prior2deriv = 0.
+                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
+                    priorarg = CorrTransform.transform(theta.data[i])
+                    priorderiv = CorrTransform.dscaled_draw(theta.data[i])
+                    prior2deriv = CorrTransform.d2scaled_draw2(theta.data[i])
+                else:
+                    priorarg = CovTransform.transform(theta.data[i])
+                    priorderiv = CovTransform.dscaled_draw(theta.data[i])
+                    prior2deriv = CovTransform.d2scaled_draw2(theta.data[i])
+                hessian[i] = (self._priors[i].d2logpdtheta2(priorarg)*priorderiv**2 +
+                              self._priors[i].dlogpdtheta(priorarg)*prior2deriv)
+                              
+        return hessian
+            
     def __str__(self):
         return str(self._priors)
 
@@ -98,7 +157,7 @@ def default_prior(min_val, max_val, dist="invgamma"):
         dist_obj = scipy.stats.lognorm
         out_obj = LogNormalPrior
     else:
-        raise ValueError("Bad value of distribution argument to default_prior")
+        raise ValueError("Bad value of distribution argument to default_prior; must be invgamma, gamma, or lognormal")
         
     if dist.lower() in ["invgamma", "gamma", "lognormal"]:
         assert min_val > 0., "min_val must be positive for InvGamma, Gamma, or LogNormal distributions"
@@ -108,18 +167,16 @@ def default_prior(min_val, max_val, dist="invgamma"):
     
     def f(x):
         assert len(x) == 2
-        if np.any(x <= 0.):
-            return np.array([-0.005, -0.995])
-        cdf = dist_obj(x[0], scale=x[1]).cdf
+        cdf = dist_obj(np.exp(x[0]), scale=np.exp(x[1])).cdf
         return np.array([cdf(min_val) - 0.005, cdf(max_val) - 0.995])
         
-    result = root(f, np.ones(2))
+    result = root(f, np.zeros(2))
     
     if not result["success"]:
         print("Default prior solver failed to converge; reverting to flat priors")
         return None
     else:
-        return out_obj(result["x"][0], result["x"][1])
+        return out_obj(np.exp(result["x"][0]), np.exp(result["x"][1]))
 
 def max_spacing(input):
     """
@@ -229,7 +286,7 @@ class LogNormalPrior(PriorDist):
     def logp(self, x):
         assert x > 0
         return (-0.5*(np.log(x/self.scale)/self.shape)**2
-                - np.log(np.sqrt(2.*np.pi)) - np.log(x) - np.log(self.shape))
+                - 0.5*np.log(2.*np.pi) - np.log(x) - np.log(self.shape))
                 
     def dlogpdtheta(self, x):
         assert x > 0.
@@ -244,9 +301,7 @@ class GammaPrior(PriorDist):
     r"""
     Gamma Distribution Prior object
 
-    Admits input values from -inf/+inf assumed on a logarithmic scale, and transforms by taking the
-    exponential of the input. Thus, this is assumed to be appropriate for covariance hyperparameters
-    where such transformations are assumed when computing the covariance function.
+    Admits input values from 0/+inf.
 
     Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
     and they are defined such that
@@ -263,20 +318,23 @@ class GammaPrior(PriorDist):
         """
         Computes log probability at a given value
         """
-        return (-self.shape*np.log(self.scale) - np.log(gamma(self.shape)) +
-                (self.shape - 1.)*x - np.exp(x)/self.scale)
+        assert x > 0.
+        return (-self.shape*np.log(self.scale) - gammaln(self.shape) +
+                (self.shape - 1.)*np.log(x) - x/self.scale)
 
     def dlogpdtheta(self, x):
         """
         Computes derivative of log probability at a given value
         """
-        return (self.shape - 1.) - np.exp(x)/self.scale
+        assert x > 0.
+        return (self.shape - 1.)/x - 1./self.scale
 
     def d2logpdtheta2(self, x):
         """
         Computes second derivative of log probability at a given value
         """
-        return -np.exp(x)/self.scale
+        assert x > 0.
+        return -(self.shape - 1.)/x**2
 
 class InvGammaPrior(PriorDist):
     r"""
@@ -301,17 +359,17 @@ class InvGammaPrior(PriorDist):
         """
         Computes log probability at a given value
         """
-        return (self.shape*np.log(self.scale) - np.log(gamma(self.shape)) -
-                (self.shape + 1.)*x - self.scale*np.exp(-x))
+        return (self.shape*np.log(self.scale) - gammaln(self.shape) -
+                (self.shape + 1.)*np.log(x) - self.scale/x)
 
     def dlogpdtheta(self, x):
         """
         Computes derivative of log probability at a given value
         """
-        return -(self.shape + 1.) + self.scale*np.exp(-x)
+        return -(self.shape + 1.)/x + self.scale/x**2
 
     def d2logpdtheta2(self, x):
         """
         Computes second derivative of log probability at a given value
         """
-        return -self.scale*np.exp(-x)
+        return (self.shape + 1)/x**2 - 2.*self.scale/x**3

@@ -571,9 +571,7 @@ class GaussianProcess(GaussianProcessBase):
                                     np.dot(self.targets - m, self.invQt) +
                                     self.n*np.log(2. * np.pi))
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                self.current_logpost -= self._priors[i].logp(self.theta.data[i])
+        self.current_logpost -= self._priors.logp(self.theta)
 
 
     def logposterior(self, theta):
@@ -663,9 +661,7 @@ class GaussianProcess(GaussianProcessBase):
             partials[-1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
                                        np.dot(self.invQt, self.invQt))
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                partials[i] -= self._priors[i].dlogpdtheta(self.theta.data[i])
+        partials[:len(self._priors)] -= self._priors.dlogpdtheta(self.theta)
 
         return partials
 
@@ -761,9 +757,8 @@ class GaussianProcess(GaussianProcessBase):
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                hessian[i, i] -= self._priors[i].d2logpdtheta2(self.theta.data[i])
+        np.fill_diagonal(hessian[:len(self._priors),:len(self._priors)],
+                         np.diag(hessian)[:len(self._priors)] - self._priors.d2logpdtheta2(self.theta))
 
         return hessian
 

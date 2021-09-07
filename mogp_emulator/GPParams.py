@@ -13,6 +13,9 @@ class CorrTransform(object):
     @staticmethod
     def dscaled_draw(x):
         return -0.5*np.exp(-0.5*x)
+    @staticmethod
+    def d2scaled_draw2(x):
+        return 0.25*np.exp(-0.5*x)
     
 class CovTransform(object):
     r"Class representing covariance/nugget transforms"
@@ -26,6 +29,9 @@ class CovTransform(object):
         return np.log(x)
     @staticmethod
     def dscaled_draw(x):
+        return np.exp(x)
+    @staticmethod
+    def d2scaled_draw2(x):
         return np.exp(x)
 
 class GPParams(object):

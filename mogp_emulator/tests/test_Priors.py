@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ..GPParams import GPParams, CovTransform, CorrTransform
 from ..Priors import GPPriors, min_spacing, max_spacing
 from ..Priors import default_prior, default_prior_corr
 from ..Priors import NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior
@@ -68,6 +69,56 @@ def test_GPPrior():
 
     assert len(gpp) == 4
 
+def test_GPPrior_logp():
+    "test the logp method of the GPPriors class"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.) ],
+                    n_params=4, n_mean=1, nugget_type="fit")
+                    
+    theta = GPParams(n_mean=1, n_corr=1, nugget=True, data = np.zeros(4))
+    
+    logp = gpp.logp(theta)
+    
+    assert_allclose(logp, np.sum([ NormalPrior(0., 1.).logp(theta.mean), NormalPrior(2., 3.).logp(theta.corr),
+                                   InvGammaPrior(2., 3.).logp(theta.cov), InvGammaPrior(1., 1.).logp(theta.nugget) ]))
+                           
+def test_GPPrior_dlogpdtheta():
+    "test the dlogpdtheta method of the GPPriors class"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.)],
+                    n_params=4, n_mean=1, nugget_type="fit")
+                    
+    theta = GPParams(n_mean=1, n_corr=1, nugget=True, data = np.zeros(4))
+    
+    partials = gpp.dlogpdtheta(theta)
+    
+    assert_allclose(partials,
+                    [ float(NormalPrior(0., 1.).dlogpdtheta(theta.mean)),
+                      float(NormalPrior(2., 3.).dlogpdtheta(theta.corr)*CorrTransform.dscaled_draw(theta.data[1])),
+                      float(InvGammaPrior(2., 3.).dlogpdtheta(theta.cov)*CovTransform.dscaled_draw(theta.data[2])),
+                      float(InvGammaPrior(1., 1.).dlogpdtheta(theta.nugget)*CovTransform.dscaled_draw(theta.data[3]))])
+                      
+
+def test_GPPrior_d2logpdtheta2():
+    "test the dlogpdtheta method of the GPPriors class"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.)],
+                    n_params=4, n_mean=1, nugget_type="fit")
+                    
+    theta = GPParams(n_mean=1, n_corr=1, nugget=True, data = np.zeros(4))
+    
+    hessian = gpp.d2logpdtheta2(theta)
+    
+    assert_allclose(hessian,
+                    [ float(NormalPrior(0., 1.).d2logpdtheta2(theta.mean)),
+                      float(NormalPrior(2., 3.).d2logpdtheta2(theta.corr)*CorrTransform.dscaled_draw(theta.data[1])**2
+                            + NormalPrior(2., 3.).dlogpdtheta(theta.corr)*CorrTransform.d2scaled_draw2(theta.data[1])),
+                      float(InvGammaPrior(2., 3.).d2logpdtheta2(theta.cov)*CovTransform.dscaled_draw(theta.data[2])**2
+                            + InvGammaPrior(2., 3.).dlogpdtheta(theta.cov)*CovTransform.d2scaled_draw2(theta.data[2])),
+                      float(InvGammaPrior(1., 1.).d2logpdtheta2(theta.nugget)*CovTransform.dscaled_draw(theta.data[3])**2
+                            +InvGammaPrior(1., 1.).dlogpdtheta(theta.nugget)*CovTransform.d2scaled_draw2(theta.data[3]))])
+
+
 def test_default_prior():
     "test default_prior function"
     
@@ -101,7 +152,7 @@ def test_default_prior():
     with pytest.raises(AssertionError):
         default_prior(1., -2.)
         
-    assert default_prior(1.e-6, 3.) is None
+    assert default_prior(1.e-12, 1.e-11) is None
 
 def test_min_spacing():
     "test min_spacing function"
@@ -209,13 +260,13 @@ def test_GammaPrior(dx):
 
     gprior = GammaPrior(2., 3.)
 
-    assert_allclose(gprior.logp(0.5), np.log(gamma.pdf(np.exp(0.5), 2., scale=3.)))
+    assert_allclose(gprior.logp(0.5), np.log(gamma.pdf(0.5, 2., scale=3.)))
 
     assert_allclose(gprior.dlogpdtheta(0.5),
                     (gprior.logp(0.5) - gprior.logp(0.5 - dx))/dx, atol=1.e-6, rtol=1.e-6)
 
     assert_allclose(gprior.d2logpdtheta2(0.5),
-                    (gprior.dlogpdtheta(0.5) - gprior.dlogpdtheta(0.5 - dx))/dx, atol=1.e-6, rtol=1.e-6)
+                    (gprior.dlogpdtheta(0.5) - gprior.dlogpdtheta(0.5 - dx))/dx, atol=1.e-5, rtol=1.e-6)
                     
     with pytest.raises(AssertionError):
         GammaPrior(2., -1.)
@@ -228,16 +279,17 @@ def test_InvGammaPrior(dx):
 
     igprior = InvGammaPrior(2., 3.)
 
-    assert_allclose(igprior.logp(0.5), np.log(invgamma.pdf(np.exp(0.5), 2., scale=3.)))
+    assert_allclose(igprior.logp(0.5), np.log(invgamma.pdf(0.5, 2., scale=3.)))
 
     assert_allclose(igprior.dlogpdtheta(0.5),
-                    (igprior.logp(0.5) - igprior.logp(0.5 - dx))/dx, atol=1.e-6, rtol=1.e-6)
+                    (igprior.logp(0.5) - igprior.logp(0.5 - dx))/dx, atol=1.e-5, rtol=1.e-5)
 
     assert_allclose(igprior.d2logpdtheta2(0.5),
-                    (igprior.dlogpdtheta(0.5) - igprior.dlogpdtheta(0.5 - dx))/dx, atol=1.e-6, rtol=1.e-6)
+                    (igprior.dlogpdtheta(0.5) - igprior.dlogpdtheta(0.5 - dx))/dx, atol=1.e-5, rtol=1.e-5)
                     
     with pytest.raises(AssertionError):
         InvGammaPrior(2., -1.)
     
     with pytest.raises(AssertionError):
         InvGammaPrior(-2., 1.)
+    
