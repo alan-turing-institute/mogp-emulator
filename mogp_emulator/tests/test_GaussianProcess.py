@@ -8,7 +8,7 @@ from ..GaussianProcessGPU import GaussianProcessGPU
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import SquaredExponential, Matern52
 from ..GPParams import GPParams
-from ..Priors import NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior
+from ..Priors import NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior, default_prior_corr
 from scipy import linalg
 
 GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
@@ -316,26 +316,34 @@ def test_GaussianProcess_theta_pivot():
     assert_allclose(gp1.invQt, gp2.invQt[gp2.P])
     assert np.array_equal(gp2.P, [0, 2, 1])
 
-def test_GaussianProcess_priors(x, y):
+def test_GaussianProcess_priors_property(x, y):
     "test that priors are set properly"
 
     gp = GaussianProcess(x, y)
 
-    assert gp.priors == [None, None, None, None, None]
+    assert len(gp.priors) == 5
+    for p in gp.priors:
+        assert p is None
 
     gp = GaussianProcess(x, y, priors=None)
 
-    assert gp.priors == [None, None, None, None, None]
+    assert len(gp.priors) == 5
+    for p in gp.priors:
+        assert p is None
 
     priors = []
     gp = GaussianProcess(x, y, priors=priors)
 
-    assert gp.priors == [None, None, None, None, None]
+    assert len(gp.priors) == 5
+    for p in gp.priors:
+        assert p is None
 
     priors = [None, None, None, None, None]
     gp = GaussianProcess(x, y)
-
-    assert gp.priors == priors
+    
+    assert len(gp.priors) == 5
+    for p in gp.priors:
+        assert p is None
 
     priors = [None, NormalPrior(2., 2.), None, None, NormalPrior(3., 1.)]
     gp = GaussianProcess(x, y, priors=priors)
@@ -348,7 +356,7 @@ def test_GaussianProcess_priors(x, y):
 
     assert gp.priors[:-1] == priors
     assert gp.priors[-1] is None
-
+    
     priors = [None, None, None]
 
     with pytest.raises(ValueError):
@@ -361,6 +369,23 @@ def test_GaussianProcess_priors(x, y):
 
     with pytest.raises(TypeError):
         GaussianProcess(x, y, priors=priors)
+        
+    x = np.array([[1., 1.], [2., 2.], [4., 4.]])
+    y = np.array([2., 4., 6.])
+    
+    gp = GaussianProcess(x, y, mean="c", use_patsy=False)
+    
+    assert gp.priors[0] is None
+    assert isinstance(gp.priors[1], InvGammaPrior)
+    assert isinstance(gp.priors[2], InvGammaPrior)
+    assert gp.priors[3] is None
+    assert gp.priors[4] is None
+    
+    gp = GaussianProcess(x, y, priors=[])
+    
+    assert len(gp.priors) == 4
+    for p in gp.priors:
+        assert p is None
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
                                             (None, "pivot", 0.),
@@ -534,6 +559,55 @@ def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
 
     assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-7)
 
+def test_GaussianProcess_default_priors(dx):
+    "test that the default priors work as expected"
+    
+    x = np.array([[1., 1.], [2., 2.], [4., 4.]])
+    y = np.array([2., 4., 6.])
+    
+    gp = GaussianProcess(x, y, nugget=0.)
+    
+    theta = np.zeros(gp.n_params)
+
+    gp.fit(theta)
+
+    Q = gp.get_K_matrix()
+
+    L_expect = np.linalg.cholesky(Q)
+    invQt_expect = np.linalg.solve(Q, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
+                          np.dot(y, invQt_expect) +
+                          gp.n*np.log(2.*np.pi))
+                          
+    dist = default_prior_corr(np.array([1., 2., 4.]))
+    
+    logpost_expect -= 2.*dist.logp(1.)
+    
+    assert_allclose(L_expect, gp.L)
+    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(logpost_expect, gp.current_logpost)
+    assert_allclose(logpost_expect, gp.logposterior(theta))
+
+    n = gp.n_params
+    deriv = np.zeros(n)
+
+    for i in range(n):
+        dx_array = np.zeros(n)
+        dx_array[i] = dx
+        deriv[i] = (gp.logposterior(theta) - gp.logposterior(theta - dx_array))/dx
+
+    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-5, rtol=1.e-5)
+
+    hess = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            dx_array = np.zeros(n)
+            dx_array[j] = dx
+            hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
+
+    assert_allclose(hess[:2,:2], gp.logpost_hessian(theta)[:2,:2], rtol=1.e-5, atol=1.e-5)
+
 @pytest.mark.parametrize("priors,nugget,sn", [([ NormalPrior(0., 1.), LogNormalPrior(0.9, 0.5), None, LogNormalPrior(0.5, 2.),
                                               InvGammaPrior(2., 1.), None], 0., 0.),
                                            ([ NormalPrior(0., 1.), None, LogNormalPrior(1.2, 0.2), None,
@@ -583,7 +657,7 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
         dx_array[i] = dx
         deriv[i] = (gp.logposterior(theta) - gp.logposterior(theta - dx_array))/dx
 
-    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-5, rtol=1.e-4)
+    assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-5, rtol=1.e-5)
 
     hess = np.zeros((n, n))
 

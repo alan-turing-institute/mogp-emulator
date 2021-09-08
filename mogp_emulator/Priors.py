@@ -16,11 +16,8 @@ class GPPriors(object):
         
         assert nugget_type in ["adaptive", "fixed", "pivot", "fit"]
         
-        if priors is None:
-            priors = []
-        else:
-            priors = list(priors)
-
+        priors = list(priors)
+        
         if not isinstance(priors, list):
             raise TypeError("priors must be a list of Prior-derived objects")
 
@@ -59,7 +56,7 @@ class GPPriors(object):
             
         priors.append(None)
         
-        if nugget_type == "fit":
+        if nugget_type in ["fit", "adaptive", "fixed"]:
             priors.append(None)
             
         return cls(priors, len(priors), n_mean, nugget_type)

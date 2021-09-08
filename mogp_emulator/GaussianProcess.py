@@ -80,7 +80,7 @@ class GaussianProcess(GaussianProcessBase):
     """
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
                  nugget="adaptive", inputdict = {}, use_patsy=True):
-        """Create a new GaussianProcess Emulator
+        r"""Create a new GaussianProcess Emulator
 
         Creates a new GaussianProcess Emulator from either the input
         data and targets to be fit and optionally a mean function,
@@ -105,13 +105,28 @@ class GaussianProcess(GaussianProcessBase):
         held in an array-like object. This must be a 1D array of
         length ``n``.
 
-        ``prior`` must be a list of length ``n_params`` whose elements
-        are either ``Prior``-derived objects or ``None``.  Each
+        ``prior`` can take several different forms. Passing ``None``
+        for this argument will create default priors, which are
+        uninformative for any mean, covariance, or nugget parameters
+        and are inverse gamma distributions with 99% of their mass
+        between the minimum and maximum grid spacing. To choose other
+        default distributions (options are lognormal and gamma
+        distributions), the user must pass a ``GPPriors`` object
+        using the ``GPPriors.default_priors`` class method).
+        
+        If default priors are not used, ``priors`` must be a ``GPPriors``
+        object or a list of prior distributions. If a list, it must
+        have a length of ``n_params`` whose elements are either
+        ``Prior``-derived objects or ``None``. Note that there are
+        some exceptions to the requirement of the list length, depending
+        on the method used for fitting the nugget. Each list
         element is used as the prior for the corresponding parameter
-        (with ``None`` indicating an uninformative prior).  Passing
-        the empty list or ``None`` as this argument (in its entirety)
-        may be used as an abbreviation for a list of ``n_params``
-        where all list elements are ``None``.
+        following the ordering (mean, correlation, covariance, nugget),
+        with ``None`` indicating an uninformative prior.  Passing
+        the empty list as this argument may be used as an abbreviation
+        for a list of ``n_params`` where all list elements are
+        ``None``. Note that this means that uninformative priors must
+        be explicitly set, rather than being the default!
 
         ``nugget`` controls how additional noise is added to the
         emulator targets when fitting.  This can be specified in
@@ -502,9 +517,13 @@ class GaussianProcess(GaussianProcessBase):
 
     @priors.setter
     def priors(self, priors):
-
-        self._priors = GPPriors(priors, self.n_params, self.theta.n_mean,
-                                self.nugget_type)
+        
+        if priors is None:
+            self._priors = GPPriors.default_priors(self.inputs, self.theta.n_mean,
+                                                   self.nugget_type)
+        else:
+            self._priors = GPPriors(priors, self.n_params, self.theta.n_mean,
+                                    self.nugget_type)
 
 
     def get_K_matrix(self):
