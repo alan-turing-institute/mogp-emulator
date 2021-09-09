@@ -722,7 +722,11 @@ public:
 	      vec_ref targets_,
 	      unsigned int testing_size_,
 	      BaseMeanFunc* mean_ = NULL,
-	      kernel_type kern_=SQUARED_EXPONENTIAL)
+	      kernel_type kern_=SQUARED_EXPONENTIAL,
+          nugget_type nugtype_=NUG_ADAPTIVE,
+          double nugsize_=0.0
+          )
+          
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
@@ -736,14 +740,14 @@ public:
 	    , kern_type(kern_)
         , kernel(0)
 	    , meanfunc(mean_)
-	    , nug_type(NUG_ADAPTIVE)
+	    , nug_type(nugtype_)
+        , nug_size(nugsize_)
 	    , current_theta(1) // resize later
         , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
 	    , current_logpost(0.0)
-        , nug_size(0.0)
         , invQt_d(n, 0.0)
         , testing_d(D * testing_size, 0.0)
         , work_d(n, 0.0)

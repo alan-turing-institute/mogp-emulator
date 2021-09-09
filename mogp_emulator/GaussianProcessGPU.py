@@ -102,6 +102,36 @@ def parse_meanfunc_formula(formula):
     else:
         return None
 
+def interpret_nugget(nugget):
+    """
+    Interpret a provided 'nugget' value (str or float) as the C++ friendly nugget type and nugget size.
+    :param: nugget, must be either a str with value 'adaptive' or 'fit,
+                    or a non-negative float.
+    :returns: 
+    :rtype: LibGPGPU.nugget_type, float
+    """
+    if not isinstance(nugget, (str, float)):
+        try:
+            nugget = float(nugget)
+        except TypeError:
+            raise TypeError("nugget parameter must be a string or a non-negative float")
+
+    if isinstance(nugget, str):
+        if nugget == "adaptive":
+            nugget_type = LibGPGPU.nugget_type.adaptive
+        elif nugget == "fit":
+            nugget_type = LibGPGPU.nugget_type.fit
+        else:
+            raise ValueError("nugget must be a string set to 'adaptive', 'fit', or a float")
+        nugget_size = 0.
+    else:
+        # nugget is fixed
+        if nugget < 0.:
+            raise ValueError("nugget parameter must be non-negative")
+        nugget_type = LibGPGPU.nugget_type.fixed
+        nugget_size = nugget
+    # return info needed to set the nugget on the C++ object
+    return nugget_type, nugget_size
 
 class GaussianProcessGPU(GaussianProcessBase):
 
@@ -154,7 +184,7 @@ class GaussianProcessGPU(GaussianProcessBase):
             # parse this to create an instance of a C++ MeanFunction
             self.mean = parse_meanfunc_formula(mean.__str__())
             # if we got None back from that function, something went wrong
-            if not mean:
+            if not self.mean:
                 raise ValueError("""
                 GPU implementation was unable to parse mean function formula {}.
                 """.format(mean.__str__())
@@ -175,11 +205,14 @@ class GaussianProcessGPU(GaussianProcessBase):
         else:
             raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
 
+        # the nugget parameter passed to constructor can be str or float,
+        # disambiguate it here to pass values to C++ constructor.
+        nugget_type, nugget_size = interpret_nugget(nugget)
+        self._nugget_type = nugget_type
+        self._init_nugget_size = nugget_size
         # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
-        self._init_gpu()
-        # set the nugget type and (if fixed nugget) size
-        self.nugget = nugget        
+        self._init_gpu()   
 
     @classmethod
     def from_cpp(cls, denseGP_GPU):
@@ -190,6 +223,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         obj._inputs = inputs,
         obj._targets = targets
         obj._nugget_type = denseGP_GPU.get_nugget_type()
+        obj.kernel_type = denseGP_GPU.get_kernel_type()
+        obj.mean = denseGP_GPU.get_meanfunc()
         return obj
 
 
@@ -203,7 +238,9 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self._targets,
                                                      self._max_batch_size,
                                                      self.mean,
-                                                     self.kernel_type)
+                                                     self.kernel_type,
+                                                     self._nugget_type,
+                                                     self._init_nugget_size)
 
     @property
     def inputs(self):
@@ -283,32 +320,13 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         return self._densegp_gpu.get_nugget_size()
 
-
     @nugget.setter
     def nugget(self, nugget):
-        if not isinstance(nugget, (str, float)):
-            try:
-                nugget = float(nugget)
-            except TypeError:
-                raise TypeError("nugget parameter must be a string or a non-negative float")
-
-        if isinstance(nugget, str):
-            if nugget == "adaptive":
-                self._nugget_type = LibGPGPU.nugget_type(0)
-            elif nugget == "fit":
-                self._nugget_type = LibGPGPU.nugget_type(1)
-            else:
-                raise ValueError("nugget must be a string set to 'adaptive', 'fit', or a float")
-            self._densegp_gpu.set_nugget_size(0.)
-
-        else:
-            # nugget is fixed
-            if nugget < 0.:
-                raise ValueError("nugget parameter must be non-negative")
-            self._nugget_type = LibGPGPU.nugget_type(2) #fixed
-            self._densegp_gpu.set_nugget_size(nugget)
-        # set the nugget type on the C++ object
-        self._densegp_gpu.set_nugget_type(self._nugget_type)
+        nugget_type, nugget_size = interpret_nugget(nugget)
+        self._nugget_type = nugget_type
+        self._densegp_gpu.set_nugget_size(nugget_size)
+        self._densegp_gpu.set_nugget_type(nugget_type)
+         
 
     @property
     def theta(self):

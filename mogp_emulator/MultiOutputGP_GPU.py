@@ -5,7 +5,7 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU, parse_meanfunc_formula
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import Prior
@@ -38,7 +38,7 @@ class MultiOutputGP_GPU(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
+                 nugget="adaptive", inputdict={}, use_patsy=True, batch_size=2000):
         """
         Create a new multi-output GP Emulator
         """
@@ -57,7 +57,49 @@ class MultiOutputGP_GPU(object):
         if not (inputs.shape[0] == targets.shape[1]):
             raise ValueError("the first dimension of inputs must be the same length as the second dimension of targets (or first if targets is 1D))")
 
-        self._mogp_gpu = LibGPGPU.MultiOutputGP_GPU(inputs, targets, 2000)
+        # nugget type
+        nugsize = 0.
+        if nugget == "adaptive": 
+            nugtype = LibGPGPU.nugget_type(0)
+        elif nugget == "fit":
+            nugtype = LibGPGPU.nugget_type(1)
+        elif isinstance(nugget, float):
+            nugtype = LibGPGPU.nugget_type(2)
+            nugsize = nugget
+        else:
+            raise TypeError("nugget parameter must be a string or a non-negative float")
+
+        # set the Mean Function
+        if mean is None:
+            meanfunc = LibGPGPU.ZeroMeanFunc()
+        else:
+            if not issubclass(type(mean), MeanBase):
+                if isinstance(mean, str):
+                    mean = MeanFunction(mean, inputdict, use_patsy)
+                else:
+                    raise ValueError("provided mean function must be a subclass of MeanBase,"+
+                                     " a string formula, or None")
+            # at this point, mean will definitely be a MeanBase.  We can call its __str__ and
+            # parse this to create an instance of a C++ MeanFunction
+            meanfunc = parse_meanfunc_formula(mean.__str__())
+            # if we got None back from that function, something went wrong
+            if not meanfunc:
+                raise ValueError("""
+                GPU implementation was unable to parse mean function formula {}.
+                """.format(mean.__str__())
+                )
+
+        # set the kernel type
+        if (isinstance(kernel, str) and kernel == "SquaredExponential") \
+           or isinstance(kernel, SquaredExponential):
+            kernel_type = LibGPGPU.kernel_type.SquaredExponential
+        elif (isinstance(kernel, str) and kernel == "Matern52") \
+           or isinstance(kernel, Matern52):
+            kernel_type = LibGPGPU.kernel_type.Matern52
+        else:
+            raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
+
+        self._mogp_gpu = LibGPGPU.MultiOutputGP_GPU(inputs, targets, batch_size, meanfunc, kernel_type, nugtype, nugsize)
 
 
 

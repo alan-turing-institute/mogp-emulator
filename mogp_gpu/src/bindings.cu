@@ -10,7 +10,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU, std::unique_ptr<DenseGP_GPU, py::nodelete>>(m, "DenseGP_GPU")
-      .def(py::init<mat_ref, vec_ref, unsigned int, BaseMeanFunc*, kernel_type>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, BaseMeanFunc*, kernel_type, nugget_type, double>())
 //      py::return_value_policy::reference)
 
 ////////////////////////////////////////
@@ -226,7 +226,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
            
 ////////////////////////////////////////
      py::class_<MultiOutputGP_GPU>(m, "MultiOutputGP_GPU")
-     .def(py::init<mat_ref, std::vector<vec>&, unsigned int>())
+     .def(py::init<mat_ref, std::vector<vec>&, unsigned int, BaseMeanFunc*, kernel_type, nugget_type, double>())
        .def("predict_batch", &MultiOutputGP_GPU::predict_batch,
          R"(Batched predictive means.
           :param testing: The input point to predict, with shape `(Nbatch, D)`
