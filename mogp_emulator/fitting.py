@@ -200,13 +200,12 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     logpost_values = []
     theta_values = []
 
-    theta_startvals = 5.*(np.random.rand(n_tries, gp.n_params) - 0.5)
-    if not theta0 is None:
-        theta0 = np.array(theta0)
-        assert theta0.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
-        theta_startvals[0,:] = theta0
-
-    for theta in theta_startvals:
+    for i in range(n_tries):
+        if i == 0 and not theta0 is None:
+            theta = np.array(theta0)
+            assert theta.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
+        else:
+            theta = gp.priors.sample()
         try:
             min_dict = minimize(gp.logposterior, theta, method = method,
                                 jac = gp.logpost_deriv, options = kwargs)

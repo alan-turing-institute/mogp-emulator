@@ -42,6 +42,11 @@ class GPPriors(object):
         self._priors = list(priors)
         assert n_mean >= 0
         self.n_mean = n_mean
+        if nugget_type in ["fit", "adaptive", "fixed"]:
+            self.has_nugget = True
+        else:
+            self.has_nugget = False
+        self.n_corr = n_params - self.n_mean - 1 - int(self.has_nugget)
         
     @classmethod
     def default_priors(cls, inputs, n_mean, nugget_type, dist="invgamma"):
@@ -57,7 +62,7 @@ class GPPriors(object):
         priors.append(None)
         
         if nugget_type in ["fit", "adaptive", "fixed"]:
-            priors.append(None)
+            priors.append(default_prior_nugget())
             
         return cls(priors, len(priors), n_mean, nugget_type)
     
@@ -84,12 +89,7 @@ class GPPriors(object):
         
         for i in range(len(self._priors)):
             if not self._priors[i] is None:
-                if i < theta.n_mean:
-                    priorarg = theta.data[i]
-                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
-                    priorarg = CorrTransform.transform(theta.data[i])
-                else:
-                    priorarg = CovTransform.transform(theta.data[i])
+                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
                 logposterior += self._priors[i].logp(priorarg)
                 
         return logposterior
@@ -100,15 +100,7 @@ class GPPriors(object):
         
         for i in range(len(self._priors)):
             if not self._priors[i] is None:
-                if i < theta.n_mean:
-                    priorarg = theta.data[i]
-                    priorderiv = 1.
-                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
-                    priorarg = CorrTransform.transform(theta.data[i])
-                    priorderiv = CorrTransform.dscaled_draw(theta.data[i])
-                else:
-                    priorarg = CovTransform.transform(theta.data[i])
-                    priorderiv = CovTransform.dscaled_draw(theta.data[i])
+                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
                 partials[i] = self._priors[i].dlogpdtheta(priorarg)*priorderiv
                 
         return partials
@@ -119,26 +111,54 @@ class GPPriors(object):
         
         for i in range(len(self._priors)):
             if not self._priors[i] is None:
-                if i < theta.n_mean:
-                    priorarg = theta.data[i]
-                    priorderiv = 1.
-                    prior2deriv = 0.
-                elif i >= theta.n_mean and i < theta.n_mean + theta.n_corr:
-                    priorarg = CorrTransform.transform(theta.data[i])
-                    priorderiv = CorrTransform.dscaled_draw(theta.data[i])
-                    prior2deriv = CorrTransform.d2scaled_draw2(theta.data[i])
-                else:
-                    priorarg = CovTransform.transform(theta.data[i])
-                    priorderiv = CovTransform.dscaled_draw(theta.data[i])
-                    prior2deriv = CovTransform.d2scaled_draw2(theta.data[i])
+                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
                 hessian[i] = (self._priors[i].d2logpdtheta2(priorarg)*priorderiv**2 +
                               self._priors[i].dlogpdtheta(priorarg)*prior2deriv)
                               
         return hessian
+    
+    def transform(self, param, i):
+        if i < self.n_mean:
+            priorarg = param
+            priorderiv = 1.
+            prior2deriv = 0.
+        elif i >= self.n_mean and i < self.n_mean + self.n_corr:
+            priorarg = CorrTransform.transform(param)
+            priorderiv = CorrTransform.dscaled_draw(param)
+            prior2deriv = CorrTransform.d2scaled_draw2(param)
+        else:
+            priorarg = CovTransform.transform(param)
+            priorderiv = CovTransform.dscaled_draw(param)
+            prior2deriv = CovTransform.d2scaled_draw2(param)
             
+        return priorarg, priorderiv, prior2deriv
+    
+    def inv_transform(self, priorarg, i):
+        
+        if i < self.n_mean:
+            param = priorarg
+        elif i >= self.n_mean and i < self.n_mean + self.n_corr:
+            param = CorrTransform.inv_transform(priorarg)
+        else:
+            param = CovTransform.inv_transform(priorarg)
+        
+        return param
+    
+    def sample(self):
+        sample_pt = []
+        for i in range(len(self._priors)):
+            if self._priors[i] is None:
+                priorarg = default_sampler()
+            else:
+                priorarg = self.inv_transform(self._priors[i].sample(), i)
+            sample_pt.append(priorarg)
+        return np.array(sample_pt)
+        
     def __str__(self):
         return str(self._priors)
 
+def default_sampler():
+    return float(5.*(np.random.rand() - 0.5))
 
 def default_prior(min_val, max_val, dist="invgamma"):
     r"""
@@ -208,7 +228,7 @@ def max_spacing(input):
 
 def min_spacing(input):
     """
-    Computes the minimum spacing of a particular input
+    Computes the median spacing of a particular input
     """
     
     input = np.unique(np.array(input).flatten())
@@ -216,7 +236,7 @@ def min_spacing(input):
     if len(input) <= 2:
         return 0.
     
-    return np.min(np.diff(np.sort(input)))
+    return np.median(np.diff(np.sort(input)))
 
 def default_prior_corr(inputs, dist="invgamma"):
     "Compute default priors on a set of inputs for the correlation length"
@@ -229,6 +249,9 @@ def default_prior_corr(inputs, dist="invgamma"):
         return None
         
     return default_prior(min_val, max_val, dist)
+
+def default_prior_nugget():
+    return InvGammaPrior(shape=1., scale=1.e-8)
 
 class PriorDist(object):
     """
@@ -250,6 +273,9 @@ class PriorDist(object):
         """
         Computes second derivative of log probability at a given value
         """
+        raise NotImplementedError
+        
+    def sample(self):
         raise NotImplementedError
         
 
@@ -283,6 +309,9 @@ class NormalPrior(PriorDist):
         Computes second derivative of log probability at a given value
         """
         return -self.std**(-2)
+        
+    def sample(self):
+        return float(scipy.stats.norm.rvs(size=1, loc=self.mean, scale=self.std))
 
 class LogNormalPrior(PriorDist):
     """
@@ -310,6 +339,9 @@ class LogNormalPrior(PriorDist):
     def d2logpdtheta2(self, x):
         assert x > 0.
         return (-1./self.shape**2 + np.log(x/self.scale)/self.shape**2 + 1.)/x**2
+        
+    def sample(self):
+        return float(scipy.stats.lognorm.rvs(size=1, s=self.shape, scale=self.scale))
     
 
 class GammaPrior(PriorDist):
@@ -350,6 +382,9 @@ class GammaPrior(PriorDist):
         """
         assert x > 0.
         return -(self.shape - 1.)/x**2
+        
+    def sample(self):
+        return float(scipy.stats.gamma.rvs(size=1, a=self.shape, scale=self.scale))
 
 class InvGammaPrior(PriorDist):
     r"""
@@ -388,3 +423,6 @@ class InvGammaPrior(PriorDist):
         Computes second derivative of log probability at a given value
         """
         return (self.shape + 1)/x**2 - 2.*self.scale/x**3
+        
+    def sample(self):
+        return float(scipy.stats.invgamma.rvs(size=1, a=self.shape, scale=self.scale))

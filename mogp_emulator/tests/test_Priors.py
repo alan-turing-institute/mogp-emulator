@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from ..GPParams import GPParams, CovTransform, CorrTransform
-from ..Priors import GPPriors, min_spacing, max_spacing
+from ..Priors import GPPriors, default_sampler, min_spacing, max_spacing
 from ..Priors import default_prior, default_prior_corr
 from ..Priors import NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior
 from scipy.stats import norm, gamma, invgamma, lognorm
@@ -10,7 +10,7 @@ from scipy.stats import norm, gamma, invgamma, lognorm
 def test_GPPrior():
     "test the GPPrior class"
     
-    gpp = GPPriors(None, n_params=4, n_mean=0, nugget_type="fixed")
+    gpp = GPPriors([], n_params=4, n_mean=0, nugget_type="fixed")
     
     # check indexing works
     
@@ -119,6 +119,59 @@ def test_GPPrior_d2logpdtheta2():
                             +InvGammaPrior(1., 1.).dlogpdtheta(theta.nugget)*CovTransform.d2scaled_draw2(theta.data[3]))])
 
 
+def test_GPPrior_transform():
+    "test the transform method"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.)],
+                    n_params=4, n_mean=1, nugget_type="fit")
+    
+    val = 0.
+    arg, deriv, deriv2 = gpp.transform(val, 0)
+    assert_allclose(arg, val)
+    assert_allclose(deriv, 1.)
+    assert_allclose(deriv2, 0.)
+    
+    arg, deriv, deriv2 = gpp.transform(val, 1)
+    assert_allclose(arg, CorrTransform.transform(val))
+    assert_allclose(deriv, CorrTransform.dscaled_draw(val))
+    assert_allclose(deriv2, CorrTransform.d2scaled_draw2(val))
+    
+    for i in range(2, 4):
+        arg, deriv, deriv2 = gpp.transform(val, i)
+        assert_allclose(arg, CovTransform.transform(val))
+        assert_allclose(deriv, CovTransform.dscaled_draw(val))
+        assert_allclose(deriv2, CovTransform.d2scaled_draw2(val))
+                    
+def test_GPPrior_inv_transform():
+    "test the transform method"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.)],
+                    n_params=4, n_mean=1, nugget_type="fit")
+                    
+    val = 1.
+    arg = gpp.inv_transform(val, 0)
+    assert_allclose(arg, val)
+    
+    arg = gpp.inv_transform(val, 1)
+    assert_allclose(arg, CorrTransform.inv_transform(val))
+    
+    for i in range(2, 4):
+        arg = gpp.inv_transform(val, i)
+        assert_allclose(arg, CovTransform.inv_transform(val))
+                    
+def test_GPPrior_sample():
+    "test the sample method"
+    
+    gpp = GPPriors([ NormalPrior(0., 1.), NormalPrior(2., 3.), InvGammaPrior(2., 3.), InvGammaPrior(1., 1.)],
+                    n_params=4, n_mean=1, nugget_type="fit")
+                    
+def test_default_sampler():
+    "test the default sampling method"
+    
+    val = default_sampler()
+    assert val >= -2.5
+    assert val <= 2.5
+
 def test_default_prior():
     "test default_prior function"
     
@@ -159,15 +212,15 @@ def test_min_spacing():
     
     inputs = np.array([1., 2., 4.])
     
-    assert_allclose(min_spacing(inputs), 1.)
+    assert_allclose(min_spacing(inputs), np.median([1., 2.]))
     
     np.random.shuffle(inputs)
     
-    assert_allclose(min_spacing(inputs), 1.)
+    assert_allclose(min_spacing(inputs), np.median([1., 2.]))
     
     inputs = np.array([[1., 2.], [4., 5.]])
     
-    assert_allclose(min_spacing(inputs), 1.)
+    assert_allclose(min_spacing(inputs), np.median([1., 2., 1.]))
     
     assert min_spacing(np.array([1.])) == 0.
     assert min_spacing(np.array([1., 1., 1.])) == 0.
@@ -196,19 +249,19 @@ def test_default_prior_corr():
     dist = default_prior_corr(np.array([1., 2., 4.]))
     
     assert isinstance(dist, InvGammaPrior)
-    assert_allclose(invgamma.cdf(1., dist.shape, scale=dist.scale), 0.005)
+    assert_allclose(invgamma.cdf(np.median([1., 2.]), dist.shape, scale=dist.scale), 0.005)
     assert_allclose(invgamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
     
     dist = default_prior_corr(np.array([1., 2., 4.]), dist="gamma")
     
     assert isinstance(dist, GammaPrior)
-    assert_allclose(gamma.cdf(1., dist.shape, scale=dist.scale), 0.005)
+    assert_allclose(gamma.cdf(np.median([1., 2.]), dist.shape, scale=dist.scale), 0.005)
     assert_allclose(gamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
     
     dist = default_prior_corr(np.array([1., 1., 2., 4.]))
     
     assert isinstance(dist, InvGammaPrior)
-    assert_allclose(invgamma.cdf(1., dist.shape, scale=dist.scale), 0.005)
+    assert_allclose(invgamma.cdf(np.median([1., 2.]), dist.shape, scale=dist.scale), 0.005)
     assert_allclose(invgamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
     
     assert default_prior_corr([1.]) is None
@@ -225,11 +278,14 @@ def test_default_priors():
     assert isinstance(gpp._priors[1], InvGammaPrior)
     assert isinstance(gpp._priors[2], InvGammaPrior)
     assert gpp._priors[3] is None
-    assert gpp._priors[4] is None
+    assert isinstance(gpp._priors[4], InvGammaPrior)
     
     for dist in gpp._priors[1:3]:
-        assert_allclose(invgamma.cdf(1., dist.shape, scale=dist.scale), 0.005)
+        assert_allclose(invgamma.cdf(np.median([1., 2.]), dist.shape, scale=dist.scale), 0.005)
         assert_allclose(invgamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
+        
+    assert_allclose(gpp._priors[4].shape, 1.)
+    assert_allclose(gpp._priors[4].scale, 1.e-8)
         
     with pytest.raises(AssertionError):
         GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
