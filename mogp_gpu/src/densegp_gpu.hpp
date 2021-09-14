@@ -713,9 +713,9 @@ public:
     }
 
     // destructor - just to see when it is being called
-    //~DenseGP_GPU() {
-    //    std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
-   // }
+    ~DenseGP_GPU() {
+        std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
+    }
 
     // constructor
     DenseGP_GPU(mat_ref inputs_,
@@ -757,6 +757,7 @@ public:
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {
+        std::cout<<"in constructor of DenseGP_GPU"<<std::endl;
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {

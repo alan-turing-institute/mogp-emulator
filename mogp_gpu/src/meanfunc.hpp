@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <memory>
 
 #include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
@@ -19,7 +20,9 @@ class BaseMeanFunc {
 
 public:
 
-  virtual ~BaseMeanFunc(){};
+  virtual ~BaseMeanFunc(){
+    std::cout<<" in destructor of BaseMeanFunc"<<std::endl;
+  };
 
   // Performs a single evaluation of the mean function at specific inputs
   virtual vec mean_f(mat_ref xs,
@@ -37,6 +40,9 @@ public:
   // Return the number of parameters in the function.
   virtual int get_n_params(mat_ref xs) = 0;
 
+  // Create a copy
+  virtual BaseMeanFunc* clone() const = 0;
+
 };
 
 class ZeroMeanFunc : public BaseMeanFunc {
@@ -47,7 +53,13 @@ public:
 
   ZeroMeanFunc() {};
 
-  virtual ~ZeroMeanFunc() {};
+  virtual ~ZeroMeanFunc() {
+    std::cout<<"In destructor of ZeroMeanFunc"<<std::endl;
+  };
+
+  inline ZeroMeanFunc* clone() const override {
+    return new ZeroMeanFunc(*this);
+  }
 
   inline virtual int get_n_params(mat_ref xs) { return 0; }
 
@@ -87,6 +99,10 @@ public:
   FixedMeanFunc(REAL value_): value(value_) {};
 
   virtual ~FixedMeanFunc() {} ;
+
+  inline FixedMeanFunc* clone() const override {
+    return new FixedMeanFunc(*this);
+  }
 
   inline virtual int get_n_params(mat_ref xs) { return 0; }
 
@@ -130,6 +146,10 @@ public:
   ConstMeanFunc() {};
 
   virtual ~ConstMeanFunc() {};
+
+  inline ConstMeanFunc* clone() const override {
+    return new ConstMeanFunc(*this);
+  }
 
   inline virtual int get_n_params(mat_ref xs) { return 1; }
 
@@ -180,7 +200,20 @@ public:
   // The const term will always be the first of the parameters.
   PolyMeanFunc(std::vector<std::pair<int,int> > dp) : dims_powers(dp) {};
 
+  PolyMeanFunc(const PolyMeanFunc& other) {
+    std::cout<<" in polymeanfunc copy constructor"<<std::endl;
+    this->dims_powers = other.dims_powers;
+  }
+
   virtual ~PolyMeanFunc() {};
+
+  inline PolyMeanFunc clone2() const  {
+    PolyMeanFunc pmf(*this);
+    return pmf;
+  }
+  inline PolyMeanFunc* clone() const override {
+    return new PolyMeanFunc(*this);
+  }
 
   inline virtual int get_n_params(mat_ref xs) { return dims_powers.size() + 1; }
 

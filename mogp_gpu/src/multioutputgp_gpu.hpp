@@ -150,23 +150,24 @@ public:
 
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
+        std::cout<<" in create emulators"<<std::endl;
         for (auto targ : targets) {
             // emulators will all have same starting parameters apart from targets
+            BaseMeanFunc* mf = mf->clone();
             emulators.push_back(new DenseGP_GPU(
                 inputs, 
                 targ, 
                 testing_size_per_emulator, 
-                meanfunc, 
-                kern_type, 
-                nug_type, 
-                nug_size)
+                mf )
+             //   kern_type, 
+             //   nug_type, 
+             //   nug_size)
             );
            // emulators.push_back(new DummyThing());
         }
     }
 
     DenseGP_GPU* get_emulator(unsigned int index) {
-   // DummyThing* get_emulator(unsigned int index) {
         return emulators.at(index);
     }
 
