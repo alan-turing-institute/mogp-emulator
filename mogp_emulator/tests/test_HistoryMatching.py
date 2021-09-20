@@ -318,12 +318,12 @@ def test_HistoryMatching_select_expectations():
     # correct functionality
 
     expectations = PredictResult(mean=np.array([2., 10.]), unc=np.array([0., 0.]),
-                                 deriv=np.array([[1., 2.]]))
+                                 deriv=None)
     hm = HistoryMatching(obs=[1., 1.], expectations=expectations)
 
     expectations_new = hm._select_expectations()
 
-    for a in range(3):
+    for a in range(2):
         assert_allclose(expectations[a], expectations_new[a])
 
     np.random.seed(57483)
@@ -336,8 +336,8 @@ def test_HistoryMatching_select_expectations():
 
     expectations_new = hm._select_expectations()
 
-    for a, b in zip(expectations, expectations_new):
-        assert_allclose(a, b)
+    for a in range(2):
+        assert_allclose(expectations[a], expectations_new[a])
 
     # ncoords somehow not set
 
