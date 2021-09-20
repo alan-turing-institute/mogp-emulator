@@ -733,7 +733,7 @@ class MICEFastGP(GaussianProcess):
         indices = (np.arange(self.n) != index)
 
         switch = self.theta.n_mean
-        sigma_2 = self.theta.cov
+        sigma_2 = self.theta.cov + self.theta.nugget
 
         Ktest = self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
                                      np.reshape(self.inputs[index, :], (1, self.D)),
