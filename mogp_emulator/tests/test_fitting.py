@@ -36,7 +36,7 @@ def test_fit_GP_MAP(monkeypatch):
 
     # same test, but pass args and kwargs rather than gp
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B")
+    gp = fit_GP_MAP(x, y, mean="0", method="L-BFGS-B")
     assert isinstance(gp, GaussianProcess)
     assert_allclose(gp.theta.data, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
@@ -157,12 +157,12 @@ def test_fit_GP_MAP_MOGP():
 
     # same test, but pass args and kwargs rather than gp
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
+    gp = fit_GP_MAP(x, y, mean="0", method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
 
     # pass processes argument
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
+    gp = fit_GP_MAP(x, y, mean="0", method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
 
     # pass various theta0 arguments
