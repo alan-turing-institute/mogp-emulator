@@ -1,12 +1,15 @@
 import numpy as np
-from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_cho_solve
-
+try:
+    from patsy import dmatrix
+except ImportError:
+    raise ImportError("patsy is now a required dependency of mogp-emulator")
+import warnings
 
 class GaussianProcessBase(object):
     pass
@@ -79,7 +82,7 @@ class GaussianProcess(GaussianProcessBase):
 
     """
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict = {}, use_patsy=True):
+                 nugget="adaptive", inputdict={}, use_patsy=True):
         r"""Create a new GaussianProcess Emulator
 
         Creates a new GaussianProcess Emulator from either the input
@@ -154,9 +157,13 @@ class GaussianProcess(GaussianProcessBase):
         :param targets: Numpy array holding emulator targets. Must be
                         1D with length ``n``
         :type targets: ndarray
-        :param mean: Mean function to be used (optional, default is
-                     ``None`` for a zero mean)
-        :type mean: None or MeanFunction
+        :param mean: Mean function to be used or ``None``. If not
+                     ``None`` (i.e. zero mean), most likely to be
+                     a string formula, but can be any type
+                     accepted by the `patsy.dmatrix` interface.
+                     See the `patsy` documentation for more details.
+                     Optional, default is "1" (constant mean).
+        :type mean: None, str, or other formula-like object
         :param kernel: Covariance kernel to be used (optional, default
                      is Squared Exponential) Can provide either a
                      ``Kernel`` object or a string matching the kernel
@@ -186,19 +193,11 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: GaussianProcess
 
         """
-        inputs = np.array(inputs)
-        if inputs.ndim == 1:
-            inputs = np.reshape(inputs, (-1, 1))
-        assert inputs.ndim == 2
+        inputs = self._process_inputs(inputs)
 
         targets = np.array(targets)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
-
-        if not issubclass(type(mean), MeanBase):
-            if not (mean is None or isinstance(mean, str)):
-                raise ValueError("provided mean function must be a subclass of MeanFunction,"+
-                                 " a string formula, or None")
 
         if isinstance(kernel, str):
             if kernel == "SquaredExponential":
@@ -213,10 +212,18 @@ class GaussianProcess(GaussianProcessBase):
         self._inputs = inputs
         self._targets = targets
 
-        if not issubclass(type(mean), MeanBase):
-            self.mean = MeanFunction(mean, inputdict, use_patsy)
-        else:
-            self.mean = mean
+        if not inputdict == {}:
+            warnings.warn("The inputdict interface for mean functions has been deprecated. " +
+                          "You must input your mean formulae using the x[0] format directly " +
+                          "in the formula.", DeprecationWarning)
+                          
+        if not use_patsy:
+            warnings.warn("patsy is now required to parse all formulae and form design " +
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
+
+        self._mean = mean
+        self._dm = self.get_design_matrix(self._inputs)
+        n_mean = self._dm.shape[1]
 
         self.kernel = kernel
 
@@ -227,7 +234,7 @@ class GaussianProcess(GaussianProcessBase):
         else:
             has_nugget = True
 
-        self._theta = GPParams(n_mean=self.mean.get_n_params(self._inputs),
+        self._theta = GPParams(n_mean=n_mean,
                                n_corr=self._inputs.shape[1],
                                nugget=has_nugget,
                                data=None)
@@ -525,6 +532,34 @@ class GaussianProcess(GaussianProcessBase):
             self._priors = GPPriors(priors, self.n_params, self.theta.n_mean,
                                     self.nugget_type)
 
+    def get_design_matrix(self, inputs):
+        """Returns the design matrix for a set of inputs
+        
+        For a given set of inputs, compute the design matrix based on the GP
+        mean function.
+        """
+        
+        inputs = self._process_inputs(inputs)
+        
+        if self._mean is None or self._mean == "0" or self._mean == "-1":
+            dm = np.reshape(np.array([]), (inputs.shape[0], 0))
+        elif self._mean == "1" or self._mean == "-0":
+            dm = np.reshape(np.ones(inputs.shape[0]), (-1, 1))
+        else:
+            dm = dmatrix(self._mean, data={"x": inputs.T})
+            if not dm.shape[0] == inputs.shape[0]:
+                raise ValueError("Provided design matrix is of the wrong shape")
+                
+        return dm
+                
+    def get_cov_matrix(self, inputs):
+        """Computes the covariance matrix for a set of inputs. Assumes the second
+        self of inputs is the inputs on which the GP is conditioned.
+        """
+        inputs = self._process_inputs(inputs)
+        
+        return self.kernel.kernel_f(self.inputs, inputs,
+                                    self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
 
     def get_K_matrix(self):
         """Returns current value of the covariance matrix as a numpy
@@ -532,8 +567,17 @@ class GaussianProcess(GaussianProcessBase):
         dependent on how the nugget is fit.
 
         """
-        return self.kernel.kernel_f(self.inputs, self.inputs,
-                                    self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+        return self.get_cov_matrix(self.inputs)
+
+    def _process_inputs(self, inputs):
+        "Change inputs into an array and reshape if required"
+        
+        inputs = np.array(inputs)
+        if inputs.ndim == 1:
+            inputs = np.reshape(inputs, (-1, 1))
+        assert inputs.ndim == 2
+        
+        return inputs
 
     def fit(self, theta):
         """Fits the emulator and sets the parameters
@@ -568,7 +612,7 @@ class GaussianProcess(GaussianProcessBase):
             assert self.theta.same_shape(theta), "bad shape for hyperparameters"
             self.theta.set_data(theta)
 
-        m = self.mean.mean_f(self.inputs, self.theta.mean)
+        m = np.dot(self._dm, self.theta.mean)
         Q = self.get_K_matrix()
 
         if self.nugget_type == "adaptive":
@@ -664,7 +708,7 @@ class GaussianProcess(GaussianProcessBase):
 
         switch = self.theta.n_mean
 
-        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta.mean)
+        dmdtheta = self._dm.T
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
                                             self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
 
@@ -728,16 +772,14 @@ class GaussianProcess(GaussianProcessBase):
         
         switch = self.theta.n_mean
 
-        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta.mean)
-        d2mdtheta2 = self.mean.mean_hessian(self.inputs, self.theta.mean)
+        dmdtheta = self._dm.T
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
                                             self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs,
                                                 self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
 
-        hessian[:switch, :switch] = -(np.dot(d2mdtheta2, self.invQt) -
-                                      np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
-                                                                        np.transpose(dmdtheta))))
+        hessian[:switch, :switch] = np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
+                                                                     np.transpose(dmdtheta)))
 
         hessian[:switch, switch:-1] = np.dot(dmdtheta,
                                              pivot_cho_solve(self.L, self.P,
@@ -781,7 +823,7 @@ class GaussianProcess(GaussianProcessBase):
 
         return hessian
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=True):
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True):
         """Make a prediction for a set of input vectors for a single set of hyperparameters
 
         Makes predictions for the emulator on a given set of input
@@ -797,12 +839,12 @@ class GaussianProcess(GaussianProcessBase):
         array as the first return value from the method.
 
         Optionally, the emulator can also calculate the variances in
-        the predictions and the derivatives with respect to each input
-        parameter. If the uncertainties are computed, they are
+        the predictions. If the uncertainties are computed, they are
         returned as the second output from the method as an
-        ``(n_predict,)`` shaped numpy array. If the derivatives are
-        computed, they are returned as the third output from the
-        method as an ``(n_predict, D)`` shaped numpy array.
+        ``(n_predict,)`` shaped numpy array. Derivatives have been
+        deprecated due to changes in how the mean function is computed,
+        so setting ``deriv=True`` will have no effect and will raise
+        a ``DeprecationWarning``.
 
         The final input to the method determines if the predictive
         variance should include the nugget or not. For situations
@@ -818,24 +860,16 @@ class GaussianProcess(GaussianProcessBase):
                         ``(n_predict, D)`` or ``(D,)`` (for a single
                         prediction)
         :type testing: ndarray
-
         :param unc: (optional) Flag indicating if the uncertainties
                     are to be computed.  If ``False`` the method
                     returns ``None`` in place of the uncertainty
                     array. Default value is ``True``.
         :type unc: bool
-        :param deriv: (optional) Flag indicating if the derivatives
-                      are to be computed.  If ``False`` the method
-                      returns ``None`` in place of the derivative
-                      array. Default value is ``True``.
-        :type deriv: bool
-
         :param include_nugget: (optional) Flag indicating if the
                                nugget should be included in the
                                predictive variance. Only relevant if
                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
-
         :returns: Tuple of numpy arrays holding the predictions,
                   uncertainties, and derivatives,
                   respectively. Predictions and uncertainties have
@@ -851,18 +885,16 @@ class GaussianProcess(GaussianProcessBase):
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
         testing = np.array(testing)
-        if self.D == 1 and testing.ndim == 1:
-            testing = np.reshape(testing, (-1, 1))
-        elif testing.ndim == 1:
-            testing = np.reshape(testing, (1, len(testing)))
-        assert testing.ndim == 2, "testing must be a 2D array"
+        if testing.ndim == 1:
+            if self.D == 1:
+                testing = np.reshape(testing, (-1, 1))
+            else:
+                testing = np.reshape(testing, (1, -1))
+        assert testing.ndim == 2, "test points must be a 1D or 2D array"
+        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
 
-        n_testing, D = np.shape(testing)
-        assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
-
-        mtest = self.mean.mean_f(testing, self.theta.mean)
-        Ktest = self.kernel.kernel_f(self.inputs, testing,
-                                     self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+        mtest = np.dot(self.get_design_matrix(testing), self.theta.mean)
+        Ktest = self.get_cov_matrix(testing)
 
         mu = mtest + np.dot(Ktest.T, self.invQt)
 
@@ -878,11 +910,8 @@ class GaussianProcess(GaussianProcessBase):
 
         inputderiv = None
         if deriv:
-            inputderiv = np.zeros((n_testing, self.D))
-            mean_deriv = self.mean.mean_inputderiv(testing, self.theta.mean)
-            kern_deriv = self.kernel.kernel_inputderiv(testing, self.inputs,
-                                                       self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
-            inputderiv = np.transpose(mean_deriv + np.dot(kern_deriv, self.invQt))
+            warnings.warn("Prediction derivatives have been deprecated and are no longer supported",
+                          DeprecationWarning)
 
         return PredictResult(mean=mu, unc=var, deriv=inputderiv)
 

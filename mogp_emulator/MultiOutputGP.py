@@ -7,7 +7,6 @@ from mogp_emulator.GaussianProcess import (
     PredictResult
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
-from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
 
 
@@ -49,6 +48,15 @@ class MultiOutputGP(object):
             self.GPClass = GaussianProcessGPU
         else:
             self.GPClass = GaussianProcess
+            
+        if not inputdict == {}:
+            warnings.warn("The inputdict interface for mean functions has been deprecated. " +
+                          "You must input your mean formulae using the x[0] format directly " +
+                          "in the formula.", DeprecationWarning)
+                          
+        if not use_patsy:
+            warnings.warn("patsy is now required to parse all formulae and form design " +
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
 
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
@@ -68,10 +76,10 @@ class MultiOutputGP(object):
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
 
-        if mean is None or isinstance(mean, str) or issubclass(type(mean), MeanBase):
+        if not isinstance(mean, list):
             mean = self.n_emulators*[mean]
 
-        assert isinstance(mean, list), "mean must be None, a string, a mean function, or a list of None/string/mean functions"
+        assert isinstance(mean, list), "mean must be None, a string, a valid patsy model description, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
 
         if isinstance(kernel, str):
@@ -105,11 +113,11 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
+        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
 
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=True,
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True,
                 allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
@@ -135,6 +143,10 @@ class MultiOutputGP(object):
         are computed, the ``include_nugget`` flag determines if the
         uncertainties should include the nugget. By default, this is
         set to ``True``.
+                
+        Derivatives have been deprecated due to changes in how the
+        mean function is computed, so setting ``deriv=True`` will
+        have no effect and will raise a ``DeprecationWarning``.
 
         The ``allow_not_fit`` flag determines how the object handles
         any emulators that do not have fit hyperparameter values
@@ -158,11 +170,6 @@ class MultiOutputGP(object):
                     returns ``None`` in place of the uncertainty
                     array. Default value is ``True``.
         :type unc: bool
-        :param deriv: (optional) Flag indicating if the derivatives
-                      are to be computed.  If ``False`` the method
-                      returns ``None`` in place of the derivative
-                      array. Default value is ``True``.
-        :type deriv: bool
         :param include_nugget: (optional) Flag indicating if the
                                 nugget should be included in the
                                 predictive variance. Only relevant if
@@ -201,6 +208,10 @@ class MultiOutputGP(object):
 
         n_testing, D = np.shape(testing)
         assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
+        
+        if deriv:
+            warnings.warn("Prediction derivatives have been deprecated and are no longer supported",
+                          DeprecationWarning)
 
         if not processes is None:
             processes = int(processes)
@@ -226,12 +237,11 @@ class MultiOutputGP(object):
 
         if not unc:
             unc_unpacked = None
-        if not deriv:
-            deriv_unpacked = None
+        deriv_unpacked = None
 
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
-    def __call__(self, testing, process=None):
+    def __call__(self, testing, processes=None):
         """Interface to predict means by calling the object
 
         A MultiOutputGP object is callable, which makes predictions of

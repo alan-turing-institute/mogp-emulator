@@ -69,18 +69,8 @@ def test_MultiOutputGP_predict(x, y, dx):
         mu_expect = np.dot(Ktest, gp.emulators[i].invQt)
         var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
-        D = gp.D
-
-        deriv_expect = np.zeros((1, D))
-
-        for j in range(D):
-            dx_array = np.zeros(D)
-            dx_array[j] = dx
-            deriv_expect[0, j] = (gp.emulators[i].predict(x_test)[0] - gp.emulators[i].predict(x_test - dx_array)[0])/dx
-
         assert_allclose(mu[i], mu_expect)
         assert_allclose(var[i], var_expect)
-        assert_allclose(deriv[i], deriv_expect, atol=1.e-6, rtol=1.e-6)
 
     nugget = 1.
     gp = MultiOutputGP(x, y, nugget=nugget)
@@ -120,7 +110,6 @@ def test_MultiOutputGP_predict(x, y, dx):
     mu, var, deriv = gp.predict(x_test, allow_not_fit=True)
     assert np.all(np.isnan(mu[1]))
     assert np.all(np.isnan(var[1]))
-    assert np.all(np.isnan(deriv[1]))
 
     mu, var, deriv = gp.predict(x_test, unc=False, deriv=False,
                                 allow_not_fit=True)
