@@ -171,7 +171,6 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                 gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
             except AssertionError:
                 raise ValueError("Bad values for *args in fit_GP_MAP")
-
     if isinstance(gp, GaussianProcessBase):
         if gp.theta is None:
             raise RuntimeError("GP fitting failed")
@@ -183,7 +182,6 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                 print(failure_string)
             else:
                 raise RuntimeError(failure_string)
-
     return gp
 
 def _fit_single_GPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
@@ -327,7 +325,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         emulators_to_fit = gp.get_emulators_not_fit()
         thetavals = [ theta0[idx] for idx in indices_to_fit]
 
-    if platform.system() == "Windows" or gp.use_gpu:
+    if platform.system() == "Windows": 
 
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
                     for (emulator, t0) in zip(emulators_to_fit, thetavals)]
