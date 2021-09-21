@@ -30,10 +30,6 @@ class MultiOutputGP(object):
     alternatively be a list of values with length matching the number
     of emulators to set those values individually.
 
-    Additional keyword arguments include ``inputdict``, and
-    ``use_patsy``, which control how strings are parsed to mean
-    functions, if using.
-
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
