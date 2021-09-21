@@ -70,4 +70,8 @@ bin/test/test_openmp: test/test_openmp.cu  obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) $<  obj/util.o -o $@
 
+bin/test/test_mogp_gpu: test/test_mogp_gpu.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver  $<  obj/kernel.o obj/util.o -o $@
+
 .PHONY: all clean
