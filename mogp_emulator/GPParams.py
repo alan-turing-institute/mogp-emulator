@@ -107,11 +107,12 @@ class GPParams(object):
        the variance associated with the nugget noise.
     """
     
-    def __init__(self, n_mean=0, n_corr=1, nugget=True, data=None):
+    def __init__(self, n_mean=0, n_corr=1, nugget=True, mean_data=None, data=None):
         r"""
         Create a new parameters object, optionally holding a set of parameter values
         If no data provided, data will be ``None`` to distingush GPs that have not
-        yet been fit from those that have.
+        yet been fit from those that have. Note that if n_mean is zero, mean_data
+        will be ignored even if an array is provided.
         """
         assert n_mean >= 0, "Number of mean parameters must be nonnegative"
         self.n_mean = n_mean
@@ -122,25 +123,34 @@ class GPParams(object):
             self.n_nugget = 1
         else:
             self.n_nugget = 0
+        
+        if self.n_mean == 0:
+            self.mean = np.array([])
+        elif mean_data is None:
+            self.mean = None
+        else:
+            self.mean = mean_data
         if data is None:
             self.data = None
         else:
             data = np.array(data)
-            assert data.shape == (self.n_mean + self.n_corr + self.n_cov + self.n_nugget,), "Bad shape for data in GPParams"
+            assert data.shape == (self.n_corr + self.n_cov + self.n_nugget,), "Bad shape for data in GPParams"
             self.data = np.copy(data)
 
     @property
     def n_params(self):
         r"""
-        Total number of parameters
+        Total number of fitting parameters
         
-        The ``n_params`` attribute gives the total number of parameters, which
-        is the length of the underlying numpy data array. Cannot be changed.
+        The ``n_params`` attribute gives the total number of fitting
+        parameters, which is the length of the underlying numpy data
+        array (all parameters save the mean function). Cannot be changed
+        without initializing a new array.
         
         :returns: Number of parameters for this GP emulator
         :rtype int:
         """
-        return self.n_mean + self.n_corr + self.n_cov + self.n_nugget
+        return self.n_corr + self.n_cov + self.n_nugget
         
     @property
     def mean(self):
@@ -149,27 +159,23 @@ class GPParams(object):
         
         The ``mean`` property returns the part of the data array associated with
         the mean function. Returns a numpy array of length ``(n_mean,)``
-        or ``None`` if the data array has not been initialized.
+        or ``None`` if the mean data has not been initialized.
         
-        Can be set with a new numpy array of the correct length. If the data
-        array has not been initialized then setting individual parameter
-        values cannot be done.
+        Can be set with a new numpy array of the correct length.
         
         :returns: Numpy array holding the mean parameters
         :rtype: ndarray
         """
-        if self.data is None:
-            return None
-        else:
-            return self.data[:self.n_mean]
+        return self.mean_data
         
     @mean.setter
     def mean(self, new_mean):
-        if self.data is None:
-            raise ValueError("Must initialize parameters before setting individual values")
-        new_mean = np.reshape(np.array(new_mean), (-1,))
-        assert new_mean.shape == (self.n_mean,), "Bad shape for new mean parameters"
-        self.data[:self.n_mean] = np.copy(new_mean)
+        if new_mean is None:
+            self.mean_data = None
+        else: 
+            new_mean = np.reshape(np.array(new_mean), (-1,))
+            assert new_mean.shape == (self.n_mean,), "Bad shape for new mean parameters"
+            self.mean_data = np.copy(new_mean)
 
     @property
     def corr_raw(self):
@@ -191,7 +197,7 @@ class GPParams(object):
         if self.data is None:
             return None
         else:
-            return self.data[self.n_mean:(self.n_mean+self.n_corr)]
+            return self.data[:self.n_corr]
         
     @corr_raw.setter
     def corr_raw(self, new_corr):
@@ -199,7 +205,7 @@ class GPParams(object):
             raise ValueError("Must initialize parameters before setting individual values")
         new_corr = np.reshape(np.array(new_corr), (-1,))
         assert new_corr.shape == (self.n_corr,), "Bad shape for new correlation lengths; expected array of length {}".format(self.n_corr)
-        self.data[self.n_mean:(self.n_mean+self.n_corr)] = new_corr
+        self.data[:self.n_corr] = new_corr
 
     @property
     def corr(self):
@@ -250,7 +256,7 @@ class GPParams(object):
         if self.data is None:
             return None
         else:
-            return self.data[(self.n_mean+self.n_corr):(self.n_mean+self.n_corr+1)][0]
+            return self.data[self.n_corr:(self.n_corr+1)][0]
     
     @cov_raw.setter
     def cov_raw(self, new_cov):
@@ -258,7 +264,7 @@ class GPParams(object):
             raise ValueError("Must initialize parameters before setting individual values")
         new_cov = np.reshape(np.array(new_cov), (-1,))
         assert new_cov.shape == (1,), "New covariance value must be a float or array of length 1"
-        self.data[(self.n_mean+self.n_corr):(self.n_mean+self.n_corr+1)] = np.copy(new_cov)
+        self.data[self.n_corr:(self.n_corr+1)] = np.copy(new_cov)
 
     @property
     def cov(self):
@@ -388,9 +394,15 @@ class GPParams(object):
         Test if two GPParams objects have the same shape
         
         Method to check if a new ``GPParams`` object or numpy array has the
-        same length as the current object. Returns a boolean if
-        the number of mean, correlation, and nugget parameters are the
-        same in both object.
+        same length as the current object. If a numpy array, assumes
+        that the array represents the fitting parameters and that the
+        mean parameters will be handled separately. If a ``GPParams``
+        object, it will also check if the number of mean parameters
+        match.
+        
+        Returns a boolean if the number of mean (if a ``GPParams`` object
+        only), correlation, and nugget parameters (for a numpy array or
+        a ``GPParams`` object) are the same in both object.
         
         :param other: Additional instance of ``GPParams`` or ndarray to be
                       compared with the current one.

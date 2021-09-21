@@ -12,15 +12,17 @@ def test_GPParams_init():
     assert gpp.n_corr == 1
     assert gpp.n_cov == 1
     assert gpp.n_nugget == 1
+    assert gpp.mean_data.shape == (0,)
     assert gpp.data is None
 
-    gpp = GPParams(n_mean=2, n_corr=3, nugget=False, data=np.ones(6))
+    gpp = GPParams(n_mean=2, n_corr=3, nugget=False, mean_data=np.ones(2), data=np.ones(4))
     
     assert gpp.n_mean == 2
     assert gpp.n_corr == 3
     assert gpp.n_cov == 1
     assert gpp.n_nugget == 0
-    assert_allclose(gpp.data, np.ones(6))
+    assert_allclose(gpp.mean_data, np.ones(2))
+    assert_allclose(gpp.data, np.ones(4))
 
 def test_GPParams_init_failures():
     "Test failures of GPParams init method"
@@ -43,7 +45,7 @@ def test_GPParams_n_params():
     
     gpp = GPParams(n_mean=2, n_corr=3, nugget=False)
     
-    assert gpp.n_params == 6
+    assert gpp.n_params == 4
 
 def test_GPParams_mean():
     "Test the mean functionality of GPParams"
@@ -51,30 +53,20 @@ def test_GPParams_mean():
     gpp = GPParams()
     
     assert gpp.n_mean == 0
-    assert gpp.mean is None
-    
-    with pytest.raises(ValueError):
-        gpp.mean = []
-    
-    gpp.data = np.zeros(gpp.n_params)
-    
-    gpp.mean = []
-
     assert len(gpp.mean) == 0
     
     with pytest.raises(AssertionError):
         gpp.mean = [1.]
     
-    gpp = GPParams(n_mean=2, data=np.ones(5))
+    gpp = GPParams(n_mean=2, data=np.ones(3))
     
     assert gpp.n_mean == 2
-    assert_allclose(gpp.mean, np.ones(2))
-    assert_allclose(gpp.data[:2], np.ones(2))
+    assert gpp.mean_data is None
     
     gpp.mean = np.array([2., 3.])
     
     assert_allclose(gpp.mean, np.array([2., 3.]))
-    assert_allclose(gpp.data[:2], np.array([2., 3.]))
+    assert_allclose(gpp.mean_data, np.array([2., 3.]))
 
     with pytest.raises(AssertionError):
         gpp.mean = []
@@ -82,8 +74,6 @@ def test_GPParams_mean():
     gpp = GPParams(n_mean=1)
     
     assert gpp.mean is None
-    
-    gpp.data = np.zeros(gpp.n_params)
     
     gpp.mean = 1.
     
@@ -312,13 +302,13 @@ def test_GPParams_data():
     with pytest.raises(AssertionError):
         gpp.set_data(np.ones(4))
         
-    gpp = GPParams(n_mean=2, n_corr=3, data = np.zeros(7))
+    gpp = GPParams(n_mean=2, n_corr=3, data = np.zeros(5))
     
-    assert_allclose(gpp.get_data(), np.zeros(7))
+    assert_allclose(gpp.get_data(), np.zeros(5))
     
-    gpp.set_data(np.ones(7))
+    gpp.set_data(np.ones(5))
     
-    assert_allclose(gpp.data, np.ones(7))
+    assert_allclose(gpp.data, np.ones(5))
     
     gpp.set_data(None)
     
@@ -341,7 +331,7 @@ def test_GPParams_same_shape():
     assert not gpp.same_shape(GPParams(n_mean=1, n_corr=3, nugget=False))
     assert not gpp.same_shape(GPParams(n_mean=2, n_corr=2, nugget=False))
     assert not gpp.same_shape(GPParams(n_mean=2, n_corr=3, nugget=True))
-    assert gpp.same_shape(np.zeros(6))
+    assert gpp.same_shape(np.zeros(4))
     assert not gpp.same_shape(np.zeros(7))
     
     with pytest.raises(ValueError):
