@@ -6,16 +6,6 @@
 #include <sstream>
 #include <assert.h>
 #include <stdexcept>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-#include <thrust/device_ptr.h>
-#include <thrust/device_malloc.h>
-#include <thrust/device_free.h>
-#include <thrust/device_vector.h>
-#include <thrust/functional.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/copy.h>
 
 #include "../src/meanfunc.hpp"
 
@@ -59,7 +49,7 @@ void test_poly_meanfunc()
     x << 1.0, 2.0, 3.0, 4.0, 5.0;
 
     vec params(3);
-    params << 4.4, 3,3, 2.2;
+    params << 4.4, 3.3, 2.2;
 
     std::vector< std::pair<int, int> > dims_powers;
     dims_powers.push_back(std::make_pair<int, int>(0,1));
@@ -90,15 +80,15 @@ void test_clone_meanfunc() {
 //    PolyMeanFunc* mf = new PolyMeanFunc(dims_powers);
     PolyMeanFunc mf(dims_powers);
 
-    PolyMeanFunc new_mf = mf.clone2();
+    PolyMeanFunc* new_mf = mf.clone();
     const size_t N=5;
     vec x(5);
     x << 1.0, 2.0, 3.0, 4.0, 5.0;
 
     vec params(3);
-    params << 4.4, 3,3, 2.2;
+    params << 4.4, 3.3, 2.2;
 
-    vec mean = new_mf.mean_f(x,params);
+    vec mean = new_mf->mean_f(x,params);
     std::cout<<" mean: ";
     for (unsigned int i=.0; i<N; i++)
         std::cout << mean [i] << " ";
@@ -111,6 +101,6 @@ int main(void)
 {
     test_const_meanfunc();
     test_poly_meanfunc();
-  //  test_clone_meanfunc();
+    test_clone_meanfunc();
     return 0;
 }
