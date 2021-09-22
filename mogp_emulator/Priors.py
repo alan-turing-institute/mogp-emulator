@@ -1,18 +1,16 @@
 import numpy as np
 from scipy.optimize import root
 from scipy.special import gammaln
+from scipy.linalg import cho_factor, cho_solve
 import scipy.stats
 from mogp_emulator.GPParams import CovTransform, CorrTransform
+import warnings
 
 class GPPriors(object):
     """
     Class representing prior distributions on GP Hyperparameters
-    
-    Currently just a limited implementation of a list to remain compatible
-    with the previous implementation. As new features are added to the
-    GP class, this class will be fleshed out more.
     """
-    def __init__(self, priors, n_params, n_mean, nugget_type):
+    def __init__(self, priors, n_params, nugget_type, mean=None):
         
         assert nugget_type in ["adaptive", "fixed", "pivot", "fit"]
         
@@ -40,31 +38,51 @@ class GPPriors(object):
                 raise TypeError("priors must be a list of Prior-derived objects")
 
         self._priors = list(priors)
-        assert n_mean >= 0
-        self.n_mean = n_mean
+        
         if nugget_type in ["fit", "adaptive", "fixed"]:
             self.has_nugget = True
         else:
             self.has_nugget = False
-        self.n_corr = n_params - self.n_mean - 1 - int(self.has_nugget)
+        self.n_corr = n_params - 1 - int(self.has_nugget)
+        
+        self.mean = mean
         
     @classmethod
-    def default_priors(cls, inputs, n_mean, nugget_type, dist="invgamma"):
+    def default_priors(cls, inputs, nugget_type, dist="invgamma"):
         "create priors with defaults for correlation length priors"
         
-        assert n_mean >= 0
-        
-        priors = [None]*n_mean
+        priors = []
         
         for param in np.transpose(inputs):
             priors.append(default_prior_corr(param, dist))
             
         priors.append(None)
         
-        if nugget_type in ["fit", "adaptive", "fixed"]:
+        if nugget_type in ["fit"]:
             priors.append(default_prior_nugget())
             
-        return cls(priors, len(priors), n_mean, nugget_type)
+        return cls(priors, len(priors), nugget_type, mean=None)
+    
+    @property
+    def mean(self):
+        "Mean is a MeanPriors object"
+        return self._mean
+        
+    @mean.setter
+    def mean(self, newmean):
+        "Setter method for mean"
+        
+        if newmean is None:
+            self._mean = MeanPriors()
+        elif isinstance(newmean, MeanPriors):
+            self._mean = newmean
+        else:
+            try:
+                self._mean = MeanPriors(*newmean)
+            except TypeError:
+                raise ValueError("Bad value for defining a MeanPriors object in GPPriors, " +
+                                 "argument must be an iterable containing the mean " +
+                                 "vector and the covariance as a float/vector/matrix")
     
     def __len__(self):
         return len(self._priors)
@@ -118,11 +136,7 @@ class GPPriors(object):
         return hessian
     
     def transform(self, param, i):
-        if i < self.n_mean:
-            priorarg = param
-            priorderiv = 1.
-            prior2deriv = 0.
-        elif i >= self.n_mean and i < self.n_mean + self.n_corr:
+        if i < self.n_corr:
             priorarg = CorrTransform.transform(param)
             priorderiv = CorrTransform.dscaled_draw(param)
             prior2deriv = CorrTransform.d2scaled_draw2(param)
@@ -135,9 +149,7 @@ class GPPriors(object):
     
     def inv_transform(self, priorarg, i):
         
-        if i < self.n_mean:
-            param = priorarg
-        elif i >= self.n_mean and i < self.n_mean + self.n_corr:
+        if i < self.n_corr:
             param = CorrTransform.inv_transform(priorarg)
         else:
             param = CovTransform.inv_transform(priorarg)
@@ -158,6 +170,20 @@ class GPPriors(object):
         return str(self._priors)
 
 def default_sampler():
+    """
+    Generate a default random sample
+    
+    If no prior information is provided, this method is used to generate a
+    starting value for the optimization routine. Any variable where
+    prior information is available will use that to pick a random start
+    point drawn from the prior distribution. If that is not available,
+    this method is called to produce a random draw from a flat prior.
+    
+    :returns: Random number drawn from a flat prior (note that samples
+              from this method are *not* transformed).
+    :rtype: float
+    """
+    
     return float(5.*(np.random.rand() - 0.5))
 
 def default_prior(min_val, max_val, dist="invgamma"):
@@ -252,6 +278,71 @@ def default_prior_corr(inputs, dist="invgamma"):
 
 def default_prior_nugget():
     return InvGammaPrior(shape=1., scale=1.e-8)
+
+class MeanPriors(object):
+    """
+    Object holding mean priors (mean vector and covariance float/vector/matrix
+    assuming a multivariate normal distribution)
+    """
+    def __init__(self, mean=None, cov=None):
+        if mean is None:
+            self.mean = None
+            if not cov is None:
+                warnings.warn("Both mean and cov need to be set to form a valid nontrivial " +
+                              "MeanPriors object. mean is not provided, so ignoring the " +
+                              "provided cov.")
+            self.cov = None
+            self.Lb = None
+        else:
+            self.mean = np.reshape(np.array(mean), (-1,))
+            if cov is None:
+                raise ValueError("Both mean and cov need to be set to form a valid MeanPriors object")
+            self.cov = np.array(cov)
+            self.Lb = None
+            if self.cov.ndim == 0:
+                assert self.cov > 0., "covariance term must be greater than zero in MeanPriors"
+            elif self.cov.ndim == 1:
+                assert len(self.cov) == len(self.mean), "mean and variances must have the same length in MeanPriors"
+                assert np.all(self.cov > 0.), "all variances must be greater than zero in MeanPriors"
+            elif self.cov.ndim == 2:
+                assert self.cov.shape[0] == len(self.mean), "mean and covariances must have the same shape in MeanPriors"
+                assert self.cov.shape[1] == len(self.mean), "mean and covariances must have the same shape in MeanPriors"
+                assert np.all(np.diag(self.cov) > 0.), "all covariances must be greater than zero in MeanPriors"
+                self.Lb = cho_factor(self.cov)
+            else:
+                raise ValueError("Bad shape for the covariance in MeanPriors")
+        
+    def inv_cov(self):
+        "compute the inverse of the covariance matrix"
+        if self.cov is None:
+            return 0.
+        elif self.cov.ndim < 2:
+            inv_cov = np.zeros((len(self.mean), len(self.mean)))
+            np.fill_diagonal(inv_cov, np.broadcast_to(1./self.cov, (len(self.mean),)))
+            return inv_cov
+        else:
+            return cho_solve(self.Lb, np.eye(len(self.mean)))
+        
+    def inv_cov_b(self):
+        "compute the inverse of the covariance matrix times the mean vector"
+        if self.cov is None:
+            return 0.
+        elif self.cov.ndim < 2:
+            return self.mean/self.cov
+        else:
+            return cho_solve(self.Lb, self.mean)
+            
+    def log_det_cov(self):
+        "Compute the log of the determinant of the covariance"
+        if self.cov is None:
+            return 0.
+        elif self.cov.ndim < 2:
+            return np.sum(np.log(np.broadcast_to(self.cov, (len(self.mean),))))
+        else:
+            return 2.*np.sum(np.log(np.diag(self.Lb[0])))
+            
+    def __str__(self):
+        return "MeanPriors with mean = {} and cov = {}".format(self.mean, self.cov)            
 
 class PriorDist(object):
     """
