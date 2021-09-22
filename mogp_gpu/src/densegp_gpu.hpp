@@ -143,9 +143,14 @@ public:
         return targets;
     }
 
-    int get_n_params(void) const
+    int get_n_kernel_params(void) const
     {
         return D + 2;
+    }
+
+    int get_n_params(void) const
+    {
+        return get_n_kernel_params() + meanfunc->get_n_params();
     }
 
     vec get_theta(void)
@@ -437,7 +442,7 @@ public:
     void fit(vec_ref theta)
     {
 
-	    int param_switch_index = meanfunc->get_n_params(inputs);
+	    int param_switch_index = meanfunc->get_n_params();
 	    meanfunc_params = theta.block(0,0,param_switch_index,1);
 
 	    // evaluate the mean function at the input values and subtract from targets
@@ -715,6 +720,8 @@ public:
     // destructor - just to see when it is being called
     ~DenseGP_GPU() {
         std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
+        delete meanfunc;
+        delete kernel;
     }
 
     // constructor
@@ -739,7 +746,7 @@ public:
         , targets(targets_)
 	    , kern_type(kern_)
         , kernel(0)
-	    , meanfunc(mean_)
+	 //   , meanfunc(mean_)
 	    , nug_type(nugtype_)
         , nug_size(nugsize_)
 	    , current_theta(1) // resize later
@@ -784,8 +791,24 @@ public:
         sum_buffer_d.resize(sum_buffer_size_bytes);
 
         // if mean function is not provided, assume zero everywhere.
-        if (!meanfunc) meanfunc = new ZeroMeanFunc();
-
+        if (!mean_) {
+            std::cout<<"Creating a new zero meanfunction"<<std::endl;
+            meanfunc = new ZeroMeanFunc();
+        } else {
+            // clone the meanfunction that we were given
+            std::cout<<"Cloning the mean function"<<std::endl;
+            meanfunc = mean_->clone();
+        }
+         // make a polynomial mean function 
+        //std::vector< std::pair<int, int> > dims_powers;
+        //dims_powers.push_back(std::make_pair<int, int>(0,1));
+        //dims_powers.push_back(std::make_pair<int, int>(1,1));
+        // meanfunc = new PolyMeanFunc(dims_powers);   
+       //REAL mfval = 0.5;
+       //meanfunc = new FixedMeanFunc(mfval);
+       //    meanfunc = new ConstMeanFunc();
+                   
+        
 	    if (kern_type == SQUARED_EXPONENTIAL) {
 	        kernel = new SquaredExponentialKernel();
 	    } else if (kern_type == MATERN52) {
@@ -793,11 +816,11 @@ public:
 	    } else throw std::runtime_error("Unrecognized kernel type\n");
 
 	    // resize meanfunc_params vector here
-	    meanfunc_params.resize(meanfunc->get_n_params(inputs),1);
+	    meanfunc_params.resize(meanfunc->get_n_params(),1);
 	    // resize the device vector that will store derivative of mean function
-	    meanfunc_deriv_d.resize(meanfunc->get_n_params(inputs) * inputs.rows());
+	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
         // resize current_theta vector
-        current_theta.resize(meanfunc->get_n_params(inputs) + get_n_params(),1);
+        current_theta.resize(meanfunc->get_n_params() + get_n_kernel_params(),1);
     }
 
 };
