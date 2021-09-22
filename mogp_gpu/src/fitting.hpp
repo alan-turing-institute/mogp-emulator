@@ -28,7 +28,13 @@ private:
 
 public: 
 // constructor
-  GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {}
+  GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {
+    std::cout<<" in constructor for GPWrapper"<<std::endl;
+  }
+
+  ~GPWrapper() {
+    std::cout<<"In destructor for GPWrapper"<<std::endl;
+  }
 
   double logpost(column_vector theta) {
     std::vector<REAL> new_theta(theta.begin(), theta.end());
@@ -67,7 +73,7 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
   std::vector< std::vector<double> > all_params;  
   // if we're given an initial set of theta values, put this at the start of all_params
   if (theta0.size() > 0) {
-    if (theta0.size() != gp.get_n_params()) 
+    if (theta0.size() != gp.get_n_params() ) 
       throw std::runtime_error("length of theta0 must equal n_params of GP.");
     all_params.push_back(theta0);
   }
@@ -116,6 +122,7 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
   
   if (minvals.size() == 0) {
     std::cout<<"All minimization tries failed"<<std::endl;
+    gp.reset_theta_fit_status();
   } else {
       int minvalIndex = std::min_element(minvals.begin(),minvals.end()) - minvals.begin();
       vec best_theta = thetavals.at(minvalIndex);
