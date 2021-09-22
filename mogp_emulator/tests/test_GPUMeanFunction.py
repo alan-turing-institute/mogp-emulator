@@ -33,7 +33,7 @@ def test_ZeroMean(x, params):
     "test zero mean function works as expected"
     mf = LibGPGPU.ZeroMeanFunc()
     assert isinstance(mf, LibGPGPU.BaseMeanFunc)
-    assert mf.get_n_params(x) == 0
+    assert mf.get_n_params() == 0
     assert_allclose(mf.mean_f(x,np.array([])), np.zeros(2))
     assert_allclose(mf.mean_deriv(x,np.array([])), np.zeros((2,1)))
     assert_allclose(mf.mean_inputderiv(x,np.array([])), np.zeros((3,2)))
@@ -44,7 +44,7 @@ def test_FixedMean(x, params):
     "test fixed mean function works as expected"
     mf = LibGPGPU.FixedMeanFunc(22.2)
     assert isinstance(mf, LibGPGPU.BaseMeanFunc)
-    assert mf.get_n_params(x) == 0
+    assert mf.get_n_params() == 0
     assert_allclose(mf.mean_f(x,np.array([])), np.array([22.2,22.2]))
     assert_allclose(mf.mean_deriv(x,np.array([])), np.zeros((2,1)))
     assert_allclose(mf.mean_inputderiv(x,np.array([])), np.zeros((3,2)))
@@ -55,7 +55,7 @@ def test_ConstMean(x, params):
     "test const mean function works as expected"
     mf = LibGPGPU.ConstMeanFunc()
     assert isinstance(mf, LibGPGPU.BaseMeanFunc)
-    assert mf.get_n_params(x) == 1
+    assert mf.get_n_params() == 1
     param = np.array([7.])
     assert_allclose(mf.mean_f(x, param), np.array([7.,7.]))
     assert_allclose(mf.mean_deriv(x, param), np.ones((2,1)))
@@ -69,7 +69,7 @@ def test_PolyMean(x, params):
     # constructor takes list of lists, where inner list is a pair [index, power]
     mf = LibGPGPU.PolyMeanFunc([[0,1],[1,1],[2,1]]) # linear in all three dimensions
     assert isinstance(mf, LibGPGPU.BaseMeanFunc)
-    assert mf.get_n_params(x) == 4
+    assert mf.get_n_params() == 4
     param = np.array([1.,2.,3.,4.])
     expected = []
     for xi in x:
@@ -117,14 +117,14 @@ def test_parse_formula(x):
     assert isinstance(mf, LibGPGPU.ConstMeanFunc)
     mf = parse_meanfunc_formula("c+c*x[0]")
     assert isinstance(mf, LibGPGPU.PolyMeanFunc)
-    assert mf.get_n_params(x) == 2
+    assert mf.get_n_params() == 2
     mf = parse_meanfunc_formula("c+c*x[0]+c*x[0]^2+c*x[1]")
     assert isinstance(mf, LibGPGPU.PolyMeanFunc)
-    assert mf.get_n_params(x) == 4
+    assert mf.get_n_params() == 4
     # try without the initial const term (should be the same
     mf = parse_meanfunc_formula("c*x[0]+c*x[0]^2+c*x[1]")
     assert isinstance(mf, LibGPGPU.PolyMeanFunc)
-    assert mf.get_n_params(x) == 4
+    assert mf.get_n_params() == 4
     # try with a cross term x[0]*x[1]
     with pytest.raises(NotImplementedError,
                        match=r"Cross terms, e.g. x\[0\]\*x\[1\] not implemented"):
