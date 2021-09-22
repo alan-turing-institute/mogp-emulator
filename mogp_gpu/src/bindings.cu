@@ -244,6 +244,8 @@ likelihood of the hyperparameters, from the current state of the emulator.)
        .def("emulator", &MultiOutputGP_GPU::get_emulator,
                        "Return the emulator at specified index",
                          py::arg("index"))  
+       .def("n", &MultiOutputGP_GPU::get_n,
+                     "Return the number of inputs to the GP")
        .def("D", &MultiOutputGP_GPU::get_D,
                      "Return the number of dimensions of the GP")
        .def("n_emulators", &MultiOutputGP_GPU::n_emulators,
