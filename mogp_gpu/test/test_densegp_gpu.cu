@@ -10,7 +10,7 @@
 
 #include <math.h>
 
-#include "../src/meanfunc.hpp"
+#include "../src/mog_gpu.hpp"
 
 typedef double REAL;
 
@@ -23,12 +23,15 @@ void testGP() {
             4., 5., 6.;
   vec targets(2);
   targets << 4., 6.;
+           
   unsigned int max_batch_size = 2000;
   ZeroMeanFunc* meanfunc = new ZeroMeanFunc();
+
+  kernel_type kernel = SQUARED_EXPONENTIAL;
   // instantiate the GP
   DenseGP_GPU gp(inputs, targets, max_batch_size, meanfunc);
   vec theta = vec::Constant(gp.get_n_params(),1, -1.0);
-  gp.fit(theta, NUG_ADAPTIVE);
+  gp.fit(theta);
   mat x_predict(2,3);
   x_predict << 2., 3., 4.,
                7., 8., 9.;
