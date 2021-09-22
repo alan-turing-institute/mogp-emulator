@@ -81,6 +81,11 @@ public:
         return inputs.cols();
     }
 
+    int get_n(void) const
+    {
+        return inputs.rows();
+    }
+
     int n_emulators(void) const
     {
         return emulators.size();
@@ -150,20 +155,18 @@ public:
 
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
-        std::cout<<" in create emulators"<<std::endl;
+       // std::cout<<" in create emulators"<<std::endl;
         for (auto targ : targets) {
             // emulators will all have same starting parameters apart from targets
-            BaseMeanFunc* mf = mf->clone();
             emulators.push_back(new DenseGP_GPU(
                 inputs, 
                 targ, 
                 testing_size_per_emulator, 
-                mf )
-             //   kern_type, 
-             //   nug_type, 
-             //   nug_size)
+                meanfunc,
+                kern_type,
+                nug_type,
+                nug_size)
             );
-           // emulators.push_back(new DummyThing());
         }
     }
 
@@ -175,10 +178,10 @@ public:
     MultiOutputGP_GPU(mat_ref inputs_,
 	      std::vector<vec>& targets_,
 	      unsigned int testing_size_,
-          BaseMeanFunc* mean_,
-          kernel_type kern_,
-          nugget_type nugtype_,
-          double nugsize_)
+          BaseMeanFunc* mean_=NULL,
+          kernel_type kern_=SQUARED_EXPONENTIAL,
+          nugget_type nugtype_=NUG_ADAPTIVE,
+          double nugsize_=0.)
         : inputs(inputs_)
         , targets(targets_)
         , testing_size(testing_size_)
@@ -194,10 +197,12 @@ public:
 
     // destructor
     ~MultiOutputGP_GPU() {
+        //std::cout<<" in destructor of MultiOutputGP_GPU - about to delete emulators"<<std::endl;
         for (auto em : emulators) {
             delete em;
         }
         emulators.clear();
+        //std::cout<<" at end of destructor of MultiOutputGP_GPU"<<std::endl;
     }
 
 };
