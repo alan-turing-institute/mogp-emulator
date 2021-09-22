@@ -101,53 +101,6 @@ class MultiOutputGP_GPU(object):
 
         self._mogp_gpu = LibGPGPU.MultiOutputGP_GPU(inputs, targets, batch_size, meanfunc, kernel_type, nugtype, nugsize)
 
-
-
-        #self.n_emulators = targets.shape[0]
-        #self.D = inputs.shape[1]
-        ##self.n = inputs.shape[0]
-
-        #if mean is None or isinstance(mean, str) or issubclass(type(mean), MeanBase):
-        #    mean = self.n_emulators*[mean]
-
-       # assert isinstance(mean, list), "mean must be None, a string, a mean function, or a list of None/string/mean functions"
-       # assert len(mean) == self.n_emulators
-
-       # if isinstance(kernel, str):
-       #     if kernel == "SquaredExponential":
-       #         kernel = SquaredExponential()
-       #     elif kernel == "Matern52":
-       #         kernel = Matern52()
-       #     else:
-       #         raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-       # if issubclass(type(kernel), Kernel):
-       #     kernel = self.n_emulators*[kernel]
-
-     #   assert isinstance(kernel, list), "kernel must be a Kernel subclass or a list of Kernel subclasses"
-     #   assert len(kernel) == self.n_emulators
-
-      #  if priors is None:
-      #      priors = []
-      #  assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
-
-      #  if len(priors) == 0:
-      #      priors = self.n_emulators*[[]]
-
-      #  if not isinstance(priors[0], list):
-      #      priors = self.n_emulators*[priors]
-
-      #  assert len(priors) == self.n_emulators
-
-     #   if isinstance(nugget, (str, float)):
-     #       nugget = self.n_emulators*[nugget]
-
-      #  assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
-      #  assert len(nugget) == self.n_emulators
-
-      #  self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
-      #                     for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
-
-
     @property
     def inputs(self):
         return self._mogp_gpu.inputs()
@@ -159,6 +112,10 @@ class MultiOutputGP_GPU(object):
     @property
     def D(self):
         return self._mogp_gpu.D()
+
+    @property
+    def n(self):
+        return self._mogp_gpu.n()
 
     @property
     def n_emulators(self):
@@ -279,35 +236,6 @@ class MultiOutputGP_GPU(object):
             self._mogp_gpu.predict_deriv(testing, derivs)
         return PredictResult(mean=means, unc=uncs, deriv=derivs)
 
-#        if not processes is None:
-#            processes = int(processes)
-#            assert processes > 0, "number of processes must be a positive integer"
-
-#        if allow_not_fit:
-#            predict_method = _gp_predict_default_NaN
- #       else:
- #           predict_method = self.GPClass.predict
-#
- #       if platform.system() == "Windows" or self.use_gpu:
-  #          predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
-   #                         for gp in self.emulators]
-   #     else:
-   #         with Pool(processes) as p:
-   #             predict_vals = p.starmap(predict_method,
-   #                                      [(gp, testing, unc, deriv, include_nugget)
-   #                                       for gp in self.emulators])
-
-        # repackage predictions into numpy arrays
-
-   #     predict_unpacked, unc_unpacked, deriv_unpacked = [np.array(t) for t in zip(*predict_vals)]
-
-    #    if not unc:
-    #        unc_unpacked = None
-    #    if not deriv:
-    #        deriv_unpacked = None
-
-    #    return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
-
     def __call__(self, testing, process=None):
         """Interface to predict means by calling the object
 
@@ -357,10 +285,12 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
-
-        return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
-                       list(range(len(self.emulators)))) if not failed_fit]
+        fitted_indices = []
+        for idx, em in enumerate(self.emulators):
+            if em.theta is not None:
+                fitted_indices.append(idx)
+        return fitted_indices
+ 
 
     def get_indices_not_fit(self):
         """Returns the indices of the emulators that have not been fit
@@ -381,10 +311,11 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
-
-        return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
-                       list(range(len(self.emulators)))) if failed_fit]
+        failed_indices = []
+        for idx, em in enumerate(self.emulators):
+            if em.theta is None:
+                failed_indices.append(idx)
+        return failed_indices
 
     def get_emulators_fit(self):
         """Returns the emulators that have been fit
@@ -400,16 +331,17 @@ class MultiOutputGP_GPU(object):
         fit (i.e. those which have a current valid set of
         hyperparameters).
 
-        :returns: List of ``GaussianProcess`` objects indicating the
+        :returns: List of ``GaussianProcessGPU`` objects indicating the
                   emulators that have been fit. If no emulators
                   have been fit, returns an empty list.
-        :rtype: list of ``GaussianProcess`` objects
+        :rtype: list of ``GaussianProcessGPU`` objects
 
         """
-
-        return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
-                       self.emulators) if not failed_fit]
+        fitted_emulators = []
+        for em in self.emulators:
+            if em.theta is not None:
+                fitted_emulators.append(em)
+        return fitted_emulators
 
     def get_emulators_not_fit(self):
         """Returns the indices of the emulators that have not been fit
@@ -425,16 +357,17 @@ class MultiOutputGP_GPU(object):
         not been fit (i.e. those which do not have a current set of
         hyperparameters).
 
-        :returns: List of ``GaussianProcess`` objects indicating the
+        :returns: List of ``GaussianProcessGPU`` objects indicating the
                   emulators that have not been fit. If all emulators
                   have been fit, returns an empty list.
-        :rtype: list of ``GaussianProcess`` objects
+        :rtype: list of ``GaussianProcessGPU`` objects
 
         """
-
-        return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
-                       self.emulators) if failed_fit]
+        failed_emulators = []
+        for em in self.emulators:
+            if em.theta is None:
+                failed_emulators.append(em)
+        return failed_emulators
 
 
     def __str__(self):
