@@ -248,6 +248,10 @@ likelihood of the hyperparameters, from the current state of the emulator.)
                      "Return the number of inputs to the GP")
        .def("D", &MultiOutputGP_GPU::get_D,
                      "Return the number of dimensions of the GP")
+       .def("get_fitted_indices", &MultiOutputGP_GPU::get_fitted_indices,
+                     "Return a vector of indices of emulators where fitting succeeded")
+       .def("get_unfitted_indices", &MultiOutputGP_GPU::get_unfitted_indices,
+                     "Return a vector of indices of emulators where fitting failed or not done yet")
        .def("n_emulators", &MultiOutputGP_GPU::n_emulators,
                      "Return the number of GP emulators")
        .def("targets", &MultiOutputGP_GPU::get_targets,

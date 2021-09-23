@@ -38,7 +38,7 @@ class MultiOutputGP_GPU(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, batch_size=2000):
+                 nugget="adaptive", inputdict={}, use_patsy=True, batch_size=8000):
         """
         Create a new multi-output GP Emulator
         """
@@ -285,11 +285,12 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
-        fitted_indices = []
-        for idx, em in enumerate(self.emulators):
-            if em.theta is not None:
-                fitted_indices.append(idx)
-        return fitted_indices
+ #       fitted_indices = []
+  #      for idx, em in enumerate(self.emulators):
+       #         fitted_indices.append(idx)
+   ##         if em.theta is not None:
+        return  self._mogp_gpu.get_fitted_indices() 
+      #  return fitted_indices
  
 
     def get_indices_not_fit(self):
@@ -311,11 +312,12 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
-        failed_indices = []
-        for idx, em in enumerate(self.emulators):
-            if em.theta is None:
-                failed_indices.append(idx)
-        return failed_indices
+     #   failed_indices = []
+      #  for idx, em in enumerate(self.emulators):
+       #     if em.theta is None:
+       #         failed_indices.append(idx)
+       # return failed_indices
+        return  self._mogp_gpu.get_unfitted_indices() 
 
     def get_emulators_fit(self):
         """Returns the emulators that have been fit

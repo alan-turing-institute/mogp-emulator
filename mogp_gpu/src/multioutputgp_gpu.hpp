@@ -20,6 +20,7 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include <sstream>
 #include <assert.h>
 #include <stdexcept>
+#include <omp.h>
 
 #include "util.hpp"
 #include "kernel.hpp"
@@ -91,6 +92,24 @@ public:
         return emulators.size();
     }
 
+    std::vector<unsigned int> get_fitted_indices(void) const
+    {
+        std::vector<unsigned int> fitted_indices;
+        for (unsigned int idx=0; idx < emulators.size(); ++idx) {
+            if (emulators[idx]->get_theta_fit_status()) fitted_indices.push_back(idx);
+        }
+        return fitted_indices;
+    }
+
+    std::vector<unsigned int> get_unfitted_indices(void) const
+    {
+        std::vector<unsigned int> unfitted_indices;
+        for (unsigned int idx=0; idx < emulators.size(); ++idx) {
+            if ( ! emulators[idx]->get_theta_fit_status()) unfitted_indices.push_back(idx);
+        }
+        return unfitted_indices;
+    }
+
     // make a single prediction per emulator(mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
     vec predict(mat_ref testing)
     {
@@ -128,6 +147,7 @@ public:
         for (unsigned int i=0; i< emulators.size(); ++i) {
             
             emulators[i]->predict_variance_batch(testing, means.row(i), vars.row(i));
+         //   std::cout<<" number of threads "<<omp_get_num_threads()<<std::endl;
         }
      
     }
