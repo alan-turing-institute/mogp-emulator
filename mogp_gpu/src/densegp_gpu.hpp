@@ -719,7 +719,7 @@ public:
 
     // destructor - just to see when it is being called
     ~DenseGP_GPU() {
-        std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
+       // std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
         delete meanfunc;
         delete kernel;
     }
@@ -764,7 +764,7 @@ public:
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {
-        std::cout<<"in constructor of DenseGP_GPU"<<std::endl;
+        //std::cout<<"in constructor of DenseGP_GPU"<<std::endl;
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
@@ -792,11 +792,11 @@ public:
 
         // if mean function is not provided, assume zero everywhere.
         if (!mean_) {
-            std::cout<<"Creating a new zero meanfunction"<<std::endl;
+           // std::cout<<"Creating a new zero meanfunction"<<std::endl;
             meanfunc = new ZeroMeanFunc();
         } else {
             // clone the meanfunction that we were given
-            std::cout<<"Cloning the mean function"<<std::endl;
+           // std::cout<<"Cloning the mean function"<<std::endl;
             meanfunc = mean_->clone();
         }
          // make a polynomial mean function 

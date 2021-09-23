@@ -18,7 +18,7 @@ class BaseKernel {
 public:
 
   virtual ~BaseKernel(){
-    std::cout<<"In destructor of BaseKernel"<<std::endl;
+   // std::cout<<"In destructor of BaseKernel"<<std::endl;
   };
 
   // Performs a single evaluation of the covariance function, for inputs

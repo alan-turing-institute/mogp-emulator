@@ -29,11 +29,11 @@ private:
 public: 
 // constructor
   GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {
-    std::cout<<" in constructor for GPWrapper"<<std::endl;
+  //  std::cout<<" in constructor for GPWrapper"<<std::endl;
   }
 
   ~GPWrapper() {
-    std::cout<<"In destructor for GPWrapper"<<std::endl;
+  //  std::cout<<"In destructor for GPWrapper"<<std::endl;
   }
 
   double logpost(column_vector theta) {

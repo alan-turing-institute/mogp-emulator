@@ -21,7 +21,7 @@ class BaseMeanFunc {
 public:
 
   virtual ~BaseMeanFunc(){
-    std::cout<<" in destructor of BaseMeanFunc"<<std::endl;
+  //  std::cout<<" in destructor of BaseMeanFunc"<<std::endl;
   };
 
   // Performs a single evaluation of the mean function at specific inputs
@@ -55,7 +55,7 @@ public:
   ZeroMeanFunc() {};
 
   virtual ~ZeroMeanFunc() {
-    std::cout<<"In destructor of ZeroMeanFunc"<<std::endl;
+  //  std::cout<<"In destructor of ZeroMeanFunc"<<std::endl;
   };
 
   inline ZeroMeanFunc* clone() const override {
@@ -202,12 +202,12 @@ public:
   PolyMeanFunc(std::vector<std::pair<int,int> > dp) : dims_powers(dp) {};
 
   PolyMeanFunc(const PolyMeanFunc& other) {
-    std::cout<<" in polymeanfunc copy constructor"<<std::endl;
+   // std::cout<<" in polymeanfunc copy constructor"<<std::endl;
     this->dims_powers = other.dims_powers;
   }
 
   virtual ~PolyMeanFunc() {
-    std::cout<<"in destructor of PolyMeanFunc"<<std::endl;
+  //  std::cout<<"in destructor of PolyMeanFunc"<<std::endl;
   };
 
   inline PolyMeanFunc* clone() const override {
