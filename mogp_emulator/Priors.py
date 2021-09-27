@@ -3,65 +3,57 @@ from scipy.optimize import root
 from scipy.special import gammaln
 from scipy.linalg import cho_factor, cho_solve
 import scipy.stats
-from mogp_emulator.GPParams import CovTransform, CorrTransform
+from mogp_emulator.GPParams import CovTransform, CorrTransform, GPParams
 import warnings
 
 class GPPriors(object):
     """
     Class representing prior distributions on GP Hyperparameters
     """
-    def __init__(self, priors, n_params, nugget_type, mean=None):
+    def __init__(self, mean=None, corr=None, cov=None, nugget=None, n_corr=None, nugget_type="fit"):
         
-        assert nugget_type in ["adaptive", "fixed", "pivot", "fit"]
-        
-        priors = list(priors)
-        
-        if not isinstance(priors, list):
-            raise TypeError("priors must be a list of Prior-derived objects")
-
-        if len(priors) == 0:
-            priors = n_params*[None]
-
-        if nugget_type in ["adaptive", "fixed"]:
-            if len(priors) == n_params - 1:
-                priors.append(None)
-
-        if not len(priors) == n_params:
-            raise ValueError("bad length for priors; must have length n_params")
-
-        if nugget_type in ["adaptive", "fixed"]:
-            if not priors[-1] is None:
-                priors[-1] = None
-
-        for p in priors:
-            if not p is None and not issubclass(type(p), PriorDist):
-                raise TypeError("priors must be a list of Prior-derived objects")
-
-        self._priors = list(priors)
-        
-        if nugget_type in ["fit", "adaptive", "fixed"]:
-            self.has_nugget = True
-        else:
-            self.has_nugget = False
-        self.n_corr = n_params - 1 - int(self.has_nugget)
-        
+        if corr is None and n_corr is None:
+            raise ValueError("Must provide an argument for either corr or n_corr in GPPriors")
+            
         self.mean = mean
         
+        self._n_corr = n_corr
+        self.corr = corr
+        
+        self.cov = cov
+        
+        assert nugget_type in ["fit", "adaptive", "fixed", "pivot"], "Bad value for nugget type in GPPriors"
+        self.nugget_type = nugget_type
+        self.nugget = nugget
+        
     @classmethod
-    def default_priors(cls, inputs, nugget_type, dist="invgamma"):
-        "create priors with defaults for correlation length priors"
+    def default_priors(cls, inputs, nugget_type="fit", dist="invgamma"):
+        "create priors with defaults for correlation length priors and nugget"
         
-        priors = []
+        assert nugget_type in ["fit", "adaptive", "fixed", "pivot"], "Bad value for nugget type in GPPriors"
         
-        for param in np.transpose(inputs):
-            priors.append(default_prior_corr(param, dist))
+        if dist.lower() == "lognormal":
+            dist_obj = LogNormalPrior
+        elif dist.lower() == "gamma":
+            dist_obj = GammaPrior
+        elif dist.lower() == "invgamma":
+            dist_obj = InvGammaPrior
+        else:
+            if not isinstance(dist, (LogNormalPrior, GammaPrior, InvGammaPrior)):
+                raise TypeError("dist must be a prior distribution to contstruct default priors")
+            dist_obj = dist
+        
+        priors = [dist_obj.default_prior_corr(param) for param in np.transpose(inputs)]
+        
+        priors_updated = [p if not p is None else InvGammaPrior.default_prior_corr_mode(param)
+                          for (p, param) in zip(priors, np.transpose(inputs))]
+        
+        if nugget_type == "fit":
+            nugget = InvGammaPrior.default_prior_nugget()
+        else:
+            nugget = None
             
-        priors.append(None)
-        
-        if nugget_type in ["fit"]:
-            priors.append(default_prior_nugget())
-            
-        return cls(priors, len(priors), nugget_type, mean=None)
+        return cls(mean=None, corr=priors_updated, cov=None, nugget=nugget, nugget_type=nugget_type)
     
     @property
     def mean(self):
@@ -83,201 +75,193 @@ class GPPriors(object):
                 raise ValueError("Bad value for defining a MeanPriors object in GPPriors, " +
                                  "argument must be an iterable containing the mean " +
                                  "vector and the covariance as a float/vector/matrix")
+                                 
+    @property
+    def n_mean(self):
+        """
+        Number of mean parameters
+        """
+        return self.mean.n_params
+        
+    @property
+    def corr(self):
+        """
+        Correlation Length Priors
+        
+        Must be a list of distributions/None. When class object is initialized, must
+        either set number of correlation parameters explicitly or pass a list of
+        prior objects. If only number of parameters, will generate a list of NoneTypes
+        of that length (assumes weak prior information). If list provided, will use
+        that and override the value of number of correlation parameters.
+        
+        Can change the length by setting this attribute. n_corr will automatically update.
+        """
+        return self._corr
+        
+    @corr.setter
+    def corr(self, newcorr):
+        if newcorr is None:
+            newcorr = [None]*self.n_corr
+        try:
+            list(newcorr)
+        except TypeError:
+            raise TypeError("Correlation priors must be a list of PriorDist derived objects or None")
+        assert len(newcorr) > 0, "Correlation priors must be a list of nonzero length"
+        for d in newcorr:
+            if not (d is None or issubclass(type(d), PriorDist)):
+                raise TypeError("Correlation priors must be a list of PriorDist derived objects or None")
+        self._corr = list(newcorr)
+        self._n_corr = len(self._corr)
+        
+    @property
+    def n_corr(self):
+        return self._n_corr
     
-    def __len__(self):
-        return len(self._priors)
+    @property
+    def cov(self):
+        return self._cov
         
-    def __getitem__(self, index):
-        return self._priors[index]
+    @cov.setter
+    def cov(self, newcov):
+        if not (newcov is None or issubclass(type(newcov), PriorDist)):
+            raise TypeError("Covariance prior must be a PriorDist derived object or None")
+        self._cov = newcov
         
-    def __iter__(self):
-        self.index = 0
-        return self
-
-    def __next__(self):
-        if self.index < len(self._priors):
-            self.index += 1 
-            return self._priors[self.index - 1]
-        else:
-            raise StopIteration
-            
+    @property
+    def nugget(self):
+        return self._nugget
+        
+    @nugget.setter
+    def nugget(self, newnugget):
+        if not (newnugget is None or issubclass(type(newnugget), PriorDist)):
+            raise TypeError("Nugget prior must be a PriorDist derived object or None")
+        if not newnugget is None and not self.nugget_type == "fit":
+            print("Prior distributions only apply to fitted nuggets; setting nugget prior to None")
+            newnugget = None
+        self._nugget = newnugget
+    
+    def _check_theta(self, theta):
+        
+        if not isinstance(theta, GPParams):
+            raise TypeError("theta must be a GPParams object when computing priors in GPPriors")
+        assert self.n_corr == theta.n_corr, "Provided GPParams object does not have the correct number of parameters"
+        if self.nugget_type == "fit":
+            assert theta.n_nugget == 1, "Provided GPParams object does not have the correct number of parameters"
+    
     def logp(self, theta):
+        "Compute log probability given a GPParams object"
+        
+        self._check_theta(theta)
         
         logposterior = 0.
         
-        for i in range(len(self._priors)):
-            if not self._priors[i] is None:
-                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
-                logposterior += self._priors[i].logp(priorarg)
+        for dist, val in zip(self._corr, theta.corr):
+            if not dist is None:
+                logposterior += dist.logp(val)
+        
+        if not self._cov is None:
+            logposterior += self._cov.logp(theta.cov)
+            
+        if not self._nugget is None:
+            logposterior += self._nugget.logp(theta.nugget)
                 
         return logposterior
         
     def dlogpdtheta(self, theta):
+        "Compute gradient of log probability given a GPParams object"
         
-        partials = np.zeros(len(self._priors))
+        self._check_theta(theta)
+    
+        partials = []
         
-        for i in range(len(self._priors)):
-            if not self._priors[i] is None:
-                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
-                partials[i] = self._priors[i].dlogpdtheta(priorarg)*priorderiv
+        for dist, val, raw in zip(self._corr, theta.corr, theta.corr_raw):
+            if not dist is None:
+                partials.append(dist.dlogpdtheta(val)*CorrTransform.dscaled_draw(raw))
+            else:
+                partials.append(0.)
+        
+        if not self._cov is None:
+            partials.append(self._cov.dlogpdtheta(theta.cov)*
+                            CovTransform.dscaled_draw(theta.cov_raw))
+        else:
+            partials.append(0.)
+            
+        if not self._nugget is None:
+            partials.append(self._nugget.dlogpdtheta(theta.nugget)*
+                            CovTransform.dscaled_draw(theta.nugget_raw))
+        elif not self.nugget_type == "pivot":
+            partials.append(0.)
                 
-        return partials
+        return np.array(partials)
         
     def d2logpdtheta2(self, theta):
+        """
+        Compute the second derivative of the log probability given a value of GPParams.
+        """
         
-        hessian = np.zeros(len(self._priors))
+        self._check_theta(theta)
         
-        for i in range(len(self._priors)):
-            if not self._priors[i] is None:
-                priorarg, priorderiv, prior2deriv = self.transform(theta.data[i], i)
-                hessian[i] = (self._priors[i].d2logpdtheta2(priorarg)*priorderiv**2 +
-                              self._priors[i].dlogpdtheta(priorarg)*prior2deriv)
-                              
-        return hessian
-    
-    def transform(self, param, i):
-        if i < self.n_corr:
-            priorarg = CorrTransform.transform(param)
-            priorderiv = CorrTransform.dscaled_draw(param)
-            prior2deriv = CorrTransform.d2scaled_draw2(param)
+        hessian = []
+        
+        for dist, val, raw in zip(self._corr, theta.corr, theta.corr_raw):
+            if not dist is None:
+                hessian.append(dist.d2logpdtheta2(val)*
+                               CorrTransform.dscaled_draw(raw)**2 +
+                               dist.dlogpdtheta(val)*
+                               CorrTransform.d2scaled_draw2(raw))
+            else:
+                hessian.append(0.)
+        
+        if not self._cov is None:
+            hessian.append(self._cov.d2logpdtheta2(theta.cov)*
+                           CovTransform.dscaled_draw(theta.cov_raw)**2 +
+                           self._cov.dlogpdtheta(theta.cov)*
+                           CovTransform.d2scaled_draw2(theta.cov_raw))
         else:
-            priorarg = CovTransform.transform(param)
-            priorderiv = CovTransform.dscaled_draw(param)
-            prior2deriv = CovTransform.d2scaled_draw2(param)
+            hessian.append(0.)
             
-        return priorarg, priorderiv, prior2deriv
-    
-    def inv_transform(self, priorarg, i):
-        
-        if i < self.n_corr:
-            param = CorrTransform.inv_transform(priorarg)
-        else:
-            param = CovTransform.inv_transform(priorarg)
-        
-        return param
+        if not self._nugget is None:
+            hessian.append(self._nugget.d2logpdtheta2(theta.nugget)*
+                           CovTransform.dscaled_draw(theta.nugget_raw)**2 +
+                           self._nugget.dlogpdtheta(theta.nugget)*
+                           CovTransform.d2scaled_draw2(theta.nugget_raw))
+        elif not self.nugget_type == "pivot":
+            hessian.append(0.)
+                
+        return np.array(hessian)
     
     def sample(self):
+        """
+        Draw a set of samples from the prior distributions associated with this GPPriors object.
+        Used in fitting to initialize the minimization algorithm.
+        """
+        
         sample_pt = []
-        for i in range(len(self._priors)):
-            if self._priors[i] is None:
-                priorarg = default_sampler()
+        
+        for dist in self._corr:
+            if dist is None:
+                smpl = default_sampler()
             else:
-                priorarg = self.inv_transform(self._priors[i].sample(), i)
-            sample_pt.append(priorarg)
+                smpl = CorrTransform.inv_transform(dist.sample())
+            sample_pt.append(smpl)
+
+        if self._cov is None:
+            smpl = default_sampler()
+        else:
+            smpl = CovTransform.inv_transform(self._cov.sample())
+        sample_pt.append(smpl)
+        
+        if not self.nugget_type == "pivot":
+            if self._nugget is None:
+                smpl = default_sampler()
+            else:
+                smpl = CovTransform.inv_transform(self._nugget.sample())
+            sample_pt.append(smpl)
+
         return np.array(sample_pt)
         
     def __str__(self):
         return str(self._priors)
-
-def default_sampler():
-    """
-    Generate a default random sample
-    
-    If no prior information is provided, this method is used to generate a
-    starting value for the optimization routine. Any variable where
-    prior information is available will use that to pick a random start
-    point drawn from the prior distribution. If that is not available,
-    this method is called to produce a random draw from a flat prior.
-    
-    :returns: Random number drawn from a flat prior (note that samples
-              from this method are *not* transformed).
-    :rtype: float
-    """
-    
-    return float(5.*(np.random.rand() - 0.5))
-
-def default_prior(min_val, max_val, dist="invgamma"):
-    r"""
-    Computes default priors given a min and max val between which
-    99% of the mass should be found.
-    
-    Both min and max must be positive as the supported distributions
-    are defined over :math:`[0, +\inf]`
-    
-    This stabilizes the solution, as it prevents the algorithm
-    from getting stuck outside these ranges as the likelihood tends
-    to be flat on those areas.
-    
-    Optionally, can change the distribution to be a lognormal or
-    gamma distribution by specifying the ``dist`` argument.
-    
-    Note that the function assumes only a single input dimension is
-    provided. Thus, any input array will be flattened before processing.
-    
-    If the root-finding algorithm fails, then the function will return
-    ``None`` to revert to a flat prior.
-    """
-    
-    if dist.lower() == "invgamma":
-        dist_obj = scipy.stats.invgamma
-        out_obj = InvGammaPrior
-    elif dist.lower() == "gamma":
-        dist_obj = scipy.stats.gamma
-        out_obj = GammaPrior
-    elif dist.lower() == "lognormal":
-        dist_obj = scipy.stats.lognorm
-        out_obj = LogNormalPrior
-    else:
-        raise ValueError("Bad value of distribution argument to default_prior; must be invgamma, gamma, or lognormal")
-        
-    if dist.lower() in ["invgamma", "gamma", "lognormal"]:
-        assert min_val > 0., "min_val must be positive for InvGamma, Gamma, or LogNormal distributions"
-        assert max_val > 0., "max_val must be positive for InvGamma, Gamma, or LogNormal distributions"
-        
-    assert min_val < max_val, "min_val must be less than max_val"
-    
-    def f(x):
-        assert len(x) == 2
-        cdf = dist_obj(np.exp(x[0]), scale=np.exp(x[1])).cdf
-        return np.array([cdf(min_val) - 0.005, cdf(max_val) - 0.995])
-        
-    result = root(f, np.zeros(2))
-    
-    if not result["success"]:
-        print("Default prior solver failed to converge; reverting to flat priors")
-        return None
-    else:
-        return out_obj(np.exp(result["x"][0]), np.exp(result["x"][1]))
-
-def max_spacing(input):
-    """
-    Computes the maximum spacing of a particular input
-    """
-    
-    input = np.unique(np.array(input).flatten())
-    
-    if len(input) <= 1:
-        return 0.
-    
-    input_sorted = np.sort(input)
-    return input_sorted[-1] - input_sorted[0]
-
-def min_spacing(input):
-    """
-    Computes the median spacing of a particular input
-    """
-    
-    input = np.unique(np.array(input).flatten())
-    
-    if len(input) <= 2:
-        return 0.
-    
-    return np.median(np.diff(np.sort(input)))
-
-def default_prior_corr(inputs, dist="invgamma"):
-    "Compute default priors on a set of inputs for the correlation length"
-        
-    min_val = min_spacing(inputs)
-    max_val = max_spacing(inputs)
-    
-    if min_val == 0. or max_val == 0.:
-        print("Too few unique inputs; defaulting to flat priors")
-        return None
-        
-    return default_prior(min_val, max_val, dist)
-
-def default_prior_nugget():
-    return InvGammaPrior(shape=1., scale=1.e-8)
 
 class MeanPriors(object):
     """
@@ -311,7 +295,15 @@ class MeanPriors(object):
                 self.Lb = cho_factor(self.cov)
             else:
                 raise ValueError("Bad shape for the covariance in MeanPriors")
-        
+    
+    @property
+    def n_params(self):
+        "Number of parameters associated with the mean"
+        if self.mean is None:
+            return 0
+        else:
+            return len(self.mean)
+    
     def inv_cov(self):
         "compute the inverse of the covariance matrix"
         if self.cov is None:
@@ -348,6 +340,69 @@ class PriorDist(object):
     """
     Generic Prior Distribution Object
     """
+    @classmethod
+    def default_prior(cls, min_val, max_val):
+        r"""
+        Computes default priors given a min and max val between which
+        99% of the mass should be found.
+    
+        Both min and max must be positive as the supported distributions
+        are defined over :math:`[0, +\inf]`
+    
+        This stabilizes the solution, as it prevents the algorithm
+        from getting stuck outside these ranges as the likelihood tends
+        to be flat on those areas.
+    
+        Optionally, can change the distribution to be a lognormal or
+        gamma distribution by specifying the ``dist`` argument.
+    
+        Note that the function assumes only a single input dimension is
+        provided. Thus, any input array will be flattened before processing.
+    
+        If the root-finding algorithm fails, then the function will return
+        ``None`` to revert to a flat prior.
+        """
+    
+        if cls == InvGammaPrior:
+            dist_obj = scipy.stats.invgamma
+        elif cls == GammaPrior:
+            dist_obj = scipy.stats.gamma
+        elif cls == LogNormalPrior:
+            dist_obj = scipy.stats.lognorm
+        else:
+            raise ValueError("Default prior must be invgamma, gamma, or lognormal")
+        
+        assert min_val > 0., "min_val must be positive for InvGamma, Gamma, or LogNormal distributions"
+        assert max_val > 0., "max_val must be positive for InvGamma, Gamma, or LogNormal distributions"
+        
+        assert min_val < max_val, "min_val must be less than max_val"
+    
+        def f(x):
+            assert len(x) == 2
+            cdf = dist_obj(np.exp(x[0]), scale=np.exp(x[1])).cdf
+            return np.array([cdf(min_val) - 0.005, cdf(max_val) - 0.995])
+        
+        result = root(f, np.zeros(2))
+    
+        if not result["success"]:
+            print("Prior solver failed to converge")
+            return None
+        else:
+            return cls(np.exp(result["x"][0]), np.exp(result["x"][1]))
+
+    @classmethod
+    def default_prior_corr(cls, inputs):
+        "Compute default priors on a set of inputs for the correlation length"
+        
+        min_val = min_spacing(inputs)
+        max_val = max_spacing(inputs)
+    
+        if min_val == 0. or max_val == 0.:
+            print("Too few unique inputs; defaulting to flat priors")
+            return None
+        
+        return cls.default_prior(min_val, max_val)
+
     def logp(self, x):
         """
         Computes log probability at a given value
@@ -481,15 +536,57 @@ class InvGammaPrior(PriorDist):
     r"""
     Inverse Gamma Distribution Prior object
 
-    Admits input values from -inf/+inf assumed on a logarithmic scale, and transforms by taking the
-    exponential of the input. Thus, this is assumed to be appropriate for covariance hyperparameters
-    where such transformations are assumed when computing the covariance function.
+    Admits input values from 0/+inf.
 
     Take two parameters: shape :math:`{\alpha}` and scale :math:`{\beta}`. Both must be positive,
     and they are defined such that
 
     :math:`{p(x) = \frac{\beta^{\alpha}x^{-\alpha - 1}}{\Gamma(/alpha)} \exp(-\beta/x)}`
     """
+    @classmethod
+    def default_prior_mode(cls, min_val, max_val):
+        """
+        Fits an inverse gamma with a mode that is
+        the geometric mean of the min/max values and 99.5% of the mass is below the max value
+        """
+    
+        assert min_val > 0.
+        assert max_val > 0.
+        assert min_val < max_val, "min_val must be less than max_val"
+    
+        mode = np.sqrt(min_val*max_val)
+
+        def f(x):
+            a = np.exp(x)
+            return scipy.stats.invgamma(a, scale=(1. + a)*mode).cdf(max_val) - 0.995
+
+        result = root(f, 0.)
+
+        if not result["success"]:
+            print("Prior solver failed to converge")
+            return None
+        else:
+            a = np.exp(result["x"])
+            return cls(a, scale=(1. + a)*mode)
+    
+    @classmethod
+    def default_prior_corr_mode(cls, inputs):
+        "Compute default priors on a set of inputs for the correlation length"
+        
+        min_val = min_spacing(inputs)
+        max_val = max_spacing(inputs)
+    
+        if min_val == 0. or max_val == 0.:
+            print("Too few unique inputs; defaulting to flat priors")
+            return None
+        
+        return cls.default_prior_mode(min_val, max_val)
+    
+    @classmethod
+    def default_prior_nugget(cls, min_val=1.e-8, max_val=1.e-6):
+        "Compute a default prior for the nugget"
+        return cls.default_prior_mode(min_val, max_val)
+    
     def __init__(self, shape, scale):
         assert shape > 0., "shape parameter must be positive"
         self.shape = shape
@@ -516,4 +613,50 @@ class InvGammaPrior(PriorDist):
         return (self.shape + 1)/x**2 - 2.*self.scale/x**3
         
     def sample(self):
+        """
+        Draws a random sample from the distribution
+        """
         return float(scipy.stats.invgamma.rvs(size=1, a=self.shape, scale=self.scale))
+
+def default_sampler():
+    """
+    Generate a default random sample
+    
+    If no prior information is provided, this method is used to generate a
+    starting value for the optimization routine. Any variable where
+    prior information is available will use that to pick a random start
+    point drawn from the prior distribution. If that is not available,
+    this method is called to produce a random draw from a flat prior.
+    
+    :returns: Random number drawn from a flat prior (note that samples
+              from this method are *not* transformed).
+    :rtype: float
+    """
+    
+    return float(5.*(np.random.rand() - 0.5))
+
+
+def max_spacing(input):
+    """
+    Computes the maximum spacing of a particular input
+    """
+    
+    input = np.unique(np.array(input).flatten())
+    
+    if len(input) <= 1:
+        return 0.
+    
+    input_sorted = np.sort(input)
+    return input_sorted[-1] - input_sorted[0]
+
+def min_spacing(input):
+    """
+    Computes the median spacing of a particular input
+    """
+    
+    input = np.unique(np.array(input).flatten())
+    
+    if len(input) <= 2:
+        return 0.
+    
+    return np.median(np.diff(np.sort(input)))
