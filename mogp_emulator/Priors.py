@@ -45,11 +45,13 @@ class GPPriors(object):
         
         priors = [dist_obj.default_prior_corr(param) for param in np.transpose(inputs)]
         
-        priors_updated = [p if not p is None else InvGammaPrior.default_prior_corr_mode(param)
+        priors_updated = [p if isinstance(p, dist_obj) else InvGammaPrior.default_prior_corr_mode(param)
                           for (p, param) in zip(priors, np.transpose(inputs))]
         
         if nugget_type == "fit":
             nugget = InvGammaPrior.default_prior_nugget()
+        elif nugget_type in ["adaptive", "fixed"]:
+            nugget = WeakPrior()
         else:
             nugget = None
             
@@ -101,15 +103,15 @@ class GPPriors(object):
     @corr.setter
     def corr(self, newcorr):
         if newcorr is None:
-            newcorr = [None]*self.n_corr
+            newcorr = [WeakPrior()]*self.n_corr
         try:
             list(newcorr)
         except TypeError:
-            raise TypeError("Correlation priors must be a list of PriorDist derived objects or None")
+            raise TypeError("Correlation priors must be a list of WeakPrior derived objects")
         assert len(newcorr) > 0, "Correlation priors must be a list of nonzero length"
         for d in newcorr:
-            if not (d is None or issubclass(type(d), PriorDist)):
-                raise TypeError("Correlation priors must be a list of PriorDist derived objects or None")
+            if not issubclass(type(d), WeakPrior):
+                raise TypeError("Correlation priors must be a list of WeakPrior derived objects")
         self._corr = list(newcorr)
         self._n_corr = len(self._corr)
         
@@ -123,8 +125,10 @@ class GPPriors(object):
         
     @cov.setter
     def cov(self, newcov):
-        if not (newcov is None or issubclass(type(newcov), PriorDist)):
-            raise TypeError("Covariance prior must be a PriorDist derived object or None")
+        if newcov is None:
+            newcov = WeakPrior()
+        if not issubclass(type(newcov), WeakPrior):
+            raise TypeError("Covariance prior must be a WeakPrior derived object")
         self._cov = newcov
         
     @property
@@ -133,11 +137,13 @@ class GPPriors(object):
         
     @nugget.setter
     def nugget(self, newnugget):
-        if not (newnugget is None or issubclass(type(newnugget), PriorDist)):
-            raise TypeError("Nugget prior must be a PriorDist derived object or None")
-        if not newnugget is None and not self.nugget_type == "fit":
-            print("Prior distributions only apply to fitted nuggets; setting nugget prior to None")
+        if self.nugget_type == "pivot":
+            print("Nugget type does not support prior distribution, setting to None")
             newnugget = None
+        if newnugget is None and self.nugget_type in ["fit", "adaptive", "fixed"]:
+            newnugget = WeakPrior()
+        if not (newnugget is None or issubclass(type(newnugget), WeakPrior)):
+            raise TypeError("Nugget prior must be a WeakPrior derived object or None")
         self._nugget = newnugget
     
     def _check_theta(self, theta):
@@ -145,8 +151,10 @@ class GPPriors(object):
         if not isinstance(theta, GPParams):
             raise TypeError("theta must be a GPParams object when computing priors in GPPriors")
         assert self.n_corr == theta.n_corr, "Provided GPParams object does not have the correct number of parameters"
-        if self.nugget_type == "fit":
+        if self.nugget_type in ["fit", "adaptive", "fixed"]:
             assert theta.n_nugget == 1, "Provided GPParams object does not have the correct number of parameters"
+        else:
+            assert theta.n_nugget == 0, "Provided GPParams object does not have the correct number of parameters"
     
     def logp(self, theta):
         "Compute log probability given a GPParams object"
@@ -156,11 +164,9 @@ class GPPriors(object):
         logposterior = 0.
         
         for dist, val in zip(self._corr, theta.corr):
-            if not dist is None:
-                logposterior += dist.logp(val)
+            logposterior += dist.logp(val)
         
-        if not self._cov is None:
-            logposterior += self._cov.logp(theta.cov)
+        logposterior += self._cov.logp(theta.cov)
             
         if not self._nugget is None:
             logposterior += self._nugget.logp(theta.nugget)
@@ -174,23 +180,13 @@ class GPPriors(object):
     
         partials = []
         
-        for dist, val, raw in zip(self._corr, theta.corr, theta.corr_raw):
-            if not dist is None:
-                partials.append(dist.dlogpdtheta(val)*CorrTransform.dscaled_draw(raw))
-            else:
-                partials.append(0.)
-        
-        if not self._cov is None:
-            partials.append(self._cov.dlogpdtheta(theta.cov)*
-                            CovTransform.dscaled_draw(theta.cov_raw))
-        else:
-            partials.append(0.)
+        for dist, val in zip(self._corr, theta.corr):
+            partials.append(dist.dlogpdtheta(val, CorrTransform))
+
+        partials.append(self._cov.dlogpdtheta(theta.cov, CovTransform))
             
         if not self._nugget is None:
-            partials.append(self._nugget.dlogpdtheta(theta.nugget)*
-                            CovTransform.dscaled_draw(theta.nugget_raw))
-        elif not self.nugget_type == "pivot":
-            partials.append(0.)
+            partials.append(self._nugget.dlogpdtheta(theta.nugget, CovTransform))
                 
         return np.array(partials)
         
@@ -200,33 +196,16 @@ class GPPriors(object):
         """
         
         self._check_theta(theta)
-        
+    
         hessian = []
         
-        for dist, val, raw in zip(self._corr, theta.corr, theta.corr_raw):
-            if not dist is None:
-                hessian.append(dist.d2logpdtheta2(val)*
-                               CorrTransform.dscaled_draw(raw)**2 +
-                               dist.dlogpdtheta(val)*
-                               CorrTransform.d2scaled_draw2(raw))
-            else:
-                hessian.append(0.)
-        
-        if not self._cov is None:
-            hessian.append(self._cov.d2logpdtheta2(theta.cov)*
-                           CovTransform.dscaled_draw(theta.cov_raw)**2 +
-                           self._cov.dlogpdtheta(theta.cov)*
-                           CovTransform.d2scaled_draw2(theta.cov_raw))
-        else:
-            hessian.append(0.)
+        for dist, val in zip(self._corr, theta.corr):
+            hessian.append(dist.d2logpdtheta2(val, CorrTransform))
+
+        hessian.append(self._cov.d2logpdtheta2(theta.cov, CovTransform))
             
         if not self._nugget is None:
-            hessian.append(self._nugget.d2logpdtheta2(theta.nugget)*
-                           CovTransform.dscaled_draw(theta.nugget_raw)**2 +
-                           self._nugget.dlogpdtheta(theta.nugget)*
-                           CovTransform.d2scaled_draw2(theta.nugget_raw))
-        elif not self.nugget_type == "pivot":
-            hessian.append(0.)
+            hessian.append(self._nugget.d2logpdtheta2(theta.nugget, CovTransform))
                 
         return np.array(hessian)
     
@@ -239,24 +218,12 @@ class GPPriors(object):
         sample_pt = []
         
         for dist in self._corr:
-            if dist is None:
-                smpl = default_sampler()
-            else:
-                smpl = CorrTransform.inv_transform(dist.sample())
-            sample_pt.append(smpl)
+            sample_pt.append(dist.sample(CorrTransform))
 
-        if self._cov is None:
-            smpl = default_sampler()
-        else:
-            smpl = CovTransform.inv_transform(self._cov.sample())
-        sample_pt.append(smpl)
+        sample_pt.append(self._cov.sample(CovTransform))
         
-        if not self.nugget_type == "pivot":
-            if self._nugget is None:
-                smpl = default_sampler()
-            else:
-                smpl = CovTransform.inv_transform(self._nugget.sample())
-            sample_pt.append(smpl)
+        if not self._nugget is None:
+            sample_pt.append(self._nugget.sample(CovTransform))
 
         return np.array(sample_pt)
         
@@ -336,7 +303,62 @@ class MeanPriors(object):
     def __str__(self):
         return "MeanPriors with mean = {} and cov = {}".format(self.mean, self.cov)            
 
-class PriorDist(object):
+class WeakPrior(object):
+    """
+    Base Prior class implementing weak prior information
+    """
+    def logp(self, x):
+        """
+        Computes log probability at a given value
+        """
+        return 0.
+
+    def dlogpdx(self, x):
+        """
+        Computes derivative of log probability at a given value
+        """
+        return 0.
+        
+    def dlogpdtheta(self, x, transform):
+        """
+        Computes derivative of log probability with respect to raw parameter,
+        taking scaled parameter as input
+        """
+        return self.dlogpdx(x)*transform.dscaled_draw(x)
+
+    def d2logpdx2(self, x):
+        """
+        Computes second derivative of log probability at a given value
+        """
+        return 0.
+        
+    def d2logpdtheta2(self, x, transform):
+        """
+        Computes the second derivative of log probability with respect to raw parameter,
+        taking scaled parameter as input
+        """
+        return (self.d2logpdx2(x)*transform.dscaled_draw(x)**2 + 
+                self.dlogpdx(x)*transform.d2scaled_draw2(x))
+        
+    def sample(self, transform=None):
+        """
+        Generate a weak prior random sample
+    
+        If no prior information is provided, this method is used to generate a
+        starting value for the optimization routine. Any variable where
+        prior information is available will use that to pick a random start
+        point drawn from the prior distribution. If that is not available,
+        this method is called to produce a random draw from a flat prior.
+
+        :returns: Random number drawn from a flat prior (note that samples
+                  from this method are *not* transformed).
+        :rtype: float
+        """
+    
+        return float(5.*(np.random.rand() - 0.5))
+
+
+class PriorDist(WeakPrior):
     """
     Generic Prior Distribution Object
     """
@@ -362,7 +384,7 @@ class PriorDist(object):
         If the root-finding algorithm fails, then the function will return
         ``None`` to revert to a flat prior.
         """
-    
+
         if cls == InvGammaPrior:
             dist_obj = scipy.stats.invgamma
         elif cls == GammaPrior:
@@ -386,43 +408,30 @@ class PriorDist(object):
     
         if not result["success"]:
             print("Prior solver failed to converge")
-            return None
+            return WeakPrior()
         else:
             return cls(np.exp(result["x"][0]), np.exp(result["x"][1]))
 
     @classmethod
     def default_prior_corr(cls, inputs):
         "Compute default priors on a set of inputs for the correlation length"
-        
+
         min_val = min_spacing(inputs)
         max_val = max_spacing(inputs)
     
         if min_val == 0. or max_val == 0.:
             print("Too few unique inputs; defaulting to flat priors")
-            return None
-        
+            return WeakPrior()
+
         return cls.default_prior(min_val, max_val)
-
-    def logp(self, x):
-        """
-        Computes log probability at a given value
-        """
-        raise NotImplementedError
-
-    def dlogpdtheta(self, x):
-        """
-        Computes derivative of log probability at a given value
-        """
-        raise NotImplementedError
-
-    def d2logpdtheta2(self, x):
-        """
-        Computes second derivative of log probability at a given value
-        """
-        raise NotImplementedError
         
-    def sample(self):
-        raise NotImplementedError
+    def sample_x(self):
+        raise NotImplementedError("PriorDist does not implement a sampler")
+        
+    def sample(self, transform):
+        "Draw a random sample and transform to raw parameter value"
+        
+        return transform.inv_transform(self.sample_x())
         
 
 class NormalPrior(PriorDist):
@@ -444,19 +453,19 @@ class NormalPrior(PriorDist):
         """
         return -0.5*((x - self.mean)/self.std)**2 - np.log(self.std) - 0.5*np.log(2.*np.pi)
 
-    def dlogpdtheta(self, x):
+    def dlogpdx(self, x):
         """
-        Computes derivative of log probability at a given value
+        Computes derivative of log probability with respect to scaled parameter
         """
         return -(x - self.mean)/self.std**2
 
-    def d2logpdtheta2(self, x):
+    def d2logpdx2(self, x):
         """
         Computes second derivative of log probability at a given value
         """
         return -self.std**(-2)
         
-    def sample(self):
+    def sample_x(self):
         return float(scipy.stats.norm.rvs(size=1, loc=self.mean, scale=self.std))
 
 class LogNormalPrior(PriorDist):
@@ -478,15 +487,15 @@ class LogNormalPrior(PriorDist):
         return (-0.5*(np.log(x/self.scale)/self.shape)**2
                 - 0.5*np.log(2.*np.pi) - np.log(x) - np.log(self.shape))
                 
-    def dlogpdtheta(self, x):
+    def dlogpdx(self, x):
         assert x > 0.
         return -np.log(x/self.scale)/self.shape**2/x - 1./x
         
-    def d2logpdtheta2(self, x):
+    def d2logpdx2(self, x):
         assert x > 0.
         return (-1./self.shape**2 + np.log(x/self.scale)/self.shape**2 + 1.)/x**2
         
-    def sample(self):
+    def sample_x(self):
         return float(scipy.stats.lognorm.rvs(size=1, s=self.shape, scale=self.scale))
     
 
@@ -515,21 +524,21 @@ class GammaPrior(PriorDist):
         return (-self.shape*np.log(self.scale) - gammaln(self.shape) +
                 (self.shape - 1.)*np.log(x) - x/self.scale)
 
-    def dlogpdtheta(self, x):
+    def dlogpdx(self, x):
         """
         Computes derivative of log probability at a given value
         """
         assert x > 0.
         return (self.shape - 1.)/x - 1./self.scale
 
-    def d2logpdtheta2(self, x):
+    def d2logpdx2(self, x):
         """
         Computes second derivative of log probability at a given value
         """
         assert x > 0.
         return -(self.shape - 1.)/x**2
         
-    def sample(self):
+    def sample_x(self):
         return float(scipy.stats.gamma.rvs(size=1, a=self.shape, scale=self.scale))
 
 class InvGammaPrior(PriorDist):
@@ -564,7 +573,7 @@ class InvGammaPrior(PriorDist):
 
         if not result["success"]:
             print("Prior solver failed to converge")
-            return None
+            return WeakPrior()
         else:
             a = np.exp(result["x"])
             return cls(a, scale=(1. + a)*mode)
@@ -578,7 +587,7 @@ class InvGammaPrior(PriorDist):
     
         if min_val == 0. or max_val == 0.:
             print("Too few unique inputs; defaulting to flat priors")
-            return None
+            return WeakPrior()
         
         return cls.default_prior_mode(min_val, max_val)
     
@@ -600,41 +609,23 @@ class InvGammaPrior(PriorDist):
         return (self.shape*np.log(self.scale) - gammaln(self.shape) -
                 (self.shape + 1.)*np.log(x) - self.scale/x)
 
-    def dlogpdtheta(self, x):
+    def dlogpdx(self, x):
         """
         Computes derivative of log probability at a given value
         """
         return -(self.shape + 1.)/x + self.scale/x**2
 
-    def d2logpdtheta2(self, x):
+    def d2logpdx2(self, x):
         """
         Computes second derivative of log probability at a given value
         """
         return (self.shape + 1)/x**2 - 2.*self.scale/x**3
         
-    def sample(self):
+    def sample_x(self):
         """
         Draws a random sample from the distribution
         """
         return float(scipy.stats.invgamma.rvs(size=1, a=self.shape, scale=self.scale))
-
-def default_sampler():
-    """
-    Generate a default random sample
-    
-    If no prior information is provided, this method is used to generate a
-    starting value for the optimization routine. Any variable where
-    prior information is available will use that to pick a random start
-    point drawn from the prior distribution. If that is not available,
-    this method is called to produce a random draw from a flat prior.
-    
-    :returns: Random number drawn from a flat prior (note that samples
-              from this method are *not* transformed).
-    :rtype: float
-    """
-    
-    return float(5.*(np.random.rand() - 0.5))
-
 
 def max_spacing(input):
     """
