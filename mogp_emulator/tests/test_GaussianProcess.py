@@ -7,7 +7,8 @@ from ..GaussianProcess import GaussianProcess, PredictResult
 from ..GaussianProcessGPU import GaussianProcessGPU
 from ..Kernel import SquaredExponential, Matern52
 from ..GPParams import GPParams
-from ..Priors import NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior, default_prior_corr
+from ..Priors import GPPriors, NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior
+from ..Priors import WeakPrior, MeanPriors
 from scipy import linalg
 
 GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
@@ -77,7 +78,6 @@ def test_GaussianProcessGPU_init(x, y):
     assert gp.kernel_type is kernel_type.SquaredExponential
     assert isinstance(gp.kernel, SquaredExponential)
 
-
 def test_GP_init_failures(x, y):
     "Tests that GaussianProcess fails correctly with bad inputs"
 
@@ -128,7 +128,6 @@ def test_GPGPU_init_failures(x, y):
     with pytest.raises(ValueError):
         gp = GaussianProcessGPU(x, y, nugget="a")
 
-
 def test_GaussianProcess_n_params(x, y):
     "test the get_n_params method of GaussianProcess"
 
@@ -145,7 +144,6 @@ def test_GaussianProcessGPU_n_params(x, y):
 
     gp = GaussianProcessGPU(x, y)
     assert gp.n_params == x.shape[1] + 2
-
 
 def test_GaussianProcess_nugget(x, y):
     "Tests the get_nugget method of GaussianProcess"
@@ -209,16 +207,18 @@ def test_GaussianProcessGPU_nugget(x, y):
     with pytest.raises(ValueError):
         gp.nugget = -1.
 
-
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
                                             (None, "pivot", 0.),
                                             ("x[0]", "fit", np.log(1.e-6))])
 def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     "test the theta property of GaussianProcess (effectively the same as fit)"
 
-    # zero mean, zero nugget
+    if isinstance(nugget, float):
+        nugget_type = "fixed"
+    else:
+        nugget_type = nugget
 
-    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=[])
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=GPPriors(n_corr=3, nugget_type=nugget_type))
 
     with pytest.raises(AssertionError):
         gp.theta = np.ones(gp.n_params + 1)
@@ -296,7 +296,6 @@ def test_GaussianProcessGPU_theta(x, y, nugget, sn):
     assert_allclose(invQt_expect, gp.invQt)
     assert_allclose(logpost_expect, gp.current_logpost)
 
-
 def test_GaussianProcess_theta_pivot():
     "test that pivoting works as expected"
 
@@ -322,71 +321,80 @@ def test_GaussianProcess_priors_property(x, y):
 
     gp = GaussianProcess(x, y)
 
-    assert len(gp.priors) == 5
-    for p in gp.priors:
-        assert p is None
+    assert isinstance(gp.priors.mean, MeanPriors)
+    assert gp.priors.mean.mean is None
+    assert gp.priors.mean.cov is None
+    for p in gp.priors.corr:
+        assert isinstance(p, WeakPrior)
+    assert isinstance(gp.priors.cov, WeakPrior)
+    assert isinstance(gp.priors.nugget, WeakPrior)
 
     gp = GaussianProcess(x, y, priors=None)
 
-    assert len(gp.priors) == 5
-    for p in gp.priors:
-        assert p is None
+    assert isinstance(gp.priors.mean, MeanPriors)
+    assert gp.priors.mean.mean is None
+    assert gp.priors.mean.cov is None
+    for p in gp.priors.corr:
+        assert isinstance(p, WeakPrior)
+    assert isinstance(gp.priors.cov, WeakPrior)
+    assert isinstance(gp.priors.nugget, WeakPrior)
 
-    priors = []
+    priors = GPPriors(n_corr=3, nugget_type="adaptive")
     gp = GaussianProcess(x, y, priors=priors)
 
-    assert len(gp.priors) == 5
-    for p in gp.priors:
-        assert p is None
-
-    priors = [None, None, None, None, None]
-    gp = GaussianProcess(x, y)
-
-    assert len(gp.priors) == 5
-    for p in gp.priors:
-        assert p is None
-
-    priors = [None, NormalPrior(2., 2.), None, None, NormalPrior(3., 1.)]
+    assert isinstance(gp.priors.mean, MeanPriors)
+    assert gp.priors.mean.mean is None
+    assert gp.priors.mean.cov is None
+    for p in gp.priors.corr:
+        assert isinstance(p, WeakPrior)
+    assert isinstance(gp.priors.cov, WeakPrior)
+    assert isinstance(gp.priors.nugget, WeakPrior)
+    
+    priors = {"mean": None, "corr": [LogNormalPrior(2., 2.), WeakPrior(), WeakPrior()], "cov": GammaPrior(3., 1.),
+              "nugget_type": "adaptive"}
     gp = GaussianProcess(x, y, priors=priors)
 
-    assert gp.priors[:-1] == priors[:-1]
-    assert gp.priors[-1] is None
+    assert isinstance(gp.priors.mean, MeanPriors)
+    assert gp.priors.mean.mean is None
+    assert gp.priors.mean.cov is None
+    assert isinstance(gp.priors.corr[0], LogNormalPrior)
+    assert isinstance(gp.priors.corr[1], WeakPrior)
+    assert isinstance(gp.priors.corr[2], WeakPrior)
+    assert isinstance(gp.priors.cov, GammaPrior)
+    assert isinstance(gp.priors.nugget, WeakPrior)
 
-    priors = [None, NormalPrior(2., 2.), None, None]
+    priors = {"mean": None, "corr": [LogNormalPrior(2., 2.), WeakPrior(), WeakPrior()], "cov": GammaPrior(3., 1.),
+              "nugget_type": "adaptive", "nugget": InvGammaPrior(3., 3.)}
     gp = GaussianProcess(x, y, priors=priors)
 
-    assert gp.priors[:-1] == priors
-    assert gp.priors[-1] is None
-
-    priors = [None, None, None]
-
-    with pytest.raises(ValueError):
-        GaussianProcess(x, y, priors=priors)
+    assert isinstance(gp.priors.nugget, WeakPrior)
+    
+    with pytest.raises(AssertionError):
+        priors = GPPriors(n_corr=3, nugget_type="fit")
+        gp = GaussianProcess(x, y, priors=priors)
+        
+    with pytest.raises(AssertionError):
+        priors = GPPriors(n_corr=4, nugget_type="adaptive")
+        gp = GaussianProcess(x, y, priors=priors)
 
     with pytest.raises(TypeError):
         GaussianProcess(x, y, priors=1.)
 
-    priors = [1., 2., 3., 4., 5.]
-
-    with pytest.raises(TypeError):
-        GaussianProcess(x, y, priors=priors)
-
     x = np.array([[1., 1.], [2., 2.], [4., 4.]])
     y = np.array([2., 4., 6.])
 
-    gp = GaussianProcess(x, y, mean="1")
+    gp = GaussianProcess(x, y, mean="1", priors={"mean": (np.array([1.]), np.array([1.])), "n_corr": 2,
+                                                 "nugget_type": "adaptive"})
 
-    assert gp.priors[0] is None
-    assert isinstance(gp.priors[1], InvGammaPrior)
-    assert isinstance(gp.priors[2], InvGammaPrior)
-    assert gp.priors[3] is None
-    assert gp.priors[4] is None
+    assert_allclose(gp.priors.mean.mean, [1.])
+    assert_allclose(gp.priors.mean.cov, [1.])
+    
+    gp = GaussianProcess(x, y, mean="1", priors={"mean": None, "n_corr": 2, "nugget_type": "adaptive"})
+    
+    with pytest.raises(AssertionError):
+        gp = GaussianProcess(x, y, mean="1", priors={"mean": (np.array([1., 2.]), np.array([1., 2.])), "n_corr": 2,
+                                                     "nugget_type": "adaptive"})
 
-    gp = GaussianProcess(x, y, priors=[])
-
-    assert len(gp.priors) == 4
-    for p in gp.priors:
-        assert p is None
 
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
                                             (None, "pivot", 0.),
@@ -394,9 +402,12 @@ def test_GaussianProcess_priors_property(x, y):
 def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     "test the fit and logposterior methods of GaussianProcess"
 
-    # zero mean, zero nugget
+    if isinstance(nugget, float):
+        nugget_type = "fixed"
+    else:
+        nugget_type = nugget
 
-    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=[])
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=GPPriors(n_corr=3, nugget_type=nugget_type))
 
     with pytest.raises(AssertionError):
         gp.theta = np.ones(gp.n_params + 1)
@@ -429,13 +440,12 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     assert_allclose(logpost_expect, gp.current_logpost)
     assert_allclose(logpost_expect, gp.logposterior(theta))
 
-
 def test_GaussianProcess_logposterior(x, y):
     "test logposterior method of GaussianProcess"
 
     # logposterior already tested, but check that parameters are re-fit if changed
 
-    gp = GaussianProcess(x, y, nugget = 0., priors=[])
+    gp = GaussianProcess(x, y, nugget = 0., priors=GPPriors(n_corr=3, nugget_type="fixed"))
 
     theta = np.ones(gp.n_params)
     gp.fit(theta)
@@ -499,7 +509,12 @@ def dx():
 def test_GaussianProcess_logpost_deriv(x, y, dx, mean, nugget, sn):
     "test logposterior derivatives for GaussianProcess via finite differences"
 
-    gp = GaussianProcess(x, y, mean=mean, nugget=nugget)
+    if isinstance(nugget, float):
+        nugget_type = "fixed"
+    else:
+        nugget_type = nugget
+
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=GPPriors(n_corr=3, nugget_type=nugget_type))
 
     n = gp.n_params
     theta = np.ones(n)
@@ -542,7 +557,12 @@ def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
 
     # zero mean, no nugget
 
-    gp = GaussianProcess(x, y, nugget=0., priors=[])
+    if isinstance(nugget, float):
+        nugget_type = "fixed"
+    else:
+        nugget_type = nugget
+
+    gp = GaussianProcess(x, y, mean=mean, nugget=nugget, priors=GPPriors(n_corr=3, nugget_type=nugget_type))
 
     n = gp.n_params
     theta = np.ones(n)
@@ -578,7 +598,7 @@ def test_GaussianProcess_default_priors(dx):
                           np.dot(y, invQt_expect) +
                           gp.n*np.log(2.*np.pi))
 
-    dist = default_prior_corr(np.array([1., 2., 4.]))
+    dist = InvGammaPrior.default_prior_corr(np.array([1., 2., 4.]))
 
     logpost_expect -= 2.*dist.logp(1.)
 
@@ -605,12 +625,13 @@ def test_GaussianProcess_default_priors(dx):
             dx_array[j] = dx
             hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
 
-    assert_allclose(hess[:2,:2], gp.logpost_hessian(theta)[:2,:2], rtol=1.e-5, atol=1.e-5)
+    assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-5)
 
-@pytest.mark.parametrize("priors,nugget,sn", [([ NormalPrior(0., 1.), LogNormalPrior(0.9, 0.5), None, LogNormalPrior(0.5, 2.),
-                                              InvGammaPrior(2., 1.), None], 0., 0.),
-                                           ([ NormalPrior(0., 1.), None, LogNormalPrior(1.2, 0.2), None,
-                                              GammaPrior(2., 1.), InvGammaPrior(2., 1.e-6)], "fit", np.log(1.e-6))])
+@pytest.mark.parametrize("priors,nugget,sn", [({"corr": [ LogNormalPrior(0.9, 0.5), WeakPrior(), LogNormalPrior(0.5, 2.)],
+                                               "cov": InvGammaPrior(2., 1.), "nugget_type": "fixed"}, 0., 0.),
+                                           ( {"corr": [ WeakPrior(), LogNormalPrior(1.2, 0.2), WeakPrior()],
+                                              "cov": GammaPrior(2., 1.), "nugget": InvGammaPrior(2., 1.e-6),
+                                              "nugget_type": "fit"}, "fit", np.log(1.e-6))])
 def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
     "test that prior distributions are properly accounted for in posterior"
 
@@ -637,11 +658,13 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
 
     theta_transformed = np.zeros(gp.n_params)
     theta_transformed[0] = theta[0]
-    theta_transformed[1:gp.D+1] = np.exp(-0.5*theta[1:gp.D+1])
-    theta_transformed[gp.D+1:] = np.exp(theta[gp.D+1:])
-    for p, t in zip(priors, theta_transformed):
-        if not p is None:
-            logpost_expect -= p.logp(t)
+    theta_transformed[1:4] = np.exp(-0.5*theta[1:4])
+    theta_transformed[4:] = np.exp(theta[4:])
+    for p, t in zip(gp.priors.corr, theta_transformed[1:4]):
+        logpost_expect -= p.logp(t)
+    logpost_expect -= gp.priors.cov.logp(theta_transformed[4])
+    if nugget == "fit":
+        logpost_expect -= gp.priors.nugget.logp(theta_transformed[-1])
 
     assert_allclose(L_expect, gp.L)
     assert_allclose(invQt_expect, gp.invQt)
@@ -666,7 +689,7 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
             dx_array[j] = dx
             hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
 
-    assert_allclose(hess[:2,:2], gp.logpost_hessian(theta)[:2,:2], rtol=1.e-5, atol=1.e-5)
+    assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-5)
 
 def test_GaussianProcess_predict(x, y, dx):
     "test the predict method of GaussianProcess"
@@ -849,7 +872,6 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     assert_allclose(gp(x_test), mu_expect)
 
-
 def test_GaussianProcess_predict_nugget(x, y):
     "test that the nugget works correctly when making predictions"
 
@@ -900,7 +922,6 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
 
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
-
 def test_GaussianProcess_predict_pivot():
     "test that pivoting gives same predictions as standard version"
 
@@ -943,7 +964,6 @@ def test_GaussianProcess_predict_variance():
     _, var, _ = gp.predict(testing)
 
     assert_allclose(np.zeros(101), var, atol = 1.e-3)
-
 
 def test_GaussianProcess_predict_failures(x, y):
     "test situations where predict method of GaussianProcess should fail"

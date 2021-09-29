@@ -3,36 +3,36 @@ import numpy as np
 class CorrTransform(object):
     r"Class representing correlation length transforms"
     @staticmethod
-    def transform(x):
+    def transform(r):
         "convert raw parameter to scaled"
-        return np.exp(-0.5*x)
+        return np.exp(-0.5*r)
     @staticmethod
-    def inv_transform(x):
+    def inv_transform(s):
         "convert scaled parameter to raw"
-        return -2.*np.log(x)
+        return -2.*np.log(s)
     @staticmethod
-    def dscaled_draw(x):
-        return -0.5*np.exp(-0.5*x)
+    def dscaled_draw(s):
+        return -0.5*s
     @staticmethod
-    def d2scaled_draw2(x):
-        return 0.25*np.exp(-0.5*x)
+    def d2scaled_draw2(s):
+        return 0.25*s
     
 class CovTransform(object):
     r"Class representing covariance/nugget transforms"
     @staticmethod
-    def transform(x):
+    def transform(r):
         "convert raw parameter to scaled"
-        return np.exp(x)
+        return np.exp(r)
     @staticmethod
-    def inv_transform(x):
+    def inv_transform(s):
         "convert scaled parameter to raw"
-        return np.log(x)
+        return np.log(s)
     @staticmethod
-    def dscaled_draw(x):
-        return np.exp(x)
+    def dscaled_draw(s):
+        return s
     @staticmethod
-    def d2scaled_draw2(x):
-        return np.exp(x)
+    def d2scaled_draw2(s):
+        return s
 
 class GPParams(object):
     r"""

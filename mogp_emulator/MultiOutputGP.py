@@ -8,7 +8,7 @@ from mogp_emulator.GaussianProcess import (
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-
+from mogp_emulator.Priors import GPPriors
 
 
 class MultiOutputGP(object):
@@ -91,17 +91,17 @@ class MultiOutputGP(object):
         assert isinstance(kernel, list), "kernel must be a Kernel subclass or a list of Kernel subclasses"
         assert len(kernel) == self.n_emulators
 
-        if priors is None:
-            priors = []
-        assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
+        if isinstance(priors, (GPPriors, dict)) or priors is None:
+            priorlist = self.n_emulators*[priors]
+        else:
+            priorslist = list(priors)
+            assert isinstance(priorslist, list), ("priors must be a GPPriors object, None, or arguments to construct " +
+                                                  "a GPPriors object or a list of length n_emulators containing the above")
 
-        if len(priors) == 0:
-            priors = self.n_emulators*[[]]
+            if len(priorlist) == 0:
+                priorlist = self.n_emulators*[None]
 
-        if not isinstance(priors[0], list):
-            priors = self.n_emulators*[priors]
-
-        assert len(priors) == self.n_emulators
+            assert len(priorlist) == self.n_emulators, "Bad length for list provided for priors to MultiOutputGP"
 
         if isinstance(nugget, (str, float)):
             nugget = self.n_emulators*[nugget]
@@ -110,7 +110,7 @@ class MultiOutputGP(object):
         assert len(nugget) == self.n_emulators
 
         self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
-                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
+                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorlist, nugget)]
 
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,

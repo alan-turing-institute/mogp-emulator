@@ -324,7 +324,7 @@ class WeakPrior(object):
         Computes derivative of log probability with respect to raw parameter,
         taking scaled parameter as input
         """
-        return self.dlogpdx(x)*transform.dscaled_draw(x)
+        return float(self.dlogpdx(x)*transform.dscaled_draw(x))
 
     def d2logpdx2(self, x):
         """
@@ -337,8 +337,8 @@ class WeakPrior(object):
         Computes the second derivative of log probability with respect to raw parameter,
         taking scaled parameter as input
         """
-        return (self.d2logpdx2(x)*transform.dscaled_draw(x)**2 + 
-                self.dlogpdx(x)*transform.d2scaled_draw2(x))
+        return float(self.d2logpdx2(x)*transform.dscaled_draw(x)**2 + 
+                     self.dlogpdx(x)*transform.d2scaled_draw2(x))
         
     def sample(self, transform=None):
         """

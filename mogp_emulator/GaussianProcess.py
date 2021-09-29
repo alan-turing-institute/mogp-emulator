@@ -114,8 +114,9 @@ class GaussianProcess(GaussianProcessBase):
         and are inverse gamma distributions with 99% of their mass
         between the minimum and maximum grid spacing. To choose other
         default distributions (options are lognormal and gamma
-        distributions), the user must pass a ``GPPriors`` object
-        using the ``GPPriors.default_priors`` class method).
+        distributions), the user must pass a ``GPPriors`` object.
+        The ``GPPriors.default_priors`` class method gives more
+        control over the exact distribution choice.
         
         If default priors are not used, ``priors`` must be a ``GPPriors``
         object or a list of prior distributions. If a list, it must
@@ -229,14 +230,12 @@ class GaussianProcess(GaussianProcessBase):
 
         self.nugget = nugget
         
-        if self._nugget_type == "pivot":
-            has_nugget = False
-        else:
-            has_nugget = True
+        has_nugget = (not self._nugget_type == "pivot")
 
         self._theta = GPParams(n_mean=n_mean,
                                n_corr=self._inputs.shape[1],
                                nugget=has_nugget,
+                               mean_data=None,
                                data=None)
                                
         self.L = None
@@ -301,7 +300,7 @@ class GaussianProcess(GaussianProcessBase):
 
         """
 
-        return self.theta.n_params
+        return self.theta.n_params + self.theta.n_mean
 
     @property
     def nugget_type(self):
@@ -495,7 +494,8 @@ class GaussianProcess(GaussianProcessBase):
         """
         
         if theta is None:
-            self._theta.set_data(theta)
+            self._theta.mean = None
+            self._theta.set_data(None)
             self.current_logpost = None
             self.L = None
             self.P = None
@@ -505,32 +505,34 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def priors(self):
         """
-        Sets the priors using a list of prior objects/None
+        Sets the priors using a ``GPPriors`` object.
 
-        Sets the priors, must be a list or ``None``, by constructing
-        a new ``GPPriors`` object. Entries in the list can be
-        ``None`` or a subclass of ``Prior``.  ``None`` indicates weak
-        prior information. An empty list or ``None`` means all
-        uninformative priors. Otherwise list should have the same
-        length as the number of hyperparameters, or alternatively can
-        be one shorter than the number of hyperparameters if
-        ``nugget_type`` is ``"adaptive"`` or ``"fixed"``
-        meaning that the nugget hyperparameter exists but is not fit.
-        If the nugget hyperparameter is not fit, the prior for the
-        nugget parameter (if it exists) will automatically be set to
-        ``None`` even if a distribution is provided.
+        Sets the priors, may be a ``GPPriors`` object, a dictionary
+        that can be used to construct a ``GPPriors`` object, or
+        ``None`` to use the default priors. Note that uninformative
+        priors must be explicitly set by passing a ``GPPriors``
+        object with no associated prior distributions.
         """
         return self._priors
 
     @priors.setter
-    def priors(self, priors):
+    def priors(self, newpriors):
         
-        if priors is None:
-            self._priors = GPPriors.default_priors(self.inputs, self.theta.n_mean,
-                                                   self.nugget_type)
+        if newpriors is None:
+            self._priors = GPPriors.default_priors(self.inputs, self.nugget_type)
+        elif isinstance(newpriors, GPPriors):
+            self._priors = newpriors
         else:
-            self._priors = GPPriors(priors, self.n_params, self.theta.n_mean,
-                                    self.nugget_type)
+            try:
+                self._priors = GPPriors(**newpriors)
+            except TypeError:
+                raise TypeError("Provided arguments for priors are not valid inputs " +
+                                "for a GPPriors object.")
+        
+        if self._priors.n_mean > 0:
+            assert self._priors.n_mean == self.theta.n_mean
+        assert self._priors.n_corr == self.D, "bad number of correlation lengths in new GPPriors object"
+        assert self._priors.nugget_type == self.nugget_type, "nugget type of GPPriors object does not match"
 
     def get_design_matrix(self, inputs):
         """Returns the design matrix for a set of inputs
@@ -559,7 +561,7 @@ class GaussianProcess(GaussianProcessBase):
         inputs = self._process_inputs(inputs)
         
         return self.kernel.kernel_f(self.inputs, inputs,
-                                    self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+                                    self.theta.data[:(self.theta.n_corr+1)])
 
     def get_K_matrix(self):
         """Returns current value of the covariance matrix as a numpy
@@ -578,6 +580,27 @@ class GaussianProcess(GaussianProcessBase):
         assert inputs.ndim == 2
         
         return inputs
+
+    def _check_theta(self, theta):
+        """
+        Check that thet provided array/GPParams object is correct
+        """
+        
+        if isinstance(theta, GPParams):
+            assert self.theta.same_shape(theta)
+            self._theta = theta
+        else:
+            theta = np.array(theta)
+            self.theta.mean = theta[:self.theta.n_mean]
+            assert self.theta.same_shape(theta[self.theta.n_mean:]), "bad shape for hyperparameters"
+            self.theta.set_data(theta[self.theta.n_mean:])
+    
+    def _refit(self, theta):
+        """Check if need to refit"""
+
+        return (self.theta.data is None or
+                not np.allclose(theta[self.theta.n_mean:], self.theta.data, rtol=1.e-10, atol=1.e-15) or
+                not np.allclose(theta[:self.theta.n_mean], self.theta.mean, rtol=1.e-10, atol=1.e-15))
 
     def fit(self, theta):
         """Fits the emulator and sets the parameters
@@ -603,14 +626,8 @@ class GaussianProcess(GaussianProcessBase):
         :type theta: ndarray
         :returns: None
         """
-
-        if isinstance(theta, GPParams):
-            assert self.theta.same_shape(theta)
-            self._theta = theta
-        else:
-            theta = np.array(theta)
-            assert self.theta.same_shape(theta), "bad shape for hyperparameters"
-            self.theta.set_data(theta)
+        
+        self._check_theta(theta)
 
         m = np.dot(self._dm, self.theta.mean)
         Q = self.get_K_matrix()
@@ -654,15 +671,8 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: float
 
         """
-
-        if isinstance(theta, GPParams):
-            assert self.theta.same_shape(theta)
-            theta = theta.get_data()
-        else:
-            theta = np.array(theta)
-            assert self.theta.same_shape(theta), "bad shape for hyperparameters"
-
-        if self.theta.data is None or not np.allclose(theta, self.theta.data, rtol=1.e-10, atol=1.e-15):
+        
+        if self._refit(theta):
             self.fit(theta)
 
         return self.current_logpost
@@ -694,14 +704,7 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: ndarray
         """
 
-        if isinstance(theta, GPParams):
-            assert self.theta.same_shape(theta)
-            theta = theta.get_data()
-        else:
-            theta = np.array(theta)
-            assert self.theta.same_shape(theta), "bad shape for hyperparameters"
-
-        if self.theta.data is None or not np.allclose(theta, self.theta.data, rtol=1.e-10, atol=1.e-15):
+        if self._refit(theta):
             self.fit(theta)
 
         partials = np.zeros(self.n_params)
@@ -710,7 +713,7 @@ class GaussianProcess(GaussianProcessBase):
 
         dmdtheta = self._dm.T
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
-                                            self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+                                            self.theta.data[:(self.theta.n_corr+1)])
 
         partials[:switch] = -np.dot(dmdtheta, self.invQt)
 
@@ -724,7 +727,7 @@ class GaussianProcess(GaussianProcessBase):
             partials[-1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
                                        np.dot(self.invQt, self.invQt))
 
-        partials[:len(self._priors)] -= self._priors.dlogpdtheta(self.theta)
+        partials[self.theta.n_mean:] -= self._priors.dlogpdtheta(self.theta)
 
         return partials
 
@@ -758,34 +761,31 @@ class GaussianProcess(GaussianProcessBase):
 
         """
 
-        if isinstance(theta, GPParams):
-            assert self.theta.same_shape(theta)
-            theta = theta.get_data()
-        else:
-            theta = np.array(theta)
-            assert self.theta.same_shape(theta), "bad shape for hyperparameters"
-
-        if self.theta.data is None or not np.allclose(theta, self.theta.data, rtol=1.e-10, atol=1.e-15):
+        if self._refit(theta):
             self.fit(theta)
 
         hessian = np.zeros((self.n_params, self.n_params))
         
         switch = self.theta.n_mean
+        if self.nugget_type in ["fit", "fixed", "adaptive"]:
+            param_index = slice(switch, -1)
+        else:
+            param_index = slice(switch, self.n_params)
 
         dmdtheta = self._dm.T
         dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
-                                            self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+                                            self.theta.data[:(self.theta.n_corr+1)])
         d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs,
-                                                self.theta.data[self.theta.n_mean:(self.theta.n_mean+self.theta.n_corr+1)])
+                                                self.theta.data[:(self.theta.n_corr+1)])
 
         hessian[:switch, :switch] = np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
                                                                      np.transpose(dmdtheta)))
 
-        hessian[:switch, switch:-1] = np.dot(dmdtheta,
-                                             pivot_cho_solve(self.L, self.P,
-                                                              np.transpose(np.dot(dKdtheta, self.invQt))))
+        hessian[:switch, param_index] = np.dot(dmdtheta,
+                                                pivot_cho_solve(self.L, self.P,
+                                                                np.transpose(np.dot(dKdtheta, self.invQt))))
 
-        hessian[switch:-1, :switch] = np.transpose(hessian[:switch, switch:-1])
+        hessian[param_index, :switch] = np.transpose(hessian[:switch, param_index])
 
         for d1 in range(self.D + 1):
             invQ_dot_d1 = pivot_cho_solve(self.L, self.P, dKdtheta[d1])
@@ -818,8 +818,8 @@ class GaussianProcess(GaussianProcessBase):
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
 
-        np.fill_diagonal(hessian[:len(self._priors),:len(self._priors)],
-                         np.diag(hessian)[:len(self._priors)] - self._priors.d2logpdtheta2(self.theta))
+        np.fill_diagonal(hessian[self.theta.n_mean:,self.theta.n_mean:],
+                         np.diag(hessian)[self.theta.n_mean:] - self._priors.d2logpdtheta2(self.theta))
 
         return hessian
 
