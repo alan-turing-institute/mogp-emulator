@@ -6,6 +6,7 @@ from ..MultiOutputGP import MultiOutputGP
 from ..LibGPGPU import gpu_usable
 from ..MeanFunction import ConstantMean, LinearMean, MeanFunction
 from ..Kernel import Matern52
+from ..Priors import GPPriors
 from scipy import linalg
 
 GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"
@@ -29,6 +30,19 @@ def test_MultiOutputGP_init(x, y):
     assert gp.D == 3
     assert gp.n == 2
     assert gp.n_emulators == 2
+    
+    gp = MultiOutputGP(x, y, mean="1")
+    gp = MultiOutputGP(x, y, mean=["1", "x[0]"])
+    
+    gp = MultiOutputGP(x, y, kernel="SquaredExponential")
+    gp = MultiOutputGP(x, y, kernel=["SquaredExponential", "Matern52"])
+    
+    gp = MultiOutputGP(x, y, priors=GPPriors(n_corr=3, nugget_type="adaptive"))
+    gp = MultiOutputGP(x, y, priors={"n_corr":3, "nugget_type":"adaptive"})
+    gp = MultiOutputGP(x, y, priors=[None, GPPriors(n_corr=3, nugget_type="adaptive")])
+    
+    gp = MultiOutputGP(x, y, nugget=0.)
+    gp = MultiOutputGP(x, y, nugget=[0., "adaptive"])
 
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)

@@ -92,16 +92,13 @@ class MultiOutputGP(object):
         assert len(kernel) == self.n_emulators
 
         if isinstance(priors, (GPPriors, dict)) or priors is None:
-            priorlist = self.n_emulators*[priors]
+            priorslist = self.n_emulators*[priors]
         else:
             priorslist = list(priors)
             assert isinstance(priorslist, list), ("priors must be a GPPriors object, None, or arguments to construct " +
                                                   "a GPPriors object or a list of length n_emulators containing the above")
 
-            if len(priorlist) == 0:
-                priorlist = self.n_emulators*[None]
-
-            assert len(priorlist) == self.n_emulators, "Bad length for list provided for priors to MultiOutputGP"
+            assert len(priorslist) == self.n_emulators, "Bad length for list provided for priors to MultiOutputGP"
 
         if isinstance(nugget, (str, float)):
             nugget = self.n_emulators*[nugget]
@@ -110,7 +107,7 @@ class MultiOutputGP(object):
         assert len(nugget) == self.n_emulators
 
         self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
-                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorlist, nugget)]
+                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,
