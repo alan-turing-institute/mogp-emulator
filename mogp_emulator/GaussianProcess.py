@@ -560,8 +560,8 @@ class GaussianProcess(GaussianProcessBase):
         """
         inputs = self._process_inputs(inputs)
         
-        return self.kernel.kernel_f(self.inputs, inputs,
-                                    self.theta.data[:(self.theta.n_corr+1)])
+        return self.theta.cov*self.kernel.kernel_f(self.inputs, inputs,
+                                                   self.theta.corr_raw)
 
     def get_K_matrix(self):
         """Returns current value of the covariance matrix as a numpy
@@ -712,15 +712,20 @@ class GaussianProcess(GaussianProcessBase):
         switch = self.theta.n_mean
 
         dmdtheta = self._dm.T
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
-                                            self.theta.data[:(self.theta.n_corr+1)])
+        dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
+                                                           self.theta.corr_raw)
+        K = self.get_K_matrix()
 
         partials[:switch] = -np.dot(dmdtheta, self.invQt)
 
-        for d in range(self.D + 1):
+        for d in range(self.D):
             invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, dKdtheta[d]))
             partials[switch + d] = -0.5*(np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
                                          invQ_dot_dKdtheta_trace)
+                                         
+        invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, K))
+        partials[switch + self.D] = -0.5*(np.dot(self.invQt, np.dot(K, self.invQt)) -
+                                          invQ_dot_dKdtheta_trace)
 
         if self.nugget_type == "fit":
             nugget = self.theta.nugget
@@ -768,15 +773,16 @@ class GaussianProcess(GaussianProcessBase):
         
         switch = self.theta.n_mean
         if self.nugget_type in ["fit", "fixed", "adaptive"]:
-            param_index = slice(switch, -1)
+            param_index = slice(switch, -2)
         else:
-            param_index = slice(switch, self.n_params)
+            param_index = slice(switch, self.n_params - 1)
 
         dmdtheta = self._dm.T
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs,
-                                            self.theta.data[:(self.theta.n_corr+1)])
-        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs,
-                                                self.theta.data[:(self.theta.n_corr+1)])
+        K = self.get_K_matrix()
+        dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
+                                                           self.theta.corr_raw)
+        d2Kdtheta2 = self.theta.cov*self.kernel.kernel_hessian(self.inputs, self.inputs,
+                                                               self.theta.corr_raw)
 
         hessian[:switch, :switch] = np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
                                                                      np.transpose(dmdtheta)))
@@ -784,12 +790,17 @@ class GaussianProcess(GaussianProcessBase):
         hessian[:switch, param_index] = np.dot(dmdtheta,
                                                 pivot_cho_solve(self.L, self.P,
                                                                 np.transpose(np.dot(dKdtheta, self.invQt))))
+                                                                
+        hessian[:switch, switch + self.D] = np.dot(dmdtheta,
+                                                   pivot_cho_solve(self.L, self.P,
+                                                                np.transpose(np.dot(K, self.invQt))))
 
         hessian[param_index, :switch] = np.transpose(hessian[:switch, param_index])
+        hessian[switch + self.D, :switch] = np.transpose(hessian[:switch, switch + self.D])
 
-        for d1 in range(self.D + 1):
+        for d1 in range(self.D):
             invQ_dot_d1 = pivot_cho_solve(self.L, self.P, dKdtheta[d1])
-            for d2 in range(self.D + 1):
+            for d2 in range(self.D):
                 invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
                 invQ_dot_d1d2 = pivot_cho_solve(self.L, self.P, d2Kdtheta2[d1, d2])
                 term_1 = np.linalg.multi_dot([self.invQt,
@@ -797,15 +808,37 @@ class GaussianProcess(GaussianProcessBase):
                                               self.invQt])
                 term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
                 hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
+        
+        invQ_dot_d1 = pivot_cho_solve(self.L, self.P, K)
+        for d2 in range(self.D):
+            invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
+            term_1 = np.linalg.multi_dot([self.invQt,
+                                          2.*np.dot(K, invQ_dot_d2) - dKdtheta[d2],
+                                          self.invQt])
+            term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d2)
+            hessian[switch + self.D, switch + d2] = 0.5*(term_1 - term_2)
+            hessian[switch + d2, switch + self.D] = hessian[switch + self.D, switch + d2]
+            
+        term_1 = np.linalg.multi_dot([self.invQt,
+                                      2.*np.dot(K, invQ_dot_d1) - K,
+                                      self.invQt])
+        term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d1) - invQ_dot_d1)
+        hessian[switch + self.D, switch + self.D] = 0.5*(term_1 - term_2)
 
         if self.nugget_type == "fit":
             nugget = self.theta.nugget
             invQinvQt = pivot_cho_solve(self.L, self.P, self.invQt)
             hessian[:switch, -1] = nugget*np.dot(dmdtheta, invQinvQt)
-            for d in range(self.D + 1):
+            for d in range(self.D):
                 hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.invQt, dKdtheta[d], invQinvQt]) -
                                                   0.5*np.trace(pivot_cho_solve(self.L, self.P,
                                                                                 np.dot(dKdtheta[d],
+                                                                                       pivot_cho_solve(self.L, self.P,
+                                                                                                        np.eye(self.n))))))
+                                                                                                        
+            hessian[switch + self.D, -1] = nugget*(np.linalg.multi_dot([self.invQt, K, invQinvQt]) -
+                                                   0.5*np.trace(pivot_cho_solve(self.L, self.P,
+                                                                                np.dot(K,
                                                                                        pivot_cho_solve(self.L, self.P,
                                                                                                         np.eye(self.n))))))
 

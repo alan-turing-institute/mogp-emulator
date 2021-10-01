@@ -237,7 +237,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D + 1)]) + noise
+    Q = np.exp(theta[switch + gp.D])*gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D)]) + noise
     ym = y - np.dot(gp._dm, theta[:switch])
 
     L_expect = np.linalg.cholesky(Q)
@@ -426,7 +426,7 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D + 1)]) + noise
+    Q = np.exp(theta[switch + gp.D])*gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D)]) + noise
     ym = y - np.dot(gp._dm, theta[:switch])
 
     L_expect = np.linalg.cholesky(Q)
@@ -452,7 +452,7 @@ def test_GaussianProcess_logposterior(x, y):
 
     theta = np.zeros(gp.n_params)
 
-    Q = gp.kernel.kernel_f(x, x, theta[:-1])
+    Q = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-2])
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, y)
@@ -705,8 +705,8 @@ def test_GaussianProcess_predict(x, y, dx):
 
     mu, var, deriv = gp.predict(x_test)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
-    Ktest = gp.kernel.kernel_f(x_test, x, theta[:-1])
+    K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-2])
+    Ktest = np.exp(theta[-2])*gp.kernel.kernel_f(x_test, x, theta[:-2])
 
     mu_expect = np.dot(Ktest, gp.invQt)
     var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
@@ -749,8 +749,8 @@ def test_GaussianProcess_predict(x, y, dx):
 
     switch = gp.theta.n_mean
     m = np.dot(gp.get_design_matrix(x_test), theta[:switch])
-    K = gp.kernel.kernel_f(x, x, theta[switch:-1])
-    Ktest = gp.kernel.kernel_f(x_test, x, theta[switch:-1])
+    K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[switch:-2])
+    Ktest = np.exp(theta[-2])*gp.kernel.kernel_f(x_test, x, theta[switch:-2])
 
     mu_expect = m + np.dot(Ktest, gp.invQt)
 
@@ -884,7 +884,7 @@ def test_GaussianProcess_predict_nugget(x, y):
 
     preds = gp.predict(x)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
+    K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-2])
 
     var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
