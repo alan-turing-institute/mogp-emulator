@@ -570,7 +570,7 @@ class LatinHypercubeDesign(ExperimentalDesign):
         
         n_parameters = self.get_n_parameters()
 
-        random_samples = np.reshape(np.tile(np.arange(n_samples, dtype = np.float)/float(n_samples), n_parameters),
+        random_samples = np.reshape(np.tile(np.arange(n_samples, dtype = np.float64)/float(n_samples), n_parameters),
                                             (n_parameters, n_samples))
                     
         for row in random_samples:
