@@ -1,12 +1,13 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..Kernel import Kernel, SquaredExponential, Matern52
+from ..Kernel import StationaryKernel, UniformKernel, SqExpBase, Mat52Base
+from ..Kernel import SquaredExponential, Matern52, UniformSqExp, UniformMat52
 
-def test_calc_r2():
-    "test function for calc_r2 function for kernels"
+def test_stationary_calc_r2():
+    "test function for calc_r2 function for stationary kernels"
 
-    k = Kernel()
+    k = StationaryKernel()
 
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
@@ -35,10 +36,10 @@ def test_calc_r2():
 
     assert_allclose(k.calc_r2(x, y, params), np.array([[1., 4.], [0., 1.]]))
 
-def test_calc_r_failures():
+def test_stationary_calc_r_failures():
     "test scenarios where calc_r should raise an exception"
 
-    k = Kernel()
+    k = StationaryKernel()
 
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
@@ -83,10 +84,10 @@ def test_calc_r_failures():
     with pytest.raises(FloatingPointError):
         k.calc_r2(y, y, np.array([800.]))
 
-def test_calc_dr2dtheta():
+def test_stationary_calc_dr2dtheta():
     "test calc_drdtheta function"
 
-    k = Kernel()
+    k = StationaryKernel()
 
     dx = 1.e-6
 
@@ -135,10 +136,10 @@ def test_calc_dr2dtheta():
 
     assert_allclose(k.calc_dr2dtheta(x, y, params), deriv_fd, rtol = 1.e-5)
 
-def test_calc_drdtheta_failures():
+def test_stationary_calc_drdtheta_failures():
     "test situations where calc_drdtheta should fail"
 
-    k = Kernel()
+    k = StationaryKernel()
 
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
@@ -180,10 +181,10 @@ def test_calc_drdtheta_failures():
     with pytest.raises(AssertionError):
         k.calc_dr2dtheta(x, y, params)
 
-def test_calc_d2rdtheta2():
+def test_stationary_calc_d2rdtheta2():
     "test calc_d2rdtheta2 function"
 
-    k = Kernel()
+    k = StationaryKernel()
 
     dx = 1.e-6
 
@@ -241,10 +242,277 @@ def test_calc_d2rdtheta2():
 
     assert_allclose(k.calc_d2r2dtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
 
-def test_calc_d2rdtheta2_failures():
+def test_stationary_calc_d2rdtheta2_failures():
     "test situations where calc_d2rdtheta2 should fail"
 
-    k = Kernel()
+    k = StationaryKernel()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_d2r2dtheta2(x, y, params)
+
+def test_uniform_calc_r2():
+    "test function for calc_r2 function for stationary kernels"
+
+    k = UniformKernel()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    assert_allclose(k.calc_r2(x, y, params), np.array([[1., 4.], [0., 1.]]))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    assert_allclose(k.calc_r2(x, y, params),
+                    np.array([[5., 5.], [1., 5.]]))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    assert_allclose(k.calc_r2(x, y, params),
+                    np.array([[1.*2.+4.*2., 4.*2.+1.*2.],
+                              [1.*2.,       1.*2.+4.*2.]]))
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    assert_allclose(k.calc_r2(x, y, params), np.array([[1., 4.], [0., 1.]]))
+
+def test_uniform_calc_r_failures():
+    "test scenarios where calc_r should raise an exception"
+
+    k = UniformKernel()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_r2(x, y, params)
+
+    with pytest.raises(FloatingPointError):
+        k.calc_r2(y, y, np.array([800.]))
+
+def test_uniform_calc_dr2dtheta():
+    "test calc_drdtheta function"
+
+    k = UniformKernel()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.calc_r2(x, y, params) -
+                   k.calc_r2(x, y, params - dx))/dx
+
+    assert_allclose(k.calc_dr2dtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.calc_r2(x, y, params) -
+                   k.calc_r2(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.calc_dr2dtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    deriv = np.zeros((2, 2, 2))
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.calc_r2(x, y, params) -
+                   k.calc_r2(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.calc_dr2dtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.calc_r2(x, y, params) -
+                   k.calc_r2(x, y, params - dx))/dx
+
+    assert_allclose(k.calc_dr2dtheta(x, y, params), deriv_fd, rtol = 1.e-5)
+
+def test_uniform_calc_drdtheta_failures():
+    "test situations where calc_drdtheta should fail"
+
+    k = UniformKernel()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.calc_dr2dtheta(x, y, params)
+
+def test_uniform_calc_d2rdtheta2():
+    "test calc_d2rdtheta2 function"
+
+    k = UniformKernel()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (k.calc_dr2dtheta(x, y, params)[0] -
+                      k.calc_dr2dtheta(x, y, params - np.array([dx]))[0])/dx
+
+    assert_allclose(k.calc_d2r2dtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (k.calc_dr2dtheta(x, y, params)[0] -
+                      k.calc_dr2dtheta(x, y, params - np.array([dx]))[0])/dx
+
+    assert_allclose(k.calc_d2r2dtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (k.calc_dr2dtheta(x, y, params)[0] -
+                      k.calc_dr2dtheta(x, y, params - np.array([dx]))[0])/dx
+
+    assert_allclose(k.calc_d2r2dtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    r = np.array([[1., 2.], [1., 1.]])
+
+    deriv_fd = np.zeros((1, 1, 2, 2))
+    deriv_fd[0, 0] = (k.calc_dr2dtheta(x, y, params)[0] -
+                      k.calc_dr2dtheta(x, y, params - np.array([dx]))[0])/dx
+
+    assert_allclose(k.calc_d2r2dtheta2(x, y, params), deriv_fd, rtol = 1.e-5)
+
+def test_uniform_calc_d2rdtheta2_failures():
+    "test situations where calc_d2rdtheta2 should fail"
+
+    k = UniformKernel()
 
     x = np.array([[1.], [2.]])
     y = np.array([[2.], [3.]])
@@ -289,7 +557,7 @@ def test_calc_d2rdtheta2_failures():
 def test_squared_exponential_K():
     "test squared exponential K(r) function"
 
-    k = SquaredExponential()
+    k = SqExpBase()
 
     assert_allclose(k.calc_K(1.), np.exp(-0.5))
 
@@ -302,7 +570,7 @@ def test_squared_exponential_K():
 def test_squared_exponential_dKdr2():
     "test squared exponential dK/dr2 function"
 
-    k = SquaredExponential()
+    k = SqExpBase()
 
     dx = 1.e-6
 
@@ -318,7 +586,7 @@ def test_squared_exponential_dKdr2():
 def test_squared_exponential_d2Kdr22():
     "test squared exponential d2K/dr22 function"
 
-    k = SquaredExponential()
+    k = SqExpBase()
 
     dx = 1.e-6
 
@@ -590,7 +858,7 @@ def test_squared_exponential_hessian_failures():
 def test_matern_5_2_K():
     "test matern 5/2 K(r) function"
 
-    k = Matern52()
+    k = Mat52Base()
 
     assert_allclose(k.calc_K(1.), (1.+np.sqrt(5.)+5./3.)*np.exp(-np.sqrt(5.)))
 
@@ -604,7 +872,7 @@ def test_matern_5_2_K():
 def test_matern_5_2_dKdr():
     "test matern 5/2 dK/dr function"
 
-    k = Matern52()
+    k = Mat52Base()
 
     dx = 1.e-6
 
@@ -620,7 +888,7 @@ def test_matern_5_2_dKdr():
 def test_matern_5_2_d2Kdr22():
     "test squared exponential d2K/dr22 function"
 
-    k = Matern52()
+    k = Mat52Base()
 
     dx = 1.e-6
 
@@ -891,24 +1159,496 @@ def test_matern_5_2_hessian_failures():
 
     with pytest.raises(AssertionError):
         k.kernel_hessian(x, y, params)
+        
+def test_uniform_squared_exponential():
+    "test squared exponential covariance kernel"
 
-def test_Kernel_str():
-    "test string method of generic Kernel class"
+    k = UniformSqExp()
 
-    k = Kernel()
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
 
-    assert str(k) == "Stationary Kernel"
+    assert_allclose(k.kernel_f(x, y, params),
+                    np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    np.exp(-0.5*np.array([[np.sqrt(5.), np.sqrt(5.)],
+                                          [1., np.sqrt(5.)]])**2))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    np.exp(-0.5*np.array([[np.sqrt(1.*2.+4.*2.), np.sqrt(4.*2.+1.*2.)],
+                                          [np.sqrt(1.*2.), np.sqrt(1.*2.+4.*2.)]])**2))
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    np.exp(-0.5*np.array([[1., 2.], [0., 1.]])**2))
+
+def test_uniform_squared_exponential_failures():
+    "test scenarios where squared_exponential should raise an exception"
+
+    k = UniformSqExp()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_f(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_f(x, y, params)
+
+def test_uniform_squared_exponential_deriv():
+    "test the computation of the gradient of the squared exponential kernel"
+
+    k = UniformSqExp()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+def test_uniform_squared_exponential_deriv_failures():
+    "test scenarios where squared_exponential should raise an exception"
+
+    k = SquaredExponential()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+def test_uniform_squared_exponential_hessian():
+    "test the function to compute the squared exponential hessian"
+
+    k = UniformSqExp()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, atol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, atol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, atol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, atol = 1.e-5)
+
+def test_uniform_squared_exponential_hessian_failures():
+    "test situaitons where squared_exponential_hessian should fail"
+
+    k = UniformSqExp()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+def test_uniform_matern_5_2():
+    "test matern 5/2 covariance kernel"
+
+    k = UniformMat52()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    D = np.array([[1., 2.], [0., 1.]])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    D = np.array([[np.sqrt(5.), np.sqrt(5.)], [1., np.sqrt(5.)]])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D))
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    D = np.array([[np.sqrt(1.*2.+4.*2.), np.sqrt(4.*2.+1.*2.)],
+                  [np.sqrt(1.*2.), np.sqrt(1.*2.+4.*2.)]])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    (1.+np.sqrt(5.)*D+5./3.*D**2)*np.exp(-np.sqrt(5.)*D))
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    D = np.array([[1., 2.], [0., 1.]])
+
+    assert_allclose(k.kernel_f(x, y, params),
+                    (1.+np.sqrt(5.)*D + 5./3.*D**2)*np.exp(-np.sqrt(5.)*D))
+
+def test_uniform_matern_5_2_failures():
+    "test scenarios where matern_5_2 should raise an exception"
+
+    k = UniformMat52()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_f(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_f(x, y, params)
+
+def test_uniform_matern_5_2_deriv():
+    "test computing the gradient of the matern 5/2 kernel"
+
+    k = UniformMat52()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (k.kernel_f(x, y, params) -
+                   k.kernel_f(x, y, params - np.array([dx])))/dx
+
+    assert_allclose(k.kernel_deriv(x, y, params), deriv_fd, rtol = 1.e-5)
+
+def test_uniform_matern_5_2_deriv_failures():
+    "test scenarios where matern_5_2_deriv should raise an exception"
+
+    k = UniformMat52()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_deriv(x, y, params)
+
+def test_uniform_matern_5_2_hessian():
+    "test the function to compute the squared exponential hessian"
+
+    k = UniformMat52()
+
+    dx = 1.e-6
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+
+    x = np.array([[1., 2.], [2., 3.]])
+    y = np.array([[2., 4.], [3., 1.]])
+    params = np.array([np.log(2.)])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+
+    x = np.array([1., 2.])
+    y = np.array([2., 3.])
+    params = np.array([0.])
+
+    hess_fd = np.zeros((1, 1, 2, 2))
+    hess_fd[0, 0] = (k.kernel_deriv(x, y, params)[0] -
+                     k.kernel_deriv(x, y, params-np.array([dx]))[0])/dx
+
+    assert_allclose(k.kernel_hessian(x, y, params), hess_fd, rtol = 1.e-5)
+
+def test_uniform_matern_5_2_hessian_failures():
+    "test situaitons where squared_exponential_hessian should fail"
+
+    k = UniformMat52()
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2.], [3.]])
+    params = np.array([0., 0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    params = np.array([[0., 0.], [0., 0.]])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[2., 4.], [3., 2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[1.], [2.]])
+    y = np.array([[[2.], [4.]], [[3.], [2.]]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[2., 4.], [3., 2.]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
+
+    x = np.array([[[2.], [4.]], [[3.], [2.]]])
+    y = np.array([[1.], [2.]])
+    params = np.array([0.])
+
+    with pytest.raises(AssertionError):
+        k.kernel_hessian(x, y, params)
 
 def test_SquaredExponential_str():
     "test string method of SquaredExponential class"
 
-    k = SquaredExponential()
+    k = SqExpBase()
 
     assert str(k) == "Squared Exponential Kernel"
 
 def test_Matern52_str():
     "test string method of Matern52 class"
 
-    k = Matern52()
+    k = Mat52Base()
 
     assert str(k) == "Matern 5/2 Kernel"
