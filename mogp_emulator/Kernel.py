@@ -6,7 +6,6 @@ kernel, but this can be changed once the ``GaussianProcess`` instance is created
 """
 
 import numpy as np
-from scipy.spatial.distance import cdist
 
 class Kernel(object):
     r"""
@@ -78,19 +77,19 @@ class Kernel(object):
         params = np.array(params)
         assert params.ndim == 1, "parameters must be a vector"
         D = len(params)
-        assert D >= 2, "minimum number of parameters in a covariance kernel is 2"
+        assert D >= 1, "minimum number of parameters in a covariance kernel is 1"
 
         x1 = np.array(x1)
 
         assert x1.ndim == 1 or x1.ndim == 2, "bad number of dimensions in input x1"
 
         if x1.ndim == 2:
-            assert x1.shape[1] == D - 1, "bad shape for x1"
+            assert x1.shape[1] == D, "bad shape for x1"
         else:
-            if D == 2:
+            if D == 1:
                 x1 = np.reshape(x1, (len(x1), 1))
             else:
-                x1 = np.reshape(x1, (1, D - 1))
+                x1 = np.reshape(x1, (1, D))
 
         n1 = x1.shape[0]
 
@@ -99,21 +98,21 @@ class Kernel(object):
         assert x2.ndim == 1 or x2.ndim == 2, "bad number of dimensions in input x2"
 
         if x2.ndim == 2:
-            assert x2.shape[1] == D - 1, "bad shape for x2"
+            assert x2.shape[1] == D, "bad shape for x2"
         else:
-            if D == 2:
+            if D == 1:
                 x2 = np.reshape(x2, (len(x2), 1))
             else:
-                x2 = np.reshape(x2, (1, D - 1))
+                x2 = np.reshape(x2, (1, D))
 
         n2 = x2.shape[0]
 
         return x1, n1, x2, n2, params, D
 
 
-    def calc_r(self, x1, x2, params):
+    def calc_r2(self, x1, x2, params):
         r"""
-        Calculate distance between all pairs of points
+        Calculate squared distance between all pairs of points
 
         This method computes the scaled Euclidean distance between all pairs of points
         in ``x1`` and ``x2``. Each component distance is multiplied by the exponential of
@@ -136,7 +135,7 @@ class Kernel(object):
         :param params: Hyperparameter array. Must be 1-D with length one greater than
                        the last dimension of ``x1`` and ``x2``.
         :type params: array-like
-        :returns: Array holding all pair-wise distances between points in arrays ``x1``
+        :returns: Array holding all pair-wise squared distances between points in arrays ``x1``
                   and ``x2``. Will be an array with shape ``(n1, n2)``, where ``n1``
                   is the length of the first axis of ``x1`` and ``n2`` is the length
                   of the first axis of ``x2``.
@@ -144,17 +143,17 @@ class Kernel(object):
         """
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
+        
+        exp_theta = np.exp(params)
 
-        exp_theta = np.exp(-params[:(D - 1)])
+        r2_matrix = np.sum(exp_theta*(x1[:, np.newaxis, :] - x2[np.newaxis, :, :])**2, axis=-1)
 
-        r_matrix = cdist(x1, x2, "seuclidean", V = exp_theta)
+        if np.any(np.isinf(r2_matrix)):
+            raise FloatingPointError("Inf enountered in kernel distance computation")
 
-        if np.any(np.isnan(r_matrix)):
-            raise FloatingPointError("NaN enountered in kernel distance computation")
+        return r2_matrix
 
-        return r_matrix
-
-    def calc_drdtheta(self, x1, x2, params):
+    def calc_dr2dtheta(self, x1, x2, params):
         r"""
         Calculate the first derivative of the distance between all pairs of points with
         respect to the hyperparameters
@@ -192,21 +191,14 @@ class Kernel(object):
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
-        exp_theta = np.exp(-params[:(D - 1)])
+        exp_theta = np.exp(params)
 
-        drdtheta = np.zeros((D - 1, n1, n2))
+        dr2dtheta = np.transpose(exp_theta*(x1[:, np.newaxis, :] - x2[np.newaxis, :, :])**2,
+                                 (2, 0, 1))
 
-        r_matrix = self.calc_r(x1, x2, params)
-        r_matrix[(r_matrix == 0.)] = 1.
+        return dr2dtheta
 
-        for d in range(D - 1):
-            drdtheta[d] = (0.5 * np.exp(params[d]) / r_matrix *
-                           cdist(np.reshape(x1[:,d], (n1, 1)),
-                           np.reshape(x2[:,d], (n2, 1)), "sqeuclidean"))
-
-        return drdtheta
-
-    def calc_d2rdtheta2(self, x1, x2, params):
+    def calc_d2r2dtheta2(self, x1, x2, params):
         r"""
         Calculate all second derivatives of the distance between all pairs of points with
         respect to the hyperparameters
@@ -247,76 +239,13 @@ class Kernel(object):
 
         exp_theta = np.exp(-params[:(D - 1)])
 
-        d2rdtheta2 = np.zeros((D - 1, D - 1, n1, n2))
+        d2r2dtheta2 = np.zeros((D, D, n1, n2))
 
-        r_matrix = self.calc_r(x1, x2, params)
-        r_matrix[(r_matrix == 0.)] = 1.
+        idx = np.arange(D)
+        
+        d2r2dtheta2[idx, idx] = self.calc_dr2dtheta(x1, x2, params)
 
-        for d1 in range(D - 1):
-            for d2 in range(D - 1):
-                if d1 == d2:
-                    d2rdtheta2[d1, d2] = (0.5*np.exp(params[d1]) / r_matrix *
-                                          cdist(np.reshape(x1[:,d1], (n1, 1)),
-                                                np.reshape(x2[:,d1], (n2, 1)), "sqeuclidean"))
-                d2rdtheta2[d1, d2] -= (0.25 * np.exp(params[d1]) *
-                                       np.exp(params[d2]) / r_matrix**3 *
-                                       cdist(np.reshape(x1[:,d1], (n1, 1)),
-                                             np.reshape(x2[:,d1], (n2, 1)), "sqeuclidean")*
-                                       cdist(np.reshape(x1[:,d2], (n1, 1)),
-                                             np.reshape(x2[:,d2], (n2, 1)), "sqeuclidean"))
-
-        return d2rdtheta2
-
-    def calc_drdx(self, x1, x2, params):
-        r"""
-        Calculate the first derivative of the distance between all pairs of points with
-        respect to the first set of inputs
-
-        This method computes the derivative of the scaled Euclidean distance between
-        all pairs of points in ``x1`` and ``x2`` with respect to the first input ``x1``.
-        The gradient is held in an array with shape ``(D - 1, n1, n2)``, where ``D`` is the
-        length of ``params``, ``n1`` is the length of the first axis of
-        ``x1``, and ``n2`` is the length of the first axis of ``x2``. This is used in the
-        computation of the derivative of the kernel with respect to the inputs. The first
-        index represents the different derivatives with respect to each input dimension.
-
-        :param x1: First input array. Must be a 1-D or 2-D array, with the length of
-                   the last dimension matching the last dimension of ``x2`` and
-                   one less than the length of ``params``. ``x1`` may be 1-D if either
-                   each point consists of a single parameter (and ``params`` has length
-                   2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D - 1)``).
-        :type x1: array-like
-        :param x2: Second input array. The same restrictions that apply to ``x1`` also
-                   apply here.
-        :type x2: array-like
-        :param params: Hyperparameter array. Must be 1-D with length one greater than
-                       the last dimension of ``x1`` and ``x2``.
-        :type params: array-like
-        :returns: Array holding the derivative of the pair-wise distances between
-                  points in arrays ``x1`` and ``x2`` with respect to ``x1``.
-                  Will be an array with shape ``(D, n1, n2)``, where ``D`` is the length
-                  of ``params``, ``n1`` is the length of the first axis
-                  of ``x1`` and ``n2`` is the length of the first axis of ``x2``. The first
-                  axis indicates the different derivative components (i.e. the derivative
-                  with respect to the first input parameter is [0,:,:], etc.)
-        :rtype: ndarray
-        """
-
-        x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
-
-        drdx = np.zeros((D - 1, n1, n2))
-
-        exp_theta = np.exp(params[:(D - 1)])
-
-        r_matrix = self.calc_r(x1, x2, params)
-        r_matrix[(r_matrix == 0.)] = 1.
-
-        for d in range(D - 1):
-            drdx[d] = exp_theta[d]*(x1[:, d].flatten()[ :,    None ] -
-                                    x2[:, d].flatten()[ None, :    ])/r_matrix
-
-        return drdx
+        return d2r2dtheta2
 
     def kernel_f(self, x1, x2, params):
         r"""
@@ -350,7 +279,7 @@ class Kernel(object):
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
-        return np.exp(params[D - 1]) * self.calc_K(self.calc_r(x1, x2, params))
+        return self.calc_K(self.calc_r2(x1, x2, params))
 
     def kernel_deriv(self, x1, x2, params):
         r"""
@@ -386,16 +315,11 @@ class Kernel(object):
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
-        dKdtheta = np.zeros((D, n1, n2))
+        dKdr2 = self.calc_dKdr2(self.calc_r2(x1, x2, params))
 
-        dKdtheta[-1] = self.kernel_f(x1, x2, params)
+        dr2dtheta = self.calc_dr2dtheta(x1, x2, params)
 
-        dKdr = self.calc_dKdr(self.calc_r(x1, x2, params))
-
-        drdtheta = self.calc_drdtheta(x1, x2, params)
-
-        for d in range(D - 1):
-            dKdtheta[d] = np.exp(params[-1]) * dKdr * drdtheta[d]
+        dKdtheta = dKdr2*dr2dtheta
 
         return dKdtheta
 
@@ -436,126 +360,17 @@ class Kernel(object):
 
         x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
 
-        d2Kdtheta2 = np.zeros((D, D, n1, n2))
+        r2_matrix = self.calc_r2(x1, x2, params)
+        dKdr2 = self.calc_dKdr2(r2_matrix)
+        d2Kdr22 = self.calc_d2Kdr22(r2_matrix)
 
-        d2Kdtheta2[-1, :] = self.kernel_deriv(x1, x2, params)
-        d2Kdtheta2[:, -1] = d2Kdtheta2[-1, :]
+        dr2dtheta = self.calc_dr2dtheta(x1, x2, params)
+        d2r2dtheta2 = self.calc_d2r2dtheta2(x1, x2, params)
 
-        r_matrix = self.calc_r(x1, x2, params)
-        dKdr = self.calc_dKdr(r_matrix)
-        d2Kdr2 = self.calc_d2Kdr2(r_matrix)
-
-        drdtheta = self.calc_drdtheta(x1, x2, params)
-        d2rdtheta2 = self.calc_d2rdtheta2(x1, x2, params)
-
-        for d1 in range(D - 1):
-            for d2 in range(D - 1):
-                d2Kdtheta2[d1, d2] = np.exp(params[-1]) * (d2Kdr2 *
-                                                           drdtheta[d1] * drdtheta[d2] +
-                                                           dKdr * d2rdtheta2[d1, d2])
+        d2Kdtheta2 = (d2Kdr22 * dr2dtheta[:,np.newaxis,:,:] * dr2dtheta[np.newaxis,:,:,:] +
+                      dKdr2 * d2r2dtheta2)
 
         return d2Kdtheta2
-
-    def kernel_inputderiv(self, x1, x2, params):
-        r"""
-        Compute derivative of Kernel with respect to inputs x1
-
-        Returns the value of the kernel derivative with respect to the first set of input
-        points given inputs and a choice of hyperparameters. This function should not need
-        to be modified for different choices of the kernel function or distance metric, as
-        after checking the inputs it simply calls the routine to compute the distance metric,
-        kernel function, and the appropriate derivative functions of the distance and kernel
-        functions.
-
-        :param x1: First input array. Must be a 1-D or 2-D array, with the length of
-                   the last dimension matching the last dimension of ``x2`` and
-                   one less than the length of ``params``. ``x1`` may be 1-D if either
-                   each point consists of a single parameter (and ``params`` has length
-                   2) or the array only contains a single point (in which case, the array
-                   will be reshaped to ``(1, D - 1)``).
-        :type x1: array-like
-        :param x2: Second input array. The same restrictions that apply to ``x1`` also
-                   apply here.
-        :type x2: array-like
-        :param params: Hyperparameter array. Must be 1-D with length one greater than
-                       the last dimension of ``x1`` and ``x2``.
-        :type params: array-like
-        :returns: Array holding the derivative of the kernel function between points in arrays
-                  ``x1`` and ``x2`` with respect to the first inputs ``x1``. Will be an array with
-                  shape ``(D, n1, n2)``, where ``D`` is the length of ``params``,
-                  ``n1`` is the length of the first axis of ``x1`` and ``n2`` is the length of the
-                  first axis of ``x2``. The first axis indicates the different derivative components
-                  (i.e. the derivative with respect to the first input dimension is [0,:,:], etc.)
-        :rtype: ndarray
-        """
-
-        x1, n1, x2, n2, params, D = self._check_inputs(x1, x2, params)
-
-        dKdx = np.zeros((D - 1, n1, n2))
-
-        r_matrix = self.calc_r(x1, x2, params)
-        dKdr = self.calc_dKdr(r_matrix)
-
-        drdx = self.calc_drdx(x1, x2, params)
-
-        for d in range(D - 1):
-            dKdx[d] = np.exp(params[-1]) * dKdr * drdx[d]
-
-        return dKdx
-
-    def calc_K(self, r):
-        r"""
-        Calculate kernel as a function of distance
-
-        This method implements the kernel function as a function of distance. Given an array
-        of distances, this function evaluates the kernel function of those values, returning
-        an array of the same shape. Note that this is not implemented for the base class, as
-        this must be defined for a specific kernel.
-
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel evaluations, with the same shape as the input ``r``
-        :rtype: ndarray
-        """
-
-        raise NotImplementedError("base Kernel class does not implement a kernel function")
-
-    def calc_dKdr(self, r):
-        r"""
-        Calculate first derivative of kernel as a function of distance
-
-        This method implements the first derivative of the kernel function as a function of
-        distance. Given an array of distances, this function evaluates the derivative
-        function of those values, returning an array of the same shape. Note that this is
-        not implemented for the base class, as this must be defined for a specific kernel.
-
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel derivatives, with the same shape as the input ``r``
-        :rtype: ndarray
-        """
-
-        raise NotImplementedError("base Kernel class does not implement a kernel derivative function")
-
-    def calc_d2Kdr2(self, r):
-        r"""
-        Calculate second derivative of kernel as a function of distance
-
-        This method implements the second derivative of the kernel function as a function of
-        distance. Given an array of distances, this function evaluates the second derivative
-        function of those values, returning an array of the same shape. Note that this is
-        not implemented for the base class, as this must be defined for a specific kernel.
-
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel second derivatives, with the same shape as the input ``r``
-        :rtype: ndarray
-        """
-
-        raise NotImplementedError("base Kernel class does not implement kernel derivatives")
 
 class SquaredExponential(Kernel):
     r"""
@@ -566,9 +381,9 @@ class SquaredExponential(Kernel):
     defines the kernel function and its derivatives.
     """
 
-    def calc_K(self, r):
+    def calc_K(self, r2):
         r"""
-        Compute K(r) for the squared exponential kernel
+        Compute K(r^2) for the squared exponential kernel
 
         This method implements the squared exponential kernel function as a function of distance.
         Given an array of distances, this function evaluates the kernel function of those values,
@@ -581,13 +396,13 @@ class SquaredExponential(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return np.exp(-0.5*r**2)
+        return np.exp(-0.5*r2)
 
-    def calc_dKdr(self, r):
+    def calc_dKdr2(self, r2):
         r"""
         Calculate first derivative of the squared exponential kernel as a function of distance
 
@@ -602,18 +417,18 @@ class SquaredExponential(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return -r*np.exp(-0.5*r**2)
+        return -0.5*np.exp(-0.5*r2)
 
-    def calc_d2Kdr2(self, r):
+    def calc_d2Kdr22(self, r2):
         r"""
-        Calculate second derivative of the squared exponential kernel as a function of distance
+        Calculate second derivative of the squared exponential kernel as a function of squared distance
 
         This method implements the second derivative of the squared exponential kernel function
-        as a function of distance. Given an array of distances, this function evaluates the
+        as a function of squared distance. Given an array of distances, this function evaluates the
         second derivative function of those values, returning an array of the same shape.
 
         :param r: Array holding distances between all points. All values in this array must be
@@ -623,11 +438,11 @@ class SquaredExponential(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return (r**2 - 1.)*np.exp(-0.5*r**2)
+        return 0.25*np.exp(-0.5*r2)
 
     def __str__(self):
         r"""
@@ -650,9 +465,9 @@ class Matern52(Kernel):
     stationary kernel, using the scaled Euclidean distance metric. The subclass then just
     defines the kernel function and its derivatives.
     """
-    def calc_K(self, r):
+    def calc_K(self, r2):
         r"""
-        Compute K(r) for the Matern 5/2 kernel
+        Compute K(r^2) for the Matern 5/2 kernel
 
         This method implements the Matern 5/2 kernel function as a function of distance.
         Given an array of distances, this function evaluates the kernel function of those values,
@@ -665,13 +480,13 @@ class Matern52(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return (1.+np.sqrt(5.)*r+5./3.*r**2)*np.exp(-np.sqrt(5.)*r)
+        return (1.+np.sqrt(5.*r2)+5./3.*r2)*np.exp(-np.sqrt(5.*r2))
 
-    def calc_dKdr(self, r):
+    def calc_dKdr2(self, r2):
         r"""
         Calculate first derivative of the Matern 5/2 kernel as a function of distance
 
@@ -686,13 +501,13 @@ class Matern52(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return -5./3.*r*(1.+np.sqrt(5.)*r)*np.exp(-np.sqrt(5.)*r)
+        return -5./6.*(1.+np.sqrt(5.*r2))*np.exp(-np.sqrt(5*r2))
 
-    def calc_d2Kdr2(self, r):
+    def calc_d2Kdr22(self, r2):
         r"""
         Calculate second derivative of the squared exponential kernel as a function of distance
 
@@ -707,11 +522,11 @@ class Matern52(Kernel):
         :rtype: ndarray
         """
 
-        assert np.all(r >= 0.), "kernel distances must be positive"
+        assert np.all(r2 >= 0.), "kernel distances must be positive"
 
-        r = np.array(r)
+        r2 = np.array(r2)
 
-        return 5./3.*(5.*r**2-np.sqrt(5.)*r-1.)*np.exp(-np.sqrt(5.)*r)
+        return 25./12.*np.exp(-np.sqrt(5.*r2))
 
     def __str__(self):
         r"""
