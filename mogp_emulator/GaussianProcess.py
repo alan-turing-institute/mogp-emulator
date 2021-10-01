@@ -1,5 +1,5 @@
 import numpy as np
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
+from mogp_emulator.Kernel import KernelBase, SquaredExponential, Matern52
 from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams
 from scipy import linalg
@@ -207,7 +207,7 @@ class GaussianProcess(GaussianProcessBase):
                 kernel = Matern52()
             else:
                 raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-        if not issubclass(type(kernel), Kernel):
+        if not issubclass(type(kernel), KernelBase):
             raise ValueError("provided kernel is not a subclass of Kernel")
 
         self._inputs = inputs

@@ -7,7 +7,7 @@ from mogp_emulator.GaussianProcess import (
     PredictResult
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
+from mogp_emulator.Kernel import KernelBase, SquaredExponential, Matern52
 from mogp_emulator.Priors import GPPriors
 
 
@@ -85,7 +85,7 @@ class MultiOutputGP(object):
                 kernel = Matern52()
             else:
                 raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-        if issubclass(type(kernel), Kernel):
+        if issubclass(type(kernel), KernelBase):
             kernel = self.n_emulators*[kernel]
 
         assert isinstance(kernel, list), "kernel must be a Kernel subclass or a list of Kernel subclasses"
