@@ -77,8 +77,8 @@ def test_MultiOutputGP_predict(x, y, dx):
 
     for i in range(2):
 
-        K = gp.emulators[i].kernel.kernel_f(x, x, theta[:-1])
-        Ktest = gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
+        K = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x, x, theta[:-2])
+        Ktest = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-2])
 
         mu_expect = np.dot(Ktest, gp.emulators[i].invQt)
         var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
@@ -99,8 +99,8 @@ def test_MultiOutputGP_predict(x, y, dx):
 
     for i in range(2):
 
-        K = gp.emulators[i].kernel.kernel_f(x, x, theta[:-1]) + np.eye(gp.emulators[i].n)*nugget
-        Ktest = gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
+        K = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x, x, theta[:-2]) + np.eye(gp.emulators[i].n)*nugget
+        Ktest = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-2])
 
         var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
@@ -110,8 +110,8 @@ def test_MultiOutputGP_predict(x, y, dx):
 
     for i in range(2):
 
-        K = gp.emulators[i].kernel.kernel_f(x, x, theta[:-1]) + np.eye(gp.emulators[i].n)*nugget
-        Ktest = gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
+        K = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x, x, theta[:-2]) + np.eye(gp.emulators[i].n)*nugget
+        Ktest = np.exp(theta[-2])*gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-2])
 
         var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 

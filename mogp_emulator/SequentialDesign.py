@@ -735,9 +735,9 @@ class MICEFastGP(GaussianProcess):
         switch = self.theta.n_mean
         sigma_2 = self.theta.cov + self.theta.nugget
 
-        Ktest = self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
-                                     np.reshape(self.inputs[index, :], (1, self.D)),
-                                     self.theta.data[switch:(switch + self.theta.n_corr + 1)])
+        Ktest = self.theta.cov*self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
+                                                    np.reshape(self.inputs[index, :], (1, self.D)),
+                                                    self.theta.corr_raw)
 
         invQ = np.linalg.solve(self.L.T, np.linalg.solve(self.L, np.eye(self.n)))
         invQ_mod = (invQ[indices][:, indices] -

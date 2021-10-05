@@ -1,5 +1,5 @@
 import numpy as np
-from mogp_emulator.Kernel import KernelBase, SquaredExponential, Matern52
+from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams
 from scipy import linalg
@@ -81,7 +81,7 @@ class GaussianProcess(GaussianProcessBase):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
+    def __init__(self, inputs, targets, mean=None, kernel='SquaredExponential', priors=None,
                  nugget="adaptive", inputdict={}, use_patsy=True):
         r"""Create a new GaussianProcess Emulator
 
@@ -201,14 +201,14 @@ class GaussianProcess(GaussianProcessBase):
         assert targets.shape[0] == inputs.shape[0]
 
         if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            elif kernel == "Matern52":
-                kernel = Matern52()
-            else:
+            try:
+                import mogp_emulator.Kernel
+                kernel_class = getattr(mogp_emulator.Kernel, kernel)
+                kernel = kernel_class()
+            except AttributeError:
                 raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
         if not issubclass(type(kernel), KernelBase):
-            raise ValueError("provided kernel is not a subclass of Kernel")
+            raise ValueError("provided kernel is not a subclass of KernelBase")
 
         self._inputs = inputs
         self._targets = targets
