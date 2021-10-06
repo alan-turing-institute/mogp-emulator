@@ -1,9 +1,52 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ..linalg.cholesky import Kinv, KinvPivot, cholesky_factor, fixed_cholesky
 from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
-from ..linalg.cholesky import pivot_cho_solve
 from scipy import linalg
+
+@pytest.fixture
+def A():
+    return np.array([[2., 1., 0.4], [1., 2., 0.2], [0.4, 0.2, 2.]])
+    
+@pytest.fixture
+def b():
+    return np.array([2., 3., 1.])
+
+def test_Kinv(A, b):
+    "test the Kinv class"
+    
+    L = linalg.cholesky(A, lower=True)
+    Ainv = Kinv(L)
+    
+    assert_allclose(Ainv.L, L)
+    
+    x = np.linalg.solve(A, b)
+    
+    assert_allclose(Ainv.solve(b), x)
+    
+    assert_allclose(np.log(np.linalg.det(A)), Ainv.logdetK())
+
+def test_KinvPivot(A, b):
+    "test the cho_solve routine using pivoting"
+
+    L = np.linalg.cholesky(A)
+
+    x = linalg.cho_solve((L, True), b)
+
+    L_pivot, P = pivot_cholesky(A)
+    
+    Ainv = KinvPivot(L_pivot, P)
+
+    x_pivot = Ainv.solve(b)
+
+    assert_allclose(x, x_pivot)
+
+    with pytest.raises(AssertionError):
+        KinvPivot(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32)).solve(b)
+
+    with pytest.raises(ValueError):
+        KinvPivot(L_pivot, np.array([0, 0, 1], dtype=np.int32)).solve(b)
 
 def test_check_cholesky_inputs():
     "Test function that checks inputs to cholesky decomposition routines"
@@ -29,6 +72,32 @@ def test_check_cholesky_inputs():
     with pytest.raises(linalg.LinAlgError):
         _check_cholesky_inputs(input_matrix)
 
+def test_fixed_cholesky(A):
+    "Test the cholesky routine with fixed nugget"
+    
+    L_expected = np.array([[2., 0., 0.], [6., 1., 0.], [-8., 5., 3.]])
+    input_matrix = np.array([[4., 12., -16.], [12., 37., -43.], [-16., -43., 98.]])
+    
+    L_actual = fixed_cholesky(input_matrix)
+    assert_allclose(L_actual, L_expected)
+    
+    L_actual, nugget = cholesky_factor(input_matrix, 0., "fixed")
+    assert_allclose(L_actual.L, L_expected)
+    assert nugget == 0.
+    
+    L_actual, nugget = cholesky_factor(input_matrix, 0., "fit")
+    assert_allclose(L_actual.L, L_expected)
+    assert nugget == 0.
+    
+    L_expected = np.array([[1.0000004999998751e+00, 0.0000000000000000e+00, 0.0000000000000000e+00],
+                         [9.9999950000037496e-01, 1.4142132088085626e-03, 0.0000000000000000e+00],
+                         [6.7379436301144941e-03, 4.7644444411381860e-06, 9.9997779980004420e-01]])
+    input_matrix = np.array([[1. + 1.e-6        , 1.                , 0.0067379469990855 ],
+                             [1.                , 1. + 1.e-6        , 0.0067379469990855 ],
+                             [0.0067379469990855, 0.0067379469990855, 1. + 1.e-6         ]])
+    L_actual = fixed_cholesky(input_matrix)
+    assert_allclose(L_expected, L_actual)
+
 def test_jit_cholesky():
     "Tests the stabilized Cholesky decomposition routine"
     
@@ -46,6 +115,10 @@ def test_jit_cholesky():
                              [0.0067379469990855, 0.0067379469990855, 1.                ]])
     L_actual, jitter = jit_cholesky(input_matrix)
     assert_allclose(L_expected, L_actual)
+    assert_allclose(jitter, 1.e-6)
+    
+    L_actual, jitter = cholesky_factor(input_matrix, 0., "adaptive")
+    assert_allclose(L_expected, L_actual.L)
     assert_allclose(jitter, 1.e-6)
     
     input_matrix = np.array([[1.e-6, 1., 0.], [1., 1., 1.], [0., 1., 1.e-10]])
@@ -81,6 +154,11 @@ def test_pivot_cholesky():
     assert np.array_equal(Piv_expected, Piv_actual)
     assert_allclose(input_matrix, input_matrix_copy)
     
+    L_actual, nugget = cholesky_factor(input_matrix, np.array([]), "pivot")
+    assert_allclose(L_actual.L, L_expected)
+    assert np.array_equal(Piv_expected, L_actual.P)
+    assert len(nugget) == 0
+    
 def test_pivot_transpose():
     "Test function to invert pivot matrix"
     
@@ -100,25 +178,4 @@ def test_pivot_transpose():
     with pytest.raises(AssertionError):
         _pivot_transpose(P)
 
-def test_pivot_cho_solve():
-    "test the cho_solve routine using pivoting"
-
-    A = np.array([[2., 1., 0.4], [1., 2., 0.2], [0.4, 0.2, 2.]])
-    b = np.array([2., 3., 1.])
-
-    L = np.linalg.cholesky(A)
-
-    x = linalg.cho_solve((L, True), b)
-
-    L_pivot, P = pivot_cholesky(A)
-
-    x_pivot = pivot_cho_solve(L_pivot, P, b)
-
-    assert_allclose(x, x_pivot)
-
-    with pytest.raises(AssertionError):
-        pivot_cho_solve(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32), b)
-
-    with pytest.raises(ValueError):
-        pivot_cho_solve(L_pivot, np.array([0, 0, 1], dtype=np.int32), b)
        
