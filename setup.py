@@ -70,15 +70,19 @@ def find_dlib():
     
     path = os.environ["LD_LIBRARY_PATH"]
     base_dir = None
+    lib_dir = None
     for location in path.split(os.pathsep):
-        if "dlib" in location:
+        if len(location) ==0:
+            continue
+        elif "libdlib.a" in os.listdir(location) \
+            or "dlib" in location:
             base_dir = os.path.dirname(location)
-            break
+            lib_dir = os.path.basename(location)
     if not base_dir:
         print("unable to find dlib in LD_LIBRARY_PATH")
         return {}
     include = os.path.join(base_dir,"include")
-    lib64 = os.path.join(base_dir, "lib64")
+    lib64 = os.path.join(base_dir, lib_dir)
     return {
         "include": include,
         "lib64": lib64
