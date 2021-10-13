@@ -8,9 +8,9 @@ import numpy as np
 
 # version information
 MAJOR = 0
-MINOR = 5
+MINOR = 6
 MICRO = 0
-PRERELEASE = 3
+PRERELEASE = 1
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
@@ -31,7 +31,6 @@ version = '{}'
         fh.write(version_file)
 
 write_version_file(version)
-
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -188,7 +187,7 @@ setuptools.setup(name='mogp_emulator',
       author='Alan Turing Institute Research Engineering Group',
       author_email='edaub@turing.ac.uk',
       packages=setuptools.find_packages(),
-      license=['MIT'],
+      license='MIT',
       ext_modules=ext_modules,
       cmdclass={"build_ext": custom_build_ext},
       install_requires=['numpy', 'scipy'],

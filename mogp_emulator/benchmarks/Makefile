@@ -82,4 +82,3 @@ pivot_error.png pivot_unc.png: benchmark_pivot.py
 
 gpu_timing_plots.png: benchmark_gpu_parallel.py
 	python3 benchmark_gpu_parallel.py
-	

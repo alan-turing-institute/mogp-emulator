@@ -222,7 +222,6 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     """
 
     assert isinstance(gp, GaussianProcessBase)
-
     n_tries = int(n_tries)
     assert n_tries > 0, "number of attempts must be positive"
 
@@ -314,7 +313,6 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         assert processes > 0, "number of processes must be positive"
 
     n_tries = int(n_tries)
-
 
     if refit:
         emulators_to_fit = gp.emulators
