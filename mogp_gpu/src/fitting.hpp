@@ -12,6 +12,7 @@
 #include <math.h>
 #include <dlib/optimization.h>
 #include <dlib/global_optimization.h>
+#include <omp.h>
 
 #include "densegp_gpu.hpp"
 #include "multioutputgp_gpu.hpp"
@@ -28,13 +29,7 @@ private:
 
 public: 
 // constructor
-  GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {
-  //  std::cout<<" in constructor for GPWrapper"<<std::endl;
-  }
-
-  ~GPWrapper() {
-  //  std::cout<<"In destructor for GPWrapper"<<std::endl;
-  }
+  GPWrapper(DenseGP_GPU& _gp) : gp(_gp) {}
 
   double logpost(column_vector theta) {
     std::vector<REAL> new_theta(theta.begin(), theta.end());
@@ -110,9 +105,6 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
               return gpw.logpost_deriv(b);
             },
             theta, -1);
-
-      //std::cout << "found minimum at f(" << (*it)[0] << "," << (*it)[1] << ") = "
-      //          << std::setprecision(10) << minf << std::endl;
       minvals.push_back(minf);
       thetavals.push_back(gpw.theta());    
     } catch(std::exception &e) {
