@@ -77,11 +77,26 @@ def find_dlib():
     for location in locations:
         if len(location) ==0:
             continue
-        elif "libdlib.a" in os.listdir(location) \
-            or "dlib" in location:
-            base_dir = os.path.dirname(location)
-            lib_dir = os.path.basename(location)
-    if not base_dir:
+        else:
+            try:
+                if "libdlib.a" in os.listdir(location):
+                    base_dir = os.path.dirname(location)
+                    lib_dir = os.path.basename(location)
+                    break
+                # it is possible that we don't have the correct
+                # directory in LD_LIBRARY_PATH, e.g. we have
+                # /path/to/dlib/lib while the actual library is in
+                # /path/to/dlib/lib64
+                # Try to deal with that situation here:
+                elif "dlib" in location:
+                    base_dir = os.path.dirname(location)
+                    for subdir in os.listdir(base_dir):
+                        if "libdlib.a" in os.listdir(os.path.join(base_dir, subdir)):
+                            lib_dir = subdir
+                            break
+            except(FileNotFoundError):
+                pass
+    if not base_dir and lib_dir:
         print("unable to find dlib in LD_LIBRARY_PATH")
         return {}
     include = os.path.join(base_dir,"include")
@@ -150,11 +165,12 @@ if len(cuda_config) > 0:
                     runtime_library_dirs=[cuda_config["lib64"]],
                     extra_compile_args={"gcc":["-std=c++14"],
                                     "nvcc": ["--compiler-options",
-                                             "-O3,-Wall,-shared,-std=c++14,-fPIC",
+                                             "-O3,-Wall,-shared,-std=c++14,-fPIC,-fopenmp",
                                              "-arch=sm_60",
                                              "--generate-code","arch=compute_37,code=sm_37",
                                              "--generate-code","arch=compute_60,code=sm_60"
                                     ]},
+                    extra_link_args=["-lgomp"],
                     include_dirs=[numpy_include, pybind_include, cuda_config["include"],"mogp_gpu/src", dlib_include])
     ext_modules.append(ext)
 
