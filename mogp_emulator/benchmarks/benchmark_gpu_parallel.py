@@ -44,23 +44,25 @@ def make_timing_plots(df, output_filename):
     df_CPU = df[df["GPU"]==False]
 
     xvals = list(df_GPU.log_n_emulators)
-    cpu_fit = list(df_CPU.fit_time)
     gpu_fit = list(df_GPU.fit_time)
-    cpu_pred = list(df_CPU.predict_time)
     gpu_pred = list(df_GPU.predict_time)
 
     fig, (ax1, ax2) = plt.subplots(1,2,figsize=(16,6))
 
-    ax1.plot(xvals, cpu_fit, "ro", label="CPU")
     ax1.plot(xvals, gpu_fit, "bo", label="GPU")
     ax1.set_xlabel("log2(num emulators)")
     ax1.set_ylabel("Fitting time (s)")
+    if len(df_CPU) > 0:
+        cpu_fit = list(df_CPU.fit_time)
+        ax1.plot(xvals, cpu_fit, "ro", label="CPU")
     ax1.legend(loc="upper left")
 
-    ax2.plot(xvals, np.log10(cpu_pred), "ro", label="CPU")
     ax2.plot(xvals, np.log10(gpu_pred), "bo", label="GPU")
     ax2.set_xlabel("log2(num emulators)")
     ax2.set_ylabel("log10(Prediction time (s))")
+    if len(df_CPU) > 0:
+        cpu_pred = list(df_CPU.predict_time)
+        ax2.plot(xvals, np.log10(cpu_pred), "ro", label="CPU")
     ax2.legend(loc="upper left")
 
     plt.savefig(output_filename, bbox_inches='tight')
@@ -128,16 +130,19 @@ if __name__ == "__main__":
                         default=16)
     parser.add_argument("--output_png_filename", help="output image file", default="gpu_timing_plots.png")
     parser.add_argument("--output_csv_filename", help="export data as csv")
+    parser.add_argument("--run_cpu", help="Run CPU version for comparison", action="store_true")
     args = parser.parse_args()
                     
     num_repetitions = args.num_reps
     n_em_max = args.max_num_emulators
     n_emulators_list = [pow(2,n) for n in range(int(np.log2(n_em_max))+1)]
-    gpu_list = [False]
+    gpu_list = []
     if LibGPGPU.gpu_usable():
         gpu_list.append(True)
     else:
-        print("GPU unavailable - will run CPU version only")
+        print("GPU unavailable - will run CPU version only (if requested via --run_cpu)")
+    if args.run_cpu:
+        gpu_list.append(False)
     df = run_all_tests(n_emulators_list, gpu_list, num_repetitions)
     if args.output_csv_filename:
         df.to_csv(args.output_csv_filename)
