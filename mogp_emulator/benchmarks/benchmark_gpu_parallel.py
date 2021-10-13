@@ -126,7 +126,7 @@ if __name__ == "__main__":
                         choices=[2,4,8,16,32], 
                         help="Max number of emulators to test", 
                         default=16)
-    parser.add_argument("--output_png_filename", help="output image file", default="timing_plots.png")
+    parser.add_argument("--output_png_filename", help="output image file", default="gpu_timing_plots.png")
     parser.add_argument("--output_csv_filename", help="export data as csv")
     args = parser.parse_args()
                     
