@@ -67,11 +67,14 @@ def find_dlib():
     Find the dlib directory in LD_LIBRARY_PATH and return a 
     dict with keys "include" and "lib64" containing the appropriate paths.
     """
-    
     path = os.environ["LD_LIBRARY_PATH"]
+    locations = path.split(os.pathsep)
+    for loc in ["/usr/lib","/usr/local/lib"]:
+        if not loc in locations:
+            locations.append(loc)
     base_dir = None
     lib_dir = None
-    for location in path.split(os.pathsep):
+    for location in locations:
         if len(location) ==0:
             continue
         elif "libdlib.a" in os.listdir(location) \
