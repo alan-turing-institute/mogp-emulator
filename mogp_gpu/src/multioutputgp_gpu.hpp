@@ -122,10 +122,14 @@ public:
     }
 
     // variance of a single prediction (mainly for testing - most use-cases will use predict_variance_batch)
-    double predict_variance(mat_ref testing, vec_ref var)
+    vec predict_variance(mat_ref testing, vec_ref var)
     {
-        
-        return 0.;
+        vec results(emulators.size());
+        #pragma omp parallel for
+        for (unsigned int i=0; i< emulators.size(); ++i) {
+            results[i] = emulators[i]->predict_variance(testing, var);
+        }
+        return results;
     }
 
     // Use the GP emulators to calculate a prediction on testing points, without calculating variance or derivative
@@ -134,7 +138,6 @@ public:
 
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
-            
             emulators[i]->predict_batch(testing, results.row(i));
         }
         
@@ -147,7 +150,6 @@ public:
         for (unsigned int i=0; i< emulators.size(); ++i) {
             
             emulators[i]->predict_variance_batch(testing, means.row(i), vars.row(i));
-         //   std::cout<<" number of threads "<<omp_get_num_threads()<<std::endl;
         }
      
     }
@@ -155,7 +157,7 @@ public:
     // Use the GP emulator to calculate derivative of  prediction on testing points
     void predict_deriv(mat_ref testing, std::vector<mat_ref> results)
     {
-       #pragma omp parallel for
+        #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
             emulators[i]->predict_deriv(testing, results[i]);
         }
@@ -175,7 +177,6 @@ public:
 
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
-       // std::cout<<" in create emulators"<<std::endl;
         for (auto targ : targets) {
             // emulators will all have same starting parameters apart from targets
             emulators.push_back(new DenseGP_GPU(
@@ -217,12 +218,10 @@ public:
 
     // destructor
     ~MultiOutputGP_GPU() {
-        //std::cout<<" in destructor of MultiOutputGP_GPU - about to delete emulators"<<std::endl;
         for (auto em : emulators) {
             delete em;
         }
         emulators.clear();
-        //std::cout<<" at end of destructor of MultiOutputGP_GPU"<<std::endl;
     }
 
 };
