@@ -27,7 +27,7 @@ class GPPriors(object):
         self.nugget = nugget
         
     @classmethod
-    def default_priors(cls, inputs, nugget_type="fit", dist="invgamma"):
+    def default_priors(cls, inputs, n_corr, nugget_type="fit", dist="invgamma"):
         "create priors with defaults for correlation length priors and nugget"
         
         assert nugget_type in ["fit", "adaptive", "fixed", "pivot"], "Bad value for nugget type in GPPriors"
@@ -43,10 +43,17 @@ class GPPriors(object):
                 raise TypeError("dist must be a prior distribution to contstruct default priors")
             dist_obj = dist
         
-        priors = [dist_obj.default_prior_corr(param) for param in np.transpose(inputs)]
+        if inputs.shape[1] == n_corr:
+            modified_inputs = np.transpose(inputs)
+        elif n_corr == 1:
+            modified_inputs = np.reshape(inputs, (1, -1))
+        else:
+            raise ValueError("Number of correlation lengths not compatible with input array")
+        
+        priors = [dist_obj.default_prior_corr(param) for param in modified_inputs]
         
         priors_updated = [p if isinstance(p, dist_obj) else InvGammaPrior.default_prior_corr_mode(param)
-                          for (p, param) in zip(priors, np.transpose(inputs))]
+                          for (p, param) in zip(priors, modified_inputs)]
         
         if nugget_type == "fit":
             nugget = InvGammaPrior.default_prior_nugget()

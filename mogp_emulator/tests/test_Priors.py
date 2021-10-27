@@ -443,6 +443,7 @@ def test_GPPriors_default_priors():
     "test class method creating default priors"
     
     gpp = GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
+                                  n_corr=2,
                                   nugget_type="fit")
     
     assert gpp.mean.mean is None
@@ -459,8 +460,25 @@ def test_GPPriors_default_priors():
     assert_allclose(invgamma.cdf(1.e-6, gpp.nugget.shape, scale=gpp.nugget.scale), 0.995)
     assert_allclose(1.e-7, gpp.nugget.scale/(gpp.nugget.shape + 1.))
     
+    gpp = GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
+                                  n_corr=1,
+                                  nugget_type="fit")
+    
+    assert gpp.mean.mean is None
+    assert gpp.mean.cov is None
+    assert isinstance(gpp.corr[0], InvGammaPrior)
+    assert isinstance(gpp.cov, WeakPrior)
+    assert isinstance(gpp.nugget, InvGammaPrior)
+    
+    for dist in gpp.corr:
+        assert_allclose(invgamma.cdf(np.median([1., 2.]), dist.shape, scale=dist.scale), 0.005)
+        assert_allclose(invgamma.cdf(3., dist.shape, scale=dist.scale), 0.995)
+
+    assert_allclose(invgamma.cdf(1.e-6, gpp.nugget.shape, scale=gpp.nugget.scale), 0.995)
+    assert_allclose(1.e-7, gpp.nugget.scale/(gpp.nugget.shape + 1.))
+    
     inputs = np.array([[1.e-8], [1.1e-8], [1.2e-8], [1.3e-8], [1.]])
-    gpp = GPPriors.default_priors(inputs, nugget_type="adaptive")
+    gpp = GPPriors.default_priors(inputs, n_corr=1, nugget_type="adaptive")
     
     assert isinstance(gpp.corr[0], InvGammaPrior)
     assert_allclose(invgamma.cdf(max_spacing(inputs), gpp.corr[0].shape, scale=gpp.corr[0].scale), 0.995)
@@ -468,9 +486,14 @@ def test_GPPriors_default_priors():
     assert isinstance(gpp.nugget, WeakPrior)
     
     inputs = np.array([[1.e-8], [1.1e-8], [1.2e-8], [1.3e-8], [1.]])
-    gpp = GPPriors.default_priors(inputs, nugget_type="pivot")
+    gpp = GPPriors.default_priors(inputs, n_corr=1, nugget_type="pivot")
     
     assert gpp.nugget is None
+
+    with pytest.raises(ValueError):
+        gpp = GPPriors.default_priors(np.array([[1., 4.], [2., 2.], [4., 1.]]),
+                                      n_corr=3,
+                                      nugget_type="fit")
 
 def test_MeanPriors():
     "test the MeanPriors class"
