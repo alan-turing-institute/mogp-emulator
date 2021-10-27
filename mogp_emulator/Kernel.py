@@ -1,14 +1,36 @@
 r"""
-Kernel module, implements a few standard stationary kernels for use with the
-``GaussianProcess`` class. At present, kernels can only be selected manually by setting
-the ``kernel`` attribute of the GP. The default is to use the ``SquaredExponential``
-kernel, but this can be changed once the ``GaussianProcess`` instance is created.
+Kernel module, implements a few standard kernels for use with the
+``GaussianProcess`` class. Options include the Squared Exponential
+kernel and Matern 5/2 kernel, both with either a single correlation
+length (``UniformSqExp``, ``UniformMat52``) or correlation lengths
+for each input dimension (``SquaredExponential``, ``Matern52``).
+The product form of the Matern 5/2 kernel (``ProductMat52``) is
+also available.
 """
 
 import numpy as np
 
 class KernelBase(object):
     "Base Kernel"
+    
+    def get_n_params(self, inputs):
+        """
+        Determine number of correlation length parameters based on inputs
+        
+        Determines the number of parameters required for a given set of inputs.
+        Returns the number of parameters as an integer.
+        
+        :param inputs: Set of inputs for which the number of correlation length
+                       parameters is desired.
+        :type inputs: ndarray
+        :returns: Number of correlation length parameters
+        :rtype: int
+        """
+        inputs = np.array(inputs)
+        assert inputs.ndim == 2, "Inputs must be a 2D array"
+        
+        return inputs.shape[1]
+    
     def _check_inputs(self, x1, x2, params):
         r"""
         Common function for checking dimensions of inputs (default version)
@@ -203,6 +225,22 @@ class UniformKernel(KernelBase):
     r"""
     Kernel with a single correlation length
     """
+    
+    def get_n_params(self, inputs):
+        """
+        Determine number of correlation length parameters based on inputs
+        
+        Determines the number of parameters required for a given set of inputs.
+        Returns the number of parameters as an integer.
+        
+        :param inputs: Set of inputs for which the number of correlation length
+                       parameters is desired.
+        :type inputs: ndarray
+        :returns: Number of correlation length parameters
+        :rtype: int
+        """
+        return 1
+    
     def _check_inputs(self, x1, x2, params):
         r"""
         Common function for checking dimensions of inputs

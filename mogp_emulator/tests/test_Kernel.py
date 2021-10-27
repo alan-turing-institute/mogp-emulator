@@ -287,6 +287,19 @@ def test_stationary_calc_d2rdtheta2_failures():
     with pytest.raises(AssertionError):
         k.calc_d2r2dtheta2(x, y, params)
 
+def test_stationary_get_n_params():
+    "Test the get_n_params method"
+    
+    k = StationaryKernel()
+    
+    x = np.array([[1.], [2.]])
+
+    assert k.get_n_params(x) == 1
+
+    x = np.array([[1., 2.], [2., 3.]])
+
+    assert k.get_n_params(x) == 2
+
 def test_uniform_calc_r2():
     "test function for calc_r2 function for stationary kernels"
 
@@ -553,6 +566,19 @@ def test_uniform_calc_d2rdtheta2_failures():
     with pytest.raises(AssertionError):
         k.calc_d2r2dtheta2(x, y, params)
 
+def test_uniform_get_n_params():
+    "Test the get_n_params method"
+    
+    k = UniformKernel()
+    
+    x = np.array([[1.], [2.]])
+
+    assert k.get_n_params(x) == 1
+
+    x = np.array([[1., 2.], [2., 3.]])
+
+    assert k.get_n_params(x) == 1
+
 def test_product_calc_r2():
     "test function for calc_r2 function for stationary kernels"
 
@@ -631,6 +657,19 @@ def test_product_calc_r_failures():
 
     with pytest.raises(FloatingPointError):
         k.calc_r2(y, y, np.array([800.]))
+
+def test_uniform_get_n_params():
+    "Test the get_n_params method"
+    
+    k = ProductKernel()
+    
+    x = np.array([[1.], [2.]])
+
+    assert k.get_n_params(x) == 1
+
+    x = np.array([[1., 2.], [2., 3.]])
+
+    assert k.get_n_params(x) == 2
 
 def test_squared_exponential_K():
     "test squared exponential K(r) function"
