@@ -34,6 +34,47 @@ class CovTransform(object):
     def d2scaled_draw2(s):
         return s
 
+def _process_nugget(nugget):
+    """
+    Take raw nugget input and convert to a value and a string
+    
+    :param nugget: Input nugget. Can be a float (fixed nugget) or a string
+                   (nugget is inferred via fitting)
+    :type nugget: float or str
+    :returns: Tuple containing nugget value (float) and nugget type (string)
+    :rtype: tuple containing float and str
+    """
+    
+    if not isinstance(nugget, (str, float)):
+        try:
+            nugget = float(nugget)
+        except TypeError:
+            raise TypeError("nugget parameter must be a string or a non-negative float")
+
+    if isinstance(nugget, str):
+        if nugget == "adaptive":
+            nugget_type = "adaptive"
+        elif nugget == "fit":
+            nugget_type = "fit"
+        elif nugget == "pivot":
+            nugget_type = "pivot"
+        else:
+            raise ValueError("bad value of nugget, must be a float or 'adaptive', 'pivot', or 'fit'")
+        nugget_value = None
+    else:
+        if nugget < 0.:
+            raise ValueError("nugget parameter must be non-negative")
+        nugget_value = float(nugget)
+        nugget_type = "fixed"
+        
+    return nugget_value, nugget_type
+
+def _length_1_array_to_float(arr):
+    "Safely convert a float or a length one array to a float"
+    arr = np.reshape(np.array(arr), (-1,))
+    assert arr.shape == (1,)
+    return arr[0]
+
 class GPParams(object):
     r"""
     Class representing parameters for a GaussianProcess object
@@ -57,40 +98,15 @@ class GPParams(object):
                    is 1. This must be the same as the number of inputs for a
                    particular GP. Must be a positive integer.
     :type n_corr: int
-    :param nugget: Boolean that specifies if the emulator has a nugget parameter.
-                   Optional, default is ``True``. The value of this depends on how
-                   the nugget is fit for a particular GP (pivoted Cholesky
-                   decomposition does not require a nugget, while all others do).
-    :type nugget: bool
-    :param data: Data to use for the parameters. Must be a 1-D numpy array with a
-                 length of ``n_mean + n_corr + 1 + int(nugget)`` (i.e. the number
-                 of parameters) or ``None``. Optional, default is ``None``
-                 (indicates no parameter values have been set).
-    :type data: ndarray or None
-    
-    To access scaled values of the parameters, use the provided attributes: ::
-    
-        >>> import numpy as np
-        >>> from mogp_emulator.GPParams import GPParams
-        >>> gpp = GPParams(n_mean=2, n_corr=2, nugget=True)
-        >>> gpp.set_data(np.zeros(6))
-        >>> gpp.mean
-        array([0., 0.])
-        >>> gpp.corr
-        array([1., 1.])
-        >>> gpp.cov
-        1.
-        >>> gpp.nugget
-        1.0
-        >>> gpp.set_data(np.ones(6))
-        >>> gpp.mean
-        array([1., 1.])
-        >>> gpp.corr
-        array([0.13533528, 0.13533528])
-        >>> gpp.cov
-        2.71828183
-        >>> gpp.nugget
-        2.718281828459045
+    :param fit_cov: Boolean flag indicating if the covariance is fit. If not,
+                    the covariance is held as a separater parameter rather
+                    than being stored in the array.
+    :type fit_cov: bool
+    :param nugget: String or float specifying how nugget is fit. If a float, a
+                   fixed nugget is used (and will fix the value held in the
+                   ``GPParams`` object). If a string, can be ``'fit'``,
+                   ``'adaptive'``, or ``'pivot'``.
+    :type nugget: str or float
     
     The transformations between the raw parameters :math:`\theta` and the
     transformed ones :math:`(\beta, l, \sigma^2, \eta^2)` are as follows:
@@ -107,7 +123,7 @@ class GPParams(object):
        the variance associated with the nugget noise.
     """
     
-    def __init__(self, n_mean=0, n_corr=1, nugget=True, mean_data=None, data=None):
+    def __init__(self, n_mean=0, n_corr=1, fit_cov=True, nugget="fit"):
         r"""
         Create a new parameters object, optionally holding a set of parameter values
         If no data provided, data will be ``None`` to distingush GPs that have not
@@ -118,39 +134,26 @@ class GPParams(object):
         self.n_mean = n_mean
         assert n_corr >= 1, "Number of correlation parameters must be positive"
         self.n_corr = n_corr
-        self.n_cov = 1
-        if nugget:
-            self.n_nugget = 1
-        else:
-            self.n_nugget = 0
+        self.fit_cov = bool(fit_cov)
+        
+        self._nugget, self._nugget_type = _process_nugget(nugget)
         
         if self.n_mean == 0:
-            self.mean = np.array([])
-        elif mean_data is None:
-            self.mean = None
+            self._mean = np.array([])
         else:
-            self.mean = mean_data
-        if data is None:
-            self.data = None
-        else:
-            data = np.array(data)
-            assert data.shape == (self.n_corr + self.n_cov + self.n_nugget,), "Bad shape for data in GPParams"
-            self.data = np.copy(data)
-
+            self._mean = None
+        
+        self._cov = None
+        
+        self._data = None
+        
     @property
-    def n_params(self):
+    def n_data(self):
         r"""
-        Total number of fitting parameters
+        Number of fitting parameters stored in data array
         
-        The ``n_params`` attribute gives the total number of fitting
-        parameters, which is the length of the underlying numpy data
-        array (all parameters save the mean function). Cannot be changed
-        without initializing a new array.
-        
-        :returns: Number of parameters for this GP emulator
-        :rtype int:
         """
-        return self.n_corr + self.n_cov + self.n_nugget
+        return self.n_corr + int(self.fit_cov) + int(self.nugget_type == "fit")
         
     @property
     def mean(self):
@@ -166,46 +169,28 @@ class GPParams(object):
         :returns: Numpy array holding the mean parameters
         :rtype: ndarray
         """
-        return self.mean_data
+        return self._mean
         
     @mean.setter
     def mean(self, new_mean):
         if new_mean is None:
-            self.mean_data = None
+            self._mean = None
         else: 
             new_mean = np.reshape(np.array(new_mean), (-1,))
             assert new_mean.shape == (self.n_mean,), "Bad shape for new mean parameters"
-            self.mean_data = np.copy(new_mean)
+            self._mean = np.copy(new_mean)
 
     @property
     def corr_raw(self):
-        r"""
-        Raw correlation length parameters
+        r"""Raw Correlation Length Parameters
         
-        The ``corr_raw`` property returns the part of the data array, without
-        transformation, associated with the correlation lengths. Returns a
-        numpy array of length ``(n_corr,)`` or ``None`` if the
-        data array has not been initialized.
-        
-        Can be set with a new numpy array of the correct length. If the data
-        array has not been initialized then setting individual parameter
-        values cannot be done.
-        
-        :returns: Numpy array holding the raw correlation parameters
-        :rtype: ndarray
+        This is used in computing kernels as the kernels perform
+        the parameter transformations internally.
         """
-        if self.data is None:
+        if self._data is None:
             return None
         else:
-            return self.data[:self.n_corr]
-        
-    @corr_raw.setter
-    def corr_raw(self, new_corr):
-        if self.data is None:
-            raise ValueError("Must initialize parameters before setting individual values")
-        new_corr = np.reshape(np.array(new_corr), (-1,))
-        assert new_corr.shape == (self.n_corr,), "Bad shape for new correlation lengths; expected array of length {}".format(self.n_corr)
-        self.data[:self.n_corr] = new_corr
+            return self._data[:self.n_corr]
 
     @property
     def corr(self):
@@ -226,45 +211,33 @@ class GPParams(object):
         :returns: Numpy array holding the transformed correlation parameters
         :rtype: ndarray
         """
-        if self.data is None:
+        if self._data is None:
             return None
         else:
             return CorrTransform.transform(self.corr_raw)
         
     @corr.setter
     def corr(self, new_corr):
-        new_corr = np.array(new_corr)
+        if new_corr is None:
+            raise ValueError("Resetting correlation lengths requires resetting the full data array")
+        if self._data is None:
+            raise ValueError("Must set full data array before modifying individual parameters")
+        new_corr = np.reshape(np.array(new_corr), (-1,))
         assert np.all(new_corr > 0.), "Correlation parameters must all be positive"
-        self.corr_raw = CorrTransform.inv_transform(new_corr)
+        assert new_corr.shape == (self.n_corr,)
+        self._data[:self.n_corr] = CorrTransform.inv_transform(new_corr)
 
     @property
-    def cov_raw(self):
-        r"""
-        Raw covariance parameter
+    def cov_index(self):
+        "Determine the location in the data array of the covariance parameter"
         
-        The ``cov_raw`` property returns the covariance, without
-        transformation. Returns a float or ``None`` if the data
-        array has not been initialized.
+        if not self.fit_cov:
+            raise ValueError("Covariance is not part of the data array")
         
-        Can be set with a new float or numpy array of the correct
-        length. If the data array has not been initialized, then
-        setting individual parameter values cannot be done.
-        
-        :returns: Raw covariance parameter
-        :rtype: float
-        """
-        if self.data is None:
-            return None
+        if self.nugget_type == "fit":
+            return -2
         else:
-            return self.data[self.n_corr:(self.n_corr+1)][0]
-    
-    @cov_raw.setter
-    def cov_raw(self, new_cov):
-        if self.data is None:
-            raise ValueError("Must initialize parameters before setting individual values")
-        new_cov = np.reshape(np.array(new_cov), (-1,))
-        assert new_cov.shape == (1,), "New covariance value must be a float or array of length 1"
-        self.data[self.n_corr:(self.n_corr+1)] = np.copy(new_cov)
+            return -1
 
     @property
     def cov(self):
@@ -282,50 +255,37 @@ class GPParams(object):
         :returns: Transformed covariance parameter
         :rtype: float or None
         """
-        if self.data is None:
-            return None
+        if self.fit_cov:
+            if self._data is None:
+                return None
+            else:
+                return CovTransform.transform(self._data[self.cov_index])
         else:
-            return CovTransform.transform(self.cov_raw)
+            return self._cov
         
     @cov.setter
     def cov(self, new_cov):
-        new_cov = np.reshape(np.array(new_cov), (-1,))
-        assert new_cov[0] > 0., "Covariance parameter must be positive"
-        self.cov_raw = CovTransform.inv_transform(new_cov)
+        if new_cov is None:
+            if self.fit_cov:
+                raise ValueError("Cannot reset parameters individually")
+            else:
+                self._cov = None
+        elif self._data is None and self.fit_cov:
+            raise ValueError("Must set full data array before modifying individual parameters")
+        else:
+            new_cov = _length_1_array_to_float(new_cov)
+            assert new_cov > 0., "Covariance must be positive"
+            if self.fit_cov:
+                self._data[self.cov_index] = CovTransform.inv_transform(new_cov)
+            else:
+                self._cov = new_cov
 
     @property
-    def nugget_raw(self):
-        r"""
-        Raw nugget parameter
-        
-        The ``nugget_raw`` property returns the nugget, without
-        transformation. Returns a float or ``None`` if the emulator
-        parameters have not been initialized or if the emulator
-        does not have a nugget.
-        
-        Can be set with a new float or numpy array of the correct length.
-        If the data array has not been initialized or the emulator
-        has no nugget, then the setter will raise an error.
-        
-        :returns: Raw nugget parameter
-        :rtype: float or None
+    def nugget_type(self):
         """
-        if self.data is None:
-            return None
-        elif self.n_nugget == 0:
-            return np.array([])
-        else:
-            return self.data[-1]
-
-    @nugget_raw.setter
-    def nugget_raw(self, new_nugget):
-        if self.data is None:
-            raise ValueError("Must initialize parameters before setting individual values")
-        if self.n_nugget == 0:
-            raise AttributeError("GPParams object does not include a nugget parameter")
-        new_nugget = np.reshape(np.array(new_nugget), (-1,))
-        assert new_nugget.shape == (1,), "New nugget value must be a float or array of length 1"
-        self.data[-1] = new_nugget[0]
+        Method used to fit nugget
+        """
+        return self._nugget_type
 
     @property
     def nugget(self):
@@ -344,16 +304,33 @@ class GPParams(object):
         :returns: Transformed nugget parameter
         :rtype: float or None
         """
-        if self.data is None:
-            return None
-        else:
-            return CovTransform.transform(self.nugget_raw)
+        if self.nugget_type in ["fixed", "adaptive", "pivot"]:
+            return self._nugget
+        elif self.nugget_type == "fit":
+            if self._data is None:
+                return None
+            else:
+                return CovTransform.transform(self._data[-1])
         
     @nugget.setter
     def nugget(self, new_nugget):
-        new_nugget = np.reshape(np.array(new_nugget), (-1,))
-        assert new_nugget[0] >= 0., "New nugget value must be non-negative" 
-        self.nugget_raw = CovTransform.inv_transform(new_nugget)
+        if self.nugget_type in ["fixed", "pivot"]:
+            raise RuntimeError("Cannot explicitly modify nugget for nugget type {}".format(self.nugget_type))
+        elif self.nugget_type == "adaptive":
+            if new_nugget is None:
+                self._nugget = None
+            else:
+                new_nugget = _length_1_array_to_float(new_nugget)
+                assert new_nugget > 0., "nugget cannot be negative"
+                self._nugget = new_nugget
+        else:
+            if new_nugget is None:
+                raise ValueError("Cannot reset fit nugget individually, must reset full data array")
+            if self._data is None:
+                raise ValueError("Must initialize parameters before setting individual values")
+            new_nugget = _length_1_array_to_float(new_nugget)
+            assert new_nugget > 0., "Nugget must be positive"
+            self._data[-1] = CovTransform.inv_transform(new_nugget)
 
     def get_data(self):
         r"""
@@ -366,7 +343,7 @@ class GPParams(object):
         :returns: Numpy array holding the raw parameter values
         :rtype: ndarray or None
         """
-        return self.data
+        return self._data
 
     def set_data(self, new_params):
         r"""
@@ -375,7 +352,8 @@ class GPParams(object):
         Allows the data underlying the ``GPParams`` object to be set
         at once. Can also be used to reset the underlying data to
         ``None`` for the full array, indicating that no parameters
-        have been set.
+        have been set. Note that setting the data re-initializes the
+        mean and (if necessary) covariance and nugget.
         
         :param new_params: New parameter values as a numpy array with shape
                            ``(n_params,)`` or None.
@@ -383,11 +361,16 @@ class GPParams(object):
         :returns: None
         """
         if new_params is None:
-            self.data = None
+            self._data = None
         else:
             new_params = np.array(new_params)
-            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_params)
-            self.data = np.copy(new_params)
+            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_data)
+            self._data = np.copy(new_params)
+        self.mean = None
+        if not self.fit_cov:
+            self._cov = None
+        if self.nugget_type == "adaptive":
+            self._nugget = None
         
     def same_shape(self, other):
         """
@@ -413,24 +396,23 @@ class GPParams(object):
         """
         
         if isinstance(other, np.ndarray):
-            return other.shape == (self.n_params,)
+            return other.shape == (self.n_data,)
         elif isinstance(other, GPParams):
             return (self.n_mean == other.n_mean and
                     self.n_corr == other.n_corr and
-                    self.n_nugget == other.n_nugget and
-                    self.n_params == other.n_params)
+                    self.fit_cov == other.fit_cov and
+                    self.nugget_type == other.nugget_type)
         else:
             raise ValueError("other must be a numpy array or another GPParams object in GPParams.same_shape")
 
     def __str__(self):
         "Returns a string representation of the GPParams class"
         outstr = "GPParams with:"
-        if self.data is None:
+        if self._data is None:
             outstr += " data = None"
         else:
             outstr += "\nmean = {}".format(self.mean)
             outstr += "\ncorrelation = {}".format(self.corr)
             outstr += "\ncovariance = {}".format(self.cov)
-            if self.n_nugget == 1:
-                outstr += "\nnugget = {}".format(self.nugget)
+            outstr += "\nnugget = {}".format(self.nugget)
         return outstr
