@@ -314,8 +314,12 @@ class GPParams(object):
         
     @nugget.setter
     def nugget(self, new_nugget):
-        if self.nugget_type in ["fixed", "pivot"]:
-            raise RuntimeError("Cannot explicitly modify nugget for nugget type {}".format(self.nugget_type))
+        if self.nugget_type == "pivot":
+            if not new_nugget is None:
+                raise ValueError("Cannot explicitly modify nugget for 'pivot' nugget type")
+        elif self.nugget_type == "fixed":
+            if not np.allclose(self._nugget, new_nugget):
+                raise ValueError("Cannot explicitly modify nugget for 'fixed' nugget type")
         elif self.nugget_type == "adaptive":
             if new_nugget is None:
                 self._nugget = None

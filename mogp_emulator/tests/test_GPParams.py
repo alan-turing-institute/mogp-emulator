@@ -244,7 +244,7 @@ def test_GPParams_nugget():
     assert gpp.nugget is None
     assert gpp.nugget_type == "pivot"
     
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         gpp.nugget = 1.
         
     gpp = GPParams(nugget=1.)
@@ -252,7 +252,7 @@ def test_GPParams_nugget():
     assert_allclose(gpp.nugget, 1.)
     assert gpp.nugget_type == "fixed"
     
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         gpp.nugget = 2.
         
     gpp = GPParams(nugget="adaptive")
