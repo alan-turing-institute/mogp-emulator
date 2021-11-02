@@ -23,7 +23,7 @@ class GPPriors(object):
         self.cov = cov
         
         assert nugget_type in ["fit", "adaptive", "fixed", "pivot"], "Bad value for nugget type in GPPriors"
-        self.nugget_type = nugget_type
+        self._nugget_type = nugget_type
         self.nugget = nugget
         
     @classmethod
@@ -57,8 +57,6 @@ class GPPriors(object):
         
         if nugget_type == "fit":
             nugget = InvGammaPrior.default_prior_nugget()
-        elif nugget_type in ["adaptive", "fixed"]:
-            nugget = WeakPrior()
         else:
             nugget = None
             
@@ -137,17 +135,27 @@ class GPPriors(object):
         if not issubclass(type(newcov), WeakPrior):
             raise TypeError("Covariance prior must be a WeakPrior derived object")
         self._cov = newcov
-        
+    
+    @property
+    def fit_cov(self):
+        "Property indicating if the covariance must be fit or can be found analytically"
+        return True
+        #return (not (self.mean.has_weak_priors and (type(self.cov) is WeakPrior or type(self.cov) is InvGammaPrior)))
+    
+    @property
+    def nugget_type(self):
+        return self._nugget_type
+    
     @property
     def nugget(self):
         return self._nugget
         
     @nugget.setter
     def nugget(self, newnugget):
-        if self.nugget_type == "pivot":
+        if self.nugget_type in ["pivot", "adaptive", "fixed"] and not newnugget is None:
             print("Nugget type does not support prior distribution, setting to None")
             newnugget = None
-        if newnugget is None and self.nugget_type in ["fit", "adaptive", "fixed"]:
+        if newnugget is None and self.nugget_type == "fit":
             newnugget = WeakPrior()
         if not (newnugget is None or issubclass(type(newnugget), WeakPrior)):
             raise TypeError("Nugget prior must be a WeakPrior derived object or None")
@@ -158,10 +166,9 @@ class GPPriors(object):
         if not isinstance(theta, GPParams):
             raise TypeError("theta must be a GPParams object when computing priors in GPPriors")
         assert self.n_corr == theta.n_corr, "Provided GPParams object does not have the correct number of parameters"
-        if self.nugget_type in ["fit", "adaptive", "fixed"]:
-            assert theta.n_nugget == 1, "Provided GPParams object does not have the correct number of parameters"
-        else:
-            assert theta.n_nugget == 0, "Provided GPParams object does not have the correct number of parameters"
+        assert self.fit_cov == theta.fit_cov, "Provided GPParams object does not fit the covariance in the same way"
+        assert self.nugget_type == theta.nugget_type, "Provided GPParams object does not have the correct nugget type"
+        assert not theta.get_data() is None, "Provided GPParams object does not have its data set"
     
     def logp(self, theta):
         "Compute log probability given a GPParams object"
@@ -173,9 +180,10 @@ class GPPriors(object):
         for dist, val in zip(self._corr, theta.corr):
             logposterior += dist.logp(val)
         
-        logposterior += self._cov.logp(theta.cov)
+        if self.fit_cov:
+            logposterior += self._cov.logp(theta.cov)
             
-        if not self._nugget is None:
+        if self.nugget_type == "fit":
             logposterior += self._nugget.logp(theta.nugget)
                 
         return logposterior
@@ -189,10 +197,11 @@ class GPPriors(object):
         
         for dist, val in zip(self._corr, theta.corr):
             partials.append(dist.dlogpdtheta(val, CorrTransform))
-
-        partials.append(self._cov.dlogpdtheta(theta.cov, CovTransform))
+        
+        if self.fit_cov:
+            partials.append(self._cov.dlogpdtheta(theta.cov, CovTransform))
             
-        if not self._nugget is None:
+        if self.nugget_type == "fit":
             partials.append(self._nugget.dlogpdtheta(theta.nugget, CovTransform))
                 
         return np.array(partials)
@@ -209,9 +218,10 @@ class GPPriors(object):
         for dist, val in zip(self._corr, theta.corr):
             hessian.append(dist.d2logpdtheta2(val, CorrTransform))
 
-        hessian.append(self._cov.d2logpdtheta2(theta.cov, CovTransform))
+        if self.fit_cov:
+            hessian.append(self._cov.d2logpdtheta2(theta.cov, CovTransform))
             
-        if not self._nugget is None:
+        if self.nugget_type == "fit":
             hessian.append(self._nugget.d2logpdtheta2(theta.nugget, CovTransform))
                 
         return np.array(hessian)
@@ -227,9 +237,10 @@ class GPPriors(object):
         for dist in self._corr:
             sample_pt.append(dist.sample(CorrTransform))
 
-        sample_pt.append(self._cov.sample(CovTransform))
+        if self.fit_cov:
+            sample_pt.append(self._cov.sample(CovTransform))
         
-        if not self._nugget is None:
+        if self.nugget_type == "fit":
             sample_pt.append(self._nugget.sample(CovTransform))
 
         return np.array(sample_pt)
@@ -277,6 +288,11 @@ class MeanPriors(object):
             return 0
         else:
             return len(self.mean)
+            
+    @property
+    def has_weak_priors(self):
+        "Property indicating if the Mean has weak prior information"
+        return self.mean is None
     
     def inv_cov(self):
         "compute the inverse of the covariance matrix"

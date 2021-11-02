@@ -174,7 +174,8 @@ class GPParams(object):
     @mean.setter
     def mean(self, new_mean):
         if new_mean is None:
-            self._mean = None
+            if self.n_mean > 0:
+                self._mean = None
         else: 
             new_mean = np.reshape(np.array(new_mean), (-1,))
             assert new_mean.shape == (self.n_mean,), "Bad shape for new mean parameters"
@@ -325,7 +326,7 @@ class GPParams(object):
                 self._nugget = None
             else:
                 new_nugget = _length_1_array_to_float(new_nugget)
-                assert new_nugget > 0., "nugget cannot be negative"
+                assert new_nugget >= 0., "nugget cannot be negative"
                 self._nugget = new_nugget
         else:
             if new_nugget is None:
@@ -333,7 +334,7 @@ class GPParams(object):
             if self._data is None:
                 raise ValueError("Must initialize parameters before setting individual values")
             new_nugget = _length_1_array_to_float(new_nugget)
-            assert new_nugget > 0., "Nugget must be positive"
+            assert new_nugget >= 0., "Nugget must be positive"
             self._data[-1] = CovTransform.inv_transform(new_nugget)
 
     def get_data(self):

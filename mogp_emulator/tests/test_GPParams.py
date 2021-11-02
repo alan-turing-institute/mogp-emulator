@@ -74,6 +74,10 @@ def test_GPParams_mean():
     assert gpp.n_mean == 0
     assert len(gpp.mean) == 0
     
+    gpp.mean = None
+    
+    assert len(gpp.mean) == 0
+    
     with pytest.raises(AssertionError):
         gpp.mean = [1.]
     
