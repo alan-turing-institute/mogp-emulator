@@ -7,7 +7,7 @@ from mogp_emulator.GaussianProcess import (
     PredictResult
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
-from mogp_emulator.Kernel import KernelBase, SquaredExponential, Matern52
+from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 
 
@@ -32,7 +32,7 @@ class MultiOutputGP(object):
 
     """
 
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
+    def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
                  nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
         """
         Create a new multi-output GP Emulator
@@ -78,14 +78,7 @@ class MultiOutputGP(object):
         assert isinstance(mean, list), "mean must be None, a string, a valid patsy model description, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
 
-        if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            elif kernel == "Matern52":
-                kernel = Matern52()
-            else:
-                raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-        if issubclass(type(kernel), KernelBase):
+        if isinstance(kernel, str) or issubclass(type(kernel), KernelBase):
             kernel = self.n_emulators*[kernel]
 
         assert isinstance(kernel, list), "kernel must be a Kernel subclass or a list of Kernel subclasses"
@@ -267,7 +260,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta.data is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        list(range(len(self.emulators)))) if not failed_fit]
 
     def get_indices_not_fit(self):
@@ -291,7 +284,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta.data is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        list(range(len(self.emulators)))) if failed_fit]
 
     def get_emulators_fit(self):
@@ -316,7 +309,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta.data is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        self.emulators) if not failed_fit]
 
     def get_emulators_not_fit(self):
@@ -341,7 +334,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta.data is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        self.emulators) if failed_fit]
 
 
