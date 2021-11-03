@@ -481,7 +481,7 @@ class GaussianProcess(GaussianProcessBase):
         For a given set of inputs, compute the design matrix based on the GP
         mean function.
         """
-        
+
         inputs = self._process_inputs(inputs)
         
         if self._mean is None or self._mean == "0" or self._mean == "-1":
