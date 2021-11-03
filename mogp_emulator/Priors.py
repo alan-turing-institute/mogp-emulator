@@ -126,6 +126,10 @@ class GPPriors(object):
     
     @property
     def cov(self):
+        """Covariance Scale Priors
+        
+        Prior distribution on Covariance Scale.
+        """
         return self._cov
         
     @cov.setter
