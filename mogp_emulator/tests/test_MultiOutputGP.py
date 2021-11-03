@@ -80,7 +80,7 @@ def test_MultiOutputGP_predict(x, y, dx):
         K = np.exp(theta[-1])*gp.emulators[i].kernel.kernel_f(x, x, theta[:-1])
         Ktest = np.exp(theta[-1])*gp.emulators[i].kernel.kernel_f(x_test, x, theta[:-1])
 
-        mu_expect = np.dot(Ktest, gp.emulators[i].invQt)
+        mu_expect = np.dot(Ktest, gp.emulators[i].Kinv_t)
         var_expect = np.exp(theta[-1]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
         assert_allclose(mu[i], mu_expect)

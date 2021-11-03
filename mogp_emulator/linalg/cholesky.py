@@ -84,7 +84,7 @@ def cholesky_factor(A, nugget, nugget_type):
         L = fixed_cholesky(A)
         Ainv = Kinv(L)
     else:
-        raise ValueError("Bad value for nugget_typ in cholesky_factor")
+        raise ValueError("Bad value for nugget_type in cholesky_factor")
         
     return Ainv, nugget
         

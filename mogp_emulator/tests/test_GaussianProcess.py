@@ -145,6 +145,21 @@ def test_GaussianProcess_n_params(x, y):
     
     gp = GaussianProcess(x, y, nugget="pivot")
     assert gp.n_params == x.shape[1] + 1
+    
+def test_GaussianProcess_n_data(x, y):
+    "test the get_n_params method of GaussianProcess"
+
+    gp = GaussianProcess(x, y)
+    assert gp.n_data == x.shape[1] + 1
+
+    gp = GaussianProcess(x, y, mean="x[0]")
+    assert gp.n_data == 2 + x.shape[1] + 1
+    
+    gp = GaussianProcess(x, y, kernel="UniformSqExp")
+    assert gp.n_data == 2
+    
+    gp = GaussianProcess(x, y, nugget="pivot")
+    assert gp.n_data == x.shape[1] + 1
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_n_params(x, y):
@@ -256,8 +271,8 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
                           np.dot(ym, invQt_expect) +
                           gp.n*np.log(2.*np.pi))
 
-    assert_allclose(L_expect, gp.L)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(L_expect, gp.Kinv.L)
+    assert_allclose(invQt_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
 
 def test_GaussianProcess_theta_GPParams(x, y):
@@ -327,9 +342,9 @@ def test_GaussianProcess_theta_pivot():
     gp1.theta = np.zeros(2)
     gp2.theta = np.zeros(2)
 
-    assert_allclose(gp1.L, gp2.L)
-    assert_allclose(gp1.invQt, gp2.invQt[gp2.P])
-    assert np.array_equal(gp2.P, [0, 2, 1])
+    assert_allclose(gp1.Kinv.L, gp2.Kinv.L)
+    assert_allclose(gp1.Kinv_t, gp2.Kinv_t[gp2.Kinv.P])
+    assert np.array_equal(gp2.Kinv.P, [0, 2, 1])
 
 def test_GaussianProcess_priors_property(x, y):
     "test that priors are set properly"
@@ -443,17 +458,17 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = np.exp(theta[switch + gp.D])*gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D)]) + noise
+    K = np.exp(theta[switch + gp.D])*gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D)]) + noise
     ym = y - np.dot(gp._dm, theta[:switch])
 
-    L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, ym)
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(ym, invQt_expect) +
+    L_expect = np.linalg.cholesky(K)
+    Kinv_t_expect = np.linalg.solve(K, ym)
+    logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
+                          np.dot(ym, Kinv_t_expect) +
                           gp.n*np.log(2.*np.pi))
 
-    assert_allclose(L_expect, gp.L)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(L_expect, gp.Kinv.L)
+    assert_allclose(Kinv_t_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
     assert_allclose(logpost_expect, gp.logposterior(theta))
 
@@ -469,25 +484,25 @@ def test_GaussianProcess_logposterior(x, y):
 
     theta = np.zeros(gp.n_data)
 
-    Q = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-1])
+    K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-1])
 
-    L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, y)
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(y, invQt_expect) +
+    L_expect = np.linalg.cholesky(K)
+    Kinv_t_expect = np.linalg.solve(K, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
+                          np.dot(y, Kinv_t_expect) +
                           gp.n*np.log(2.*np.pi))
 
     assert_allclose(logpost_expect, gp.logposterior(theta))
-    assert_allclose(gp.L, L_expect)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(gp.Kinv.L, L_expect)
+    assert_allclose(Kinv_t_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
 
     # check we can set theta back to none correctly
 
     gp.theta = None
     assert gp.theta.get_data() is None
-    assert gp.L is None
-    assert gp.P is None
+    assert gp.Kinv is None
+    assert gp.Kinv_t is None
     assert gp.current_logpost is None
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
@@ -607,20 +622,20 @@ def test_GaussianProcess_default_priors(dx):
 
     gp.fit(theta)
 
-    Q = gp.get_K_matrix()
+    K = gp.get_K_matrix()
 
-    L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, y)
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(y, invQt_expect) +
+    L_expect = np.linalg.cholesky(K)
+    Kinv_t_expect = np.linalg.solve(K, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
+                          np.dot(y, Kinv_t_expect) +
                           gp.n*np.log(2.*np.pi))
 
     dist = InvGammaPrior.default_prior_corr(np.array([1., 2., 4.]))
 
     logpost_expect -= 2.*dist.logp(1.)
 
-    assert_allclose(L_expect, gp.L)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(L_expect, gp.Kinv.L)
+    assert_allclose(Kinv_t_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
     assert_allclose(logpost_expect, gp.logposterior(theta))
 
@@ -665,12 +680,12 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.get_K_matrix() + noise
+    K = gp.get_K_matrix() + noise
 
-    L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, y - theta[0])
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(y - theta[0], invQt_expect) +
+    L_expect = np.linalg.cholesky(K)
+    Kinv_t_expect = np.linalg.solve(K, y - theta[0])
+    logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
+                          np.dot(y - theta[0], Kinv_t_expect) +
                           gp.n*np.log(2.*np.pi))
 
     theta_transformed = np.zeros(gp.n_params)
@@ -683,8 +698,8 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
     if nugget == "fit":
         logpost_expect -= gp.priors.nugget.logp(theta_transformed[-1])
 
-    assert_allclose(L_expect, gp.L)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(L_expect, gp.Kinv.L)
+    assert_allclose(Kinv_t_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
     assert_allclose(logpost_expect, gp.logposterior(theta))
 
@@ -725,7 +740,7 @@ def test_GaussianProcess_predict(x, y, dx):
     K = np.exp(theta[-1])*gp.kernel.kernel_f(x, x, theta[:-1])
     Ktest = np.exp(theta[-1])*gp.kernel.kernel_f(x_test, x, theta[:-1])
 
-    mu_expect = np.dot(Ktest, gp.invQt)
+    mu_expect = np.dot(Ktest, gp.Kinv_t)
     var_expect = np.exp(theta[-1]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
     assert_allclose(mu, mu_expect)
@@ -769,7 +784,7 @@ def test_GaussianProcess_predict(x, y, dx):
     K = np.exp(theta[-1])*gp.kernel.kernel_f(x, x, theta[switch:-1])
     Ktest = np.exp(theta[-1])*gp.kernel.kernel_f(x_test, x, theta[switch:-1])
 
-    mu_expect = m + np.dot(Ktest, gp.invQt)
+    mu_expect = m + np.dot(Ktest, gp.Kinv_t)
 
     assert_allclose(mu, mu_expect)
     assert_allclose(var, var_expect)
@@ -999,7 +1014,6 @@ def test_GaussianProcess_predict_failures(x, y):
     with pytest.raises(AssertionError):
         gp.predict(np.array([[2., 4.]]))
 
-
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_predict_failures(x, y):
     "test situations where predict method of GaussianProcessGPU should fail"
@@ -1017,7 +1031,6 @@ def test_GaussianProcessGPU_predict_failures(x, y):
 
     with pytest.raises(AssertionError):
         gp.predict(np.array([[2., 4.]]))
-
 
 def test_GaussianProcess_str(x, y):
     "Test function for string method"

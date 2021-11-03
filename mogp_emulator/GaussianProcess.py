@@ -4,7 +4,7 @@ from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams, _process_nugget
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_cho_solve
+from mogp_emulator.linalg import cholesky_factor
 try:
     from patsy import dmatrix, PatsyError
 except ImportError:
@@ -236,8 +236,8 @@ class GaussianProcess(GaussianProcessBase):
                                fit_cov=self.priors.fit_cov,
                                nugget=nugget)
                                
-        self.L = None
-        self.P = None
+        self.Kinv = None
+        self.Kinvt = None
         self.current_logpost = None
 
     @property
@@ -441,8 +441,8 @@ class GaussianProcess(GaussianProcessBase):
         if theta is None:
             self._theta.set_data(None)
             self.current_logpost = None
-            self.L = None
-            self.P = None
+            self.Kinv = None
+            self.Kinv_t = None
         else:
             self.fit(theta)
 
@@ -500,7 +500,7 @@ class GaussianProcess(GaussianProcessBase):
                 
     def get_cov_matrix(self, inputs):
         """Computes the covariance matrix for a set of inputs. Assumes the second
-        self of inputs is the inputs on which the GP is conditioned.
+        set of inputs is the inputs on which the GP is conditioned.
         """
         inputs = self._process_inputs(inputs)
         
@@ -574,23 +574,17 @@ class GaussianProcess(GaussianProcessBase):
         self._check_theta(theta)
 
         m = np.dot(self._dm, self.theta.mean)
-        Q = self.get_K_matrix()
+        K = self.get_K_matrix()
 
-        if self.nugget_type == "adaptive":
-            self.L, self.theta.nugget = jit_cholesky(Q)
-            self.P = np.arange(0, self.n)
-        elif self.nugget_type == "pivot":
-            self.L, self.P = pivot_cholesky(Q)
-            self.theta.nugget = None
-        else:
-            Q += self.theta.nugget*np.eye(self.n)
-            self.L = linalg.cholesky(Q, lower=True)
-            self.P = np.arange(0, self.n)
+        self.Kinv, newnugget = cholesky_factor(K, self.theta.nugget, self._nugget_type)
+        
+        if self._nugget_type == "adaptive":
+            self.theta.nugget = newnugget
 
-        self.invQt = pivot_cho_solve(self.L, self.P, self.targets - m)
+        self.Kinv_t = self.Kinv.solve(self.targets - m)
 
-        self.current_logpost = 0.5*(2.0*np.sum(np.log(np.diag(self.L))) +
-                                    np.dot(self.targets - m, self.invQt) +
+        self.current_logpost = 0.5*(self.Kinv.logdetK() +
+                                    np.dot(self.targets - m, self.Kinv_t) +
                                     self.n*np.log(2. * np.pi))
 
         self.current_logpost -= self._priors.logp(self.theta)
@@ -658,21 +652,19 @@ class GaussianProcess(GaussianProcessBase):
                                                            self.theta.corr_raw)
         K = self.get_K_matrix()
 
-        partials[:switch] = -np.dot(dmdtheta, self.invQt)
+        partials[:switch] = -np.dot(dmdtheta, self.Kinv_t)
 
         for d in range(self.theta.n_corr):
-            invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, dKdtheta[d]))
-            partials[switch + d] = -0.5*(np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
-                                         invQ_dot_dKdtheta_trace)
+            partials[switch + d] = -0.5*(np.dot(self.Kinv_t, np.dot(dKdtheta[d], self.Kinv_t)) -
+                                         np.trace(self.Kinv.solve(dKdtheta[d])))
                                          
-        invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, K))
-        partials[switch + self.theta.n_corr] = -0.5*(np.dot(self.invQt, np.dot(K, self.invQt)) -
-                                               invQ_dot_dKdtheta_trace)
+        partials[switch + self.theta.n_corr] = -0.5*(np.dot(self.Kinv_t, np.dot(K, self.Kinv_t)) -
+                                                     np.trace(self.Kinv.solve(K)))
 
         if self.nugget_type == "fit":
             nugget = self.theta.nugget
-            partials[-1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
-                                       np.dot(self.invQt, self.invQt))
+            partials[-1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
+                                       np.dot(self.Kinv_t, self.Kinv_t))
 
         partials[self.theta.n_mean:] -= self._priors.dlogpdtheta(self.theta)
 
@@ -726,70 +718,62 @@ class GaussianProcess(GaussianProcessBase):
         d2Kdtheta2 = self.theta.cov*self.kernel.kernel_hessian(self.inputs, self.inputs,
                                                                self.theta.corr_raw)
 
-        hessian[:switch, :switch] = np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
-                                                                     np.transpose(dmdtheta)))
+        hessian[:switch, :switch] = np.dot(dmdtheta, self.Kinv.solve(np.transpose(dmdtheta)))
 
         hessian[:switch, param_index] = np.dot(dmdtheta,
-                                                pivot_cho_solve(self.L, self.P,
-                                                                np.transpose(np.dot(dKdtheta, self.invQt))))
-                                                                
-        hessian[:switch, switch + self.D] = np.dot(dmdtheta,
-                                                   pivot_cho_solve(self.L, self.P,
-                                                                np.transpose(np.dot(K, self.invQt))))
+                                               self.Kinv.solve(np.transpose(np.dot(dKdtheta, self.Kinv_t))))
+
+        hessian[:switch, switch + self.n_corr] = np.dot(dmdtheta,
+                                                        self.Kinv.solve(np.transpose(np.dot(K, self.Kinv_t))))
 
         hessian[param_index, :switch] = np.transpose(hessian[:switch, param_index])
         hessian[switch + self.theta.n_corr, :switch] = np.transpose(hessian[:switch, switch + self.theta.n_corr])
 
         for d1 in range(self.theta.n_corr):
-            invQ_dot_d1 = pivot_cho_solve(self.L, self.P, dKdtheta[d1])
+            Kinv_dot_d1 = self.Kinv.solve(dKdtheta[d1])
             for d2 in range(self.theta.n_corr):
-                invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
-                invQ_dot_d1d2 = pivot_cho_solve(self.L, self.P, d2Kdtheta2[d1, d2])
-                term_1 = np.linalg.multi_dot([self.invQt,
-                                              2.*np.dot(dKdtheta[d1], invQ_dot_d2) - d2Kdtheta2[d1, d2],
-                                              self.invQt])
-                term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
+                Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
+                Kinv_dot_d1d2 = self.Kinv.solve(d2Kdtheta2[d1, d2])
+                term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                              2.*np.dot(dKdtheta[d1], Kinv_dot_d2) - d2Kdtheta2[d1, d2],
+                                              self.Kinv_t])
+                term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d1d2)
                 hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
         
-        invQ_dot_d1 = pivot_cho_solve(self.L, self.P, K)
+        Kinv_dot_d1 = self.Kinv.solve(K)
         for d2 in range(self.theta.n_corr):
-            invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
-            term_1 = np.linalg.multi_dot([self.invQt,
-                                          2.*np.dot(K, invQ_dot_d2) - dKdtheta[d2],
-                                          self.invQt])
-            term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d2)
+            Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
+            term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                          2.*np.dot(K, Kinv_dot_d2) - dKdtheta[d2],
+                                          self.Kinv_t])
+            term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d2)
             hessian[switch + self.theta.n_corr, switch + d2] = 0.5*(term_1 - term_2)
             hessian[switch + d2, switch + self.theta.n_corr] = hessian[switch + self.theta.n_corr, switch + d2]
             
-        term_1 = np.linalg.multi_dot([self.invQt,
-                                      2.*np.dot(K, invQ_dot_d1) - K,
-                                      self.invQt])
-        term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d1) - invQ_dot_d1)
+        term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                      2.*np.dot(K, Kinv_dot_d1) - K,
+                                      self.Kinv_t])
+        term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d1) - Kinv_dot_d1)
         hessian[switch + self.theta.n_corr, switch + self.theta.n_corr] = 0.5*(term_1 - term_2)
 
         if self.nugget_type == "fit":
             nugget = self.theta.nugget
-            invQinvQt = pivot_cho_solve(self.L, self.P, self.invQt)
-            hessian[:switch, -1] = nugget*np.dot(dmdtheta, invQinvQt)
+            Kinv_Kinv_t = self.Kinv.solve(self.Kinv_t)
+            hessian[:switch, -1] = nugget*np.dot(dmdtheta, Kinv_Kinv_t)
             for d in range(self.theta.n_corr):
-                hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.invQt, dKdtheta[d], invQinvQt]) -
-                                                  0.5*np.trace(pivot_cho_solve(self.L, self.P,
-                                                                                np.dot(dKdtheta[d],
-                                                                                       pivot_cho_solve(self.L, self.P,
-                                                                                                        np.eye(self.n))))))
+                hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, dKdtheta[d], Kinv_Kinv_t]) -
+                                                  0.5*np.trace(self.Kinv.solve(np.dot(dKdtheta[d],
+                                                                               self.Kinv.solve(np.eye(self.n))))))
                                                                                                         
-            hessian[switch + self.theta.n_corr, -1] = nugget*(np.linalg.multi_dot([self.invQt, K, invQinvQt]) -
-                                                   0.5*np.trace(pivot_cho_solve(self.L, self.P,
-                                                                                np.dot(K,
-                                                                                       pivot_cho_solve(self.L, self.P,
-                                                                                                        np.eye(self.n))))))
+            hessian[switch + self.theta.n_corr, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, K, Kinv_Kinv_t]) -
+                                                              0.5*np.trace(self.Kinv.solve(
+                                                                     np.dot(K, self.Kinv.solve(np.eye(self.n))))
+                                                                           ))
 
-            hessian[-1, -1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
-                                                   np.dot(self.invQt, self.invQt))
-            hessian[-1, -1] += nugget**2*(np.dot(self.invQt, invQinvQt) -
-                                          0.5*np.trace(pivot_cho_solve(self.L, self.P,
-                                                                       pivot_cho_solve(self.L, self.P,
-                                                                                         np.eye(self.n)))))
+            hessian[-1, -1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
+                                                   np.dot(self.Kinv_t, self.Kinv_t))
+            hessian[-1, -1] += nugget**2*(np.dot(self.Kinv_t, Kinv_Kinv_t) -
+                                          0.5*np.trace(self.Kinv.solve(self.Kinv.solve(np.eye(self.n)))))
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
 
@@ -871,7 +855,7 @@ class GaussianProcess(GaussianProcessBase):
         mtest = np.dot(self.get_design_matrix(testing), self.theta.mean)
         Ktest = self.get_cov_matrix(testing)
 
-        mu = mtest + np.dot(Ktest.T, self.invQt)
+        mu = mtest + np.dot(Ktest.T, self.Kinv_t)
 
         var = None
         if unc:
@@ -880,7 +864,7 @@ class GaussianProcess(GaussianProcessBase):
             if include_nugget and not self.nugget_type == "pivot":
                 sigma_2 += self.theta.nugget
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*pivot_cho_solve(self.L, self.P, Ktest), axis=0),
+            var = np.maximum(sigma_2 - np.sum(Ktest*self.Kinv.solve(Ktest), axis=0),
                              0.)
 
         inputderiv = None
