@@ -116,7 +116,10 @@ public:
         vec results(emulators.size());
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
-            results[i] = emulators[i]->predict(testing);
+            // check whether emulator is fit OK
+            if ( emulators[i]->get_theta_fit_status()) {
+                results[i] = emulators[i]->predict(testing);
+            }
         }
         return results;
     }
@@ -127,7 +130,9 @@ public:
         vec results(emulators.size());
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
-            results[i] = emulators[i]->predict_variance(testing, var);
+            if ( emulators[i]->get_theta_fit_status()) {
+                results[i] = emulators[i]->predict_variance(testing, var);
+            }
         }
         return results;
     }
@@ -138,7 +143,9 @@ public:
 
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
-            emulators[i]->predict_batch(testing, results.row(i));
+            if ( emulators[i]->get_theta_fit_status()) {
+                emulators[i]->predict_batch(testing, results.row(i));
+            }
         }
         
     }
@@ -148,8 +155,10 @@ public:
     {
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
+            if ( emulators[i]->get_theta_fit_status()) {
+                emulators[i]->predict_variance_batch(testing, means.row(i), vars.row(i));
+             }
             
-            emulators[i]->predict_variance_batch(testing, means.row(i), vars.row(i));
         }
      
     }
@@ -159,7 +168,9 @@ public:
     {
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {
-            emulators[i]->predict_deriv(testing, results[i]);
+            if ( emulators[i]->get_theta_fit_status()) {
+                emulators[i]->predict_deriv(testing, results[i]);
+            }
         }
     }
 

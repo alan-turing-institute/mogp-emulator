@@ -38,7 +38,7 @@ class MultiOutputGP_GPU(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, batch_size=8000):
+                 nugget="adaptive", inputdict={}, use_patsy=True, batch_size=16000):
         """
         Create a new multi-output GP Emulator
         """
@@ -120,17 +120,6 @@ class MultiOutputGP_GPU(object):
     @property
     def n_emulators(self):
         return self._mogp_gpu.n_emulators()
-
-    @property
-    def emulators(self):
-        emuls = []
-        for i in range(self.n_emulators):
-            emuls.append(GaussianProcessGPU.from_cpp(self._mogp_gpu.emulator(i)))
-        return emuls
-
-    def get_emulator(self, index):
-        emulator = self._mogp_gpu.emulator(index)
-        return GaussianProcessGPU.from_cpp(emulator)
 
     def predict(self, testing, unc=True, deriv=True, include_nugget=True,
                 allow_not_fit=False, processes=None):
@@ -214,7 +203,8 @@ class MultiOutputGP_GPU(object):
         :rtype: PredictResult
 
         """
-
+        if not allow_not_fit and len(self.get_indices_not_fit()) > 0:
+            raise ValueError("Hyperparameters have not been fit for this Gaussian Process")
         testing = np.array(testing)
         if self.D == 1 and testing.ndim == 1:
             testing = np.reshape(testing, (-1, 1))
@@ -228,12 +218,19 @@ class MultiOutputGP_GPU(object):
         means = np.zeros([self.n_emulators, n_testing])
         uncs = np.zeros([self.n_emulators, n_testing])
         derivs = np.zeros([self.n_emulators, n_testing, self.D])
-        if unc:
+        if unc: 
             self._mogp_gpu.predict_variance_batch(testing, means, uncs)
         else:
             self._mogp_gpu.predict_variance_batch(testing, means)
         if deriv:
             self._mogp_gpu.predict_deriv(testing, derivs)
+        # if one or more emulators not fit, fill the appropriate
+        # rows in the result with NaNs.
+        if allow_not_fit and len(self.get_indices_not_fit()) > 0:
+            for index in self.get_indices_not_fit():
+                means[index,:] = np.nan
+                uncs[index,:] = np.nan
+                derivs[index,:,:] = np.nan
         return PredictResult(mean=means, unc=uncs, deriv=derivs)
 
     def __call__(self, testing, process=None):
@@ -285,13 +282,7 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
- #       fitted_indices = []
-  #      for idx, em in enumerate(self.emulators):
-       #         fitted_indices.append(idx)
-   ##         if em.theta is not None:
-        return  self._mogp_gpu.get_fitted_indices() 
-      #  return fitted_indices
- 
+        return  self._mogp_gpu.get_fitted_indices()  
 
     def get_indices_not_fit(self):
         """Returns the indices of the emulators that have not been fit
@@ -312,65 +303,7 @@ class MultiOutputGP_GPU(object):
         :rtype: list of int
 
         """
-     #   failed_indices = []
-      #  for idx, em in enumerate(self.emulators):
-       #     if em.theta is None:
-       #         failed_indices.append(idx)
-       # return failed_indices
         return  self._mogp_gpu.get_unfitted_indices() 
-
-    def get_emulators_fit(self):
-        """Returns the emulators that have been fit
-
-        When a ``MultiOutputGP`` class is initialized, none of the
-        emulators are fit. Fitting is done by passing the object to an
-        external fitting routine, which modifies the object to fit the
-        hyperparameters. Any emulators where the fitting fails are
-        returned to the initialized state, and this method is used to
-        obtain a list of emulators that have successfully been fit.
-
-        Returns a list of ``GaussianProcess`` objects which have been
-        fit (i.e. those which have a current valid set of
-        hyperparameters).
-
-        :returns: List of ``GaussianProcessGPU`` objects indicating the
-                  emulators that have been fit. If no emulators
-                  have been fit, returns an empty list.
-        :rtype: list of ``GaussianProcessGPU`` objects
-
-        """
-        fitted_emulators = []
-        for em in self.emulators:
-            if em.theta is not None:
-                fitted_emulators.append(em)
-        return fitted_emulators
-
-    def get_emulators_not_fit(self):
-        """Returns the indices of the emulators that have not been fit
-
-        When a ``MultiOutputGP`` class is initialized, none of the
-        emulators are fit. Fitting is done by passing the object to an
-        external fitting routine, which modifies the object to fit the
-        hyperparameters. Any emulators where the fitting fails are
-        returned to the initialized state, and this method is used to
-        obtain a list of emulators that have not been fit.
-
-        Returns a list of ``GaussianProcess`` objects which have
-        not been fit (i.e. those which do not have a current set of
-        hyperparameters).
-
-        :returns: List of ``GaussianProcessGPU`` objects indicating the
-                  emulators that have not been fit. If all emulators
-                  have been fit, returns an empty list.
-        :rtype: list of ``GaussianProcessGPU`` objects
-
-        """
-        failed_emulators = []
-        for em in self.emulators:
-            if em.theta is None:
-                failed_emulators.append(em)
-        return failed_emulators
-
 
     def __str__(self):
         """Returns a string representation of the model
@@ -384,71 +317,3 @@ class MultiOutputGP_GPU(object):
                  str(self.n_emulators)+" emulators\n"+
                  str(self.n)+" training examples\n"+
                  str(self.D)+" input variables")
-
-
-def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
-    """Prediction method for GPs that defaults to NaN for unfit GPs
-
-    Wrapper function for the ``GaussianProcess`` predict method that
-    returns NaN if the GP is not fit. Allows ``MultiOutputGP`` objects
-    that do not have all emulators fit to still return predictions
-    with unfit emulator predictions replaced with NaN.
-
-    The first argument to this function is the GP that will be used
-    for prediction. All other arguments are the same as the
-    arguments for the ``predict`` method of ``GaussianProcess``.
-
-    :param gp: The ``GaussianProcess`` object (or related class) for
-               which predictions will be made.
-    :type gp: GaussianProcess
-    :param testing: Array-like object holding the points where
-                    predictions will be made.  Must have shape
-                    ``(n_predict, D)`` or ``(D,)`` (for a single
-                    prediction)
-    :type testing: ndarray
-    :param unc: (optional) Flag indicating if the uncertainties
-                are to be computed.  If ``False`` the method
-                returns ``None`` in place of the uncertainty
-                array. Default value is ``True``.
-    :type unc: bool
-    :param deriv: (optional) Flag indicating if the derivatives
-                  are to be computed.  If ``False`` the method
-                  returns ``None`` in place of the derivative
-                  array. Default value is ``True``.
-    :type deriv: bool
-    :param include_nugget: (optional) Flag indicating if the
-                           nugget should be included in the
-                           predictive variance. Only relevant if
-                           ``unc = True``.  Default is ``True``.
-    :type include_nugget: bool
-    :returns: Tuple of numpy arrays holding the predictions,
-              uncertainties, and derivatives,
-              respectively. Predictions and uncertainties have
-              shape ``(n_predict,)`` while the derivatives have
-              shape ``(n_predict, D)``. If the ``unc`` or
-              ``deriv`` flags are set to ``False``, then those
-              arrays are replaced by ``None``.
-    :rtype: tuple
-    """
-
-    assert isinstance(gp, GaussianProcessBase)
-
-    try:
-        return gp.predict(testing, unc, deriv, include_nugget)
-    except ValueError:
-
-        n_predict = testing.shape[0]
-
-        if unc:
-            unc_array = np.array([np.nan]*n_predict)
-        else:
-            unc_array = None
-
-        if deriv:
-            deriv_array = np.reshape(np.array([np.nan]*n_predict*gp.D),
-                                     (n_predict, gp.D))
-        else:
-            deriv_array = None
-
-        return PredictResult(mean =np.array([np.nan]*n_predict),
-                             unc=unc_array, deriv=deriv_array)
