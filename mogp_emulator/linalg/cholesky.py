@@ -2,7 +2,7 @@ import numpy as np
 from scipy import linalg
 from scipy.linalg import lapack, cho_solve
 
-class Kinv(object):
+class ChoInv(object):
     """
     Class representing inverse of the covariance matrix
     """
@@ -16,7 +16,7 @@ class Kinv(object):
     def logdetK(self):
         return 2.0*np.sum(np.log(np.diag(self.L)))
         
-class KinvPivot(Kinv):
+class ChoInvPivot(ChoInv):
     """
     Class representing Pivoted Cholesky factorized matrix
     
@@ -66,7 +66,7 @@ def cholesky_factor(A, nugget, nugget_type):
     Interface for Cholesky factorization
     
     Calls the appropriate method given how the nugget is handled and
-    returns the factorized matrix as a Kinv class along with the
+    returns the factorized matrix as a ChoInv class along with the
     nugget value
     """
     
@@ -75,14 +75,14 @@ def cholesky_factor(A, nugget, nugget_type):
     
     if nugget_type == "adaptive":
         L, nugget = jit_cholesky(A)
-        Ainv = Kinv(L)
+        Ainv = ChoInv(L)
     elif nugget_type == "pivot":
         L, P = pivot_cholesky(A)
-        Ainv = KinvPivot(L, P)
+        Ainv = ChoInvPivot(L, P)
     elif nugget_type in ["fit", "fixed"]:
         A += nugget*np.eye(A.shape[0])
         L = fixed_cholesky(A)
-        Ainv = Kinv(L)
+        Ainv = ChoInv(L)
     else:
         raise ValueError("Bad value for nugget_type in cholesky_factor")
         

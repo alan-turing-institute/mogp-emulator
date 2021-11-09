@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ..linalg.cholesky import Kinv, KinvPivot, cholesky_factor, fixed_cholesky
+from ..linalg.cholesky import ChoInv, ChoInvPivot, cholesky_factor, fixed_cholesky
 from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
 from scipy import linalg
 
@@ -13,11 +13,11 @@ def A():
 def b():
     return np.array([2., 3., 1.])
 
-def test_Kinv(A, b):
-    "test the Kinv class"
+def test_ChoInv(A, b):
+    "test the ChoInv class"
     
     L = linalg.cholesky(A, lower=True)
-    Ainv = Kinv(L)
+    Ainv = ChoInv(L)
     
     assert_allclose(Ainv.L, L)
     
@@ -27,7 +27,7 @@ def test_Kinv(A, b):
     
     assert_allclose(np.log(np.linalg.det(A)), Ainv.logdetK())
 
-def test_KinvPivot(A, b):
+def test_ChoInnvPivot(A, b):
     "test the cho_solve routine using pivoting"
 
     L = np.linalg.cholesky(A)
@@ -36,17 +36,17 @@ def test_KinvPivot(A, b):
 
     L_pivot, P = pivot_cholesky(A)
     
-    Ainv = KinvPivot(L_pivot, P)
+    Ainv = ChoInvPivot(L_pivot, P)
 
     x_pivot = Ainv.solve(b)
 
     assert_allclose(x, x_pivot)
 
     with pytest.raises(AssertionError):
-        KinvPivot(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32)).solve(b)
+        ChoInvPivot(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32)).solve(b)
 
     with pytest.raises(ValueError):
-        KinvPivot(L_pivot, np.array([0, 0, 1], dtype=np.int32)).solve(b)
+        ChoInvPivot(L_pivot, np.array([0, 0, 1], dtype=np.int32)).solve(b)
 
 def test_check_cholesky_inputs():
     "Test function that checks inputs to cholesky decomposition routines"
