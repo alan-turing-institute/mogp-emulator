@@ -25,7 +25,7 @@ def test_ChoInv(A, b):
     
     assert_allclose(Ainv.solve(b), x)
     
-    assert_allclose(np.log(np.linalg.det(A)), Ainv.logdetK())
+    assert_allclose(np.log(np.linalg.det(A)), Ainv.logdet())
 
 def test_ChoInnvPivot(A, b):
     "test the cho_solve routine using pivoting"
@@ -178,4 +178,4 @@ def test_pivot_transpose():
     with pytest.raises(AssertionError):
         _pivot_transpose(P)
 
-       
+

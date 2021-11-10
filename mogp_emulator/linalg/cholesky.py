@@ -8,13 +8,21 @@ class ChoInv(object):
     """
     def __init__(self, L):
         L = np.array(L)
+        assert L.ndim == 2, "L must be a 2D array"
+        assert L.shape[0] == L.shape[1]
         self.L = L
         
     def solve(self, b):
-        return cho_solve((self.L, True), b)
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        else:
+            return cho_solve((self.L, True), b)
         
-    def logdetK(self):
-        return 2.0*np.sum(np.log(np.diag(self.L)))
+    def logdet(self):
+        if self.L.shape == (0,0):
+            return 0.
+        else:
+            return 2.0*np.sum(np.log(np.diag(self.L)))
         
 class ChoInvPivot(ChoInv):
     """
@@ -31,11 +39,10 @@ class ChoInvPivot(ChoInv):
     :type P: list or ndarray
     """
     def __init__(self, L, P):
-        L = np.array(L)
+        super().__init__(L)
         
-        assert len(P) == L.shape[0], "Length of pivot matrix must match linear system"
-        
-        self.L = L
+        assert len(P) == self.L.shape[0], "Length of pivot matrix must match linear system"
+
         self.P = P
         
     def solve(self, b):

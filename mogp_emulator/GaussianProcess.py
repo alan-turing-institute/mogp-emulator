@@ -583,7 +583,7 @@ class GaussianProcess(GaussianProcessBase):
 
         self.Kinv_t = self.Kinv.solve(self.targets - m)
 
-        self.current_logpost = 0.5*(self.Kinv.logdetK() +
+        self.current_logpost = 0.5*(self.Kinv.logdet() +
                                     np.dot(self.targets - m, self.Kinv_t) +
                                     self.n*np.log(2. * np.pi))
 
