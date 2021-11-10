@@ -292,12 +292,20 @@ class MeanPriors(object):
             return 0
         else:
             return len(self.mean)
-            
+    
     @property
     def has_weak_priors(self):
         "Property indicating if the Mean has weak prior information"
         return self.mean is None
-    
+
+    def dm_dot_b(self, dm):
+        "Take dot product of mean with a design matrix"
+        
+        if self.mean is None:
+            return np.zeros(dm.shape[0])
+        else:
+            return np.dot(dm, self.mean)
+        
     def inv_cov(self):
         "compute the inverse of the covariance matrix"
         if self.cov is None:

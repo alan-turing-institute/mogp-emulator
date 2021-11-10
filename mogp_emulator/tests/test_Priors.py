@@ -647,6 +647,17 @@ def test_MeanPriors():
     with pytest.raises(ValueError):
         MeanPriors(mean=np.array([1., 2.]), cov=np.ones((3, 1, 1)))   
 
+def test_MeanPriors_dm_dot_b():
+    "test the function to take dot product of design matrix with prior mean"
+    
+    mp = MeanPriors()
+    
+    assert_allclose(mp.dm_dot_b(np.array([[1., 1.], [1., 2.]])), np.zeros(2))
+    
+    mp = MeanPriors(mean=np.array([1., 2.]), cov=2.)
+    
+    assert_allclose(mp.dm_dot_b(np.array([[1., 1.], [1., 2.]])), np.array([3., 5.]))
+
 def test_MeanPriors_inv_cov():
     "test the routine to invert the covariance matrix in MeanPriors"
     
