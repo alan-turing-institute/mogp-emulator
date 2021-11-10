@@ -3,11 +3,13 @@ import pytest
 from numpy.testing import assert_allclose
 from ..linalg.cholesky import ChoInv, ChoInvPivot, cholesky_factor, fixed_cholesky
 from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
+from ..linalg.linalg_utils import calc_Ainv, calc_mean_params, calc_R
+from ..Priors import MeanPriors
 from scipy import linalg
 
 @pytest.fixture
 def A():
-    return np.array([[2., 1., 0.4], [1., 2., 0.2], [0.4, 0.2, 2.]])
+    return np.array([[2., 1., 0.2], [1., 2., 0.4], [0.2, 0.4, 2.]])
     
 @pytest.fixture
 def b():
@@ -178,4 +180,97 @@ def test_pivot_transpose():
     with pytest.raises(AssertionError):
         _pivot_transpose(P)
 
+@pytest.fixture
+def dm():
+    return np.array([[1., 1.], [1., 2.], [1., 4.]])
+    
+@pytest.fixture
+def Kinv(A):
+    return ChoInv(np.linalg.cholesky(A))
 
+def test_calc_Ainv(A, dm, Kinv):
+    "test the function to compute inverse of A"
+    
+    # Zero mean, weak mean covariance
+    
+    dm_z = np.zeros((3, 0))
+    B = MeanPriors()
+    
+    result = calc_Ainv(Kinv, dm_z, B)
+    
+    assert result.L.shape == (0,0)
+    
+    # nonzero mean, weak mean covariance
+    
+    result = calc_Ainv(Kinv, dm, B)
+    result_expected = np.linalg.cholesky(np.dot(dm.T, np.dot(np.linalg.inv(A), dm)))
+    
+    assert_allclose(result.L, result_expected)
+    
+    # nonzero mean, mean covariance
+    
+    B = MeanPriors(mean=[2., 1.], cov=np.eye(2))
+    
+    result = calc_Ainv(Kinv, dm, B)
+    result_expected = np.linalg.cholesky(np.dot(dm.T, np.dot(np.linalg.inv(A), dm)) + np.eye(2))
+    
+    assert_allclose(result.L, result_expected)
+    
+    with pytest.raises(AssertionError):
+        calc_Ainv(1., dm, B)
+        
+    with pytest.raises(AssertionError):
+        calc_Ainv(Kinv, dm, 1.)
+        
+def test_calc_mean_params(A, dm, Kinv):
+    "test the calc_mean_params function"
+    
+    # weak mean priors
+    
+    Kinv_t = Kinv.solve(np.array([1., 2., 4.]))
+    B = MeanPriors()
+    
+    Ainv = calc_Ainv(Kinv, dm, B)
+    
+    beta_actual = calc_mean_params(Ainv, Kinv_t, dm, B)
+    beta_expected = Ainv.solve(np.dot(dm.T, Kinv_t))
+    
+    assert_allclose(beta_actual, beta_expected)
+    
+    # mean priors
+    
+    B = MeanPriors(mean=[2., 1.], cov=np.eye(2))
+    
+    beta_actual = calc_mean_params(Ainv, Kinv_t, dm, B)
+    beta_expected = Ainv.solve(np.dot(dm.T, Kinv_t) + np.array([2., 1.]))
+    
+    assert_allclose(beta_actual, beta_expected)
+    
+    with pytest.raises(AssertionError):
+        calc_mean_params(1., Kinv_t, dm, B)
+        
+    with pytest.raises(AssertionError):
+        calc_mean_params(Ainv, Kinv_t, dm, 1.)
+
+def test_calc_R(A, dm, Kinv):
+    "test the calc_R function"
+    
+    dmtest = np.array([[1., 3.], [1., 5.]])
+    Ktest = np.array([[0.2, 0.6, 0.8], [0.1, 0.2, 1.]]).T
+    Kinv_Ktest = Kinv.solve(Ktest)
+
+    R_expected = dmtest.T - np.dot(dm.T, np.linalg.solve(A, Ktest))
+    
+    R_actual = calc_R(Kinv_Ktest, dm, dmtest)
+    
+    assert_allclose(R_actual, R_expected)
+        
+    # zero mean function
+    
+    dm_z = np.zeros((3, 0))
+    dm_z_test = np.zeros((2, 0))
+    
+    R_actual = calc_R(Kinv_Ktest, dm_z, dm_z_test)
+    R_expected = np.zeros((0,2))
+    
+    assert_allclose(R_actual, R_expected)
