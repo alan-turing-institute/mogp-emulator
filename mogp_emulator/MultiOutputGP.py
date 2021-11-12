@@ -10,7 +10,6 @@ from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 
-
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
 

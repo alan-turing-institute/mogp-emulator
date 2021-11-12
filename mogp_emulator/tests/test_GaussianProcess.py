@@ -65,7 +65,7 @@ def test_GaussianProcessGPU_init(x, y):
     assert_allclose(y, gp.targets)
     assert gp.D == 3
     assert gp.n == 2
-    assert gp.nugget == None
+    assert gp.nugget == 0. # set to zero for GPU implementation
     assert gp.nugget_type == "adaptive"
     gp = GaussianProcessGPU(y, y)
     assert gp.inputs.shape == (2, 1)
@@ -205,11 +205,11 @@ def test_GaussianProcessGPU_nugget(x, y):
     "Tests the get_nugget method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
-    assert gp.nugget is None
+    assert gp.nugget == 0. # set to zero for GPU implementation
     assert gp.nugget_type == "adaptive"
 
     gp.nugget = "fit"
-    assert gp.nugget is None
+    assert gp.nugget == 0. # set to zero for GPU implementation
     assert gp.nugget_type == "fit"
 
     gp.nugget = 1.

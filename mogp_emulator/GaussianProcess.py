@@ -56,7 +56,7 @@ class GaussianProcess(GaussianProcessBase):
     number of training examples ``n``, the number of input parameters
     ``D``, and the number of hyperparameters ``n_params``. These
     parameters can be obtained externally by accessing these
-    attributes
+    attributes.
 
     Example: ::
 
@@ -117,7 +117,7 @@ class GaussianProcess(GaussianProcessBase):
         distributions), the user must pass a ``GPPriors`` object.
         The ``GPPriors.default_priors`` class method gives more
         control over the exact distribution choice.
-        
+
         If default priors are not used, ``priors`` must be a ``GPPriors``
         object or a list of prior distributions. If a list, it must
         have a length of ``n_params`` whose elements are either
@@ -217,7 +217,7 @@ class GaussianProcess(GaussianProcessBase):
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
                           "You must input your mean formulae using the x[0] format directly " +
                           "in the formula.", DeprecationWarning)
-                          
+
         if not use_patsy:
             warnings.warn("patsy is now required to parse all formulae and form design " +
                           "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
@@ -228,14 +228,14 @@ class GaussianProcess(GaussianProcessBase):
         self.kernel = kernel
 
         _, self._nugget_type = _process_nugget(nugget)
-        
+
         self._set_priors(priors)
 
         self._theta = GPParams(n_mean=self.n_mean,
                                n_corr=self.n_corr,
                                fit_cov=self.priors.fit_cov,
                                nugget=nugget)
-                               
+
         self.Kinv = None
         self.Kinvt = None
         self.current_logpost = None
@@ -285,16 +285,16 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def n_mean(self):
         """Returns number of mean parameters
-        
+
         :returns: Number of mean parameters
         :rtype: int
         """
         return self._dm.shape[1]
-        
+
     @property
     def n_corr(self):
         """Returns number of correlation length parameters
-        
+
         :returns: Number of correlation length parameters
         :rtype: int
         """
@@ -321,7 +321,7 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def n_data(self):
         """Returns number of data elements
-        
+
         This is the size of the numpy array that can be used to set
         the parameters. Note that setting this with an array will
         automatically fit the emulator and set any additional
@@ -334,7 +334,7 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def has_nugget(self):
         """Boolean indicating if the GP has a nugget parameter
-        
+
         :returns: Boolean indicating if GP has a nugget
         :rtype: bool
         """
@@ -437,7 +437,7 @@ class GaussianProcess(GaussianProcessBase):
         :type theta: ndarray
         :returns: None
         """
-        
+
         if theta is None:
             self._theta.set_data(None)
             self.current_logpost = None
@@ -458,7 +458,7 @@ class GaussianProcess(GaussianProcessBase):
         """
         Set the priors
         """
-        
+
         if newpriors is None:
             self._priors = GPPriors.default_priors(self.inputs, self.n_corr, self.nugget_type)
         elif isinstance(newpriors, GPPriors):
@@ -469,7 +469,7 @@ class GaussianProcess(GaussianProcessBase):
             except TypeError:
                 raise TypeError("Provided arguments for priors are not valid inputs " +
                                 "for a GPPriors object.")
-        
+
         if self._priors.n_mean > 0:
             assert self._priors.n_mean == self.n_mean
         assert self._priors.n_corr == self.n_corr, "bad number of correlation lengths in new GPPriors object"
@@ -477,13 +477,13 @@ class GaussianProcess(GaussianProcessBase):
 
     def get_design_matrix(self, inputs):
         """Returns the design matrix for a set of inputs
-        
+
         For a given set of inputs, compute the design matrix based on the GP
         mean function.
         """
 
         inputs = self._process_inputs(inputs)
-        
+
         if self._mean is None or self._mean == "0" or self._mean == "-1":
             dm = np.zeros((inputs.shape[0], 0))
         elif self._mean == "1" or self._mean == "-0":
@@ -495,15 +495,15 @@ class GaussianProcess(GaussianProcessBase):
                 raise ValueError("Provided mean function is invalid")
             if not dm.shape[0] == inputs.shape[0]:
                 raise ValueError("Provided design matrix is of the wrong shape")
-                
+
         return dm
-                
+
     def get_cov_matrix(self, inputs):
         """Computes the covariance matrix for a set of inputs. Assumes the second
         set of inputs is the inputs on which the GP is conditioned.
         """
         inputs = self._process_inputs(inputs)
-        
+
         return self.theta.cov*self.kernel.kernel_f(self.inputs, inputs,
                                                    self.theta.corr_raw)
 
@@ -517,12 +517,12 @@ class GaussianProcess(GaussianProcessBase):
 
     def _process_inputs(self, inputs):
         "Change inputs into an array and reshape if required"
-        
+
         inputs = np.array(inputs)
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
         assert inputs.ndim == 2
-        
+
         return inputs
 
     def _check_theta(self, theta):
@@ -538,7 +538,7 @@ class GaussianProcess(GaussianProcessBase):
             assert self.theta.same_shape(theta[self.theta.n_mean:]), "bad shape for hyperparameters"
             self.theta.set_data(theta[self.theta.n_mean:])
             self.theta.mean = theta[:self.theta.n_mean]
-    
+
     def _refit(self, theta):
         """Check if need to refit"""
 
@@ -577,7 +577,7 @@ class GaussianProcess(GaussianProcessBase):
         K = self.get_K_matrix()
 
         self.Kinv, newnugget = cholesky_factor(K, self.theta.nugget, self._nugget_type)
-        
+
         if self._nugget_type == "adaptive":
             self.theta.nugget = newnugget
 
@@ -607,7 +607,7 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: float
 
         """
-        
+
         if self._refit(theta):
             self.fit(theta)
 
@@ -657,7 +657,7 @@ class GaussianProcess(GaussianProcessBase):
         for d in range(self.theta.n_corr):
             partials[switch + d] = -0.5*(np.dot(self.Kinv_t, np.dot(dKdtheta[d], self.Kinv_t)) -
                                          np.trace(self.Kinv.solve(dKdtheta[d])))
-                                         
+
         partials[switch + self.theta.n_corr] = -0.5*(np.dot(self.Kinv_t, np.dot(K, self.Kinv_t)) -
                                                      np.trace(self.Kinv.solve(K)))
 
@@ -704,7 +704,7 @@ class GaussianProcess(GaussianProcessBase):
             self.fit(theta)
 
         hessian = np.zeros((self.n_data, self.n_data))
-        
+
         switch = self.theta.n_mean
         if self.nugget_type == "fit":
             param_index = slice(switch, -2)
@@ -739,7 +739,7 @@ class GaussianProcess(GaussianProcessBase):
                                               self.Kinv_t])
                 term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d1d2)
                 hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
-        
+
         Kinv_dot_d1 = self.Kinv.solve(K)
         for d2 in range(self.theta.n_corr):
             Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
@@ -749,7 +749,7 @@ class GaussianProcess(GaussianProcessBase):
             term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d2)
             hessian[switch + self.theta.n_corr, switch + d2] = 0.5*(term_1 - term_2)
             hessian[switch + d2, switch + self.theta.n_corr] = hessian[switch + self.theta.n_corr, switch + d2]
-            
+
         term_1 = np.linalg.multi_dot([self.Kinv_t,
                                       2.*np.dot(K, Kinv_dot_d1) - K,
                                       self.Kinv_t])
@@ -764,7 +764,7 @@ class GaussianProcess(GaussianProcessBase):
                 hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, dKdtheta[d], Kinv_Kinv_t]) -
                                                   0.5*np.trace(self.Kinv.solve(np.dot(dKdtheta[d],
                                                                                self.Kinv.solve(np.eye(self.n))))))
-                                                                                                        
+
             hessian[switch + self.theta.n_corr, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, K, Kinv_Kinv_t]) -
                                                               0.5*np.trace(self.Kinv.solve(
                                                                      np.dot(K, self.Kinv.solve(np.eye(self.n))))
