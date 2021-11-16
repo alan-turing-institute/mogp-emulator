@@ -704,6 +704,8 @@ class GaussianProcess(GaussianProcessBase):
 
     def logpost_hessian(self, theta):
         """Calculate the Hessian of the negative log-posterior
+        
+        **NOTE: NOT CURRENTLY SUPPORTED**
 
         Calculate the Hessian of the negative log-posterior with
         respect to the hyperparameters. Note that this function is
@@ -732,87 +734,7 @@ class GaussianProcess(GaussianProcessBase):
 
         """
 
-        if self._refit(theta):
-            self.fit(theta)
-
-        hessian = np.zeros((self.n_data, self.n_data))
-        
-        switch = self.theta.n_mean
-        if self.nugget_type == "fit":
-            param_index = slice(switch, -2)
-        else:
-            param_index = slice(switch, self.n_data - 1)
-
-        dmdtheta = self._dm.T
-        K = self.get_K_matrix()
-        dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
-                                                           self.theta.corr_raw)
-        d2Kdtheta2 = self.theta.cov*self.kernel.kernel_hessian(self.inputs, self.inputs,
-                                                               self.theta.corr_raw)
-
-        hessian[:switch, :switch] = np.dot(dmdtheta, self.Kinv.solve(np.transpose(dmdtheta)))
-
-        hessian[:switch, param_index] = np.dot(dmdtheta,
-                                               self.Kinv.solve(np.transpose(np.dot(dKdtheta, self.Kinv_t))))
-
-        hessian[:switch, switch + self.n_corr] = np.dot(dmdtheta,
-                                                        self.Kinv.solve(np.transpose(np.dot(K, self.Kinv_t))))
-
-        hessian[param_index, :switch] = np.transpose(hessian[:switch, param_index])
-        hessian[switch + self.theta.n_corr, :switch] = np.transpose(hessian[:switch, switch + self.theta.n_corr])
-
-        for d1 in range(self.theta.n_corr):
-            Kinv_dot_d1 = self.Kinv.solve(dKdtheta[d1])
-            for d2 in range(self.theta.n_corr):
-                Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
-                Kinv_dot_d1d2 = self.Kinv.solve(d2Kdtheta2[d1, d2])
-                term_1 = np.linalg.multi_dot([self.Kinv_t,
-                                              2.*np.dot(dKdtheta[d1], Kinv_dot_d2) - d2Kdtheta2[d1, d2],
-                                              self.Kinv_t])
-                term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d1d2)
-                hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
-        
-        Kinv_dot_d1 = self.Kinv.solve(K)
-        for d2 in range(self.theta.n_corr):
-            Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
-            term_1 = np.linalg.multi_dot([self.Kinv_t,
-                                          2.*np.dot(K, Kinv_dot_d2) - dKdtheta[d2],
-                                          self.Kinv_t])
-            term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d2)
-            hessian[switch + self.theta.n_corr, switch + d2] = 0.5*(term_1 - term_2)
-            hessian[switch + d2, switch + self.theta.n_corr] = hessian[switch + self.theta.n_corr, switch + d2]
-            
-        term_1 = np.linalg.multi_dot([self.Kinv_t,
-                                      2.*np.dot(K, Kinv_dot_d1) - K,
-                                      self.Kinv_t])
-        term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d1) - Kinv_dot_d1)
-        hessian[switch + self.theta.n_corr, switch + self.theta.n_corr] = 0.5*(term_1 - term_2)
-
-        if self.nugget_type == "fit":
-            nugget = self.theta.nugget
-            Kinv_Kinv_t = self.Kinv.solve(self.Kinv_t)
-            hessian[:switch, -1] = nugget*np.dot(dmdtheta, Kinv_Kinv_t)
-            for d in range(self.theta.n_corr):
-                hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, dKdtheta[d], Kinv_Kinv_t]) -
-                                                  0.5*np.trace(self.Kinv.solve(np.dot(dKdtheta[d],
-                                                                               self.Kinv.solve(np.eye(self.n))))))
-                                                                                                        
-            hessian[switch + self.theta.n_corr, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, K, Kinv_Kinv_t]) -
-                                                              0.5*np.trace(self.Kinv.solve(
-                                                                     np.dot(K, self.Kinv.solve(np.eye(self.n))))
-                                                                           ))
-
-            hessian[-1, -1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
-                                                   np.dot(self.Kinv_t, self.Kinv_t))
-            hessian[-1, -1] += nugget**2*(np.dot(self.Kinv_t, Kinv_Kinv_t) -
-                                          0.5*np.trace(self.Kinv.solve(self.Kinv.solve(np.eye(self.n)))))
-
-            hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
-
-        np.fill_diagonal(hessian[self.theta.n_mean:,self.theta.n_mean:],
-                         np.diag(hessian)[self.theta.n_mean:] - self._priors.d2logpdtheta2(self.theta))
-
-        return hessian
+        raise NotImplementedError("Hessian computation is not currently supported")
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True):
         """Make a prediction for a set of input vectors for a single set of hyperparameters

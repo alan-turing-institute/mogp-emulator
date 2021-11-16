@@ -644,7 +644,6 @@ def test_GaussianProcessGPU_logpost_deriv(x, y, dx, nugget, sn):
 
     assert_allclose(deriv, gp.logpost_deriv(theta), atol=1.e-7, rtol=1.e-5)
 
-@pytest.mark.skip
 @pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.),
                                             (None, "pivot", 1.), ("x[0]", "fit", np.log(1.e-6))])
 def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
@@ -661,17 +660,21 @@ def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
 
     n = gp.n_data
     theta = np.ones(n)
-    theta[-1] = sn
+    if nugget == "fit":
+        theta[-1] = sn
+        
+    with pytest.raises(NotImplementedError):
+        gp.logpost_hessian(theta)
 
-    hess = np.zeros((n, n))
-
-    for i in range(n):
-        for j in range(n):
-            dx_array = np.zeros(n)
-            dx_array[j] = dx
-            hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
-
-    assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-7)
+    # hess = np.zeros((n, n))
+    #
+    # for i in range(n):
+    #     for j in range(n):
+    #         dx_array = np.zeros(n)
+    #         dx_array[j] = dx
+    #         hess[i, j] = (gp.logpost_deriv(theta)[i] - gp.logpost_deriv(theta - dx_array)[i])/dx
+    #
+    # assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-7)
 
 def test_GaussianProcess_default_priors(dx):
     "test that the default priors work as expected"
