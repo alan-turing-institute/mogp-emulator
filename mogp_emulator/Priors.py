@@ -326,7 +326,7 @@ class MeanPriors(object):
         else:
             return cho_solve(self.Lb, self.mean)
             
-    def log_det_cov(self):
+    def logdet_cov(self):
         "Compute the log of the determinant of the covariance"
         if self.cov is None:
             return 0.

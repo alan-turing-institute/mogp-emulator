@@ -688,20 +688,20 @@ def test_MeanPriors_inv_cov_b():
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([[2., 2.], [2., 3.]]))
     assert_allclose(mp.inv_cov_b(), np.linalg.solve(np.array([[2., 2.], [2., 3.]]), np.array([1., 2.])))
     
-def test_MeanPriors_log_det_cov():
+def test_MeanPriors_logdet_cov():
     "test the routine to invert the covariance matrix in MeanPriors times the mean"
     
     mp = MeanPriors()
-    assert_allclose(mp.log_det_cov(), 0.)
+    assert_allclose(mp.logdet_cov(), 0.)
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=2.)
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(2.*np.eye(2))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(2.*np.eye(2))))
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([2., 1.]))
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(np.array([[2., 0.], [0., 1.]]))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(np.array([[2., 0.], [0., 1.]]))))
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([[2., 2.], [2., 3.]]))
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(np.array([[2., 2.], [2., 3.]]))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(np.array([[2., 2.], [2., 3.]]))))
 
 def test_WeakPrior():
     "test the weakprior object"
