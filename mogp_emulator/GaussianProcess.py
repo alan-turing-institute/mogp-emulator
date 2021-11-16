@@ -4,7 +4,8 @@ from mogp_emulator.Priors import GPPriors
 from mogp_emulator.GPParams import GPParams, _process_nugget
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from mogp_emulator.linalg import cholesky_factor
+from mogp_emulator.linalg import cholesky_factor, calc_Ainv, calc_mean_params, calc_R
+from mogp_emulator.linalg import logdet_deriv, calc_A_deriv
 try:
     from patsy import dmatrix, PatsyError
 except ImportError:
@@ -329,7 +330,7 @@ class GaussianProcess(GaussianProcessBase):
         values when appropriate, and mean or covariance parameters
         that are fit analytically).
         """
-        return self.n_mean + self.theta.n_data
+        return self.theta.n_data
 
     @property
     def has_nugget(self):
@@ -443,6 +444,7 @@ class GaussianProcess(GaussianProcessBase):
             self.current_logpost = None
             self.Kinv = None
             self.Kinv_t = None
+            self.Ainv = None
         else:
             self.fit(theta)
 
@@ -525,26 +527,28 @@ class GaussianProcess(GaussianProcessBase):
         
         return inputs
 
-    def _check_theta(self, theta):
+    def _check_theta(self, newtheta):
         """
         Check that thet provided array/GPParams object is correct
         """
 
-        if isinstance(theta, GPParams):
-            assert self.theta.same_shape(theta)
-            self._theta = theta
+        if isinstance(newtheta, GPParams):
+            assert self.theta.same_shape(newtheta)
+            if not newtheta.mean is None:
+                warnings.warn("Setting mean parameters with a GPParams object is " +
+                              "not supported. The provided values will be overwritten " +
+                              "with the analytical mean solution.")
+            self._theta = newtheta
         else:
-            theta = np.array(theta)
-            assert self.theta.same_shape(theta[self.theta.n_mean:]), "bad shape for hyperparameters"
-            self.theta.set_data(theta[self.theta.n_mean:])
-            self.theta.mean = theta[:self.theta.n_mean]
+            newtheta = np.array(newtheta)
+            assert self.theta.same_shape(newtheta), "bad shape for hyperparameters"
+            self.theta.set_data(newtheta)
     
-    def _refit(self, theta):
+    def _refit(self, newtheta):
         """Check if need to refit"""
 
         return (self.theta.get_data() is None or
-                not np.allclose(theta[self.theta.n_mean:], self.theta.get_data(), rtol=1.e-10, atol=1.e-15) or
-                not np.allclose(theta[:self.theta.n_mean], self.theta.mean, rtol=1.e-10, atol=1.e-15))
+                not np.allclose(newtheta, self.theta.get_data(), rtol=1.e-10, atol=1.e-15))
 
     def fit(self, theta):
         """Fits the emulator and sets the parameters
@@ -573,19 +577,31 @@ class GaussianProcess(GaussianProcessBase):
 
         self._check_theta(theta)
 
-        m = np.dot(self._dm, self.theta.mean)
+        m = self.priors.mean.dm_dot_b(self._dm)
         K = self.get_K_matrix()
 
         self.Kinv, newnugget = cholesky_factor(K, self.theta.nugget, self._nugget_type)
+        self.Ainv = calc_Ainv(self.Kinv, self._dm, self.priors.mean)
         
         if self._nugget_type == "adaptive":
             self.theta.nugget = newnugget
 
         self.Kinv_t = self.Kinv.solve(self.targets - m)
+        H_Kinv_t = np.dot(self._dm.T, self.Kinv_t)
+        
+        self.theta.mean = calc_mean_params(self.Ainv, self.Kinv_t,
+                                           self._dm, self.priors.mean)
 
-        self.current_logpost = 0.5*(self.Kinv.logdet() +
-                                    np.dot(self.targets - m, self.Kinv_t) +
-                                    self.n*np.log(2. * np.pi))
+        if self.priors.mean.has_weak_priors:
+            n_coeff = self.n - self.n_mean
+        else:
+            n_coeff = self.n
+
+        self.current_logpost = 0.5*(np.dot(self.targets - m, self.Kinv_t) -
+                                    np.dot(H_Kinv_t, self.Ainv.solve(H_Kinv_t)) +
+                                    self.Kinv.logdet() + self.Ainv.logdet() +
+                                    self.priors.mean.logdet_cov() + 
+                                    n_coeff*np.log(2.*np.pi))
 
         self.current_logpost -= self._priors.logp(self.theta)
 
@@ -645,28 +661,44 @@ class GaussianProcess(GaussianProcessBase):
 
         partials = np.zeros(self.n_data)
 
-        switch = self.theta.n_mean
-
-        dmdtheta = self._dm.T
         dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
                                                            self.theta.corr_raw)
-        K = self.get_K_matrix()
-
-        partials[:switch] = -np.dot(dmdtheta, self.Kinv_t)
-
-        for d in range(self.theta.n_corr):
-            partials[switch + d] = -0.5*(np.dot(self.Kinv_t, np.dot(dKdtheta[d], self.Kinv_t)) -
-                                         np.trace(self.Kinv.solve(dKdtheta[d])))
-                                         
-        partials[switch + self.theta.n_corr] = -0.5*(np.dot(self.Kinv_t, np.dot(K, self.Kinv_t)) -
-                                                     np.trace(self.Kinv.solve(K)))
-
+        dAdtheta = calc_A_deriv(self.Kinv, self._dm, dKdtheta)
+        
+        Kinv_H_Ainv_H_Kinv_t = self.Kinv.solve(np.dot(self._dm,
+                                                      self.Ainv.solve(np.dot(self._dm.T,
+                                                                             self.Kinv_t))))
+                                            
+        partials[:self.n_corr] = 0.5*(-np.dot(self.Kinv_t, np.dot(dKdtheta, self.Kinv_t).T) +
+                                       2.*np.dot(self.Kinv_t,
+                                                    np.dot(dKdtheta, Kinv_H_Ainv_H_Kinv_t).T) -
+                                       np.dot(Kinv_H_Ainv_H_Kinv_t,
+                                                 np.dot(dKdtheta, Kinv_H_Ainv_H_Kinv_t).T) +
+                                       logdet_deriv(self.Kinv, dKdtheta) +
+                                       logdet_deriv(self.Ainv, dAdtheta))
+        
+        dKdcov = np.reshape(self.get_K_matrix(), (1, self.n, self.n))
+        dAdcov = calc_A_deriv(self.Kinv, self._dm, dKdcov)
+        partials[self.n_corr] = 0.5*(-np.dot(self.Kinv_t, np.dot(dKdcov[0], self.Kinv_t)) +
+                                      2.*np.dot(self.Kinv_t,
+                                                np.dot(dKdcov[0], Kinv_H_Ainv_H_Kinv_t)) -
+                                      np.dot(Kinv_H_Ainv_H_Kinv_t,
+                                             np.dot(dKdcov[0], Kinv_H_Ainv_H_Kinv_t)) +
+                                      logdet_deriv(self.Kinv, dKdcov) +
+                                      logdet_deriv(self.Ainv, dAdcov))
+                                       
         if self.nugget_type == "fit":
-            nugget = self.theta.nugget
-            partials[-1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
-                                       np.dot(self.Kinv_t, self.Kinv_t))
+            dKdnugget = np.reshape(np.eye(self.n), (1, self.n, self.n))
+            dAdnugget = calc_A_deriv(self.Kinv, self._dm, dKdnugget)
+            partials[-1] = 0.5*self.nugget*(-np.dot(self.Kinv_t, self.Kinv_t) +
+                                             2.*np.dot(self.Kinv_t,
+                                                          Kinv_H_Ainv_H_Kinv_t) -
+                                             np.dot(Kinv_H_Ainv_H_Kinv_t,
+                                                       Kinv_H_Ainv_H_Kinv_t) +
+                                             logdet_deriv(self.Kinv, dKdnugget) +
+                                             logdet_deriv(self.Ainv, dAdnugget))
 
-        partials[self.theta.n_mean:] -= self._priors.dlogpdtheta(self.theta)
+        partials -= self._priors.dlogpdtheta(self.theta)
 
         return partials
 
@@ -852,7 +884,8 @@ class GaussianProcess(GaussianProcessBase):
         assert testing.ndim == 2, "test points must be a 1D or 2D array"
         assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
 
-        mtest = np.dot(self.get_design_matrix(testing), self.theta.mean)
+        dmtest = self.get_design_matrix(testing)
+        mtest = np.dot(dmtest, self.theta.mean)
         Ktest = self.get_cov_matrix(testing)
 
         mu = mtest + np.dot(Ktest.T, self.Kinv_t)
@@ -864,7 +897,11 @@ class GaussianProcess(GaussianProcessBase):
             if include_nugget and not self.nugget_type == "pivot":
                 sigma_2 += self.theta.nugget
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*self.Kinv.solve(Ktest), axis=0),
+            Kinv_Ktest = self.Kinv.solve(Ktest)
+            R = calc_R(Kinv_Ktest, self._dm, dmtest)
+
+            var = np.maximum(sigma_2 - np.sum(Ktest*Kinv_Ktest, axis=0) +
+                             np.sum(R*self.Ainv.solve(R), axis=0),
                              0.)
 
         inputderiv = None
