@@ -15,6 +15,11 @@ class ChoInv(object):
     def solve(self, b):
         if self.L.shape == (0,0):
             return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]**2
         else:
             return cho_solve((self.L, True), b)
         
@@ -62,11 +67,19 @@ class ChoInvPivot(ChoInv):
         :returns: Solution to the appropriate linear system as a ndarray.
         :rtype: ndarray
         """
-    
-        try:
-            return cho_solve((self.L, True), b[self.P])[_pivot_transpose(self.P)]
-        except (IndexError, ValueError):
-            raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
+
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]**2
+        else:
+            try:
+                return cho_solve((self.L, True), b[self.P])[_pivot_transpose(self.P)]
+            except (IndexError, ValueError):
+                raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
 
 def cholesky_factor(A, nugget, nugget_type):
     """

@@ -3,7 +3,8 @@ import pytest
 from numpy.testing import assert_allclose
 from ..linalg.cholesky import ChoInv, ChoInvPivot, cholesky_factor, fixed_cholesky
 from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
-from ..linalg.linalg_utils import calc_Ainv, calc_mean_params, calc_R
+from ..linalg.linalg_utils import calc_Ainv, calc_A_deriv, calc_mean_params, calc_R, logdet_deriv
+from ..Kernel import SquaredExponential
 from ..Priors import MeanPriors
 from scipy import linalg
 
@@ -28,8 +29,18 @@ def test_ChoInv(A, b):
     assert_allclose(Ainv.solve(b), x)
     
     assert_allclose(np.log(np.linalg.det(A)), Ainv.logdet())
+    
+    assert Ainv.solve(np.zeros((3,0))).shape == (3,0)
+    
+    Ainv = ChoInv(np.zeros((0,0)))
+    
+    assert Ainv.solve(np.ones(3)).shape == (3,)
+    
+    Ainv = ChoInv(2.*np.ones((1,1)))
+    
+    assert_allclose(Ainv.solve(np.ones((1, 3, 1))), 0.25*np.ones((1,3,1)))
 
-def test_ChoInnvPivot(A, b):
+def test_ChoInvPivot(A, b):
     "test the cho_solve routine using pivoting"
 
     L = np.linalg.cholesky(A)
@@ -221,7 +232,56 @@ def test_calc_Ainv(A, dm, Kinv):
         
     with pytest.raises(AssertionError):
         calc_Ainv(Kinv, dm, 1.)
+
+def test_calc_A_deriv(dm):
+    "test calculating the derivative of Ainv"
+    
+    x = np.array([[1.], [2.], [4.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    A = np.dot(dm.T, Kinv.solve(dm))
+    
+    deriv_expect = calc_A_deriv(Kinv, dm, dKdtheta)
+    
+    dx = 1.e-6
+    K2 = SquaredExponential().kernel_f(x, x, [-dx])
+    Kinv_2 = ChoInv(np.linalg.cholesky(K2))
+    A2 = np.dot(dm.T, Kinv_2.solve(dm))
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (A - A2)/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    # zero mean
+    
+    dm_z = np.zeros((3, 0))
+    A = np.dot(dm_z.T, Kinv.solve(dm_z))
+    
+    deriv_expect = calc_A_deriv(Kinv, dm_z, dKdtheta)
+    
+    dx = 1.e-6
+    K2 = SquaredExponential().kernel_f(x, x, [-dx])
+    Kinv_2 = ChoInv(np.linalg.cholesky(K2))
+    A2 = np.dot(dm_z.T, Kinv_2.solve(dm_z))
+    deriv_fd = np.zeros((1, 0, 0))
+    deriv_fd[0] = (A - A2)/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    with pytest.raises(AssertionError):
+        calc_A_deriv(1., dm, dKdtheta)
         
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones(3))
+        
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones((1, 2, 3)))
+        
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones((1, 2, 2)))
+
 def test_calc_mean_params(A, dm, Kinv):
     "test the calc_mean_params function"
     
@@ -274,3 +334,50 @@ def test_calc_R(A, dm, Kinv):
     R_expected = np.zeros((0,2))
     
     assert_allclose(R_actual, R_expected)
+
+def test_logdet_deriv():
+    "compute the derivative of the log determinant of a matrix"
+    
+    x = np.array([[1.], [2.], [4.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    
+    deriv_expect = logdet_deriv(Kinv, dKdtheta)
+    
+    dx = 1.e-6
+    deriv_fd = np.zeros(1)
+    deriv_fd[0] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [-dx]))))/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    x = np.array([[1., 4.], [2., 2.], [4., 1.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0., 0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0., 0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    
+    deriv_expect = logdet_deriv(Kinv, dKdtheta)
+    
+    dx = 1.e-6
+    deriv_fd = np.zeros(2)
+    deriv_fd[0] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., 0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [-dx, 0.]))))/dx
+    deriv_fd[1] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., 0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., -dx]))))/dx
+
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    with pytest.raises(AssertionError):
+        logdet_deriv(1., dKdtheta)
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones(3))
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones((1, 2, 3)))
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones((1, 2, 2)))
