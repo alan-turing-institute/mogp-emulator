@@ -7,8 +7,7 @@ from mogp_emulator.GaussianProcess import (
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU, parse_meanfunc_formula
 from mogp_emulator.MeanFunction import MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 from mogp_emulator import LibGPGPU
 
 
