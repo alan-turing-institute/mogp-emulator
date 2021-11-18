@@ -7,8 +7,7 @@ from mogp_emulator.GaussianProcess import (
 )
 from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU, parse_meanfunc_formula
 from mogp_emulator.MeanFunction import MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
+from mogp_emulator.Kernel import SquaredExponential, Matern52
 from mogp_emulator import LibGPGPU
 
 
@@ -37,7 +36,7 @@ class MultiOutputGP_GPU(object):
 
     """
 
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
+    def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
                  nugget="adaptive", inputdict={}, use_patsy=True, batch_size=16000):
         """
         Create a new multi-output GP Emulator

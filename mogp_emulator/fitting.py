@@ -168,11 +168,11 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
         except AssertionError:
             try:
                 gp = MultiOutputGP(*args, **gp_kwargs)
-                gp =  _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
+                gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
             except AssertionError:
                 raise ValueError("Bad values for *args in fit_GP_MAP")
     if isinstance(gp, GaussianProcessBase):
-        if gp.theta is None:
+        if gp.theta.get_data() is None:
             raise RuntimeError("GP fitting failed")
     else:
         if len(gp.get_indices_not_fit()) > 0:
@@ -230,13 +230,12 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     logpost_values = []
     theta_values = []
 
-    theta_startvals = 5.*(np.random.rand(n_tries, gp.n_params) - 0.5)
-    if not theta0 is None:
-        theta0 = np.array(theta0)
-        assert theta0.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
-        theta_startvals[0,:] = theta0
-
-    for theta in theta_startvals:
+    for i in range(n_tries):
+        if i == 0 and not theta0 is None:
+            theta = np.array(theta0)
+            assert theta.shape == (gp.n_data,), "theta0 must be a 1D array with length n_data"
+        else:
+            theta = gp.priors.sample()
         try:
             min_dict = minimize(gp.logposterior, theta, method = method,
                                 jac = gp.logpost_deriv, options = kwargs)
@@ -294,7 +293,8 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
     except KeyError:
         processes = None
 
-    assert int(n_tries) > 0, "n_tries must be a positive integer"
+    n_tries = int(n_tries)
+    assert n_tries > 0, "n_tries must be a positive integer"
 
     if theta0 is None:
         theta0 = [ None ]*gp.n_emulators
@@ -311,8 +311,6 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
     if not processes is None:
         processes = int(processes)
         assert processes > 0, "number of processes must be positive"
-
-    n_tries = int(n_tries)
 
     if refit:
         emulators_to_fit = gp.emulators

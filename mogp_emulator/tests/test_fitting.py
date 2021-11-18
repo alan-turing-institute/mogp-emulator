@@ -23,7 +23,7 @@ def test_fit_GP_MAP(monkeypatch):
     x = np.linspace(0., 1.)
     y = x**2
 
-    gp = GaussianProcess(x, y)
+    gp = GaussianProcess(x, y, nugget="fit")
 
     theta_exp = np.array([ 1.6, -2.1 , -0.8])
     logpost_exp = gp.logposterior(theta_exp)
@@ -31,14 +31,14 @@ def test_fit_GP_MAP(monkeypatch):
     gp = fit_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.get_data(), theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
     # same test, but pass args and kwargs rather than gp
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B")
+    gp = fit_GP_MAP(x, y, mean="0", nugget="fit", method="L-BFGS-B")
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.get_data(), theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
 
@@ -62,14 +62,13 @@ def test_fit_GP_MAP_GPU():
     assert_allclose(gp.theta, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
-
 def test_fit_GP_MAP_failures():
     "test failures of fit_GP_MAP"
 
     x = np.linspace(0., 1.)
     y = x**2
 
-    gp = GaussianProcess(x, y)
+    gp = GaussianProcess(x, y, nugget="fit")
 
     # minimization fails
 
@@ -79,10 +78,10 @@ def test_fit_GP_MAP_failures():
     gp = GaussianProcess(x, y, nugget=0.)
 
     with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
+        fit_GP_MAP(gp, theta0=np.array([0., 0.]), n_tries=1)
 
     with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+        fit_GP_MAP(gp, theta0 = np.array([800., 0.]), n_tries=1)
 
     # bad inputs
 
@@ -134,7 +133,6 @@ def test_fit_GP_MAP_GPU_failures():
     with pytest.raises(RuntimeError):
         fit_GP_MAP(gp, theta0=np.ones(1))
 
-
 def test_fit_GP_MAP_MOGP():
     "test the fit_GP_MAP function with multiple outputs"
 
@@ -143,7 +141,7 @@ def test_fit_GP_MAP_MOGP():
     y[0] = x**2
     y[1] = 2. + x**3
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
 
     np.random.seed(4335)
 
@@ -155,33 +153,33 @@ def test_fit_GP_MAP_MOGP():
 
     # same test, but pass args and kwargs rather than gp
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
+    gp = fit_GP_MAP(x, y, mean="0", nugget="fit", method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
 
     # pass processes argument
 
-    gp = fit_GP_MAP(x, y, mean="0.", use_patsy=False, method="L-BFGS-B", processes=1)
+    gp = fit_GP_MAP(x, y, mean="0", nugget="fit", method="L-BFGS-B", processes=1)
     assert isinstance(gp, MultiOutputGP)
 
     # pass various theta0 arguments
 
-    gp = fit_GP_MAP(x, y, theta0=np.zeros(3))
+    gp = fit_GP_MAP(x, y, nugget="fit", theta0=np.zeros(3))
 
-    gp = fit_GP_MAP(x, y, theta0=np.zeros((2, 3)))
+    gp = fit_GP_MAP(x, y, nugget="fit", theta0=np.zeros((2, 3)))
 
-    gp = fit_GP_MAP(x, y, theta0=[None, np.zeros(3)])
+    gp = fit_GP_MAP(x, y, nugget="fit", theta0=[None, np.zeros(3)])
 
     # test re-fitting
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
     gp.emulators[0].fit(np.ones(3))
 
     gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
-    assert_allclose(gp.emulators[0].theta, np.ones(3))
+    assert_allclose(gp.emulators[0].theta.get_data(), np.ones(3))
     assert not gp.emulators[1].theta is None
 
     gp = fit_GP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
-    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
+    assert not np.allclose(gp.emulators[0].theta.get_data(), np.ones(3))
 
 def test_fit_GP_MAP_MOGP_failures():
     "test situations where mogp fitting should fail"
@@ -191,7 +189,7 @@ def test_fit_GP_MAP_MOGP_failures():
     y[0] = x**2
     y[1] = 2. + x**3
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
 
     # minimization fails
 
@@ -204,18 +202,18 @@ def test_fit_GP_MAP_MOGP_failures():
 
     gp = MultiOutputGP(x, y, nugget=0.)
 
-    gp = fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
+    gp = fit_GP_MAP(gp, theta0=np.array([0., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
 
     with pytest.raises(RuntimeError):
-        gp = fit_GP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1,
+        gp = fit_GP_MAP(gp, theta0=np.array([0., 0.]), n_tries=1,
                         skip_failures=False, refit=True)
 
-    gp = fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp = fit_GP_MAP(gp, theta0 = np.array([800., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
 
     with pytest.raises(RuntimeError):
-        gp = fit_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1,
+        gp = fit_GP_MAP(gp, theta0 = np.array([800., 0.]), n_tries=1,
                         skip_failures=False, refit=True)
 
     # bad inputs
@@ -245,7 +243,7 @@ def test_fit_GP_MAP_MOGP_failures():
         fit_GP_MAP(gp, theta0=[None, None, None])
 
     with pytest.raises(AssertionError):
-        fit_GP_MAP(gp, theta0=[np.zeros(1), np.zeros(3)], processes=1)
+        fit_GP_MAP(gp, theta0=[np.zeros(1), np.zeros(2)], processes=1)
 
 def test_fit_single_GP_MAP(monkeypatch):
     "test the method to run the minimization algorithm on a GP class"
@@ -255,7 +253,7 @@ def test_fit_single_GP_MAP(monkeypatch):
     x = np.linspace(0., 1.)
     y = x**2
 
-    gp = GaussianProcess(x, y)
+    gp = GaussianProcess(x, y, nugget="fit")
 
     theta_exp = np.array([ 1.6, -2.1 , -0.8])
     logpost_exp = gp.logposterior(theta_exp)
@@ -263,9 +261,8 @@ def test_fit_single_GP_MAP(monkeypatch):
     gp = _fit_single_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcess)
-    assert_allclose(gp.theta, theta_exp)
+    assert_allclose(gp.theta.get_data(), theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
-
 
 def test_fit_single_GP_MAP_failures():
     "test situation where fitting one emulator should fail"
@@ -273,20 +270,20 @@ def test_fit_single_GP_MAP_failures():
     x = np.linspace(0., 1.)
     y = x**2
 
-    gp = GaussianProcess(x, y)
+    gp = GaussianProcess(x, y, nugget="fit")
 
     # minimization fails
 
     gp = _fit_single_GP_MAP(gp, n_tries=1, theta0=-10000.*np.ones(3))
-    assert gp.theta is None
+    assert gp.theta.get_data() is None
 
     gp = GaussianProcess(x, y, nugget=0.)
 
-    gp = _fit_single_GP_MAP(gp, theta0 = np.array([0., 0., 0.]), n_tries=1)
-    assert gp.theta is None
+    gp = _fit_single_GP_MAP(gp, theta0 = np.array([0., 0.]), n_tries=1)
+    assert gp.theta.get_data() is None
 
-    gp =_fit_single_GP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
-    assert gp.theta is None
+    gp =_fit_single_GP_MAP(gp, theta0 = np.array([800., 0.]), n_tries=1)
+    assert gp.theta.get_data() is None
 
     # bad inputs
 
@@ -307,11 +304,11 @@ def test_fit_MOGP_MAP():
     y[0] = x**2
     y[1] = 2. + x**3
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
 
     np.random.seed(4335)
 
-    gp = _fit_MOGP_MAP(gp)
+    gp = _fit_MOGP_MAP(gp, nugget="fit")
 
     assert isinstance(gp, MultiOutputGP)
 
@@ -332,16 +329,15 @@ def test_fit_MOGP_MAP():
 
     # test re-fitting
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
     gp.emulators[0].fit(np.ones(3))
 
     gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=False)
-    assert_allclose(gp.emulators[0].theta, np.ones(3))
-    assert not gp.emulators[1].theta is None
+    assert_allclose(gp.emulators[0].theta.get_data(), np.ones(3))
+    assert not gp.emulators[1].theta.get_data() is None
 
     gp = _fit_MOGP_MAP(gp, theta0=np.zeros(3), n_tries=1, refit=True)
-    assert not np.allclose(gp.emulators[0].theta, np.ones(3))
-
+    assert not np.allclose(gp.emulators[0].theta.get_data(), np.ones(3))
 
 def test_fit_MOGP_MAP_failures():
     "test situations where fitting should fail"
@@ -351,7 +347,7 @@ def test_fit_MOGP_MAP_failures():
     y[0] = x**2
     y[1] = 2. + x**3
 
-    gp = MultiOutputGP(x, y)
+    gp = MultiOutputGP(x, y, nugget="fit")
 
     # minimization fails
 
@@ -360,10 +356,10 @@ def test_fit_MOGP_MAP_failures():
 
     gp = MultiOutputGP(x, y, nugget=0.)
 
-    gp = _fit_MOGP_MAP(gp, theta0=np.array([0., 0., 0.]), n_tries=1)
+    gp = _fit_MOGP_MAP(gp, theta0=np.array([0., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
 
-    gp = _fit_MOGP_MAP(gp, theta0 = np.array([800., 0., 0.]), n_tries=1)
+    gp = _fit_MOGP_MAP(gp, theta0 = np.array([800., 0.]), n_tries=1)
     assert gp.get_indices_not_fit() == [0, 1]
 
     # bad inputs

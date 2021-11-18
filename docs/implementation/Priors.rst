@@ -4,12 +4,32 @@
 The ``Priors`` Module
 **********************************
 
-.. autoclass:: mogp_emulator.Priors.Prior
+.. automodule:: mogp_emulator.Priors
+    :members:
+
+.. _GPPriors:
+
+.. autoclass:: mogp_emulator.Priors.GPPriors
+    :members:
+    
+.. _MeanPriors:
+
+.. autoclass:: mogp_emulator.Priors.MeanPriors
+    :members:
+
+.. _WeakPrior:
+
+.. autoclass:: mogp_emulator.Priors.WeakPrior
     :members:
 
 .. _NormalPrior:
 
 .. autoclass:: mogp_emulator.Priors.NormalPrior
+    :members:
+    
+.. _LogNormalPrior:
+
+.. autoclass:: mogp_emulator.Priors.LogNormalPrior
     :members:
 
 .. _GammaPrior:

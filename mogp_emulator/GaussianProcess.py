@@ -1,11 +1,15 @@
 import numpy as np
-from mogp_emulator.MeanFunction import MeanFunction, MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
+from mogp_emulator.Kernel import KernelBase
+from mogp_emulator.Priors import GPPriors
+from mogp_emulator.GPParams import GPParams, _process_nugget
 from scipy import linalg
 from scipy.optimize import OptimizeResult
-from mogp_emulator.linalg import jit_cholesky, pivot_cholesky, pivot_cho_solve
-
+from mogp_emulator.linalg import cholesky_factor
+try:
+    from patsy import dmatrix, PatsyError
+except ImportError:
+    raise ImportError("patsy is now a required dependency of mogp-emulator")
+import warnings
 
 class GaussianProcessBase(object):
     pass
@@ -77,9 +81,9 @@ class GaussianProcess(GaussianProcessBase):
                [4.64005897e-06, 3.74191346e-02, 1.94917337e-17]]))
 
     """
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict = {}, use_patsy=True):
-        """Create a new GaussianProcess Emulator
+    def __init__(self, inputs, targets, mean=None, kernel='SquaredExponential', priors=None,
+                 nugget="adaptive", inputdict={}, use_patsy=True):
+        r"""Create a new GaussianProcess Emulator
 
         Creates a new GaussianProcess Emulator from either the input
         data and targets to be fit and optionally a mean function,
@@ -104,13 +108,29 @@ class GaussianProcess(GaussianProcessBase):
         held in an array-like object. This must be a 1D array of
         length ``n``.
 
-        ``prior`` must be a list of length ``n_params`` whose elements
-        are either ``Prior``-derived objects or ``None``.  Each
+        ``prior`` can take several different forms. Passing ``None``
+        for this argument will create default priors, which are
+        uninformative for any mean, covariance, or nugget parameters
+        and are inverse gamma distributions with 99% of their mass
+        between the minimum and maximum grid spacing. To choose other
+        default distributions (options are lognormal and gamma
+        distributions), the user must pass a ``GPPriors`` object.
+        The ``GPPriors.default_priors`` class method gives more
+        control over the exact distribution choice.
+        
+        If default priors are not used, ``priors`` must be a ``GPPriors``
+        object or a list of prior distributions. If a list, it must
+        have a length of ``n_params`` whose elements are either
+        ``Prior``-derived objects or ``None``. Note that there are
+        some exceptions to the requirement of the list length, depending
+        on the method used for fitting the nugget. Each list
         element is used as the prior for the corresponding parameter
-        (with ``None`` indicating an uninformative prior).  Passing
-        the empty list or ``None`` as this argument (in its entirety)
-        may be used as an abbreviation for a list of ``n_params``
-        where all list elements are ``None``.
+        following the ordering (mean, correlation, covariance, nugget),
+        with ``None`` indicating an uninformative prior.  Passing
+        the empty list as this argument may be used as an abbreviation
+        for a list of ``n_params`` where all list elements are
+        ``None``. Note that this means that uninformative priors must
+        be explicitly set, rather than being the default!
 
         ``nugget`` controls how additional noise is added to the
         emulator targets when fitting.  This can be specified in
@@ -138,9 +158,13 @@ class GaussianProcess(GaussianProcessBase):
         :param targets: Numpy array holding emulator targets. Must be
                         1D with length ``n``
         :type targets: ndarray
-        :param mean: Mean function to be used (optional, default is
-                     ``None`` for a zero mean)
-        :type mean: None or MeanFunction
+        :param mean: Mean function to be used or ``None``. If not
+                     ``None`` (i.e. zero mean), most likely to be
+                     a string formula, but can be any type
+                     accepted by the `patsy.dmatrix` interface.
+                     See the `patsy` documentation for more details.
+                     Optional, default is "1" (constant mean).
+        :type mean: None, str, or other formula-like object
         :param kernel: Covariance kernel to be used (optional, default
                      is Squared Exponential) Can provide either a
                      ``Kernel`` object or a string matching the kernel
@@ -170,45 +194,52 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: GaussianProcess
 
         """
-        inputs = np.array(inputs)
-        if inputs.ndim == 1:
-            inputs = np.reshape(inputs, (-1, 1))
-        assert inputs.ndim == 2
+        inputs = self._process_inputs(inputs)
 
         targets = np.array(targets)
         assert targets.ndim == 1
         assert targets.shape[0] == inputs.shape[0]
 
-        if not issubclass(type(mean), MeanBase):
-            if not (mean is None or isinstance(mean, str)):
-                raise ValueError("provided mean function must be a subclass of MeanFunction,"+
-                                 " a string formula, or None")
-
         if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            elif kernel == "Matern52":
-                kernel = Matern52()
-            else:
+            try:
+                import mogp_emulator.Kernel
+                kernel_class = getattr(mogp_emulator.Kernel, kernel)
+                kernel = kernel_class()
+            except AttributeError:
                 raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-        if not issubclass(type(kernel), Kernel):
-            raise ValueError("provided kernel is not a subclass of Kernel")
+        if not issubclass(type(kernel), KernelBase):
+            raise ValueError("provided kernel is not a subclass of KernelBase")
 
         self._inputs = inputs
         self._targets = targets
 
-        if not issubclass(type(mean), MeanBase):
-            self.mean = MeanFunction(mean, inputdict, use_patsy)
-        else:
-            self.mean = mean
+        if not inputdict == {}:
+            warnings.warn("The inputdict interface for mean functions has been deprecated. " +
+                          "You must input your mean formulae using the x[0] format directly " +
+                          "in the formula.", DeprecationWarning)
+                          
+        if not use_patsy:
+            warnings.warn("patsy is now required to parse all formulae and form design " +
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.",
+                          DeprecationWarning)
+
+        self._mean = mean
+        self._dm = self.get_design_matrix(self._inputs)
 
         self.kernel = kernel
 
-        self.nugget = nugget
+        _, self._nugget_type = _process_nugget(nugget)
+        
+        self._set_priors(priors)
 
-        self.priors = priors
-
-        self._theta = None
+        self._theta = GPParams(n_mean=self.n_mean,
+                               n_corr=self.n_corr,
+                               fit_cov=self.priors.fit_cov,
+                               nugget=nugget)
+                               
+        self.Kinv = None
+        self.Kinvt = None
+        self.current_logpost = None
 
     @property
     def inputs(self):
@@ -253,20 +284,62 @@ class GaussianProcess(GaussianProcessBase):
         return self.inputs.shape[1]
 
     @property
+    def n_mean(self):
+        """Returns number of mean parameters
+        
+        :returns: Number of mean parameters
+        :rtype: int
+        """
+        return self._dm.shape[1]
+        
+    @property
+    def n_corr(self):
+        """Returns number of correlation length parameters
+        
+        :returns: Number of correlation length parameters
+        :rtype: int
+        """
+        return self.kernel.get_n_params(self._inputs)
+
+    @property
     def n_params(self):
         """Returns number of hyperparameters
 
         Returns the number of hyperparameters for the emulator. The
         number depends on the choice of mean function, covariance
         function, and nugget strategy, and possibly the number of
-        inputs for certain choices of the mean function.
+        inputs depending on the mean and covariance functions.
+        Note that this differs from n_data, which is the size
+        of array that can be used to set the parameters
 
         :returns: Number of hyperparameters
         :rtype: int
 
         """
 
-        return self.mean.get_n_params(self.inputs) + self.D + 2
+        return self.n_mean + self.n_corr + 1 + int(self.has_nugget)
+
+    @property
+    def n_data(self):
+        """Returns number of data elements
+        
+        This is the size of the numpy array that can be used to set
+        the parameters. Note that setting this with an array will
+        automatically fit the emulator and set any additional
+        parameters not specified by this array (such as nugget
+        values when appropriate, and mean or covariance parameters
+        that are fit analytically).
+        """
+        return self.n_mean + self.theta.n_data
+
+    @property
+    def has_nugget(self):
+        """Boolean indicating if the GP has a nugget parameter
+        
+        :returns: Boolean indicating if GP has a nugget
+        :rtype: bool
+        """
+        return (not self._nugget_type == "pivot")
 
     @property
     def nugget_type(self):
@@ -277,7 +350,7 @@ class GaussianProcess(GaussianProcessBase):
         ``"fixed"``. This is automatically set when changing the
         ``nugget`` property.
 
-        :returns: Current nugget fitting method
+        :returns: Nugget fitting method
         :rtype: str
 
         """
@@ -293,125 +366,33 @@ class GaussianProcess(GaussianProcessBase):
 
         :returns: Current nugget value, either a float or ``None``
         :rtype: float or None
-
-        The ``nugget`` parameter controls how noise is added to the
-        covariance matrix in order to stabilize the inversion or
-        smooth the emulator predictions. If ``nugget`` is a
-        non-negative float, then that particular value is used for the
-        nugget. Note that setting this parameter to be zero enforces
-        that the emulator strictly interpolates between
-        points. Alternatively, a string can be provided. A value of
-        ``"fit"`` means that the nugget is treated as a
-        hyperparameter, and is the last entry in the ``theta``
-        array. Alternatively, if ``nugget`` is set to be
-        ``"adaptive"``, the fitting routine will adaptively make the
-        noise parameter as large as is needed to ensure that the
-        emulator can be fit. Finally, pivoting can be selected by
-        setting to ``"pivot"``, which will ignore any collinear rows
-        in the covariance matrix.
-
-        Internally, this modifies both the way the nugget is chosen
-        (which can be determined via the ``nugget_type`` property) and
-        the value itself (the ``nugget`` property)
-
-        :param nugget: Noise to be added to the diagonal, specified as
-                       a string or a float.  A non-negative float
-                       specifies the noise level explicitly, while a
-                       string indicates that the nugget will be found
-                       via fitting, either as ``"adaptive"``,
-                       ``"pivot"``, or ``"fit"`` (see above for a
-                       description).
-        :type nugget: float or str
-        :returns: None
-        :rtype: None
         """
 
-        return self._nugget
+        return self.theta.nugget
 
-    @nugget.setter
-    def nugget(self, nugget):
-        """Set the nugget parameter for the emulator
-
-        Method for changing the ``nugget`` parameter for the
-        emulator. When a new emulator is initilized, this is set to
-        None.
-
-        The ``nugget`` parameter controls how noise is added to the
-        covariance matrix in order to stabilize the inversion or
-        smooth the emulator predictions. If ``nugget`` is a
-        non-negative float, then that particular value is used for the
-        nugget. Note that setting this parameter to be zero enforces
-        that the emulator strictly interpolates between
-        points. Alternatively, a string can be provided. A value of
-        ``"fit"`` means that the nugget is treated as a
-        hyperparameter, and is the last entry in the ``theta``
-        array. Alternatively, if ``nugget`` is set to be
-        ``"adaptive"``, the fitting routine will adaptively make the
-        noise parameter as large as is needed to ensure that the
-        emulator can be fit. Finally, pivoting can be selected by
-        setting to ``"pivot"``, which will ignore any collinear rows
-        in the covariance matrix.
-
-        Internally, this modifies both the way the nugget is chosen
-        (which can be determined via the ``nugget_type`` property) and
-        the value itself (the ``nugget`` property)
-
-        :param nugget: Noise to be added to the diagonal, specified as
-                       a string or a float.  A non-negative float
-                       specifies the noise level explicitly, while a
-                       string indicates that the nugget will be found
-                       via fitting, either as ``"adaptive"``,
-                       ``"pivot"``, or ``"fit"`` (see above for a
-                       description).
-        :type nugget: float or str
-        :returns: None
-        :rtype: None
-
-        """
-
-        if not isinstance(nugget, (str, float)):
-            try:
-                nugget = float(nugget)
-            except TypeError:
-                raise TypeError("nugget parameter must be a string or a non-negative float")
-
-        if isinstance(nugget, str):
-            if nugget == "adaptive":
-                self._nugget_type = "adaptive"
-            elif nugget == "fit":
-                self._nugget_type = "fit"
-            elif nugget == "pivot":
-                self._nugget_type = "pivot"
-            else:
-                raise ValueError("bad value of nugget, must be a float or 'adaptive', 'pivot', or 'fit'")
-            self._nugget = None
-        else:
-            if nugget < 0.:
-                raise ValueError("nugget parameter must be non-negative")
-            self._nugget_type = "fixed"
-            self._nugget = float(nugget)
 
     @property
     def theta(self):
         """Returns emulator hyperparameters
 
-        Returns current hyperparameters for the emulator as a numpy
-        array if they have been fit.  If no parameters have been fit,
-        returns ``None``. Note that the number of parameters depends
-        on the mean function, so the length of this array will vary
-        across instances.
+        Returns current hyperparameters for the emulator as a ``GPParams``
+        object.  If no parameters have been fit, the data for that
+        object will be set to ``None``. Note that the number of parameters
+        depends on the mean function and whether or not a nugget is fit,
+        so the length of this array will vary across instances.
 
-        :returns: Current parameter values (numpy array of length
-                  ``n_params``), or ``None`` if the parameters have
-                  not been fit.
-        :rtype: ndarray or None
+        :returns: Current parameter values as a ``GPParams`` object.
+                  If the emulator has not been fit, the parameter
+                  values will not have been set.
+        :rtype: GPParams
 
-        When set, pre-calculates the matrices needed to compute the
-        log-likelihood and its derivatives and make subsequent
-        predictions. This is called any time the hyperparameter values
-        are changed in order to ensure that all the information is
-        needed to evaluate the log-likelihood and its derivatives,
-        which are needed when fitting the optimal hyperparameters.
+        When parameter values have been set, pre-calculates the matrices
+        needed to compute the log-likelihood and its derivatives and
+        make subsequent predictions. This is called any time the
+        hyperparameter values are changed in order to ensure that
+        all the information is needed to evaluate the log-likelihood
+        and its derivatives, which are needed when fitting the optimal
+        hyperparameters.
 
         The method computes the mean function and covariance matrix
         and inverts the covariance matrix using the method specified
@@ -422,16 +403,19 @@ class GaussianProcess(GaussianProcessBase):
         return value, but it does modify the state of the object.
 
         :param theta: Values of the hyperparameters to use in
-                      fitting. Must be a numpy array with length
-                      ``n_params``
-        :type theta: ndarray
+                      fitting. Must be a GPParams object, a
+                      numpy array with length ``n_params``, or
+                      ``None`` to specify no parameters.
+        :type theta: GPParams
         """
 
         return self._theta
 
     @theta.setter
     def theta(self, theta):
-        """Fits the emulator and sets the parameters (property-based setter alias for ``fit``)
+        """
+        Fits the emulator and sets the parameters (property-based setter
+        alias for ``fit``)
 
         Pre-calculates the matrices needed to compute the
         log-likelihood and its derivatives and make subsequent
@@ -449,80 +433,80 @@ class GaussianProcess(GaussianProcessBase):
         return value, but it does modify the state of the object.
 
         :param theta: Values of the hyperparameters to use in
-                      fitting. Must be a numpy array with length
-                      ``n_params``
+                      fitting. Must be a `GPParams`` object, a
+                      numpy array with length ``n_params``, or
         :type theta: ndarray
         :returns: None
         """
+        
         if theta is None:
-            self._theta = None
+            self._theta.set_data(None)
             self.current_logpost = None
+            self.Kinv = None
+            self.Kinv_t = None
         else:
             self.fit(theta)
 
     @property
     def priors(self):
-        """The current list priors used in computing the log posterior
-
-        To set the priors, must be a list or ``None``. Entries can be
-        ``None`` or a subclass of ``Prior``.  ``None`` indicates weak
-        prior information. An empty list or ``None`` means all
-        uninformative priors. Otherwise list should have the same
-        length as the number of hyperparameters, or alternatively can
-        be one shorter than the number of hyperparameters if
-        ``nugget_type`` is ``"adaptive"``, ``"pivot"`` or ``"fixed"``
-        meaning that the nugget hyperparameter is not fit but is
-        instead fixed or found adaptively. If the nugget
-        hyperparameter is not fit, the prior for the nugget will
-        automatically be set to ``None`` even if a distribution is
-        provided.
+        """
+        Specifies the priors using a ``GPPriors`` object. Property returns ``GPPriors``
+        object
         """
         return self._priors
 
-    @priors.setter
-    def priors(self, priors):
-        """Sets the priors to a list of prior objects/None
+    def _set_priors(self, newpriors):
+        """
+        Set the priors
+        """
+        
+        if newpriors is None:
+            self._priors = GPPriors.default_priors(self.inputs, self.n_corr, self.nugget_type)
+        elif isinstance(newpriors, GPPriors):
+            self._priors = newpriors
+        else:
+            try:
+                self._priors = GPPriors(**newpriors)
+            except TypeError:
+                raise TypeError("Provided arguments for priors are not valid inputs " +
+                                "for a GPPriors object.")
+        
+        if self._priors.n_mean > 0:
+            assert self._priors.n_mean == self.n_mean
+        assert self._priors.n_corr == self.n_corr, "bad number of correlation lengths in new GPPriors object"
+        assert self._priors.nugget_type == self.nugget_type, "nugget type of GPPriors object does not match"
 
-        Sets the priors, must be a list or ``None``. Entries can be
-        ``None`` or a subclass of ``Prior``.  ``None`` indicates weak
-        prior information. An empty list or ``None`` means all
-        uninformative priors. Otherwise list should have the same
-        length as the number of hyperparameters, or alternatively can
-        be one shorter than the number of hyperparameters if
-        ``nugget_type`` is ``"adaptive"``,``"pivot"``, or ``"fixed"``
-        meaning that the nugget hyperparameter is not fit but is
-        instead fixed or found adaptively. If the nugget
-        hyperparameter is not fit, the prior for the nugget will
-        automatically be set to ``None`` even if a distribution is
-        provided.
+    def get_design_matrix(self, inputs):
+        """Returns the design matrix for a set of inputs
+        
+        For a given set of inputs, compute the design matrix based on the GP
+        mean function.
         """
 
-        if priors is None:
-            priors = []
-
-        if not isinstance(priors, list):
-            raise TypeError("priors must be a list of Prior-derived objects")
-
-        if len(priors) == 0:
-            priors = self.n_params*[None]
-
-        if self.nugget_type in ["adaptive", "fixed", "pivot"]:
-            if len(priors) == self.n_params - 1:
-                priors.append(None)
-
-        if not len(priors) == self.n_params:
-            raise ValueError("bad length for priors; must have length n_params")
-
-        if self.nugget_type in ["adaptive", "fixed", "pivot"]:
-            if not priors[-1] is None:
-                priors[-1] = None
-
-        for p in priors:
-            if not p is None and not issubclass(type(p), Prior):
-                raise TypeError("priors must be a list of Prior-derived objects")
-
-        self._priors = list(priors)
-
+        inputs = self._process_inputs(inputs)
+        
+        if self._mean is None or self._mean == "0" or self._mean == "-1":
+            dm = np.zeros((inputs.shape[0], 0))
+        elif self._mean == "1" or self._mean == "-0":
+            dm = np.ones((inputs.shape[0], 1))
+        else:
+            try:
+                dm = dmatrix(self._mean, data={"x": inputs.T})
+            except PatsyError:
+                raise ValueError("Provided mean function is invalid")
+            if not dm.shape[0] == inputs.shape[0]:
+                raise ValueError("Provided design matrix is of the wrong shape")
+                
+        return dm
+                
+    def get_cov_matrix(self, inputs):
+        """Computes the covariance matrix for a set of inputs. Assumes the second
+        set of inputs is the inputs on which the GP is conditioned.
+        """
+        inputs = self._process_inputs(inputs)
+        
+        return self.theta.cov*self.kernel.kernel_f(self.inputs, inputs,
+                                                   self.theta.corr_raw)
 
     def get_K_matrix(self):
         """Returns current value of the covariance matrix as a numpy
@@ -530,9 +514,38 @@ class GaussianProcess(GaussianProcessBase):
         dependent on how the nugget is fit.
 
         """
-        switch = self.mean.get_n_params(self.inputs)
+        return self.get_cov_matrix(self.inputs)
 
-        return self.kernel.kernel_f(self.inputs, self.inputs, self.theta[switch:-1])
+    def _process_inputs(self, inputs):
+        "Change inputs into an array and reshape if required"
+        
+        inputs = np.array(inputs)
+        if inputs.ndim == 1:
+            inputs = np.reshape(inputs, (-1, 1))
+        assert inputs.ndim == 2
+        
+        return inputs
+
+    def _check_theta(self, theta):
+        """
+        Check that thet provided array/GPParams object is correct
+        """
+
+        if isinstance(theta, GPParams):
+            assert self.theta.same_shape(theta)
+            self._theta = theta
+        else:
+            theta = np.array(theta)
+            assert self.theta.same_shape(theta[self.theta.n_mean:]), "bad shape for hyperparameters"
+            self.theta.set_data(theta[self.theta.n_mean:])
+            self.theta.mean = theta[:self.theta.n_mean]
+    
+    def _refit(self, theta):
+        """Check if need to refit"""
+
+        return (self.theta.get_data() is None or
+                not np.allclose(theta[self.theta.n_mean:], self.theta.get_data(), rtol=1.e-10, atol=1.e-15) or
+                not np.allclose(theta[:self.theta.n_mean], self.theta.mean, rtol=1.e-10, atol=1.e-15))
 
     def fit(self, theta):
         """Fits the emulator and sets the parameters
@@ -559,39 +572,23 @@ class GaussianProcess(GaussianProcessBase):
         :returns: None
         """
 
-        theta = np.array(theta)
+        self._check_theta(theta)
 
-        assert theta.shape == (self.n_params,), "bad shape for hyperparameters"
+        m = np.dot(self._dm, self.theta.mean)
+        K = self.get_K_matrix()
 
-        self._theta = theta
+        self.Kinv, newnugget = cholesky_factor(K, self.theta.nugget, self._nugget_type)
+        
+        if self._nugget_type == "adaptive":
+            self.theta.nugget = newnugget
 
-        switch = self.mean.get_n_params(self.inputs)
+        self.Kinv_t = self.Kinv.solve(self.targets - m)
 
-        m = self.mean.mean_f(self.inputs, self.theta[:switch])
-        Q = self.kernel.kernel_f(self.inputs, self.inputs, self.theta[switch:-1])
-
-        if self.nugget_type == "adaptive":
-            self.L, self._nugget = jit_cholesky(Q)
-            self.P = np.arange(0, self.n)
-        elif self.nugget_type == "pivot":
-            self.L, self.P = pivot_cholesky(Q)
-            self._nugget = 0.
-        else:
-            if self.nugget_type == "fit":
-                self._nugget = np.exp(self.theta[-1])
-            Q += self._nugget*np.eye(self.n)
-            self.L = linalg.cholesky(Q, lower=True)
-            self.P = np.arange(0, self.n)
-
-        self.invQt = pivot_cho_solve(self.L, self.P, self.targets - m)
-
-        self.current_logpost = 0.5*(2.0*np.sum(np.log(np.diag(self.L))) +
-                                    np.dot(self.targets - m, self.invQt) +
+        self.current_logpost = 0.5*(self.Kinv.logdet() +
+                                    np.dot(self.targets - m, self.Kinv_t) +
                                     self.n*np.log(2. * np.pi))
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                self.current_logpost -= self._priors[i].logp(self.theta[i])
+        self.current_logpost -= self._priors.logp(self.theta)
 
 
     def logposterior(self, theta):
@@ -611,8 +608,8 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: float
 
         """
-
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+        
+        if self._refit(theta):
             self.fit(theta)
 
         return self.current_logpost
@@ -644,35 +641,33 @@ class GaussianProcess(GaussianProcessBase):
         :rtype: ndarray
         """
 
-        theta = np.array(theta)
-
-        assert theta.shape == (self.n_params,), "bad shape for new parameters"
-
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+        if self._refit(theta):
             self.fit(theta)
 
-        partials = np.zeros(self.n_params)
+        partials = np.zeros(self.n_data)
 
-        switch = self.mean.get_n_params(self.inputs)
+        switch = self.theta.n_mean
 
-        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta[:switch])
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:-1])
+        dmdtheta = self._dm.T
+        dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
+                                                           self.theta.corr_raw)
+        K = self.get_K_matrix()
 
-        partials[:switch] = -np.dot(dmdtheta, self.invQt)
+        partials[:switch] = -np.dot(dmdtheta, self.Kinv_t)
 
-        for d in range(self.D + 1):
-            invQ_dot_dKdtheta_trace = np.trace(pivot_cho_solve(self.L, self.P, dKdtheta[d]))
-            partials[switch + d] = -0.5*(np.dot(self.invQt, np.dot(dKdtheta[d], self.invQt)) -
-                                         invQ_dot_dKdtheta_trace)
+        for d in range(self.theta.n_corr):
+            partials[switch + d] = -0.5*(np.dot(self.Kinv_t, np.dot(dKdtheta[d], self.Kinv_t)) -
+                                         np.trace(self.Kinv.solve(dKdtheta[d])))
+                                         
+        partials[switch + self.theta.n_corr] = -0.5*(np.dot(self.Kinv_t, np.dot(K, self.Kinv_t)) -
+                                                     np.trace(self.Kinv.solve(K)))
 
         if self.nugget_type == "fit":
-            nugget = np.exp(self.theta[-1])
-            partials[-1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
-                                       np.dot(self.invQt, self.invQt))
+            nugget = self.theta.nugget
+            partials[-1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
+                                       np.dot(self.Kinv_t, self.Kinv_t))
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                partials[i] -= self._priors[i].dlogpdtheta(self.theta[i])
+        partials[self.theta.n_mean:] -= self._priors.dlogpdtheta(self.theta)
 
         return partials
 
@@ -706,68 +701,89 @@ class GaussianProcess(GaussianProcessBase):
 
         """
 
-        assert theta.shape == (self.n_params,), "Parameter vector must have length number of inputs + 1"
-
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+        if self._refit(theta):
             self.fit(theta)
 
-        hessian = np.zeros((self.n_params, self.n_params))
+        hessian = np.zeros((self.n_data, self.n_data))
+        
+        switch = self.theta.n_mean
+        if self.nugget_type == "fit":
+            param_index = slice(switch, -2)
+        else:
+            param_index = slice(switch, self.n_data - 1)
 
-        switch = self.mean.get_n_params(self.inputs)
+        dmdtheta = self._dm.T
+        K = self.get_K_matrix()
+        dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
+                                                           self.theta.corr_raw)
+        d2Kdtheta2 = self.theta.cov*self.kernel.kernel_hessian(self.inputs, self.inputs,
+                                                               self.theta.corr_raw)
 
-        dmdtheta = self.mean.mean_deriv(self.inputs, self.theta[:switch])
-        d2mdtheta2 = self.mean.mean_hessian(self.inputs, self.theta[:switch])
-        dKdtheta = self.kernel.kernel_deriv(self.inputs, self.inputs, self.theta[switch:-1])
-        d2Kdtheta2 = self.kernel.kernel_hessian(self.inputs, self.inputs, self.theta[switch:-1])
+        hessian[:switch, :switch] = np.dot(dmdtheta, self.Kinv.solve(np.transpose(dmdtheta)))
 
-        hessian[:switch, :switch] = -(np.dot(d2mdtheta2, self.invQt) -
-                                      np.dot(dmdtheta, pivot_cho_solve(self.L, self.P,
-                                                                        np.transpose(dmdtheta))))
+        hessian[:switch, param_index] = np.dot(dmdtheta,
+                                               self.Kinv.solve(np.transpose(np.dot(dKdtheta, self.Kinv_t))))
 
-        hessian[:switch, switch:-1] = np.dot(dmdtheta,
-                                             pivot_cho_solve(self.L, self.P,
-                                                              np.transpose(np.dot(dKdtheta, self.invQt))))
+        hessian[:switch, switch + self.n_corr] = np.dot(dmdtheta,
+                                                        self.Kinv.solve(np.transpose(np.dot(K, self.Kinv_t))))
 
-        hessian[switch:-1, :switch] = np.transpose(hessian[:switch, switch:-1])
+        hessian[param_index, :switch] = np.transpose(hessian[:switch, param_index])
+        hessian[switch + self.theta.n_corr, :switch] = np.transpose(hessian[:switch, switch + self.theta.n_corr])
 
-        for d1 in range(self.D + 1):
-            invQ_dot_d1 = pivot_cho_solve(self.L, self.P, dKdtheta[d1])
-            for d2 in range(self.D + 1):
-                invQ_dot_d2 = pivot_cho_solve(self.L, self.P, dKdtheta[d2])
-                invQ_dot_d1d2 = pivot_cho_solve(self.L, self.P, d2Kdtheta2[d1, d2])
-                term_1 = np.linalg.multi_dot([self.invQt,
-                                              2.*np.dot(dKdtheta[d1], invQ_dot_d2) - d2Kdtheta2[d1, d2],
-                                              self.invQt])
-                term_2 = np.trace(np.dot(invQ_dot_d1, invQ_dot_d2) - invQ_dot_d1d2)
+        for d1 in range(self.theta.n_corr):
+            Kinv_dot_d1 = self.Kinv.solve(dKdtheta[d1])
+            for d2 in range(self.theta.n_corr):
+                Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
+                Kinv_dot_d1d2 = self.Kinv.solve(d2Kdtheta2[d1, d2])
+                term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                              2.*np.dot(dKdtheta[d1], Kinv_dot_d2) - d2Kdtheta2[d1, d2],
+                                              self.Kinv_t])
+                term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d1d2)
                 hessian[switch + d1, switch + d2] = 0.5*(term_1 - term_2)
+        
+        Kinv_dot_d1 = self.Kinv.solve(K)
+        for d2 in range(self.theta.n_corr):
+            Kinv_dot_d2 = self.Kinv.solve(dKdtheta[d2])
+            term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                          2.*np.dot(K, Kinv_dot_d2) - dKdtheta[d2],
+                                          self.Kinv_t])
+            term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d2) - Kinv_dot_d2)
+            hessian[switch + self.theta.n_corr, switch + d2] = 0.5*(term_1 - term_2)
+            hessian[switch + d2, switch + self.theta.n_corr] = hessian[switch + self.theta.n_corr, switch + d2]
+            
+        term_1 = np.linalg.multi_dot([self.Kinv_t,
+                                      2.*np.dot(K, Kinv_dot_d1) - K,
+                                      self.Kinv_t])
+        term_2 = np.trace(np.dot(Kinv_dot_d1, Kinv_dot_d1) - Kinv_dot_d1)
+        hessian[switch + self.theta.n_corr, switch + self.theta.n_corr] = 0.5*(term_1 - term_2)
 
         if self.nugget_type == "fit":
-            nugget = np.exp(self.theta[-1])
-            invQinvQt = pivot_cho_solve(self.L, self.P, self.invQt)
-            hessian[:switch, -1] = nugget*np.dot(dmdtheta, invQinvQt)
-            for d in range(self.D + 1):
-                hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.invQt, dKdtheta[d], invQinvQt]) -
-                                                  0.5*np.trace(pivot_cho_solve(self.L, self.P,
-                                                                                np.dot(dKdtheta[d],
-                                                                                       pivot_cho_solve(self.L, self.P,
-                                                                                                        np.eye(self.n))))))
+            nugget = self.theta.nugget
+            Kinv_Kinv_t = self.Kinv.solve(self.Kinv_t)
+            hessian[:switch, -1] = nugget*np.dot(dmdtheta, Kinv_Kinv_t)
+            for d in range(self.theta.n_corr):
+                hessian[switch + d, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, dKdtheta[d], Kinv_Kinv_t]) -
+                                                  0.5*np.trace(self.Kinv.solve(np.dot(dKdtheta[d],
+                                                                               self.Kinv.solve(np.eye(self.n))))))
+                                                                                                        
+            hessian[switch + self.theta.n_corr, -1] = nugget*(np.linalg.multi_dot([self.Kinv_t, K, Kinv_Kinv_t]) -
+                                                              0.5*np.trace(self.Kinv.solve(
+                                                                     np.dot(K, self.Kinv.solve(np.eye(self.n))))
+                                                                           ))
 
-            hessian[-1, -1] = 0.5*nugget*(np.trace(pivot_cho_solve(self.L, self.P, np.eye(self.n))) -
-                                                   np.dot(self.invQt, self.invQt))
-            hessian[-1, -1] += nugget**2*(np.dot(self.invQt, invQinvQt) -
-                                          0.5*np.trace(pivot_cho_solve(self.L, self.P,
-                                                                       pivot_cho_solve(self.L, self.P,
-                                                                                         np.eye(self.n)))))
+            hessian[-1, -1] = 0.5*nugget*(np.trace(self.Kinv.solve(np.eye(self.n))) -
+                                                   np.dot(self.Kinv_t, self.Kinv_t))
+            hessian[-1, -1] += nugget**2*(np.dot(self.Kinv_t, Kinv_Kinv_t) -
+                                          0.5*np.trace(self.Kinv.solve(self.Kinv.solve(np.eye(self.n)))))
 
             hessian[-1, :-1] = np.transpose(hessian[:-1, -1])
 
-        for i in range(self.n_params):
-            if not self._priors[i] is None:
-                hessian[i, i] -= self._priors[i].d2logpdtheta2(self.theta[i])
+        np.fill_diagonal(hessian[self.theta.n_mean:,self.theta.n_mean:],
+                         np.diag(hessian)[self.theta.n_mean:] - self._priors.d2logpdtheta2(self.theta))
 
         return hessian
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=True):
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True):
         """Make a prediction for a set of input vectors for a single set of hyperparameters
 
         Makes predictions for the emulator on a given set of input
@@ -783,12 +799,12 @@ class GaussianProcess(GaussianProcessBase):
         array as the first return value from the method.
 
         Optionally, the emulator can also calculate the variances in
-        the predictions and the derivatives with respect to each input
-        parameter. If the uncertainties are computed, they are
+        the predictions. If the uncertainties are computed, they are
         returned as the second output from the method as an
-        ``(n_predict,)`` shaped numpy array. If the derivatives are
-        computed, they are returned as the third output from the
-        method as an ``(n_predict, D)`` shaped numpy array.
+        ``(n_predict,)`` shaped numpy array. Derivatives have been
+        deprecated due to changes in how the mean function is computed,
+        so setting ``deriv=True`` will have no effect and will raise
+        a ``DeprecationWarning``.
 
         The final input to the method determines if the predictive
         variance should include the nugget or not. For situations
@@ -804,24 +820,16 @@ class GaussianProcess(GaussianProcessBase):
                         ``(n_predict, D)`` or ``(D,)`` (for a single
                         prediction)
         :type testing: ndarray
-
         :param unc: (optional) Flag indicating if the uncertainties
                     are to be computed.  If ``False`` the method
                     returns ``None`` in place of the uncertainty
                     array. Default value is ``True``.
         :type unc: bool
-        :param deriv: (optional) Flag indicating if the derivatives
-                      are to be computed.  If ``False`` the method
-                      returns ``None`` in place of the derivative
-                      array. Default value is ``True``.
-        :type deriv: bool
-
         :param include_nugget: (optional) Flag indicating if the
                                nugget should be included in the
                                predictive variance. Only relevant if
                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
-
         :returns: Tuple of numpy arrays holding the predictions,
                   uncertainties, and derivatives,
                   respectively. Predictions and uncertainties have
@@ -833,41 +841,37 @@ class GaussianProcess(GaussianProcessBase):
 
         """
 
-        if self.theta is None:
+        if self.theta.get_data() is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
         testing = np.array(testing)
-        if self.D == 1 and testing.ndim == 1:
-            testing = np.reshape(testing, (-1, 1))
-        elif testing.ndim == 1:
-            testing = np.reshape(testing, (1, len(testing)))
-        assert testing.ndim == 2, "testing must be a 2D array"
+        if testing.ndim == 1:
+            if self.D == 1:
+                testing = np.reshape(testing, (-1, 1))
+            else:
+                testing = np.reshape(testing, (1, -1))
+        assert testing.ndim == 2, "test points must be a 1D or 2D array"
+        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
 
-        n_testing, D = np.shape(testing)
-        assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
+        mtest = np.dot(self.get_design_matrix(testing), self.theta.mean)
+        Ktest = self.get_cov_matrix(testing)
 
-        switch = self.mean.get_n_params(testing)
-        mtest = self.mean.mean_f(testing, self.theta[:switch])
-        Ktest = self.kernel.kernel_f(self.inputs, testing, self.theta[switch:-1])
-
-        mu = mtest + np.dot(Ktest.T, self.invQt)
+        mu = mtest + np.dot(Ktest.T, self.Kinv_t)
 
         var = None
         if unc:
-            sigma_2 = np.exp(self.theta[-2])
+            sigma_2 = self.theta.cov
 
-            if include_nugget:
-                sigma_2 += self._nugget
+            if include_nugget and not self.nugget_type == "pivot":
+                sigma_2 += self.theta.nugget
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*pivot_cho_solve(self.L, self.P, Ktest), axis=0),
+            var = np.maximum(sigma_2 - np.sum(Ktest*self.Kinv.solve(Ktest), axis=0),
                              0.)
 
         inputderiv = None
         if deriv:
-            inputderiv = np.zeros((n_testing, self.D))
-            mean_deriv = self.mean.mean_inputderiv(testing, self.theta[:switch])
-            kern_deriv = self.kernel.kernel_inputderiv(testing, self.inputs, self.theta[switch:-1])
-            inputderiv = np.transpose(mean_deriv + np.dot(kern_deriv, self.invQt))
+            warnings.warn("Prediction derivatives have been deprecated and are no longer supported",
+                          DeprecationWarning)
 
         return PredictResult(mean=mu, unc=var, deriv=inputderiv)
 

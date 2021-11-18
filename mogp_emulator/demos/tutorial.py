@@ -27,14 +27,15 @@ n_simulations = 50
 simulation_points = lhd.sample(n_simulations)
 simulation_output = np.array([simulator(p) for p in simulation_points])
 
-# Next, fit the surrogate GP model using MLE (MAP with uniform priors)
+# Next, fit the surrogate GP model using MAP with the default priors
 # Print out hyperparameter values as correlation lengths and sigma
 
-gp = mogp_emulator.GaussianProcess(simulation_points, simulation_output)
-gp = mogp_emulator.fit_GP_MAP(gp)
+gp = mogp_emulator.GaussianProcess(simulation_points, simulation_output, nugget="fit")
+gp = mogp_emulator.fit_GP_MAP(gp, n_tries=1)
 
-print("Correlation lengths = {}".format(np.sqrt(np.exp(-gp.theta[:2]))))
-print("Sigma = {}".format(np.sqrt(np.exp(gp.theta[2]))))
+print("Correlation lengths = {}".format(gp.theta.corr))
+print("Sigma = {}".format(np.sqrt(gp.theta.cov)))
+print("Nugget = {}".format(np.sqrt(gp.theta.nugget)))
 
 # Validate emulator by comparing to true simulated value
 # To compare with the emulator, use the predict method to get mean and variance
@@ -65,6 +66,7 @@ print("Ruled out {} of {} points".format(n_predict - len(nroy_points), n_predict
 # If plotting enabled, visualize results
 
 if makeplots:
+    plt.figure()
     plt.plot(prediction_points[nroy_points,0], prediction_points[nroy_points,1], "o", label="NROY points")
     plt.plot(simulation_points[:,0], simulation_points[:,1],"o", label="Simulation Points")
     plt.xlabel("log Drag Coefficient")

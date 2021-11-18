@@ -10,7 +10,7 @@ import numpy as np
 MAJOR = 0
 MINOR = 6
 MICRO = 0
-PRERELEASE = 1
+PRERELEASE = 2
 ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
@@ -190,5 +190,5 @@ setuptools.setup(name='mogp_emulator',
       license='MIT',
       ext_modules=ext_modules,
       cmdclass={"build_ext": custom_build_ext},
-      install_requires=['numpy', 'scipy'],
+      install_requires=['numpy', 'scipy', 'patsy'],
       zip_safe=False)
