@@ -25,7 +25,7 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include "util.hpp"
 #include "kernel.hpp"
 #include "meanfunc.hpp"
-
+#include "gpparams.hpp"
 
 
 
@@ -88,6 +88,9 @@ class DenseGP_GPU {
 
     // adaptive nugget jitter, or specified fixed, or fitted, nugget size
     double nug_size;
+
+    // object holding all our hyperparameters
+    GPParams gptheta;
 
     // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
@@ -153,9 +156,9 @@ public:
         return get_n_kernel_params() + meanfunc->get_n_params();
     }
 
-    vec get_theta(void)
+    GPParams get_theta(void)
     {
-        return current_theta;
+        return gptheta;
     }
 
     double get_nugget_size(void) const
@@ -313,7 +316,6 @@ public:
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
-
 
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> mean_d(Nbatch);
@@ -560,6 +562,7 @@ public:
 	    //set the flag to say we have fitted theta
 	    theta_fitted = true;
         // copy mean function params then kernel params into current_theta
+        gptheta.set_mean(meanfunc_params);
 	    current_theta.block(0,0,param_switch_index,1) = meanfunc_params;
         thrust::copy(theta_d.begin(), theta_d.end(), current_theta.data()+param_switch_index);
         
@@ -746,7 +749,7 @@ public:
         , targets(targets_)
 	    , kern_type(kern_)
         , kernel(0)
-	 //   , meanfunc(mean_)
+	    , meanfunc(mean_)
 	    , nug_type(nugtype_)
         , nug_size(nugsize_)
 	    , current_theta(1) // resize later
@@ -799,15 +802,6 @@ public:
            // std::cout<<"Cloning the mean function"<<std::endl;
             meanfunc = mean_->clone();
         }
-         // make a polynomial mean function 
-        //std::vector< std::pair<int, int> > dims_powers;
-        //dims_powers.push_back(std::make_pair<int, int>(0,1));
-        //dims_powers.push_back(std::make_pair<int, int>(1,1));
-        // meanfunc = new PolyMeanFunc(dims_powers);   
-       //REAL mfval = 0.5;
-       //meanfunc = new FixedMeanFunc(mfval);
-       //    meanfunc = new ConstMeanFunc();
-                   
         
 	    if (kern_type == SQUARED_EXPONENTIAL) {
 	        kernel = new SquaredExponentialKernel();
@@ -815,6 +809,9 @@ public:
 	        kernel = new Matern52Kernel();
 	    } else throw std::runtime_error("Unrecognized kernel type\n");
 
+        int n_mean = meanfunc->get_n_params();
+        int n_corr = kernel->get_n_params(inputs);
+        gptheta = GPParams(n_mean, n_corr, false, nug_type, nug_size);
 	    // resize meanfunc_params vector here
 	    meanfunc_params.resize(meanfunc->get_n_params(),1);
 	    // resize the device vector that will store derivative of mean function

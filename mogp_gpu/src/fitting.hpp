@@ -52,7 +52,7 @@ public:
     return logpostderiv;
   }
 
-  vec theta() {
+  GPParams theta() {
     return gp.get_theta();
   }
 
@@ -106,7 +106,7 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
             },
             theta, -1);
       minvals.push_back(minf);
-      thetavals.push_back(gpw.theta());    
+      thetavals.push_back(gpw.theta().get_data());    
     } catch(std::exception &e) {
       std::cout << "dlib optimization failed: " << e.what() << std::endl;
     }

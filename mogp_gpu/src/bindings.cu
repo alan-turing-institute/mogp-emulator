@@ -1,4 +1,5 @@
 #include "fitting.hpp"
+#include "gpparams.hpp"
 #include "multioutputgp_gpu.hpp"
 
 #include "pybind11/pybind11.h"
@@ -293,7 +294,9 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_deriv", &SquaredExponentialKernel::kernel_deriv,
              "Calculate the derivative of the covariance matrix wrt hyperparameters")
         .def("kernel_inputderiv", &SquaredExponentialKernel::kernel_inputderiv,
-	     "Derivative of covariance matrix wrt inputs");
+	     "Derivative of covariance matrix wrt inputs")
+        .def("get_n_params", &SquaredExponentialKernel::get_n_params,
+	     "Number of correlation length parameters");
 
 ////////////////////////////////////////
     py::class_<Matern52Kernel>(m, "Matern52Kernel")
@@ -303,7 +306,10 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("kernel_deriv", &Matern52Kernel::kernel_deriv,
              "Calculate the derivative of the covariance matrix wrt hyperparameters")
         .def("kernel_inputderiv", &Matern52Kernel::kernel_inputderiv,
-	     "Derivative of covariance matrix wrt inputs");
+	     "Derivative of covariance matrix wrt inputs")
+        .def("get_n_params", &SquaredExponentialKernel::get_n_params,
+	     "Number of correlation length parameters");
+;
 
 ////////////////////////////////////////
     py::class_<BaseMeanFunc>(m, "BaseMeanFunc");
@@ -355,6 +361,47 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 	     "Derivative of mean function wrt inputs")
         .def("get_n_params", &ZeroMeanFunc::get_n_params,
 	     "Number of parameters of mean function");
+
+     py::class_<GPParams>(m, "GPParameters")
+      .def(py::init<int, int, bool, nugget_type>())
+        .def("get_data", &GPParams::get_data,
+             "get the raw data")
+        .def("set_data", &GPParams::set_data,
+             "set the raw data")
+        .def("get_n_data", &GPParams::get_n_data,
+             "get size of data array")
+        .def("get_mean", &GPParams::get_mean,
+	     "get the mean function parameters")
+        .def("set_mean", &GPParams::set_mean,
+	     "set the mean function parameters")
+        .def("get_n_mean", &GPParams::get_n_mean,
+	     "get the number of mean function parameters")
+        .def("get_nugget_type", &GPParams::get_nugget_type,
+	     "get the nugget_type")
+        .def("set_nugget_type", &GPParams::set_nugget_type,
+	     "set nugget_type")
+        .def("get_nugget_size", &GPParams::get_nugget_size,
+	     "get the nugget_size")
+        .def("set_nugget_size", &GPParams::set_nugget_size,
+	     "set nugget_size")
+        .def("get_corr", &GPParams::get_corr,
+	     "get the transformed correlation parameters")
+        .def("set_corr", &GPParams::set_corr,
+	     "set correlation parameters using transformed values")
+        .def("get_n_corr", &GPParams::get_n_corr,
+	     "get the number of correlation parameters")
+        .def("get_cov", &GPParams::get_cov,
+	     "get the transformed covariance parameter")
+        .def("set_cov", &GPParams::set_cov,
+	     "set covariance parameter using transformed values")
+        .def("get_corr_raw", &GPParams::get_corr_raw,
+	     "get the raw correlation parameters")
+        .def("unset_data", &GPParams::unset_data,
+	     "unset the flag to say params have been set")
+        .def("data_has_been_set", &GPParams::data_has_been_set,
+	     "get the flag to say whether or not params have been set")
+        .def("test_same_shape", &GPParams::test_same_shape,
+	     "test whether two GPParams objects are the same shape");
 
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)

@@ -106,6 +106,9 @@ public:
     return result;
   }
 
+  int get_n_params(mat inputs) {
+    return inputs.cols();
+  }
 };
 
 
