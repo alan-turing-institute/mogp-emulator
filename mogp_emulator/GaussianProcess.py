@@ -171,25 +171,18 @@ class GaussianProcess(GaussianProcessBase):
                      ``Kernel`` object or a string matching the kernel
                      type to be used.
         :type kernel: Kernel or str
-        :param priors: List of priors to be used. Must be None
-                     (default) or an empty list (indicates
-                     uninformative priors) or list of length
-                     ``n_params``.  Any parameter for which you wish
-                     to specify an uninformative prior, pass
-                     ``None``. Number of parameters is the number of
-                     parameters in the mean function plus ``D + 2``
-                     (one correlation length per input plus a
-                     covariance scale and a nugget). If the nugget
-                     will not be fit, the list can have length
-                     ``n_params - 1``.
-        :type priors: list or None
+        :param priors: Priors to be used. Must be a ``GPPriors`` object,
+                       a dictionary that can be used to construct a
+                       ``GPPriors`` object, or ``None`` to use the
+                       default priors.
+        :type priors: GPPriors, dict, or None
         :param nugget: Noise to be added to the diagonal, specified as
                      a string or a float.  A non-negative float
                      specifies the noise level explicitly, while a
                      string indicates that the nugget will be found
                      via fitting, either as ``"adaptive"``, ``"fit"``,
                      or ``"pivot"`` (see above for a
-                     description). Default is ``"adaptive"``.
+                     description). Default is ``"fit"``.
         :type nugget: float or str
         :returns: New ``GaussianProcess`` instance
         :rtype: GaussianProcess
@@ -452,13 +445,38 @@ class GaussianProcess(GaussianProcessBase):
     def priors(self):
         """
         Specifies the priors using a ``GPPriors`` object. Property returns ``GPPriors``
-        object
+        object. Can be set with either a ``GPPriors`` object, a dictionary holding
+        the arguments needed to construct a ``GPPriors`` object, or ``None`` to
+        use the default priors.
+        
+        If ``None`` is provided, use default priors, which are weak prior information
+        for the mean function, Inverse Gamma distributions for the correlation
+        lengths and nugget (if the nugget is fit), and weak prior information for
+        the covariance. The Inverse Gamma distributions are chosen to put 99% of
+        the distribution mass between the minimum and maximum spacing of the inputs.
+        More fine-grained control of the default priors can be obtained by
+        using the class method of the ``GPPriors`` object.
+        
+        Note that the default priors are not weak priors -- to use weak prior
+        information, the user must explicitly construct a ``GPPriors`` object
+        with the appropriate number of parameters and nugget type.
         """
         return self._priors
 
     def _set_priors(self, newpriors):
         """
-        Set the priors
+        Method for setting the priors
+        
+        Set the priors to a new ``GPPriors`` object and perform some checks
+        for consistency with the number of parameters and nugget type.
+        
+        Note that this is not a public method, and no setter method for the
+        ``priors`` property is provided. This is because the ``GPParams``
+        object depends on the choice of priors, and thus setting the
+        ``GPParams`` depends on the priors already being set. Calling
+        this after the object is initialized could lead to some errors
+        when fitting if the new priors change the way the underlying
+        parameters are found.
         """
         
         if newpriors is None:
@@ -482,9 +500,14 @@ class GaussianProcess(GaussianProcessBase):
         
         For a given set of inputs, compute the design matrix based on the GP
         mean function.
+        
+        :param inputs: 2D numpy array for input values to be used in computing
+                       the design matrix. Second dimension must match the
+                       number of dimensions of the input data (``D``).
         """
 
         inputs = self._process_inputs(inputs)
+        assert inputs.shape[1] == self.D, "bad shape for inputs"
         
         if self._mean is None or self._mean == "0" or self._mean == "-1":
             dm = np.zeros((inputs.shape[0], 0))
@@ -500,20 +523,46 @@ class GaussianProcess(GaussianProcessBase):
                 
         return dm
                 
-    def get_cov_matrix(self, inputs):
-        """Computes the covariance matrix for a set of inputs. Assumes the second
-        set of inputs is the inputs on which the GP is conditioned.
-        """
-        inputs = self._process_inputs(inputs)
+    def get_cov_matrix(self, other_inputs):
+        """Computes the covariance matrix for a set of inputs
         
-        return self.theta.cov*self.kernel.kernel_f(self.inputs, inputs,
+        Compute the covariance matrix for the emulator. Assumes
+        the second set of inputs is the inputs on which the GP
+        is conditioned. Thus, calling with the inputs returns the
+        covariance matrix, while calling with a different set of
+        values gives the information needed to make predictions.
+        Note that this does not include the nugget, which (if
+        relevant) is computed separately.
+        
+        :param otherinputs: Input values for which the covariance is
+                       desired. Must be a 2D numpy array
+                       with the second dimension matching ``D``
+                       for this emulator.
+        :type otherinputs: ndarray
+        :returns: Covariance matrix for the provided inputs
+                  relative to the emulator inputs. If the
+                  ``other_inputs`` array has first dimension
+                  of length ``M``, then the returned array
+                  will have shape ``(n,M)``
+        :rtype:
+        """
+        other_inputs = self._process_inputs(other_inputs)
+        
+        return self.theta.cov*self.kernel.kernel_f(self.inputs, other_inputs,
                                                    self.theta.corr_raw)
 
     def get_K_matrix(self):
-        """Returns current value of the covariance matrix as a numpy
+        """Returns current value of the covariance matrix
+        
+        Computes the covariance matrix (covariance of the inputs
+        with respect to themselves) as a numpy
         array. Does not include the nugget parameter, as this is
         dependent on how the nugget is fit.
 
+        :returns: Covariance matrix conditioned on the emulator
+                  inputs. Will be a numpy array with shape
+                  ``(n,n)``.
+        :rtype: ndarray
         """
         return self.get_cov_matrix(self.inputs)
 
@@ -523,13 +572,25 @@ class GaussianProcess(GaussianProcessBase):
         inputs = np.array(inputs)
         if inputs.ndim == 1:
             inputs = np.reshape(inputs, (-1, 1))
-        assert inputs.ndim == 2
+        assert inputs.ndim == 2, "bad shape for inputs"
         
         return inputs
 
     def _check_theta(self, newtheta):
         """
         Check that thet provided array/GPParams object is correct
+        
+        Performs a check on the provided new values for the
+        hyperparameters. Can accept either a ``GPParams``
+        object or a numpy array (which should be a 1D array
+        of length ``n_data``). Will raise an ``AssertionError``
+        if the conditions are not met.
+        
+        :param newtheta: New value of parameters to check. Must
+                         be a ``GPParams`` object or a numpy
+                         array of the appropriate shape.
+        :type newtheta: GPParams or ndarray
+        :returns: None
         """
 
         if isinstance(newtheta, GPParams):
@@ -545,7 +606,24 @@ class GaussianProcess(GaussianProcessBase):
             self.theta.set_data(newtheta)
     
     def _refit(self, newtheta):
-        """Check if need to refit"""
+        """Checks if emulator needs to be refit
+        
+        When computing the log posterior or gradient, the
+        inverse of the covariance matrix (among other things)
+        is computed and cached. If the parameters have not been
+        changed, the cached values can be used. This method
+        checks if the values have changed significantly and
+        returns a boolean indicating if the parameters have
+        changed.
+        
+        Note that this method only accepts numpy arrays for
+        the new value of theta, rather than a ``GPParams``
+        object (as can be the case for the ``fit`` method
+        or ``theta`` property). This is because this is only
+        called when fitting and accepts values from
+        ``logposterior`` or ``logpost_deriv``. In other
+        cases, the emulator is refit regardless.
+        """
 
         return (self.theta.get_data() is None or
                 not np.allclose(newtheta, self.theta.get_data(), rtol=1.e-10, atol=1.e-15))
@@ -562,16 +640,17 @@ class GaussianProcess(GaussianProcessBase):
 
         The method computes the mean function and covariance matrix
         and inverts the covariance matrix using the method specified
-        by the value of ``nugget_type``. The factorized matrix and the
+        by the value of ``nugget_type``. The factorized matrix, the
         product of the inverse with the difference between the targets
-        and the mean are cached for later use, and the negative
-        marginal log-likelihood is also cached.  This method has no
+        and the mean are cached for later use, a second inverted matrix
+        needed to compute the mean function, and the negative
+        marginal log-likelihood are all also cached.  This method has no
         return value, but it does modify the state of the object.
 
         :param theta: Values of the hyperparameters to use in
                       fitting. Must be a numpy array with length
-                      ``n_params``
-        :type theta: ndarray
+                      ``n_params`` or a ``GPParams`` object.
+        :type theta: ndarray or GPParams
         :returns: None
         """
 
@@ -617,7 +696,7 @@ class GaussianProcess(GaussianProcessBase):
         hyperparameters and log-posterior in attributes of the object.
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_params,)``
+                      with shape ``(n_data,)``
         :type theta: ndarray
         :returns: negative log-posterior
         :rtype: float
@@ -648,11 +727,11 @@ class GaussianProcess(GaussianProcessBase):
         ``fit`` (and subsequently resets the cached information).
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_params,)``
+                      with shape ``(n_data,)``
         :type theta: ndarray
         :returns: partial derivatives of the negative log-posterior
                   with respect to the hyperparameters (array with
-                  shape ``(n_params,)``)
+                  shape ``(n_data,)``)
         :rtype: ndarray
         """
 
@@ -783,15 +862,12 @@ class GaussianProcess(GaussianProcessBase):
                                predictive variance. Only relevant if
                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
-        :returns: Tuple of numpy arrays holding the predictions,
-                  uncertainties, and derivatives,
-                  respectively. Predictions and uncertainties have
-                  shape ``(n_predict,)`` while the derivatives have
-                  shape ``(n_predict, D)``. If the ``unc`` or
-                  ``deriv`` flags are set to ``False``, then those
-                  arrays are replaced by ``None``.
-        :rtype: tuple
-
+        :returns: ``PredictResult`` object holding numpy arrays with
+                  the predictions and uncertainties. Predictions
+                  and uncertainties have shape ``(n_predict,)``.
+                  If the ``unc`` or flag is set to ``False``, then
+                  the ``unc`` array is replaced by ``None``.
+        :rtype: PredictResult
         """
 
         if self.theta.get_data() is None:
@@ -835,9 +911,7 @@ class GaussianProcess(GaussianProcessBase):
 
     def __call__(self, testing):
         """A Gaussian process object is callable: calling it is the same as
-        calling `predict` without uncertainty and derivative
-        predictions, and extracting the zeroth component for the
-        'mean' prediction.
+        calling `predict` without uncertainty predictions.
 
         """
         return (self.predict(testing, unc=False, deriv=False)[0])
