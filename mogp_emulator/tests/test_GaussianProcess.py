@@ -7,8 +7,8 @@ from ..GaussianProcess import GaussianProcess, PredictResult
 from ..GaussianProcessGPU import GaussianProcessGPU
 from ..Kernel import SquaredExponential, Matern52
 from ..GPParams import GPParams
-from ..Priors import GPPriors, NormalPrior, LogNormalPrior, GammaPrior, InvGammaPrior
-from ..Priors import WeakPrior, MeanPriors
+from ..Priors import ( GPPriors, NormalPrior, LogNormalPrior, GammaPrior,
+                       InvGammaPrior, WeakPrior, MeanPriors )
 from scipy import linalg
 
 GPU_NOT_FOUND_MSG = "A compatible GPU could not be found or the GPU library (libgpgpu) could not be loaded"

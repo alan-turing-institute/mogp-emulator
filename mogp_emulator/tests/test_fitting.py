@@ -61,7 +61,7 @@ def test_fit_GP_MAP_GPU(monkeypatch):
     gp = fit_GP_MAP(gp)
 
     assert isinstance(gp, GaussianProcessGPU)
-    assert_allclose(gp.theta.data, theta_exp)
+    assert_allclose(gp.theta, theta_exp)
     assert_allclose(gp.current_logpost, logpost_exp)
 
 def test_fit_GP_MAP_failures():

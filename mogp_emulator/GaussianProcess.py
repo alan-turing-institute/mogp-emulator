@@ -220,7 +220,8 @@ class GaussianProcess(GaussianProcessBase):
                           
         if not use_patsy:
             warnings.warn("patsy is now required to parse all formulae and form design " +
-                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.",
+                          DeprecationWarning)
 
         self._mean = mean
         self._dm = self.get_design_matrix(self._inputs)
