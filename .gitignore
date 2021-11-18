@@ -4,6 +4,7 @@
 docs/_build/*
 mogp_gpu/obj
 mogp_gpu/bin
+docs/_build/*
 mogp_emulator/benchmarks/*.png
 mogp_emulator/benchmarks/*.pdf
 mogp_emulator/benchmarks/*.npy

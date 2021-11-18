@@ -56,7 +56,7 @@ class GaussianProcess(GaussianProcessBase):
     number of training examples ``n``, the number of input parameters
     ``D``, and the number of hyperparameters ``n_params``. These
     parameters can be obtained externally by accessing these
-    attributes
+    attributes.
 
     Example: ::
 
