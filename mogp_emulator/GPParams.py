@@ -1,37 +1,163 @@
 import numpy as np
         
 class CorrTransform(object):
-    r"Class representing correlation length transforms"
+    r"""
+    Class representing correlation length transforms
+    
+    ``mogp_emulator`` performs coordinate transforms on all
+    correlation length parameters to stabilize the fitting
+    routines. The scaled correlation length :math:`l` is related
+    to the raw parameter :math:`\theta` as follows: ::
+    
+    :math:`{l = \exp(-0.5\theta)}`
+    
+    This class groups together the coordinate transforms used for
+    correlation length parameters as a collection of static
+    methods. One does not need to create an object to use
+    it, but this conveniently groups together all methods
+    (in the event that multiple transforms are needed to perform
+    a calculation). Collected methods are:
+    
+    * ``transform`` (convert raw parameter to scaled)
+    * ``inv_transform`` (convert scaled parameter to raw)
+    * ``dscaled_draw`` (compute derivative of scaled with respect to
+      raw, as a function of the scaled parameter)
+    * ``d2scaled_draw2`` (compute second derivative of scaled
+      with respect to raw, as a function of the scaled parameter)
+    
+    The derivative functions take the scaled parameter as input
+    due to the internal details of the required calculations. If
+    you wish to compute the derivative using the raw parameter
+    as the input, apply the provided ``transform`` method to
+    the parameter first.
+    """
     @staticmethod
     def transform(r):
-        "convert raw parameter to scaled"
+        r"""
+        Convert raw parameter to scaled
+        
+        :param r: Input raw parameter
+        :type r: float
+        :returns: scaled parameter
+        :rtype: float
+        """
         return np.exp(-0.5*r)
     @staticmethod
     def inv_transform(s):
-        "convert scaled parameter to raw"
+        r"""
+        Convert scaled parameter to raw
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: raw parameter
+        :rtype: float
+        """
         return -2.*np.log(s)
     @staticmethod
     def dscaled_draw(s):
+        r"""
+        Compute derivative of the scaled parameter with respect to the raw
+        (as a function of the scaled parameter).
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: transform derivative of scaled with respect to raw
+        :rtype: float
+        """
         return -0.5*s
     @staticmethod
     def d2scaled_draw2(s):
+        r"""
+        Compute second derivative of the scaled parameter with respect
+        to the raw (as a function of the scaled parameter).
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: transform second derivative of scaled with respect
+                  to raw
+        :rtype: float
+        """
         return 0.25*s
     
 class CovTransform(object):
-    r"Class representing covariance/nugget transforms"
+    r"""
+    Class representing covariance and nugget transforms
+    
+    ``mogp_emulator`` performs coordinate transforms on all
+    correlation length parameters to stabilize the fitting
+    routines. The scaled covariance :math:`\sigma^2` or
+    scaled nugget :math:`\eta` is related to the scaled
+    parameter :math:`\theta` as follows: ::
+    
+    :math:`{\sigma^2 = \exp(\theta)}` (for covariance), or
+    :math:`{\eta = \exp(\theta)}` (for nugget)
+    
+    This class groups together the coordinate transforms used for
+    correlation length parameters as a collection of static
+    methods. One does not need to create an object to use
+    it, but this conveniently groups together all methods
+    (in the event that multiple transforms are needed to perform
+    a calculation). Collected methods are:
+    
+    * ``transform`` (convert raw parameter to scaled)
+    * ``inv_transform`` (convert scaled parameter to raw)
+    * ``dscaled_draw`` (compute derivative of scaled with respect to
+      raw, as a function of the scaled parameter)
+    * ``d2scaled_draw2`` (compute second derivative of scaled
+      with respect to raw, as a function of the scaled parameter)
+    
+    The derivative functions take the scaled parameter as input
+    due to the internal details of the required calculations. If
+    you wish to compute the derivative using the raw parameter
+    as the input, apply the provided ``transform`` method to
+    the parameter first.
+    """
     @staticmethod
     def transform(r):
-        "convert raw parameter to scaled"
+        r"""
+        Convert raw parameter to scaled
+        
+        :param r: Input raw parameter
+        :type r: float
+        :returns: scaled parameter
+        :rtype: float
+        """
         return np.exp(r)
     @staticmethod
     def inv_transform(s):
-        "convert scaled parameter to raw"
+        r"""
+        Convert scaled parameter to raw
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: raw parameter
+        :rtype: float
+        """
         return np.log(s)
     @staticmethod
     def dscaled_draw(s):
+        r"""
+        Compute derivative of the scaled parameter with respect to the raw
+        (as a function of the scaled parameter).
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: transform derivative of scaled with respect to raw
+        :rtype: float
+        """
         return s
     @staticmethod
     def d2scaled_draw2(s):
+        r"""
+        Compute second derivative of the scaled parameter with respect
+        to the raw (as a function of the scaled parameter).
+        
+        :param s: Input scaled parameter
+        :type s: float
+        :returns: transform second derivative of scaled with respect
+                  to raw
+        :rtype: float
+        """
         return s
 
 def _process_nugget(nugget):
@@ -70,7 +196,18 @@ def _process_nugget(nugget):
     return nugget_value, nugget_type
 
 def _length_1_array_to_float(arr):
-    "Safely convert a float or a length one array to a float"
+    """
+    Safely convert a float or a length one array to a float
+    
+    Takes any shape argument (float, array of some length with
+    a single entry) and converts to a float
+    
+    :param arr: Input float or array with a single entry but
+                unknown shape
+    :type arr: float or ndarray
+    :returns: array entry converted to float
+    :rtype: float
+    """
     arr = np.reshape(np.array(arr), (-1,))
     assert arr.shape == (1,)
     return arr[0]
@@ -285,6 +422,11 @@ class GPParams(object):
     def nugget_type(self):
         """
         Method used to fit nugget
+        
+        :returns: string indicating nugget fitting method, either
+                  ``"fixed"``, ``"adaptive"``, ``"pivot"``, or
+                  ``"fit"``
+        :rtype: str
         """
         return self._nugget_type
 
