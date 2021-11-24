@@ -6,6 +6,7 @@ from scipy import linalg
 from scipy.optimize import OptimizeResult
 from mogp_emulator.linalg import cholesky_factor, calc_Ainv, calc_mean_params, calc_R
 from mogp_emulator.linalg import logdet_deriv, calc_A_deriv
+
 try:
     from patsy import dmatrix, PatsyError
 except ImportError:
@@ -57,7 +58,7 @@ class GaussianProcess(GaussianProcessBase):
     number of training examples ``n``, the number of input parameters
     ``D``, and the number of hyperparameters ``n_params``. These
     parameters can be obtained externally by accessing these
-    attributes
+    attributes.
 
     Example: ::
 
@@ -214,7 +215,8 @@ class GaussianProcess(GaussianProcessBase):
                           
         if not use_patsy:
             warnings.warn("patsy is now required to parse all formulae and form design " +
-                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.",
+                          DeprecationWarning)
 
         self._mean = mean
         self._dm = self.get_design_matrix(self._inputs)
@@ -522,7 +524,7 @@ class GaussianProcess(GaussianProcessBase):
                 raise ValueError("Provided design matrix is of the wrong shape")
                 
         return dm
-                
+
     def get_cov_matrix(self, other_inputs):
         """Computes the covariance matrix for a set of inputs
         

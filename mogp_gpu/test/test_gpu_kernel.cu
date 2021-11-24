@@ -18,7 +18,7 @@
 #include <thrust/copy.h>
 
 #include "../src/kernel.hpp"
-#include "../src/gp_gpu.hpp"
+#include "../src/densegp_gpu.hpp"
 
 #define WARP_SIZE 32
 #define FULL_MASK 0xffffffff

@@ -7,6 +7,9 @@ from functools import partial
 import platform
 
 from mogp_emulator.GaussianProcess import GaussianProcessBase, GaussianProcess
+from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
+from mogp_emulator.MultiOutputGP_GPU import MultiOutputGP_GPU
+from mogp_emulator import LibGPGPU
 from mogp_emulator.MultiOutputGP import MultiOutputGP
 
 
@@ -136,7 +139,7 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                          function. See available parameters in the
                          corresponding functions for details.
     :returns: Fit GP or Multi-Output GP instance
-    :rtype: GaussianProcess or MultiOutputGP
+    :rtype: GaussianProcess or MultiOutputGP or GaussianProcessGPU or MultiOutputGP_GPU
 
     """
 
@@ -144,9 +147,12 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
         gp = args[0]
         if isinstance(gp, MultiOutputGP):
             gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, refit, **kwargs)
-        elif isinstance(gp, GaussianProcessBase):
+        elif isinstance(gp, GaussianProcess):
             gp = _fit_single_GP_MAP(gp, n_tries, theta0, method, **kwargs)
-
+        elif LibGPGPU.gpu_usable() and isinstance(gp, GaussianProcessGPU):
+            gp = _fit_single_GPGPU_MAP(gp, n_tries, theta0, method, **kwargs)
+        elif LibGPGPU.gpu_usable() and isinstance(gp, MultiOutputGP_GPU):
+            gp = _fit_MOGPGPU_MAP(gp, n_tries, theta0, method, **kwargs)
         else:
             raise TypeError("single arg to fit_GP_MAP must be a GaussianProcess or MultiOutputGP instance")
     elif len(args) < 2:
@@ -166,7 +172,6 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                 gp = _fit_MOGP_MAP(gp, n_tries, theta0, method, **kwargs)
             except AssertionError:
                 raise ValueError("Bad values for *args in fit_GP_MAP")
-
     if isinstance(gp, GaussianProcessBase):
         if gp.theta.get_data() is None:
             raise RuntimeError("GP fitting failed")
@@ -178,9 +183,35 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
                 print(failure_string)
             else:
                 raise RuntimeError(failure_string)
-
     return gp
 
+def _fit_single_GPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
+    """Fit hyperparameters using MAP for a single GP in the C++/CUDA implementation
+       The optimization is done in C++, this Python function is a wrapper for that.
+        Returns a single GP object that has its hyperparameters fit to the MAP value.
+    """
+    if method not in ["L-BFGS", "L-BFGS-B"]:
+        raise NotImplementedError("Unknown method for optimizer - only L-BFGS implemented for GPU")
+    n_tries = int(n_tries)
+    assert n_tries > 0, "number of attempts must be positive"
+    if theta0 is None or len(theta0)==0:
+        theta0=np.array([])
+    LibGPGPU.fit_GP_MAP(gp._densegp_gpu, n_tries, theta0)
+    return gp
+
+def _fit_MOGPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
+    """Fit hyperparameters using MAP for a multi-output GP in the C++/CUDA implementation
+       The optimization is done in C++, this Python function is a wrapper for that.
+        Returns an MOGP object that has its hyperparameters fit to the MAP value.
+    """
+    if method not in ["L-BFGS", "L-BFGS-B"]:
+        raise NotImplementedError("Unknown method for optimizer - only L-BFGS implemented for GPU")
+    n_tries = int(n_tries)
+    assert n_tries > 0, "number of attempts must be positive"
+    if theta0 is None or len(theta0)==0:
+        theta0=np.array([])
+    LibGPGPU.fit_GP_MAP(gp._mogp_gpu, n_tries, theta0)
+    return gp
 
 def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
     """Fit hyperparameters using MAP for a single GP
@@ -192,7 +223,6 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     """
 
     assert isinstance(gp, GaussianProcessBase)
-
     n_tries = int(n_tries)
     assert n_tries > 0, "number of attempts must be positive"
 
@@ -292,7 +322,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         emulators_to_fit = gp.get_emulators_not_fit()
         thetavals = [ theta0[idx] for idx in indices_to_fit]
 
-    if platform.system() == "Windows" or gp.use_gpu:
+    if platform.system() == "Windows": 
 
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
                     for (emulator, t0) in zip(emulators_to_fit, thetavals)]

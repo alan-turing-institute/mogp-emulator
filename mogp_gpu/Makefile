@@ -15,17 +15,18 @@
 CXX=g++
 CXXFLAGS=-std=c++14 -O3
 NVCCFLAGS=--compiler-options -Wall,-Wextra -arch=sm_60 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_37,code=sm_37
-EXTRAFLAGS=-Xcompiler -fPIC
+EXTRAFLAGS=-Xcompiler "-fPIC -fopenmp"
 
 CUDA_INC=/usr/local/cuda/include
 PYBIND_INC=$(shell python3 -m pybind11 --includes)
+DLIB_INC=-I/usr/local/software/dlib/19.17/include
 
 all: lib/libgpgpu.so
 
 clean:
 	rm -rf obj lib bin
 
-lib/libgpgpu.so:  src/gp_gpu.cu obj/cov_gpu.o obj/util.o
+lib/libgpgpu.so:  src/densegp_gpu.cu obj/cov_gpu.o obj/util.o
 	mkdir -p lib
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) -shared $(PYBIND_INC) $< obj/cov_gpu.o obj/util.o -o $@ -lcusolver -lcublas -lcudart
 
@@ -33,24 +34,44 @@ obj/%.o: src/%.cu src/%.hpp
 	mkdir -p obj
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) -c $< -o $@
 
-bin/test/gpu_basic: test/gpu_basic.cu  obj/util.o
+bin/test/test_gpu_basic: test/test_gpu_basic.cu  obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
 
-bin/test/gpu_kernel: test/gpu_kernel.cu  obj/kernel.o obj/util.o
+bin/test/test_gpu_kernel: test/test_gpu_kernel.cu  obj/kernel.o obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/kernel.o obj/util.o -o $@
 
-bin/test/gpu_test_utils: test/gpu_test_utils.cu obj/util.o
+bin/test/test_gpu_utils: test/test_gpu_utils.cu obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $< obj/util.o -o $@
 
-bin/test/gpu_cholesky: test/gpu_cholesky.cu
+bin/test/test_gpu_cholesky: test/test_gpu_cholesky.cu
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcusolver -lcublas $< -o $@
 
-bin/test/gpu_meanfunc: test/gpu_meanfunc.cu obj/util.o
+bin/test/test_basic_fitting: test/test_basic_fitting.cu
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(DLIB_INC) -lopenblas $< -o $@
+
+bin/test/test_meanfunc: test/test_meanfunc.cu obj/util.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  obj/util.o -o $@
+
+bin/test/test_densegp_gpu: test/test_densegp_gpu.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
+
+bin/test/test_gp_fitting: test/test_gp_fitting.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(DLIB_INC) -lopenblas -lcublas -lcusolver $< obj/kernel.o  obj/util.o -o $@
+
+bin/test/test_openmp: test/test_openmp.cu  obj/util.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $(EXTRAFLAGS) $<  obj/util.o -o $@
+
+bin/test/test_mogp_gpu: test/test_mogp_gpu.cu obj/util.o obj/kernel.o
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver  $<  obj/kernel.o obj/util.o -o $@
 
 .PHONY: all clean

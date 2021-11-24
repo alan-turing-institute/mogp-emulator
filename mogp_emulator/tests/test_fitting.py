@@ -43,10 +43,8 @@ def test_fit_GP_MAP(monkeypatch):
 
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
-def test_fit_GP_MAP_GPU(monkeypatch):
-    "test the fit_GP_MAP function"
-
-    monkeypatch.setattr("mogp_emulator.fitting.minimize", minimize_mock)
+def test_fit_GP_MAP_GPU():
+    "test the fit_GP_MAP function.  Provide expected theta as theta0 to avoid numerical errors"
 
     # test correct basic functioning
 
@@ -58,7 +56,7 @@ def test_fit_GP_MAP_GPU(monkeypatch):
     theta_exp = np.array([ 1.6, -2.1 , -0.8])
     logpost_exp = gp.logposterior(theta_exp)
 
-    gp = fit_GP_MAP(gp)
+    gp = fit_GP_MAP(gp, theta0=theta_exp)
 
     assert isinstance(gp, GaussianProcessGPU)
     assert_allclose(gp.theta.data, theta_exp)
@@ -132,7 +130,7 @@ def test_fit_GP_MAP_GPU_failures():
     with pytest.raises(AssertionError):
         fit_GP_MAP(gp, n_tries=-1)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError):
         fit_GP_MAP(gp, theta0=np.ones(1))
 
 def test_fit_GP_MAP_MOGP():

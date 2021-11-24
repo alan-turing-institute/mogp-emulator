@@ -52,6 +52,11 @@ gKDR: benchmark_kdr_GP_loss.pdf
 .PHONY: pivot
 pivot: pivot_error.png pivot_unc.png
 
+## gpu_parallel     : Run comparison of timings for fitting and prediction on GPU and CPU. 
+##                    Produces the plot gpu_timing_plots.png
+.PHONY: gpu_parallel
+gpu_parallel: gpu_timing_plots.png
+
 # commands above are shortcuts to the targets below
 
 branin_2d_unc.png branin_2d_error.png: benchmark_branin.py
@@ -75,3 +80,5 @@ benchmark_kdr_GP_loss.pdf benchmark_kdr_GP_loss.npy: benchmark_kdr_GP.py
 pivot_error.png pivot_unc.png: benchmark_pivot.py
 	python3 benchmark_pivot.py
 
+gpu_timing_plots.png: benchmark_gpu_parallel.py
+	python3 benchmark_gpu_parallel.py
