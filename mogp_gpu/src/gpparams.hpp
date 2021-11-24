@@ -24,62 +24,76 @@ transformed subsets of this.
        the variance associated with the nugget noise.
 */
 
-class CorrTransform {
+class BaseTransform {
+    public:
+        virtual REAL raw_to_scaled(REAL r) = 0;
+        virtual REAL scaled_to_raw(REAL s) = 0;
+        virtual vec raw_to_scaled(vec r) = 0;
+        virtual vec scaled_to_raw(vec s) = 0;
+        virtual REAL dscaled_draw(REAL s) = 0;
+        virtual REAL d2scaled_draw2(REAL s) = 0;
+        virtual vec dscaled_draw(vec s) = 0;
+        virtual vec d2scaled_draw2(vec s) = 0;
+
+};
+
+
+class CorrTransform : public BaseTransform {
 
 public:
-    static REAL raw_to_scaled(REAL r) {
+    virtual REAL raw_to_scaled(REAL r) {
         return exp(-0.5 * r);
     } 
-    static REAL scaled_to_raw(REAL s) {
+    virtual  REAL scaled_to_raw(REAL s) {
         return -2.0*log(s);
     }   
-    static vec raw_to_scaled(vec r) {
+    virtual vec raw_to_scaled(vec r) {
         return Eigen::exp(-0.5*r.array());//.exp();    
     }
-    static vec scaled_to_raw(vec s) {
+    virtual vec scaled_to_raw(vec s) {
         return -2.0*s.array().log();
     } 
-    static REAL dscaled_draw(REAL s) {
+    virtual REAL dscaled_draw(REAL s) {
         return -0.5*s;
     }
-    static REAL d2scaled_draw2(REAL s) {
+    virtual REAL d2scaled_draw2(REAL s) {
         return -0.25*s;
     }
-    static vec dscaled_draw(vec s) {
+    virtual vec dscaled_draw(vec s) {
         return -0.5*s;
     }
-    static vec d2scaled_draw2(vec s) {
+    virtual vec d2scaled_draw2(vec s) {
         return -0.25*s;
     }
 };
 
 
-class CovTransform {
+class CovTransform : public BaseTransform {
 
 public:
 
-    static REAL raw_to_scaled(REAL r) {
+    virtual REAL raw_to_scaled(REAL r) {
         return exp(r);
     } 
-    static REAL scaled_to_raw(REAL s) {
+    virtual REAL scaled_to_raw(REAL s) {
         return log(s);
     }
-    static vec raw_to_scaled(vec r) {
+    virtual vec raw_to_scaled(vec r) {
         return r.array().exp();    
     }
-    static vec scaled_to_raw(vec s) {
+    virtual vec scaled_to_raw(vec s) {
         return s.array().log();
     }
-    static REAL dscaled_draw(REAL s) {
+    virtual REAL dscaled_draw(REAL s) {
         return s;
     }
-    static REAL d2scaled_draw2(REAL s) {
+    virtual REAL d2scaled_draw2(REAL s) {
         return s;
     }
-    static vec dscaled_draw(vec s) {
+    virtual vec dscaled_draw(vec s) {
         return s;
     }
-    static vec d2scaled_draw2(vec s) {
+    virtual vec d2scaled_draw2(vec s) {
         return s;
     }
 };
@@ -134,11 +148,11 @@ public:
     }
 
     vec get_corr() {
-        return CorrTransform::raw_to_scaled(get_corr_raw());
+        return CorrTransform().raw_to_scaled(get_corr_raw());
     }
 
     void set_corr(vec _new_corr) {
-        data.block(0,0,n_corr,1) = CorrTransform::scaled_to_raw(_new_corr);
+        data.block(0,0,n_corr,1) = CorrTransform().scaled_to_raw(_new_corr);
     }
 
     inline int get_n_corr() { return n_corr; }
@@ -154,7 +168,7 @@ public:
     REAL get_cov() {
         if (fit_cov) {
             if (! has_data) return 0.;
-            else return CovTransform::raw_to_scaled(data[get_cov_index()]);
+            else return CovTransform().raw_to_scaled(data[get_cov_index()]);
         } else {
             return cov;
         }
@@ -162,7 +176,7 @@ public:
 
     void set_cov(REAL _cov) {
         if (fit_cov) {
-            data[get_cov_index()] = CovTransform::scaled_to_raw(_cov);
+            data[get_cov_index()] = CovTransform().scaled_to_raw(_cov);
         } else {
             cov = _cov;
         }
@@ -182,7 +196,7 @@ public:
         if (nug_type != NUG_FIT) {
             return nugget_size; 
         } else {
-            return CovTransform::raw_to_scaled(data[n_data-1]);
+            return CovTransform().raw_to_scaled(data[n_data-1]);
         }
     }   
 
