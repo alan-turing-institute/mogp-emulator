@@ -79,4 +79,8 @@ bin/test/test_gpparams: test/test_gpparams.cu
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  -o $@
 
+bin/test/test_gppriors: test/test_gppriors.cu 
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  -o $@
+
 .PHONY: all clean
