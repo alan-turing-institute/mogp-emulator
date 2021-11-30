@@ -234,6 +234,40 @@ class GammaPrior : public PriorDist {
         REAL scale;
 };
 
+class InvGammaPrior : public PriorDist {
+    public:
+        InvGammaPrior(REAL _shape, REAL _scale)
+        : shape(_shape)
+        , scale(_scale) {
+            assert(shape > 0.);
+            assert(scale > 0.);
+        }
+
+        REAL logp(REAL x) {
+            return (shape*log(scale) - lgamma(shape) -
+                (shape + 1.)*log(x) - scale/x) ;       
+        }
+
+        REAL dlogpdx(REAL x) {
+            return -1.0*(shape + 1.)/x + scale/pow(x,2);
+        }
+
+        REAL d2logpdx2(REAL x) {
+            return (shape + 1)/pow(x,2) - 2.*scale/pow(x,3);
+        }
+
+        REAL sample_x() {
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::gamma_distribution<> dist(shape, scale);
+            return 1.0/dist(e2);      
+        }
+    
+    private:
+        REAL shape;
+        REAL scale;
+};
+
 
 class GPPriors {
 

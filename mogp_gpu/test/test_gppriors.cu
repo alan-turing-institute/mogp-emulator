@@ -44,7 +44,18 @@ void test_gamma_prior() {
     assert(abs(gamp.dlogpdx(3.) - (-0.16667)) < 0.001);
     assert(abs(gamp.d2logpdx2(3.) - (-0.11111)) < 0.001);
     std::cout<<"Gamma Prior OK"<<std::endl;
-    WeakPrior wp = gamp.default_prior(1.,5.);
+}
+
+void test_invgamma_prior() {
+    InvGammaPrior igamp(2.,2.);
+    std::cout<<" logp(3) is "<<igamp.logp(3.)<<std::endl;
+    std::cout<<" dlogpdx(3) is "<<igamp.dlogpdx(3.)<<std::endl;
+    std::cout<<" d2logpdx2(3) is "<<igamp.d2logpdx2(3.)<<std::endl;
+    assert(abs(igamp.logp(3.) - (-2.5762)) < 0.001);
+    assert(abs(igamp.dlogpdx(3.) - (-0.77777)) < 0.001);
+    assert(abs(igamp.d2logpdx2(3.) - (0.185185)) < 0.001);
+    std::cout<<"InvGamma Prior OK"<<std::endl;
+   // WeakPrior wp = gamp.default_prior(1.,5.);
 }
 
 void test_spacings() {
@@ -72,7 +83,8 @@ int main(void)
     test_normal_prior();
     test_lognormal_prior();
     test_gamma_prior();
-    test_spacings();
-    test_isinstance();
+    test_invgamma_prior();
+//    test_spacings();
+ //   test_isinstance();
     return 0;
 }

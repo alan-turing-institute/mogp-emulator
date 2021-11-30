@@ -1,5 +1,6 @@
 #include "fitting.hpp"
 #include "gpparams.hpp"
+#include "gppriors.hpp"
 #include "multioutputgp_gpu.hpp"
 
 #include "pybind11/pybind11.h"
@@ -402,6 +403,28 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 	     "get the flag to say whether or not params have been set")
         .def("test_same_shape", &GPParams::test_same_shape,
 	     "test whether two GPParams objects are the same shape");
+     ////////////////////////////////////////
+    py::class_<InvGammaPrior>(m, "InvGammaPrior")
+      .def(py::init<double, double>())
+        .def("logp", &InvGammaPrior::logp,
+             "Calculate the log probability")
+        .def("dlogpdx", &InvGammaPrior::dlogpdx,
+             "Calculate the derivative of the log probability")
+        .def("d2logpdx2", &InvGammaPrior::d2logpdx2,
+	     "Second Derivative of log prob wrt input")
+        .def("sample_x", &InvGammaPrior::sample_x,
+	     "Sample from the distribution");
+     //////////////////////////////////////
+     py::class_<GammaPrior>(m, "GammaPrior")
+          .def(py::init<double, double>())
+            .def("logp", &GammaPrior::logp,
+                 "Calculate the log probability")
+            .def("dlogpdx", &GammaPrior::dlogpdx,
+                 "Calculate the derivative of the log probability")
+            .def("d2logpdx2", &GammaPrior::d2logpdx2,
+              "Second Derivative of log prob wrt input")
+            .def("sample_x", &GammaPrior::sample_x,
+              "Sample from the distribution");
 
     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
