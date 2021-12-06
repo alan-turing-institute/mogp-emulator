@@ -229,7 +229,6 @@ class GaussianProcess(GaussianProcessBase):
 
         self._theta = GPParams(n_mean=self.n_mean,
                                n_corr=self.n_corr,
-                               fit_cov=self.priors.fit_cov,
                                nugget=nugget)
                                
         self.Kinv = None
