@@ -235,10 +235,6 @@ class GPParams(object):
                    is 1. This must be the same as the number of inputs for a
                    particular GP. Must be a positive integer.
     :type n_corr: int
-    :param fit_cov: Boolean flag indicating if the covariance is fit. If not,
-                    the covariance is held as a separater parameter rather
-                    than being stored in the array.
-    :type fit_cov: bool
     :param nugget: String or float specifying how nugget is fit. If a float, a
                    fixed nugget is used (and will fix the value held in the
                    ``GPParams`` object). If a string, can be ``'fit'``,
@@ -260,7 +256,7 @@ class GPParams(object):
        the variance associated with the nugget noise.
     """
     
-    def __init__(self, n_mean=0, n_corr=1, fit_cov=True, nugget="fit"):
+    def __init__(self, n_mean=0, n_corr=1, nugget="fit"):
         r"""
         Create a new parameters object, optionally holding a set of parameter values
         If no data provided, data will be ``None`` to distingush GPs that have not
@@ -271,7 +267,6 @@ class GPParams(object):
         self.n_mean = n_mean
         assert n_corr >= 1, "Number of correlation parameters must be positive"
         self.n_corr = n_corr
-        self.fit_cov = bool(fit_cov)
         
         self._nugget, self._nugget_type = _process_nugget(nugget)
         
@@ -290,7 +285,7 @@ class GPParams(object):
         Number of fitting parameters stored in data array
         
         """
-        return self.n_corr + int(self.fit_cov) + int(self.nugget_type == "fit")
+        return self.n_corr + 1 + int(self.nugget_type == "fit")
         
     @property
     def mean(self):
@@ -369,9 +364,6 @@ class GPParams(object):
     def cov_index(self):
         "Determine the location in the data array of the covariance parameter"
         
-        if not self.fit_cov:
-            raise ValueError("Covariance is not part of the data array")
-        
         if self.nugget_type == "fit":
             return -2
         else:
@@ -393,30 +385,19 @@ class GPParams(object):
         :returns: Transformed covariance parameter
         :rtype: float or None
         """
-        if self.fit_cov:
-            if self._data is None:
-                return None
-            else:
-                return CovTransform.transform(self._data[self.cov_index])
+        if self._data is None:
+            return None
         else:
-            return self._cov
+            return CovTransform.transform(self._data[self.cov_index])
         
     @cov.setter
     def cov(self, new_cov):
-        if new_cov is None:
-            if self.fit_cov:
-                raise ValueError("Cannot reset parameters individually")
-            else:
-                self._cov = None
-        elif self._data is None and self.fit_cov:
+        if self._data is None:
             raise ValueError("Must set full data array before modifying individual parameters")
         else:
             new_cov = _length_1_array_to_float(new_cov)
             assert new_cov > 0., "Covariance must be positive"
-            if self.fit_cov:
-                self._data[self.cov_index] = CovTransform.inv_transform(new_cov)
-            else:
-                self._cov = new_cov
+            self._data[self.cov_index] = CovTransform.inv_transform(new_cov)
 
     @property
     def nugget_type(self):
@@ -514,8 +495,6 @@ class GPParams(object):
             assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_data)
             self._data = np.copy(new_params)
         self.mean = None
-        if not self.fit_cov:
-            self._cov = None
         if self.nugget_type == "adaptive":
             self._nugget = None
         
@@ -547,7 +526,6 @@ class GPParams(object):
         elif isinstance(other, GPParams):
             return (self.n_mean == other.n_mean and
                     self.n_corr == other.n_corr and
-                    self.fit_cov == other.fit_cov and
                     self.nugget_type == other.nugget_type)
         else:
             raise ValueError("other must be a numpy array or another GPParams object in GPParams.same_shape")
