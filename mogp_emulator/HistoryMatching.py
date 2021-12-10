@@ -1,5 +1,6 @@
 import numpy as np
 from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
+from mogp_emulator.MultiOutputGP import MultiOutputGPBase
 
 class HistoryMatching(object):
     r"""
@@ -80,10 +81,11 @@ class HistoryMatching(object):
         numbers of these to allow the number of dimensions and/or number of coordinates to
         be computed also causes these to be set at this stage.
 
-        :param gp: (Optional) ``GaussianProcessBase`` object used to make predictions in
-                   history matching. Optional, can instead provide predictions directly
+        :param gp: (Optional) ``GaussianProcessBase`` or ``MultiOutputGPBase``
+                   object used to make predictions in history matching.
+                   Optional, can instead provide predictions directly
                    via the ``expectations`` argument. Default is ``None``
-        :type gp: GaussianProcessBase or None
+        :type gp: GaussianProcessBase, MultiOutputGP, or None
         :param obs: (Optional) Observations against which the predictions will be
                     compared. If provided, must either be a float (assumes no
                     uncertainty in the observations) or a list of two floats
@@ -140,6 +142,15 @@ class HistoryMatching(object):
 
         self.update()
 
+    def get_n_obs(self):
+        """
+        Returns the number of observations
+        
+        Determines the number of observations. This is the length
+        of the first argument of the ``obs`` attribute (which will
+        be a numpy array)
+        """
+        return len(self.obs[0])
 
     def _select_expectations(self):
         r"""
@@ -183,7 +194,7 @@ class HistoryMatching(object):
 
         return expectations
 
-    def get_implausibility(self, discrepancy = 0.):
+    def get_implausibility(self, discrepancy=0., rank=1):
         r"""
         Compute Implausibility measure for all query points
 
@@ -212,14 +223,29 @@ class HistoryMatching(object):
         matches reality. In practice, the model discrepancy is essential to have
         predictions that are not overly confident, however it can be hard to estimate
         (see further discussion in Brynjarsdottir and O\'Hagan, 2014).
+        
+        If dealing with multiple outputs, the ``rank`` argument allows the user
+        to specify how to score different predictions by giving an ordering.
+        If the value is ``0``, then the maximum implausibility score will be
+        used. If the value is ``1``, then the second largest implausibility
+        is used (i.e. the scoring ignores the largest component). By default,
+        uses the second largest score, which is in general more forgiving for
+        a badly performing emulator that is overconfident in its predictions.
+        Must be a non-negative integer.
 
         As the implausibility calculation linearly sums variances, the result is
         agnostic to the precise provenance of any of the included variances
 
         :param discrepancy: Additional variance to be included in the implausibility
-                            calculation. Must be a non-negative float. Optional, default
-                            is ``0.``
-        :type discrepancy: float
+                            calculation. Must be a non-negative array or float.
+                            Optional, default is ``0.``
+        :type discrepancy: float or ndarray
+        :param rank: Scoring method for multiple outputs. Must be a non-negative
+                    integer less than the number of observations, which denotes
+                    the location in the rank ordering of implausibility values
+                    where the score is evaluated (i.e. the default value of ``1``
+                    indicates that the second largest implausibility will be used).
+        :type rank: int
         :returns: Array holding implausibility metric for all query points accounting
                   for all variances, ndarray of length ``(ncoords,)``
         :rtype: ndarray
@@ -230,21 +256,34 @@ class HistoryMatching(object):
             raise ValueError("implausibility calculation requires that the observation value is " +
                              "set. This can be done using the set_obs method.")
 
-        assert discrepancy >= 0., "Model discrepancy variance cannot be negative"
+        assert np.all(discrepancy >= 0.), "Model discrepancy variance cannot be negative"
+        discrepancy = np.atleast_1d(discrepancy)
 
         expectations = self._select_expectations()
 
-        # Compute implausibility for each expectation value
-        Vs = np.zeros(self.ncoords)
-        Vs += expectations[1]                         # variance on expectation
-        Vs += discrepancy                             # model discrepancy
-        Vs += self.obs[1]                             # variance on observation
-        self.I = (np.abs(self.obs[0] - expectations[0]) / np.sqrt(Vs))
+        n_obs = self.get_n_obs()
+        assert n_obs == np.atleast_2d(expectations[0]).shape[0]
+        assert n_obs == np.atleast_2d(expectations[1]).shape[0]
+        
+        if n_obs == 1:
+            rank = 0
+        
+        assert rank >= 0, "rank must be a non-negative integer"
+        assert rank < n_obs, "rank must be less than the number of observations"
 
+        # Compute implausibility for each expectation value
+        Vs = np.zeros((n_obs, self.ncoords))
+        Vs += expectations[1]                           # prediction variance
+        Vs += discrepancy[:, np.newaxis]                # model discrepancy
+        Vs += self.obs[1][:, np.newaxis]                # variance on observation
+        I = (np.abs(self.obs[0][:, np.newaxis] - expectations[0]) / np.sqrt(Vs))
+        idx = np.where(np.argsort(I, axis=0) == n_obs - rank - 1)
+        self.I = I[idx]
+        
         return self.I
 
 
-    def get_NROY(self, discrepancy = 0.):
+    def get_NROY(self, discrepancy=0., rank=1):
         r"""
         Return set of indices that are not yet ruled out
 
@@ -263,14 +302,14 @@ class HistoryMatching(object):
         :rtype: list
         """
         if self.I is None:
-            self.get_implausibility(discrepancy)
+            self.get_implausibility(discrepancy, rank)
 
         self.NROY = list(np.where(self.I <= self.threshold)[0])
 
         return self.NROY
 
 
-    def get_RO(self, discrepancy = 0.):
+    def get_RO(self, discrepancy=0., rank=1):
         r"""
         Return set of indices that have been ruled out
 
@@ -289,7 +328,7 @@ class HistoryMatching(object):
         :rtype: list
         """
         if self.I is None:
-            self.get_implausibility(discrepancy)
+            self.get_implausibility(discrepancy, rank)
 
         self.RO = list(np.where(self.I > self.threshold)[0])
 
@@ -328,13 +367,15 @@ class HistoryMatching(object):
         """
         if not self.check_obs(obs):
             raise TypeError("bad input for set_obs")
-        if isinstance(obs, list):
+        if isinstance(obs, float):
+            self.obs = [np.array([obs]), np.array([0.])]
+        elif isinstance(list(obs), list):
             if len(obs) == 1:
-                self.obs = [float(obs[0]), 0.]
+                self.obs = [np.atleast_1d(obs[0]), np.array([0.])]
             else:
-                self.obs = [float(a) for a in obs]
+                self.obs = [np.atleast_1d(a) for a in obs]
         else:
-            self.obs = [float(obs), 0.]
+            self.obs = np.array(obs)
 
 
     def set_coords(self, coords):
@@ -440,12 +481,12 @@ class HistoryMatching(object):
         Returns a boolean that is True if the provided quantity is consistent with
         the requirements for a gaussian process, i.e. is of type ``GaussianProcessBase``.
 
-        :param gp: Input GP object to be checked.
-        :type gp: GaussianProcessBase
+        :param gp: Input GP or MOGP object to be checked.
+        :type gp: GaussianProcessBase or MultiOutputGPBase
         :returns: Boolean indicating if provided object is a ``GaussianProcess``
         :rtype: bool
         """
-        return isinstance(gp, GaussianProcessBase)
+        return isinstance(gp, (GaussianProcessBase, MultiOutputGPBase))
 
 
     def check_obs(self, obs):
@@ -454,12 +495,13 @@ class HistoryMatching(object):
         observations.
 
         Returns a boolean that is ``True`` if the provided quantity is consistent with
-        the requirements for the observation quantity, i.e. is a numerical value
-        that can be converted to a float, or a list of up to two such values. Also
-        checks if the provided variance is non-negative.
+        the requirements for the observation quantity. Possible options include
+        a numpy array with the first dimension having length 2, an iterable
+        of length 1 or 2 containing floats or arrays (if 2 arrays, they must
+        have the same length), or a float for a single observation with no error.
 
         :param obs: Input for observations to be checked
-        :type obs: float or list-like
+        :type obs: float, iterable, or ndarray
         :returns: Boolean indicating if provided observations are acceptable
         :rtype: bool
         """
@@ -467,19 +509,29 @@ class HistoryMatching(object):
         if obs is None:
             return False
         if isinstance(obs, list) or isinstance(obs, tuple) or isinstance(obs, np.ndarray):
-            if len(obs) > 2:
-                raise ValueError("bad input type for HistoryMatching - the specified " +
-                                 "observation parameter cannot contain more than 2 entries "+
-                                 "(value, [variance])")
-            if len(obs) <= 2:
-                try:
-                    test = [float(a) for a in obs]
-                except TypeError:
-                    raise TypeError("bad input type for HistoryMatching - the specified " +
-                                    "observation parameter must contain only numerical " +
-                                    "values")
+            if isinstance(obs, np.ndarray):
+                if obs.ndim > 2:
+                    raise ValueError("bad input for HistoryMatching, the obs parameter" +
+                                     "cannot be an array of more than 2D")
+                assert obs.shape[0] == 2, "first dimension of observations must have length 2"
+            else:
+                if len(obs) > 2:
+                    raise ValueError("bad input type for HistoryMatching - the specified " +
+                                     "observation parameter cannot contain more than 2 entries "+
+                                     "(value, [variance])")
+                    if len(obs) <= 2:
+                        try:
+                            test = [np.array(a) for a in obs]
+                        except TypeError:
+                            raise TypeError("bad input type for HistoryMatching - the specified " +
+                                            "observation parameter must contain only numerical " +
+                                            "values")
+                        if not (len(test[0]) == len(test[1]) or len(test[1]) == 1):
+                            raise ValueError("Bad input for values to history matching -- " +
+                                             "iterable arguments must be of the format " +
+                                             "(float, float), (float, array), or (array, array)")
             if len(obs) == 2:
-                assert float(obs[1]) >= 0., "variance in observations cannot be negative"
+                assert np.all(obs[1] >= 0.), "variance in observations cannot be negative"
             return True
         else:
             try:
