@@ -32,6 +32,7 @@ details, and some included benchmarks.
              be used are:
 
    demos/gp_demos
+   demos/multioutput_tutorial
    demos/mice_demos
    demos/historymatch_demos
    demos/kdr_demos
