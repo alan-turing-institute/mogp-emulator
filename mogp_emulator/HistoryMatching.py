@@ -277,8 +277,13 @@ class HistoryMatching(object):
         Vs += discrepancy[:, np.newaxis]                # model discrepancy
         Vs += self.obs[1][:, np.newaxis]                # variance on observation
         I = (np.abs(self.obs[0][:, np.newaxis] - expectations[0]) / np.sqrt(Vs))
-        idx = np.where(np.argsort(I, axis=0) == n_obs - rank - 1)
-        self.I = I[idx]
+        # implausibility is the -rank index in the sorted array (i.e. if rank is 0,
+        # return the largest, if rank is 1, return the second largest, etc.),
+        # which can be correctly found in O(n) using partition.
+        # partition puts the kth largest element in its correct position along
+        # the selected axis, so we just need to select the kth row of the
+        # partitioned array along axis 0
+        self.I = np.partition(I, n_obs - rank - 1, axis=0)[n_obs - rank - 1]
         
         return self.I
 

@@ -433,13 +433,13 @@ def test_HistoryMatching_get_implausibility_mogp():
     obs = [np.array([1., 5.]), np.array([0.01, 0.01])]
     mean, unc, _ = gp.predict(coords)
     I_exp = np.abs(mean - obs[0][:, np.newaxis])/np.sqrt(unc + obs[1][:,np.newaxis])
-    I_exp = I_exp[np.where(np.argsort(I_exp, axis=0) == 1)]
+    I_exp2 = [np.max(x) for x in I_exp.T]
 
     hm = HistoryMatching(gp=gp, obs=obs, coords=coords)
     I = hm.get_implausibility(rank=0)
 
-    assert_allclose(I, I_exp)
-    assert_allclose(hm.I, I_exp)
+    assert_allclose(I, I_exp2)
+    assert_allclose(hm.I, I_exp2)
     
     np.random.seed(57483)
     gp = fit_GP_MAP(np.reshape(np.linspace(0., 1.), (-1, 1)), [np.linspace(0., 1.),
@@ -449,13 +449,13 @@ def test_HistoryMatching_get_implausibility_mogp():
     obs = [np.array([1., 5., 4.]), np.array([0.01, 0.01, 0.01])]
     mean, unc, _ = gp.predict(coords)
     I_exp = np.abs(mean - obs[0][:, np.newaxis])/np.sqrt(unc + obs[1][:,np.newaxis])
-    I_exp = I_exp[np.where(np.argsort(I_exp, axis=0) == 0)]
+    I_exp2 = [np.min(x) for x in I_exp.T]
 
     hm = HistoryMatching(gp=gp, obs=obs, coords=coords)
     I = hm.get_implausibility(rank=2)
 
-    assert_allclose(I, I_exp)
-    assert_allclose(hm.I, I_exp)
+    assert_allclose(I, I_exp2)
+    assert_allclose(hm.I, I_exp2)
 
 def test_HistoryMatching_get_NROY():
     "test the get_NROY method of HistoryMatching"
