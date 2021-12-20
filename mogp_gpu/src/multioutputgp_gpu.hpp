@@ -174,15 +174,15 @@ public:
         }
     }
 
-    void fit(mat_ref thetas) {
+    void fit(std::vector<GPParams> thetas) {
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {      
-            emulators[i]->fit(thetas.row(i));
+            emulators[i]->fit(thetas[i]);
         }   
     }
 
 
-    void fit_emulator(unsigned int index, vec_ref theta) {
+    void fit_emulator(unsigned int index, GPParams& theta) {
         emulators.at(index)->fit(theta);
     }
 
