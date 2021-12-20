@@ -31,4 +31,7 @@ enum nugget_type {NUG_ADAPTIVE, NUG_FIT, NUG_FIXED};
 // enum to allow python code to select Kernel function
 enum kernel_type {SQUARED_EXPONENTIAL, MATERN52};
 
+// enum for Prior types
+enum prior_type {INVGAMMA, GAMMA, LOGNORMAL, WEAK};
+
 #endif
