@@ -6,7 +6,6 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 
@@ -32,17 +31,10 @@ class MultiOutputGP(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
+                 nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
         """
-
-        # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
-        self.use_gpu = use_gpu
-        if self.use_gpu:
-            self.GPClass = GaussianProcessGPU
-        else:
-            self.GPClass = GaussianProcess
             
         if not inputdict == {}:
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
@@ -98,7 +90,7 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
+        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
 
@@ -205,9 +197,9 @@ class MultiOutputGP(object):
         if allow_not_fit:
             predict_method = _gp_predict_default_NaN
         else:
-            predict_method = self.GPClass.predict
+            predict_method = GaussianProcess.predict
 
-        if platform.system() == "Windows" or self.use_gpu:
+        if platform.system() == "Windows":
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
                             for gp in self.emulators]
         else:
