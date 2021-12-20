@@ -55,9 +55,7 @@ public:
   GPParams theta() {
     return gp.get_theta();
   }
-
 };
-
 
 
 void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
@@ -73,18 +71,11 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
     all_params.push_back(theta0);
   }
 
-  // generate random starting values for theta
-  std::random_device rd;
-  std::mt19937 e2(rd());
-
-  std::uniform_real_distribution<> dist(-2.5, 2.5);
-
+  // use priors to generate starting values for theta
   
   for (int itry=all_params.size(); itry<n_tries; ++itry) {
-    std::vector<REAL> v(gp.get_n_params());
-    std::generate(v.begin(), v.end(), [&dist, &e2](){ return dist(e2);});
-   
-    all_params.push_back(v);
+    std::vector<REAL> prior_samples = gp.get_gppriors()->sample();
+    all_params.push_back(prior_samples);
   }
   
   std::vector<double> minvals;
@@ -121,7 +112,6 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
       gp.fit(best_theta);
 
   }
-  
   return;
 }
 
