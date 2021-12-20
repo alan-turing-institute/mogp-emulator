@@ -9,6 +9,9 @@
 #include <math.h>
 #include <stdexcept>
 #include <random>
+#include <boost/math/distributions/inverse_gamma.hpp>
+#include <boost/math/tools/roots.hpp>
+
 #include "../src/types.hpp"
 #include "../src/util.hpp"
 #include "../src/gpparams.hpp"
@@ -78,13 +81,39 @@ void test_isinstance() {
     
 }
 
+void test_root_finding() {
+    std::cout<<" testing root finding"<<std::endl;
+    boost::math::inverse_gamma_distribution<> dist(2., 2.);
+    REAL cdfval = boost::math::cdf(dist, 17.);
+    std::cout<<"cdfval "<<cdfval<<std::endl;
+    REAL min_val = 1.;
+    REAL max_val= 10.;
+    REAL mode = sqrt(min_val*max_val);
+    
+    auto f = [mode, max_val](REAL x) {
+        REAL a = exp(x);
+        return boost::math::cdf(boost::math::inverse_gamma_distribution<>(a,(1. + a)*mode), max_val) - 0.995;
+    };
+    std::cout<<" value of f(5.) is "<<f(5.)<<std::endl;
+    std::cout<<" value of f(8.) is "<<f(8.)<<std::endl;
+
+    int get_digits = std::numeric_limits<REAL>::digits - 3;
+    boost::math::tools::eps_tolerance<REAL> tol(get_digits); 
+    boost::uintmax_t it = 20;
+//    std::pair<REAL, REAL> r = boost::math::tools::bracket_and_solve_root( f, 5., 2., true, tol, it);
+    std::pair<REAL, REAL> r = boost::math::tools::bisect(f, -10., 10., tol, it);
+    REAL answer = r.first + (r.second - r.first)/2;
+    std::cout<<" value of f(5.) is "<<f(5.)<<" answer is "<<answer<<std::endl;
+}
+
+
 int main(void)
 {
     test_normal_prior();
     test_lognormal_prior();
     test_gamma_prior();
     test_invgamma_prior();
-//    test_spacings();
- //   test_isinstance();
+    test_root_finding();
+ 
     return 0;
 }
