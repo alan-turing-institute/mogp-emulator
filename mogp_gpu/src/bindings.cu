@@ -24,6 +24,10 @@ PYBIND11_MODULE(libgpgpu, m) {
              "Returns the dimension of the emulator inputs")
 
 ////////////////////////////////////////
+        .def("n_corr", &DenseGP_GPU::get_n_corr,
+             "Returns the number of correlation length parameters")
+
+////////////////////////////////////////
         .def("inputs", &DenseGP_GPU::get_inputs,
              "Returns the array of inputs points used by the emulator, with "
              "shape ``(n, D)``")
@@ -50,6 +54,18 @@ PYBIND11_MODULE(libgpgpu, m) {
 ////////////////////////////////////////
         .def("get_theta", &DenseGP_GPU::get_theta,
              "Returns the emulator hyperparameters")
+
+////////////////////////////////////////
+        .def("get_gppriors", &DenseGP_GPU::get_gppriors,
+             py::return_value_policy::reference,
+             "Returns the GPPriors object")
+////////////////////////////////////////
+        .def("set_gppriors", &DenseGP_GPU::set_gppriors,
+             "Set the GPPriors object")
+
+///////////////////////////////////////
+        .def("create_gppriors", &DenseGP_GPU::create_gppriors,  
+             "Instantiate and configure the GPPriors object")
 
 ////////////////////////////////////////
         .def("predict", &DenseGP_GPU::predict,
@@ -128,10 +144,20 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
 
 ////////////////////////////////////////
 
-        .def("fit", &DenseGP_GPU::fit,
+        .def("fit", py::overload_cast<GPParams&>(&DenseGP_GPU::fit),
              R"(Sets theta, and updates the internal state of the emulator accordingly.
 
-:param theta: Values for the hyperparameters (length ``n_params``)
+:param theta: Values for the hyperparameters (length ``n_data``)
+
+:returns: None
+)",
+             py::arg("theta"))
+////////////////////////////////////////
+
+.def("fit", py::overload_cast<vec>(&DenseGP_GPU::fit),
+             R"(Sets theta, and updates the internal state of the emulator accordingly.
+
+:param theta: Values for the hyperparameters (length ``n_data``)
 
 :returns: None
 )",
@@ -364,7 +390,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 	     "Number of parameters of mean function");
 
      py::class_<GPParams>(m, "GPParameters")
-      .def(py::init<int, int, bool, nugget_type>())
+      .def(py::init<int, int, nugget_type>())
         .def("get_data", &GPParams::get_data,
              "get the raw data")
         .def("set_data", &GPParams::set_data,
@@ -401,10 +427,19 @@ likelihood of the hyperparameters, from the current state of the emulator.)
 	     "unset the flag to say params have been set")
         .def("data_has_been_set", &GPParams::data_has_been_set,
 	     "get the flag to say whether or not params have been set")
-        .def("test_same_shape", &GPParams::test_same_shape,
-	     "test whether two GPParams objects are the same shape");
+        .def("test_same_shape", py::overload_cast<GPParams&>(&GPParams::test_same_shape, py::const_),
+	     "test whether two GPParams objects are the same shape")
+        .def("test_same_shape", py::overload_cast<vec&>(&GPParams::test_same_shape, py::const_),
+	     "test whether two vectors of params are the same shape");
      ////////////////////////////////////////
-    py::class_<InvGammaPrior>(m, "InvGammaPrior")
+     py::class_<WeakPrior>(m, "WeakPrior")
+      .def(py::init<>())
+          .def("sample", py::overload_cast<>(&WeakPrior::sample),
+          "sample from the prior")
+          .def("sample", py::overload_cast<const BaseTransform&>(&WeakPrior::sample),
+          "sample from the prior");
+     ////////////////////////////////////////
+     py::class_<InvGammaPrior, WeakPrior>(m, "InvGammaPrior")
       .def(py::init<double, double>())
         .def("logp", &InvGammaPrior::logp,
              "Calculate the log probability")
@@ -415,7 +450,7 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("sample_x", &InvGammaPrior::sample_x,
 	     "Sample from the distribution");
      //////////////////////////////////////
-     py::class_<GammaPrior>(m, "GammaPrior")
+     py::class_<GammaPrior, WeakPrior>(m, "GammaPrior")
           .def(py::init<double, double>())
             .def("logp", &GammaPrior::logp,
                  "Calculate the log probability")
@@ -425,24 +460,102 @@ likelihood of the hyperparameters, from the current state of the emulator.)
               "Second Derivative of log prob wrt input")
             .def("sample_x", &GammaPrior::sample_x,
               "Sample from the distribution");
+     //////////////////////////////////////
+     py::class_<BaseTransform>(m, "BaseTransform");
+     ////////////////////////////////////////
+     py::class_<CovTransform, BaseTransform>(m, "CovTransform")
+          .def(py::init<>()) 
+          .def("raw_to_scaled", py::overload_cast<REAL>(&CovTransform::raw_to_scaled, py::const_),
+          "transform from raw values to scaled ones")
+          .def("raw_to_scaled", py::overload_cast<vec>(&CovTransform::raw_to_scaled, py::const_),
+          "transform from raw values to scaled ones")
+          .def("scaled_to_raw", py::overload_cast<REAL>(&CovTransform::scaled_to_raw, py::const_),
+          "transform from scaled values to raw ones")
+          .def("scaled_to_raw", py::overload_cast<vec>(&CovTransform::scaled_to_raw, py::const_),
+          "transform from scaled values to raw ones")
+          .def("dscaled_draw", py::overload_cast<REAL>(&CovTransform::dscaled_draw, py::const_),
+          "derivative of scaled values wrt raw ones")
+          .def("dscaled_draw", py::overload_cast<vec>(&CovTransform::dscaled_draw, py::const_),
+          "derivative of scaled values wrt raw ones")
+          .def("2scaled_draw2", py::overload_cast<REAL>(&CovTransform::d2scaled_draw2, py::const_),
+          "second derivative of scaled values wrt raw ones")
+          .def("d2scaled_draw2", py::overload_cast<vec>(&CovTransform::d2scaled_draw2, py::const_),
+          "second derivative of scaled values wrt raw ones");
+        
+     ////////////////////////////////////////
+     py::class_<CorrTransform, BaseTransform>(m, "CorrTransform")
+          .def(py::init<>()) 
+          .def("raw_to_scaled", py::overload_cast<REAL>(&CorrTransform::raw_to_scaled, py::const_),
+          "transform from raw values to scaled ones")
+          .def("raw_to_scaled", py::overload_cast<vec>(&CorrTransform::raw_to_scaled, py::const_),
+          "transform from raw values to scaled ones")
+          .def("scaled_to_raw", py::overload_cast<REAL>(&CorrTransform::scaled_to_raw, py::const_),
+          "transform from scaled values to raw ones")
+          .def("scaled_to_raw", py::overload_cast<vec>(&CorrTransform::scaled_to_raw, py::const_),
+          "transform from scaled values to raw ones")
+          .def("dscaled_draw", py::overload_cast<REAL>(&CorrTransform::dscaled_draw, py::const_),
+          "derivative of scaled values wrt raw ones")
+          .def("dscaled_draw", py::overload_cast<vec>(&CorrTransform::dscaled_draw, py::const_),
+          "derivative of scaled values wrt raw ones")
+          .def("2scaled_draw2", py::overload_cast<REAL>(&CorrTransform::d2scaled_draw2, py::const_),
+          "second derivative of scaled values wrt raw ones")
+          .def("d2scaled_draw2", py::overload_cast<vec>(&CorrTransform::d2scaled_draw2, py::const_),
+          "second derivative of scaled values wrt raw ones");
+     ////////////////////////////////////////
+     py::class_<GPPriors>(m, "GPPriors")
+          .def(py::init<int, nugget_type>())
+          .def("set_corr", py::overload_cast<std::vector<WeakPrior*>>(&GPPriors::set_corr),
+               "set correlation length priors")
+          .def("set_corr", py::overload_cast<>(&GPPriors::set_corr),
+               "set correlation length priors")
+          .def("get_corr", &GPPriors::get_corr,
+               "get correlation length priors")
+          .def("set_cov", py::overload_cast<>(&GPPriors::set_cov),
+               "set covariance priors")
+          .def("set_cov", py::overload_cast<WeakPrior*>(&GPPriors::set_cov),
+               "set covariance priors")
+          .def("get_cov", &GPPriors::get_cov,
+               "get covariance priors")
+          .def("create_corr_priors", &GPPriors::create_corr_priors,
+               "create default correlation length priors")
+          .def("create_cov_prior", &GPPriors::create_cov_prior,
+               "create default covariance parameter prior")
+          .def("make_prior", &GPPriors::make_prior,
+               "instantiate prior of chosen type")
+          .def("sample", &GPPriors::sample,
+               "sample from the priors");
 
-    py::enum_<kernel_type>(m, "kernel_type")
+     ////////////////////////////////////////
+     py::class_<MeanPriors>(m, "MeanPriors")
+          .def(py::init<vec, mat>())
+          .def("get_n_params", &MeanPriors::get_n_params,
+               "how many parameters?")
+          .def("has_weak_priors", &MeanPriors::has_weak_priors,
+               "do we only have non-informative priors?");
+     ////////////////  enums   /////////////////////
+     py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)
         .value("Matern52", MATERN52);
 
-    py::enum_<nugget_type>(m, "nugget_type")
+     py::enum_<nugget_type>(m, "nugget_type")
         .value("adaptive", NUG_ADAPTIVE)
         .value("fixed", NUG_FIXED)
         .value("fit", NUG_FIT);
 
-    m.def("have_compatible_device", &have_compatible_device);
+     py::enum_<prior_type>(m, "prior_type")
+        .value("LogNormal", LOGNORMAL)
+        .value("Gamma", GAMMA)
+        .value("InvGamma", INVGAMMA)
+        .value("Weak", WEAK);
 
-    m.def("fit_GP_MAP", py::overload_cast<DenseGP_GPU&, const int, const std::vector<double>>(&fit_single_GP_MAP), 
+     m.def("have_compatible_device", &have_compatible_device);
+
+     m.def("fit_GP_MAP", py::overload_cast<DenseGP_GPU&, const int, const std::vector<double>>(&fit_single_GP_MAP), 
           py::return_value_policy::reference);
-    m.def("fit_GP_MAP", py::overload_cast<MultiOutputGP_GPU&, const int, const std::vector<double>>(&fit_GP_MAP), 
+     m.def("fit_GP_MAP", py::overload_cast<MultiOutputGP_GPU&, const int, const std::vector<double>>(&fit_GP_MAP), 
           py::return_value_policy::reference);
 
-    m.doc() = R"(
+     m.doc() = R"(
 The libgpgpu library
 --------------------
 
