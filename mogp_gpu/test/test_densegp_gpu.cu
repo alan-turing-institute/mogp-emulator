@@ -30,8 +30,8 @@ void testGP() {
   kernel_type kernel = SQUARED_EXPONENTIAL;
   // instantiate the GP
   DenseGP_GPU gp(inputs, targets, max_batch_size, meanfunc);
-  vec theta = vec::Constant(gp.get_n_params(),1, -1.0);
-  /*
+  vec theta = vec::Constant(gp.get_n_data(),1, -1.0);
+  
   gp.fit(theta);
   mat x_predict(2,3);
   x_predict << 2., 3., 4.,
@@ -40,7 +40,7 @@ void testGP() {
   gp.predict_batch(x_predict, result);
 
   std::cout<<" result "<< result <<std::endl;
-*/
+
 }
 
 void test_set_params() {
@@ -60,6 +60,7 @@ void test_set_params() {
   GPParams theta = gp.get_theta();
   assert(theta.get_nugget_type() == NUG_ADAPTIVE);
   assert(theta.get_nugget_size() == 0.0);
+  gp.fit(theta);
 }
 
 int main() {
