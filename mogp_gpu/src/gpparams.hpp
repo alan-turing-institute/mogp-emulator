@@ -213,6 +213,10 @@ public:
         has_data = false;
     }
 
+    void set_fitted_ok() {
+        has_data = true;
+    }
+
     inline bool data_has_been_set() const { return has_data; }
 
 private:
