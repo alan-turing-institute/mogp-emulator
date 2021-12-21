@@ -45,7 +45,6 @@ class WeakPrior {
     public:
 
         virtual ~WeakPrior() {
-            std::cout<<" in WeakPrior destructor "<<std::endl;
         }
         inline virtual REAL logp(REAL x) {return 0.;}
 
@@ -209,7 +208,6 @@ class InvGammaPrior : public PriorDist {
         }
 
         virtual ~InvGammaPrior() {
-            std::cout<<" in InvGammaPrior descturcor"<<std::endl;
         }
 
         REAL logp(REAL x) {
@@ -231,7 +229,6 @@ class InvGammaPrior : public PriorDist {
             std::gamma_distribution<> dist(shape, scale);
             // inverse gamma is 1/Gamma, but multiply by scale^2 for 
             // consistency with Python version
-            std::cout<<" in invgamma sample_x function "<<std::endl;
             return scale*scale/dist(e2);      
         }
 
@@ -243,36 +240,21 @@ class InvGammaPrior : public PriorDist {
 class GPPriors {
 
 public:
-/*
-    GPPriors(int n_corr_) 
-    : n_corr(n_corr_) {
-        std::cout<<" in GPPriors constructor with no args"<<std::endl;
-        MeanPriors* default_mean = NULL;
-        std::vector<WeakPrior*> default_corr;
-        WeakPrior* default_cov = NULL;
-        WeakPrior* default_nug = NULL;
-        GPPriors(default_mean, default_corr, default_cov, default_nug, n_corr_);
-    }
-*/
+
     GPPriors(int n_corr_, nugget_type nug_type_=NUG_FIT, MeanPriors* mean_=NULL, WeakPrior* cov_=NULL, WeakPrior* nug_prior_=NULL)
     : n_corr(n_corr_)
     , nug_type(nug_type_)
     , mean_prior(mean_)
     , cov_prior(cov_)
     , nug_prior(nug_prior_) {
-        std::cout<<" in GPPriors constructor with lots of args"<<std::endl;
-
     }
 
 
     ~GPPriors() {
-        std::cout<<" in GPPriors desctructor"<<std::endl;
         if (mean_prior != NULL) delete mean_prior;
         if (cov_prior != NULL) delete cov_prior; 
         if (nug_prior != NULL) delete nug_prior;          
-        corr_priors.clear();
-
-        std::cout<<" end of GPPriors desctructor"<<std::endl;    
+        corr_priors.clear(); 
     }
 
     inline MeanPriors* get_mean() { return mean_prior; }
@@ -320,6 +302,13 @@ public:
         }
     }
 
+    void set_nugget(prior_type ptype, REAL param_1, REAL param_2) {
+        if (nug_type == NUG_FIT) {
+            WeakPrior* wp = make_prior(ptype, param_1, param_2);
+            set_nugget(wp);
+        }
+    }
+
     void check_theta(GPParams theta) {
         assert(n_corr == theta.get_n_corr());
         assert(nug_type == theta.get_nugget_type());
@@ -344,33 +333,41 @@ public:
         return logposterior;
     }
 
-    std::vector<REAL> dlogpdtheta(GPParams theta) {
+
+    vec dlogpdtheta(GPParams theta) {
+
         check_theta(theta);
 
-        std::vector<REAL> partials;
+        vec partials(theta.get_n_data());
+        //correlation length parameters
         for (int i=0; i< corr_priors.size(); ++i) {
-            partials.push_back(corr_priors[i]->dlogpdtheta(theta.get_corr()[i],CorrTransform()));
+            partials[i] = corr_priors[i]->dlogpdtheta(theta.get_corr()[i],CorrTransform());   
         }
-        
-        partials.push_back(cov_prior->dlogpdtheta(theta.get_cov(), CovTransform()));
-
+        // covariance parameter
+        partials[theta.get_n_corr()] = cov_prior->dlogpdtheta(theta.get_cov(), CovTransform());
+        // nugget parameter (if fitted nugget)
         if (nug_type == NUG_FIT) {
-            partials.push_back(nug_prior->dlogpdtheta(theta.get_nugget_size(), CovTransform())); 
+        //    partials.push_back(nug_prior->dlogpdtheta(theta.get_nugget_size(), CovTransform()));
+            partials[theta.get_n_data()-1] = nug_prior->dlogpdtheta(theta.get_nugget_size(), CovTransform());  
         }
         return partials;
     }
 
-    std::vector<REAL> d2logpdtheta2(GPParams theta) {
+    //std::vector<REAL> 
+    vec d2logpdtheta2(GPParams theta) {
+
         check_theta(theta);
 
-        std::vector<REAL> hessian;
+        vec hessian(theta.get_n_data());
+        //correlation length parameters
         for (int i=0; i< corr_priors.size(); ++i) {
-            hessian.push_back(corr_priors[i]->d2logpdtheta2(theta.get_corr()[i],CorrTransform()));
+            hessian[i] = corr_priors[i]->d2logpdtheta2(theta.get_corr()[i],CorrTransform());
         }
-            hessian.push_back(cov_prior->d2logpdtheta2(theta.get_cov(), CovTransform()));
-
+        // covariance parameter
+        hessian[theta.get_n_corr()] = cov_prior->d2logpdtheta2(theta.get_cov(), CovTransform());
+        // nugget parameter (if fitted nugget)
         if (nug_type == NUG_FIT) {
-            hessian.push_back(nug_prior->d2logpdtheta2(theta.get_nugget_size(), CovTransform())); 
+            hessian[theta.get_n_data()-1] = nug_prior->d2logpdtheta2(theta.get_nugget_size(), CovTransform()); 
         }
         return hessian;
     }
@@ -379,15 +376,11 @@ public:
         std::vector<REAL> samples;
         for (int i=0; i< corr_priors.size(); ++i) {
             samples.push_back(corr_priors[i]->sample(CorrTransform()));
-        }
-        std::cout<<" sampled from corr priors "<<std::endl;   
+        }  
         samples.push_back(cov_prior->sample(CovTransform()));
-        std::cout<<" sampled from cov prior "<<std::endl;
         if (nug_type == NUG_FIT) {
-            std::cout<<" will try nug prior sample"<<std::endl;
             samples.push_back(nug_prior->sample(CovTransform())); 
         }
-        std::cout<<" returning samples "<<samples.size()<<std::endl;
         return samples;
     }
 
