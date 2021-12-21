@@ -194,7 +194,11 @@ Currently unused by :class`GaussianProcessGPU`, but useful for testing.
              py::arg("invQt_h"))
 
 ////////////////////////////////////////
-        .def("get_logpost", &DenseGP_GPU::get_logpost,
+        .def("get_logpost", py::overload_cast<vec>(&DenseGP_GPU::get_logpost),
+	     "Return the log posterior"
+            )
+////////////////////////////////////////
+        .def("get_logpost", py::overload_cast<GPParams&>(&DenseGP_GPU::get_logpost),
 	     "Return the log posterior"
             )
 
@@ -276,22 +280,37 @@ likelihood of the hyperparameters, from the current state of the emulator.)
                      "Return the number of inputs to the GP")
        .def("D", &MultiOutputGP_GPU::get_D,
                      "Return the number of dimensions of the GP")
+       .def("n_data_params", &MultiOutputGP_GPU::n_data_params,
+                     "Return the number of data parameters of the GP")
+       .def("n_corr_params", &MultiOutputGP_GPU::n_corr_params,
+                     "Return the number of correlation length parameters of the GP")
        .def("get_fitted_indices", &MultiOutputGP_GPU::get_fitted_indices,
                      "Return a vector of indices of emulators where fitting succeeded")
        .def("get_unfitted_indices", &MultiOutputGP_GPU::get_unfitted_indices,
                      "Return a vector of indices of emulators where fitting failed or not done yet")
        .def("n_emulators", &MultiOutputGP_GPU::n_emulators,
                      "Return the number of GP emulators")
+       .def("create_priors_for_emulator", &MultiOutputGP_GPU::create_priors_for_emulator,
+                     "Instantiate GPPriors object for specified emulator index")
+       .def("reset_fit_status", &MultiOutputGP_GPU::reset_fit_status,
+                     "reset the fit status of all emulators")
        .def("targets", &MultiOutputGP_GPU::get_targets,
                          "Return the targets of the GP") 
        .def("targets_at_index", &MultiOutputGP_GPU::get_targets_at_index,
                          "Return the targets of the GP at specified index",
                          py::arg("index"))
-       .def("fit_emulator", &MultiOutputGP_GPU::fit_emulator,
+       .def("fit_emulator", py::overload_cast<unsigned int, GPParams&>(&MultiOutputGP_GPU::fit_emulator),
                          "Set hyperparameters of the GP at specified index",
                          py::arg("index"),
                          py::arg("theta"))  
-       .def("fit", &MultiOutputGP_GPU::fit,
+       .def("fit_emulator", py::overload_cast<unsigned int, vec&>(&MultiOutputGP_GPU::fit_emulator),
+                         "Set hyperparameters of the GP at specified index",
+                         py::arg("index"),
+                         py::arg("theta"))  
+       .def("fit", py::overload_cast<mat_ref>(&MultiOutputGP_GPU::fit),
+                         "Set hyperparameters of all emulators",
+                         py::arg("thetas"))  
+       .def("fit", py::overload_cast<std::vector<GPParams>>(&MultiOutputGP_GPU::fit),
                          "Set hyperparameters of all emulators",
                          py::arg("thetas"))  
        .def("predict", &MultiOutputGP_GPU::predict,
@@ -516,6 +535,12 @@ likelihood of the hyperparameters, from the current state of the emulator.)
                "set covariance priors")
           .def("get_cov", &GPPriors::get_cov,
                "get covariance priors")
+          .def("get_logp", &GPPriors::logp,
+               "get log posterior ")
+          .def("get_dlogpdtheta", &GPPriors::dlogpdtheta,
+               "get derivative of log posterior wrt theta")
+          .def("get_d2logpdtheta2", &GPPriors::d2logpdtheta2,
+               "get 2nd derivative of log posterior wrt theta")
           .def("create_corr_priors", &GPPriors::create_corr_priors,
                "create default correlation length priors")
           .def("create_cov_prior", &GPPriors::create_cov_prior,

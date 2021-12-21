@@ -92,6 +92,39 @@ public:
         return emulators.size();
     }
 
+    int n_data_params(void) const
+    {   
+        if (emulators.size() > 0)
+            return emulators[0]->get_theta().get_n_data();
+        return 0;
+    }
+
+    int n_corr_params(void) const
+    {   
+        if (emulators.size() > 0)
+            return emulators[0]->get_theta().get_n_corr();
+        return 0;
+    }
+
+    void reset_fit_status(void) {
+        for (unsigned int idx=0; idx < emulators.size(); ++idx) {
+            emulators[idx]->reset_theta_fit_status();
+        }   
+    }
+
+    void create_priors_for_emulator(unsigned int emulator_index,
+                                    int n_corr,
+                                    prior_type corr_dist, REAL corr_p1, REAL corr_p2,
+                                    prior_type cov_dist, REAL cov_p1, REAL cov_p2,
+                                    prior_type nug_dist, REAL nug_p1, REAL nug_p2)
+    {   
+        if (emulators.size() <= emulator_index)
+            throw std::runtime_error("Invalid emulator index for setting priors");
+        emulators[emulator_index]->create_gppriors(n_corr, corr_dist, corr_p1, corr_p2, 
+                                                  cov_dist, cov_p1, cov_p2,
+                                                  nug_dist, nug_p1, nug_p2);
+    }
+
     std::vector<unsigned int> get_fitted_indices(void) const
     {
         std::vector<unsigned int> fitted_indices;
@@ -181,10 +214,20 @@ public:
         }   
     }
 
+    void fit(mat_ref thetas) {
+        #pragma omp parallel for
+        for (unsigned int i=0; i< emulators.size(); ++i) {      
+            emulators[i]->fit(thetas.row(i));
+        }   
+    }    
 
     void fit_emulator(unsigned int index, GPParams& theta) {
         emulators.at(index)->fit(theta);
     }
+
+    void fit_emulator(unsigned int index, vec& theta) {
+        emulators.at(index)->fit(theta);
+    }    
 
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
