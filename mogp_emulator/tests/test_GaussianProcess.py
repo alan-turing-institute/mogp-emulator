@@ -65,7 +65,7 @@ def test_GaussianProcessGPU_init(x, y):
     assert_allclose(y, gp.targets)
     assert gp.D == 3
     assert gp.n == 2
-    assert gp.nugget == None
+    assert gp.nugget == 0.
     assert gp.nugget_type == "adaptive"
     gp = GaussianProcessGPU(y, y)
     assert gp.inputs.shape == (2, 1)
@@ -205,7 +205,7 @@ def test_GaussianProcessGPU_nugget(x, y):
     "Tests the get_nugget method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
-    assert gp.nugget is None
+    assert gp.nugget == 0.
     assert gp.nugget_type == "adaptive"
 
     gp.nugget = "fit"
@@ -351,13 +351,13 @@ def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
     with pytest.raises(RuntimeError):
         gp.theta = np.ones(gp.n_params + 1)
 
-    theta = np.ones(gp.n_data)
+    switch = gp.theta.get_n_mean()
+    
+    theta = np.ones(gp.n_data + switch)
     if nugget == "fit":
         theta[-1] = sn
 
-    gp.theta = theta
-
-    switch = gp.theta.get_n_mean()
+    gp.theta = theta[switch:]
 
     if nugget == "adaptive" or nugget == 0.:
         assert gp.nugget == 0.
@@ -374,9 +374,29 @@ def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
 #                          np.dot(ym, invQt_expect) +
 #                          gp.n*np.log(2.*np.pi))
 
-    assert_allclose(L_expect, gp.L)
+ #   assert_allclose(L_expect, gp.L)
  #   assert_allclose(invQt_expect, gp.Kinv_t)
  #   assert_allclose(logpost_expect, gp.current_logpost)
+
+@pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
+def test_GaussianProcess_theta_GPParams(x, y):
+    "test that we can set parameters using a GPParams object"
+
+    gp = GaussianProcess(x, y)
+
+    gpp = GPParams(n_corr=3, nugget="adaptive")
+    gpp.set_data(np.ones(4))
+
+    gp.theta = gpp
+
+    assert_allclose(gp.theta.get_data(), np.ones(4))
+    assert_allclose(gp.theta.nugget, 0.)
+
+    with pytest.raises(AssertionError):
+        gp.theta = GPParams(n_corr=3, nugget="fit")
+        
+    with pytest.raises(AssertionError):
+        gp.theta = GPParams(n_corr=1, nugget="adaptive")
 
 def test_GaussianProcess_theta_pivot():
     "test that pivoting works as expected"
