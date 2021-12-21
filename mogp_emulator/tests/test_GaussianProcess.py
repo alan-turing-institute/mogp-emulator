@@ -209,7 +209,7 @@ def test_GaussianProcessGPU_nugget(x, y):
     assert gp.nugget_type == "adaptive"
 
     gp.nugget = "fit"
-    assert gp.nugget == 0. # set to zero for GPU implementation
+    assert gp.nugget == 1.0
     assert gp.nugget_type == "fit"
 
     gp.nugget = 1.
@@ -295,18 +295,28 @@ def test_GaussianProcess_theta_GPParams(x, y):
         gp.theta = GPParams(n_corr=1, nugget="adaptive")
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
-@pytest.mark.parametrize("nugget,sn", [(0., 1.), ("adaptive", 0.)]) # ("fit", np.log(1.e-6))])
-def test_GaussianProcessGPU_theta(x, y, nugget, sn):
+@pytest.mark.parametrize("mean,nugget,sn", [(None, 0., 1.), (None, "adaptive", 0.),
+                                           ("x[0]", "fit", np.log(1.e-6))])
+def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
     "test the theta property of GaussianProcess (effectively the same as fit)"
 
-    # zero mean, zero nugget
+    if isinstance(nugget, float):
+        nugget_type = "fixed"
+    else:
+        nugget_type = nugget
 
-    gp = GaussianProcessGPU(x, y, nugget=nugget)
+    gp = GaussianProcessGPU(x, y, mean=mean, nugget=nugget, priors=GPPriors(n_corr=3, nugget_type=nugget_type))
 
-    theta = np.ones(gp.n_params)
-    theta[-1] = sn
+    with pytest.raises(RuntimeError):
+        gp.theta = np.ones(gp.n_params + 1)
+
+    theta = np.ones(gp.n_data)
+    if nugget == "fit":
+        theta[-1] = sn
 
     gp.theta = theta
+
+    switch = gp.theta.get_n_mean()
 
     if nugget == "adaptive" or nugget == 0.:
         assert gp.nugget == 0.
@@ -314,17 +324,18 @@ def test_GaussianProcessGPU_theta(x, y, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[:-1]) + noise
+    Q = np.exp(theta[switch + gp.D])*gp.kernel.kernel_f(x, x, theta[switch:(switch + gp.D)]) + noise
+#    ym = y - np.dot(gp._dm, theta[:switch]) TBD for GPU
 
     L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, y)
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(y, invQt_expect) +
-                          gp.n*np.log(2.*np.pi))
+#    invQt_expect = np.linalg.solve(Q, ym)  TBD for GPU
+#    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
+#                          np.dot(ym, invQt_expect) +
+#                          gp.n*np.log(2.*np.pi))
 
     assert_allclose(L_expect, gp.L)
-    assert_allclose(invQt_expect, gp.invQt)
-    assert_allclose(logpost_expect, gp.current_logpost)
+ #   assert_allclose(invQt_expect, gp.Kinv_t)
+ #   assert_allclose(logpost_expect, gp.current_logpost)
 
 def test_GaussianProcess_theta_pivot():
     "test that pivoting works as expected"
@@ -510,26 +521,33 @@ def test_GaussianProcessGPU_logposterior(x, y):
     "test logposterior method of GaussianProcessGPU"
 
     # logposterior already tested, but check that parameters are re-fit if changed
+    gp = GaussianProcessGPU(x, y, nugget = 0., priors=GPPriors(n_corr=3, nugget_type="fixed"))
 
-    gp = GaussianProcessGPU(x, y, nugget = 0.)
-
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_data)
     gp.fit(theta)
 
-    theta = np.zeros(gp.n_params)
+    theta = np.zeros(gp.n_data)
 
-    Q = gp.kernel.kernel_f(x, x, theta[:-1])
+    K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-1])
 
-    L_expect = np.linalg.cholesky(Q)
-    invQt_expect = np.linalg.solve(Q, y)
-    logpost_expect = 0.5*(np.log(np.linalg.det(Q)) +
-                          np.dot(y, invQt_expect) +
+    L_expect = np.linalg.cholesky(K)
+    Kinv_t_expect = np.linalg.solve(K, y)
+    logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
+                          np.dot(y, Kinv_t_expect) +
                           gp.n*np.log(2.*np.pi))
 
     assert_allclose(logpost_expect, gp.logposterior(theta))
     assert_allclose(gp.L, L_expect)
-    assert_allclose(invQt_expect, gp.invQt)
+    assert_allclose(Kinv_t_expect, gp.Kinv_t)
     assert_allclose(logpost_expect, gp.current_logpost)
+
+    # check we can set theta back to none correctly
+
+    gp.theta = None
+    assert_allclose(gp.theta.get_data(), np.zeros(gp.n_data)) #GPU implementation resets to zero
+    assert gp.Kinv_t is None
+    assert gp.current_logpost is None
+  
 
 @pytest.fixture
 def dx():
@@ -569,7 +587,7 @@ def test_GaussianProcessGPU_logpost_deriv(x, y, dx, nugget, sn):
 
     gp = GaussianProcessGPU(x, y, nugget=nugget)
 
-    n = gp.n_params
+    n = gp.n_data
     theta = np.ones(n)
     theta[-1] = sn
 
@@ -823,7 +841,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
     # zero mean
 
     gp = GaussianProcessGPU(x, y, nugget=0.)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_data)
 
     gp.fit(theta)
 
@@ -831,11 +849,11 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     mu, var, deriv = gp.predict(x_test)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
-    Ktest = gp.kernel.kernel_f(x_test, x, theta[:-1])
+    K = np.exp(theta[-1])*gp.kernel.kernel_f(x, x, theta[:-1])
+    Ktest = np.exp(theta[-1])*gp.kernel.kernel_f(x_test, x, theta[:-1])
 
-    mu_expect = np.dot(Ktest, gp.invQt)
-    var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
+    mu_expect = np.dot(Ktest, gp.Kinv_t)
+    var_expect = np.exp(theta[-1]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
     D = gp.D
 
@@ -864,7 +882,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     gp = GaussianProcessGPU(y, y, nugget=0.)
 
-    gp.fit(np.ones(gp.n_params))
+    gp.fit(np.ones(gp.n_data))
 
     n_predict = 51
     mu, var, deriv = gp.predict(np.linspace(0., 1., n_predict))
@@ -882,7 +900,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     # check that the returned PredictResult works correctly
     gp = GaussianProcessGPU(x, y, nugget=0.)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_data)
     gp.fit(theta)
     x_test = np.array([[2., 3., 4.]])
 
@@ -936,21 +954,21 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
     nugget = 1.e0
 
     gp = GaussianProcessGPU(x, y, nugget=nugget)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_data)
 
     gp.fit(theta)
 
     preds = gp.predict(x)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
+    K = np.exp(theta[-1])*gp.kernel.kernel_f(x, x, theta[:-1])
 
-    var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+    var_expect = np.exp(theta[-1]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
     preds = gp.predict(x, include_nugget=False)
 
-    var_expect = np.exp(theta[-2]) - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
+    var_expect = np.exp(theta[-1]) - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
     assert_allclose(preds.unc, var_expect, atol=1.e-7)
 
@@ -1023,7 +1041,7 @@ def test_GaussianProcessGPU_predict_failures(x, y):
     with pytest.raises(ValueError):
         gp.predict(np.array([2., 3., 4.]))
 
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_data)
     gp.fit(theta)
 
     with pytest.raises(AssertionError):
