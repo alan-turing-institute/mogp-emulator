@@ -66,7 +66,8 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
     will start. If more than one attempt is made, subsequent attempts
     will use random starting points. If you are fitting Multiple
     Outputs, then this argument can take any of the following forms:
-    (1) None (random start points for all emulators), (2) a list of
+    (1) None (random start points for all emulators, which are drawn
+    from the prior distribution for each fit parameter), (2) a list of
     numpy arrays or ``NoneTypes`` with length ``n_emulators``, (3) a
     numpy array of shape ``(n_params,)`` or ``(n_emulators,
     n_params)`` which with either use the same start point for all
@@ -313,8 +314,6 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
     if not processes is None:
         processes = int(processes)
         assert processes > 0, "number of processes must be positive"
-
-    n_tries = int(n_tries)
 
     if refit:
         emulators_to_fit = gp.emulators

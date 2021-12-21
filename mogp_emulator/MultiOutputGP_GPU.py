@@ -47,7 +47,7 @@ class MultiOutputGP_GPU(object):
 
     """
 
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
+    def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
                  nugget="adaptive", inputdict={}, use_patsy=True, batch_size=16000):
         """
         Create a new multi-output GP Emulator

@@ -3,11 +3,14 @@ import pytest
 from numpy.testing import assert_allclose
 from ..linalg.cholesky import ChoInv, ChoInvPivot, cholesky_factor, fixed_cholesky
 from ..linalg.cholesky import jit_cholesky, _check_cholesky_inputs, pivot_cholesky, _pivot_transpose
+from ..linalg.linalg_utils import calc_Ainv, calc_A_deriv, calc_mean_params, calc_R, logdet_deriv
+from ..Kernel import SquaredExponential
+from ..Priors import MeanPriors
 from scipy import linalg
 
 @pytest.fixture
 def A():
-    return np.array([[2., 1., 0.4], [1., 2., 0.2], [0.4, 0.2, 2.]])
+    return np.array([[2., 1., 0.2], [1., 2., 0.4], [0.2, 0.4, 2.]])
     
 @pytest.fixture
 def b():
@@ -26,8 +29,18 @@ def test_ChoInv(A, b):
     assert_allclose(Ainv.solve(b), x)
     
     assert_allclose(np.log(np.linalg.det(A)), Ainv.logdet())
+    
+    assert Ainv.solve(np.zeros((3,0))).shape == (3,0)
+    
+    Ainv = ChoInv(np.zeros((0,0)))
+    
+    assert Ainv.solve(np.ones(3)).shape == (3,)
+    
+    Ainv = ChoInv(2.*np.ones((1,1)))
+    
+    assert_allclose(Ainv.solve(np.ones((1, 3, 1))), 0.25*np.ones((1,3,1)))
 
-def test_ChoInnvPivot(A, b):
+def test_ChoInvPivot(A, b):
     "test the cho_solve routine using pivoting"
 
     L = np.linalg.cholesky(A)
@@ -178,4 +191,193 @@ def test_pivot_transpose():
     with pytest.raises(AssertionError):
         _pivot_transpose(P)
 
+@pytest.fixture
+def dm():
+    return np.array([[1., 1.], [1., 2.], [1., 4.]])
+    
+@pytest.fixture
+def Kinv(A):
+    return ChoInv(np.linalg.cholesky(A))
 
+def test_calc_Ainv(A, dm, Kinv):
+    "test the function to compute inverse of A"
+    
+    # Zero mean, weak mean covariance
+    
+    dm_z = np.zeros((3, 0))
+    B = MeanPriors()
+    
+    result = calc_Ainv(Kinv, dm_z, B)
+    
+    assert result.L.shape == (0,0)
+    
+    # nonzero mean, weak mean covariance
+    
+    result = calc_Ainv(Kinv, dm, B)
+    result_expected = np.linalg.cholesky(np.dot(dm.T, np.dot(np.linalg.inv(A), dm)))
+    
+    assert_allclose(result.L, result_expected)
+    
+    # nonzero mean, mean covariance
+    
+    B = MeanPriors(mean=[2., 1.], cov=np.eye(2))
+    
+    result = calc_Ainv(Kinv, dm, B)
+    result_expected = np.linalg.cholesky(np.dot(dm.T, np.dot(np.linalg.inv(A), dm)) + np.eye(2))
+    
+    assert_allclose(result.L, result_expected)
+    
+    with pytest.raises(AssertionError):
+        calc_Ainv(1., dm, B)
+        
+    with pytest.raises(AssertionError):
+        calc_Ainv(Kinv, dm, 1.)
+
+def test_calc_A_deriv(dm):
+    "test calculating the derivative of Ainv"
+    
+    x = np.array([[1.], [2.], [4.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    A = np.dot(dm.T, Kinv.solve(dm))
+    
+    deriv_expect = calc_A_deriv(Kinv, dm, dKdtheta)
+    
+    dx = 1.e-6
+    K2 = SquaredExponential().kernel_f(x, x, [-dx])
+    Kinv_2 = ChoInv(np.linalg.cholesky(K2))
+    A2 = np.dot(dm.T, Kinv_2.solve(dm))
+    deriv_fd = np.zeros((1, 2, 2))
+    deriv_fd[0] = (A - A2)/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    # zero mean
+    
+    dm_z = np.zeros((3, 0))
+    A = np.dot(dm_z.T, Kinv.solve(dm_z))
+    
+    deriv_expect = calc_A_deriv(Kinv, dm_z, dKdtheta)
+    
+    dx = 1.e-6
+    K2 = SquaredExponential().kernel_f(x, x, [-dx])
+    Kinv_2 = ChoInv(np.linalg.cholesky(K2))
+    A2 = np.dot(dm_z.T, Kinv_2.solve(dm_z))
+    deriv_fd = np.zeros((1, 0, 0))
+    deriv_fd[0] = (A - A2)/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    with pytest.raises(AssertionError):
+        calc_A_deriv(1., dm, dKdtheta)
+        
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones(3))
+        
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones((1, 2, 3)))
+        
+    with pytest.raises(AssertionError):
+        calc_A_deriv(Kinv, dm, np.ones((1, 2, 2)))
+
+def test_calc_mean_params(A, dm, Kinv):
+    "test the calc_mean_params function"
+    
+    # weak mean priors
+    
+    Kinv_t = Kinv.solve(np.array([1., 2., 4.]))
+    B = MeanPriors()
+    
+    Ainv = calc_Ainv(Kinv, dm, B)
+    
+    beta_actual = calc_mean_params(Ainv, Kinv_t, dm, B)
+    beta_expected = Ainv.solve(np.dot(dm.T, Kinv_t))
+    
+    assert_allclose(beta_actual, beta_expected)
+    
+    # mean priors
+    
+    B = MeanPriors(mean=[2., 1.], cov=np.eye(2))
+    
+    beta_actual = calc_mean_params(Ainv, Kinv_t, dm, B)
+    beta_expected = Ainv.solve(np.dot(dm.T, Kinv_t) + np.array([2., 1.]))
+    
+    assert_allclose(beta_actual, beta_expected)
+    
+    with pytest.raises(AssertionError):
+        calc_mean_params(1., Kinv_t, dm, B)
+        
+    with pytest.raises(AssertionError):
+        calc_mean_params(Ainv, Kinv_t, dm, 1.)
+
+def test_calc_R(A, dm, Kinv):
+    "test the calc_R function"
+    
+    dmtest = np.array([[1., 3.], [1., 5.]])
+    Ktest = np.array([[0.2, 0.6, 0.8], [0.1, 0.2, 1.]]).T
+    Kinv_Ktest = Kinv.solve(Ktest)
+
+    R_expected = dmtest.T - np.dot(dm.T, np.linalg.solve(A, Ktest))
+    
+    R_actual = calc_R(Kinv_Ktest, dm, dmtest)
+    
+    assert_allclose(R_actual, R_expected)
+        
+    # zero mean function
+    
+    dm_z = np.zeros((3, 0))
+    dm_z_test = np.zeros((2, 0))
+    
+    R_actual = calc_R(Kinv_Ktest, dm_z, dm_z_test)
+    R_expected = np.zeros((0,2))
+    
+    assert_allclose(R_actual, R_expected)
+
+def test_logdet_deriv():
+    "compute the derivative of the log determinant of a matrix"
+    
+    x = np.array([[1.], [2.], [4.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    
+    deriv_expect = logdet_deriv(Kinv, dKdtheta)
+    
+    dx = 1.e-6
+    deriv_fd = np.zeros(1)
+    deriv_fd[0] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [-dx]))))/dx
+                
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    x = np.array([[1., 4.], [2., 2.], [4., 1.]])
+    
+    K = SquaredExponential().kernel_f(x, x, [0., 0.])
+    dKdtheta = SquaredExponential().kernel_deriv(x, x, [0., 0.])
+    Kinv = ChoInv(np.linalg.cholesky(K))
+    
+    deriv_expect = logdet_deriv(Kinv, dKdtheta)
+    
+    dx = 1.e-6
+    deriv_fd = np.zeros(2)
+    deriv_fd[0] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., 0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [-dx, 0.]))))/dx
+    deriv_fd[1] = (np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., 0.]))) -
+                   np.log(np.linalg.det(SquaredExponential().kernel_f(x, x, [0., -dx]))))/dx
+
+    assert_allclose(deriv_expect, deriv_fd, atol=1.e-6, rtol=1.e-6)
+    
+    with pytest.raises(AssertionError):
+        logdet_deriv(1., dKdtheta)
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones(3))
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones((1, 2, 3)))
+        
+    with pytest.raises(AssertionError):
+        logdet_deriv(Kinv, np.ones((1, 2, 2)))

@@ -777,9 +777,9 @@ class SqExpBase(object):
         Given an array of distances, this function evaluates the kernel function of those values,
         returning an array of the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
+        :param r2: Array holding distances between all points. All values in this array must be
                   non-negative.
-        :type r: array-like
+        :type r2: array-like
         :returns: Array holding kernel evaluations, with the same shape as the input ``r``
         :rtype: ndarray
         """
@@ -792,16 +792,18 @@ class SqExpBase(object):
 
     def calc_dKdr2(self, r2):
         r"""
-        Calculate first derivative of the squared exponential kernel as a function of distance
+        Calculate first derivative of the squared exponential kernel as a function of
+        squared distance
 
-        This method implements the first derivative of the squared exponential kernel function
-        as a function of distance. Given an array of distances, this function evaluates the derivative
-        function of those values, returning an array of the same shape.
+        This method implements the first derivative of the squared exponential kernel
+        function as a function of squared distance. Given an array of squared distances,
+        this function evaluates the derivative function of those values, returning an
+        array of the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel derivatives, with the same shape as the input ``r``
+        :param r2: Array holding squared distances between all points. All values in
+                   this array must be non-negative.
+        :type r2: array-like
+        :returns: Array holding kernel derivatives, with the same shape as the input ``r2``
         :rtype: ndarray
         """
 
@@ -813,16 +815,19 @@ class SqExpBase(object):
 
     def calc_d2Kdr22(self, r2):
         r"""
-        Calculate second derivative of the squared exponential kernel as a function of squared distance
+        Calculate second derivative of the squared exponential kernel as a
+        function of squared distance
 
-        This method implements the second derivative of the squared exponential kernel function
-        as a function of squared distance. Given an array of distances, this function evaluates the
-        second derivative function of those values, returning an array of the same shape.
+        This method implements the second derivative of the squared exponential
+        kernel function as a function of squared distance. Given an array of
+        squared distances, this function evaluates the second derivative
+        function of those values, returning an array of the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel second derivatives, with the same shape as the input ``r``
+        :param r2: Array holding distances between all points. All values in
+                   this array must be non-negative.
+        :type r2: array-like
+        :returns: Array holding kernel second derivatives, with the same shape
+                  as the input ``r2``
         :rtype: ndarray
         """
 
@@ -857,14 +862,16 @@ class Mat52Base(object):
         r"""
         Compute K(r^2) for the Matern 5/2 kernel
 
-        This method implements the Matern 5/2 kernel function as a function of distance.
-        Given an array of distances, this function evaluates the kernel function of those values,
-        returning an array of the same shape.
+        This method implements the Matern 5/2 kernel function as a function of 
+        squared distance. Given an array of squared distances, this function
+        evaluates the kernel function of those values, returning an array of
+        the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel evaluations, with the same shape as the input ``r``
+        :param r2: Array holding squared distances between all points. All
+                   values in this array must be non-negative.
+        :type r2: array-like
+        :returns: Array holding kernel evaluations, with the same shape as
+                  the input ``r2``
         :rtype: ndarray
         """
 
@@ -876,16 +883,19 @@ class Mat52Base(object):
 
     def calc_dKdr2(self, r2):
         r"""
-        Calculate first derivative of the Matern 5/2 kernel as a function of distance
+        Calculate first derivative of the Matern 5/2 kernel as a function
+        of squared distance
 
-        This method implements the first derivative of the Matern 5/2 kernel function
-        as a function of distance. Given an array of distances, this function evaluates the derivative
+        This method implements the first derivative of the Matern 5/2 kernel
+        function as a function of squared distance. Given an array of
+        squared distances, this function evaluates the derivative
         function of those values, returning an array of the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel derivatives, with the same shape as the input ``r``
+        :param r2: Array holding squared distances between all points. All
+                   values in this array must be non-negative.
+        :type r2: array-like
+        :returns: Array holding kernel derivatives, with the same shape as
+                  the input ``r2``
         :rtype: ndarray
         """
 
@@ -897,16 +907,20 @@ class Mat52Base(object):
 
     def calc_d2Kdr22(self, r2):
         r"""
-        Calculate second derivative of the squared exponential kernel as a function of distance
+        Calculate second derivative of the squared exponential kernel as
+        a function of squared distance
 
-        This method implements the second derivative of the squared exponential kernel function
-        as a function of distance. Given an array of distances, this function evaluates the
-        second derivative function of those values, returning an array of the same shape.
+        This method implements the second derivative of the squared
+        exponential kernel function as a function of squared distance.
+        Given an array of squared distances, this function evaluates the
+        second derivative function of those values, returning an array
+        of the same shape.
 
-        :param r: Array holding distances between all points. All values in this array must be
-                  non-negative.
-        :type r: array-like
-        :returns: Array holding kernel second derivatives, with the same shape as the input ``r``
+        :param r2: Array holding squared distances between all points.
+                   All values in this array must be non-negative.
+        :type r2: array-like
+        :returns: Array holding kernel second derivatives, with the same
+                  shape as the input ``r2``
         :rtype: ndarray
         """
 
@@ -932,29 +946,52 @@ class Mat52Base(object):
 class SquaredExponential(SqExpBase,StationaryKernel):
     """
     Squared Exponential Kernel
+    
+    Inherits from ``SqExpBase`` and ``StationaryKernel``, so this will be
+    a stationary kernel with one correlation length per input dimension
+    and a squared exponential fall-off with distance.
     """
     pass
 
 class UniformSqExp(SqExpBase,UniformKernel):
     """
     Uniform Squared Exponential Kernel
+    
+    Inherits from ``SqExpBase`` and ``UniformKernel``, so this will be
+    a uniform kernel with one correlation length (independent of the
+    number of dimensions) and a squared exponential fall-off with distance.
     """
     pass
 
 class Matern52(Mat52Base,StationaryKernel):
     """
     Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``StationaryKernel``, so this will be
+    a stationary kernel with one correlation length per input dimension
+    and a Matern 5/2 fall-off with distance.
     """
     pass
     
 class UniformMat52(Mat52Base,UniformKernel):
     """
     Uniform Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``UniformKernel``, so this will be
+    a uniform kernel with one correlation length (independent of the
+    number of dimensions) and a Matern 5/2 fall-off with distance.
     """
     pass
     
 class ProductMat52(Mat52Base,ProductKernel):
     """
     Product Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``ProductKernel``, so this will
+    be a kernel with one correlation length per input dimension.
+    The Matern 5/2 fall-off function is applied to each dimension
+    *before* taking the product of all dimensions in this case.
+    Generally results in a slighly smoother kernel than the
+    stationary version of the Matern 5/2 kernel.
     """
     pass
