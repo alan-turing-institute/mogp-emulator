@@ -284,6 +284,10 @@ likelihood of the hyperparameters, from the current state of the emulator.)
                      "Return the number of data parameters of the GP")
        .def("n_corr_params", &MultiOutputGP_GPU::n_corr_params,
                      "Return the number of correlation length parameters of the GP")
+       .def("get_nugget_type", &MultiOutputGP_GPU::get_nugget_type,
+                     "Return the nugget type")
+       .def("get_nugget_size", &MultiOutputGP_GPU::get_nugget_size,
+                     "Return the nugget size")
        .def("get_fitted_indices", &MultiOutputGP_GPU::get_fitted_indices,
                      "Return a vector of indices of emulators where fitting succeeded")
        .def("get_unfitted_indices", &MultiOutputGP_GPU::get_unfitted_indices,
