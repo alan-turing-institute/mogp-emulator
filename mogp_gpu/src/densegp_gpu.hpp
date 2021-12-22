@@ -94,9 +94,6 @@ class DenseGP_GPU {
     // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
 
-    // mean function hyperparameters
-    vec meanfunc_params;
-
     // inputs, on the device, row major order
     thrust::device_vector<REAL> inputs_d;
 
@@ -147,7 +144,7 @@ public:
 
     int get_n_kernel_params(void) const
     {
-        return D + 2;
+        return D + 1 + int(get_nugget_type()==NUG_FIT);
     }
 
     int get_n_corr(void) const
@@ -239,6 +236,7 @@ public:
         CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 	// evaluate the mean function and add to the result
+        vec meanfunc_params = gptheta.get_mean();
         vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
         return double(result + meanfunc_vals(0));
     }
@@ -284,6 +282,7 @@ public:
 
         var = kappa - var.array();
 	    // evaluate the mean function and add to the result
+        vec meanfunc_params = gptheta.get_mean();
 	    vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
         return REAL(result + meanfunc_vals(0));
     }
@@ -324,6 +323,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
 
 	// evaluate the mean function and add to the result
+    vec meanfunc_params = gptheta.get_mean();
 	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
 	result += meanfunc_vals;
     }
@@ -391,6 +391,7 @@ public:
         // copy back means
         thrust::copy(mean_d.begin(), mean_d.end(), mean.data());
 	// evaluate the mean function and add to the mean
+    vec meanfunc_params = gptheta.get_mean();
 	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
 	mean += meanfunc_vals;
         // copy back variances
@@ -432,6 +433,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
 
 	// evaluate deriv of meanfunc wrt test points, and add to result
+    vec meanfunc_params = gptheta.get_mean();
 	mat meanfunc_inputderiv = meanfunc->mean_inputderiv(testing, meanfunc_params);
 	result += meanfunc_inputderiv.transpose();
     }
@@ -484,15 +486,18 @@ public:
         if (! gptheta.test_same_shape(params)) 
             throw std::runtime_error("Shape of new GPParams object does not match existing one");
 
-        gptheta.set_data(params);
-        meanfunc_params = gptheta.get_mean();
+        int switch_index = gptheta.get_n_mean();
+        gptheta.set_mean(params.block(0,0, switch_index, 1));
+        gptheta.set_data(params.block(switch_index,0, gptheta.get_n_data(), 1));
+        vec meanfunc_params = gptheta.get_mean();
+        vec kernel_params = gptheta.get_data();
         // evaluate the mean function at the input values and subtract from targets
 	    vec new_targets = targets - meanfunc->mean_f(inputs, meanfunc_params);
         thrust::copy(new_targets.data(), new_targets.data() + n, targets_d.begin());
 	    // copy all the non-meanfunc parameters to the device vector theta_d
     
-        thrust::copy(params.data(),
-		             params.data() + gptheta.get_n_data(),
+        thrust::copy(kernel_params.data(),
+		             kernel_params.data() + gptheta.get_n_data(),
 		             theta_d.begin());
         // calculate covariance matrix, put result into K_d
         kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
@@ -734,6 +739,7 @@ public:
 
 	    // first elements of result (up to meanfunc_nparam) will be from meanfunc,
 	    // then the next (D+1) from the Kernel.
+        vec meanfunc_params = gptheta.get_mean();
 	    int meanfunc_nparam = meanfunc_params.rows();
 	    if (meanfunc_nparam > 0) { // only copy data to device and do calculation if we need to.
 	        mat meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
@@ -794,7 +800,6 @@ public:
         , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
         , theta_d(D + 2)
-	    , meanfunc_params(1) // resize later if necessary
         , inputs(inputs_)
         , targets(targets_)
 	    , kern_type(kern_)
@@ -856,8 +861,6 @@ public:
         int n_mean = meanfunc->get_n_params();
         n_corr = kernel->get_n_params(inputs);
         gptheta = GPParams(n_mean, n_corr, nugtype_, nugsize_);
-	    // resize meanfunc_params vector here
-	    meanfunc_params.resize(meanfunc->get_n_params(),1);
 	    // resize the device vector that will store derivative of mean function
 	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
 
