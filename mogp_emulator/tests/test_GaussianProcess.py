@@ -166,7 +166,7 @@ def test_GaussianProcessGPU_n_params(x, y):
     "test the get_n_params method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
-    assert gp.n_params == x.shape[1] + 2
+    assert gp.n_params == x.shape[1] + 1
 
 def test_GaussianProcess_nugget(x, y):
     "Tests the get_nugget method of GaussianProcess"
@@ -357,7 +357,7 @@ def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
     if nugget == "fit":
         theta[-1] = sn
 
-    gp.theta = theta[switch:]
+    gp.theta = theta
 
     if nugget == "adaptive" or nugget == 0.:
         assert gp.nugget == 0.
