@@ -388,7 +388,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of hyperparameters
         :rtype: int
         """
-        return self._densegp_gpu.n_params()
+        return self._densegp_gpu.get_theta().get_n_data() + \
+               self._densegp_gpu.get_theta().get_n_mean()
 
     @property
     def nugget_type(self):
