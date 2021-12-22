@@ -139,8 +139,6 @@ class MultiOutputGP_GPU(object):
                 prior_params["cov_dist"],prior_params["cov_p1"],prior_params["cov_p2"],
                 prior_params["nug_dist"],prior_params["nug_p1"],prior_params["nug_p2"],
             )
-            print("set priors for emulator ",i)
-
 
     @property
     def inputs(self):
@@ -157,6 +155,14 @@ class MultiOutputGP_GPU(object):
     @property
     def n(self):
         return self._mogp_gpu.n()
+
+    @property
+    def nugget_type(self):
+        return self._mogp_gpu.get_nugget_type()
+
+    @property
+    def nugget(self):
+        return self._mogp_gpu.get_nugget_size()
 
     @property
     def n_emulators(self):
@@ -272,6 +278,8 @@ class MultiOutputGP_GPU(object):
         derivs = np.zeros([self.n_emulators, n_testing, self.D])
         if unc: 
             self._mogp_gpu.predict_variance_batch(testing, means, uncs)
+            if include_nugget:
+                uncs += self.nugget
         else:
             self._mogp_gpu.predict_batch(testing, means)
         if deriv:

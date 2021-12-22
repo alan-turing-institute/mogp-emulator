@@ -106,6 +106,10 @@ public:
         return 0;
     }
 
+    inline nugget_type get_nugget_type(void) const { return nug_type;}
+
+    inline REAL get_nugget_size(void) const { return nug_size;}
+
     void reset_fit_status(void) {
         for (unsigned int idx=0; idx < emulators.size(); ++idx) {
             emulators[idx]->reset_theta_fit_status();
