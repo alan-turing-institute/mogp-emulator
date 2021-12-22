@@ -110,6 +110,7 @@ public:
     , nug_type(_nugget)
     , has_data(false)
     {
+        mean = vec::Zero(n_mean);
         data = vec::Zero(n_data);
     }
     // alternative constructor, for the fixed nugget case
@@ -196,7 +197,7 @@ public:
     }
 
     bool test_same_shape(vec& other) const {
-        if (get_n_data() != other.size()) return false;
+        if ((get_n_mean() + get_n_data()) != other.size()) return false;
         return true;
     }
 
@@ -209,6 +210,7 @@ public:
     }
 
     void unset_data() { 
+        mean = vec::Zero(n_mean);
         data = vec::Zero(n_data);
         has_data = false;
     }
@@ -228,8 +230,6 @@ private:
     bool has_data;
     vec data;
     vec mean;
-    vec corr;
-    REAL cov;
 };
 
 #endif
