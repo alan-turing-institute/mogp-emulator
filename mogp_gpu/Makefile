@@ -74,12 +74,15 @@ bin/test/test_mogp_gpu: test/test_mogp_gpu.cu obj/util.o obj/kernel.o
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) -lcublas -lcusolver  $<  obj/kernel.o obj/util.o -o $@
 
-
 bin/test/test_gpparams: test/test_gpparams.cu 
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  -o $@
 
 bin/test/test_gppriors: test/test_gppriors.cu 
+	mkdir -p bin/test
+	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  -o $@
+
+bin/test/test_eigen: test/test_eigen.cu 
 	mkdir -p bin/test
 	nvcc $(CXXFLAGS) $(NVCCFLAGS) $<  -o $@
 
