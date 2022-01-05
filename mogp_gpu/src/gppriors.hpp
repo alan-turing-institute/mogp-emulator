@@ -15,9 +15,9 @@
 class MeanPriors {
 
 public: 
-    MeanPriors(vec _mean, mat _cov)
-    : mean(mean)
-    , cov(_cov) {}
+    MeanPriors(vec mean_, mat cov_)
+    : mean(mean_)
+    , cov(cov_) {}
 
     MeanPriors() {
         vec default_mean;
@@ -25,29 +25,34 @@ public:
         MeanPriors(default_mean, default_cov);
     }
 
-    inline int get_n_params() { return mean.size();}
+    inline vec get_mean() const {return mean;}
 
-    inline bool has_weak_priors() { return mean.size() == 0; }
+    inline mat get_cov() const { return cov; }
 
-    vec dm_dot_b(mat_ref dm) {
-        if (has_weak_priors()) return vec::Zero(dm.rows());
+    inline int get_n_params() const { return mean.size();}
+
+    inline bool has_weak_priors() const { return mean.size() == 0; }
+
+    vec dm_dot_b(mat_ref dm) const {
+        if (has_weak_priors()) return vec::Zero(dm.cols());
+        if (dm.cols() != mean.size()) 
+            throw std::runtime_error("Number of columns in design matrix doesn't match number of meanfunc parameters");
         return dm * mean;
     }
 
-    mat get_inv_cov() {
+    mat get_inv_cov() const {
         if (has_weak_priors()) return mat::Zero(cov.rows(), cov.cols());
         return cov.inverse();
     }
 
-    vec get_inv_cov_b() {
+    vec get_inv_cov_b() const {
        if (cov.size() == 0) return vec::Zero(1);
- //      else if (cov.cols() == 1) return mean / cov;
        else  return get_inv_cov() * mean;
     }
 
-    REAL logdet_cov() {
+    REAL logdet_cov() const {
         if (has_weak_priors()) return 0.;
-        return 0.;
+        return log(cov.determinant());
     }
 
 private:
@@ -435,8 +440,5 @@ private:
     WeakPrior* nug_prior;
     nugget_type nug_type;
 };
-
-
-
 
 #endif
