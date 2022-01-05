@@ -236,12 +236,13 @@ public:
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
         for (auto targ : targets) {
+            mat dummy_design_matrix;
             // emulators will all have same starting parameters apart from targets
             emulators.push_back(new DenseGP_GPU(
                 inputs, 
                 targ, 
                 testing_size_per_emulator, 
-                meanfunc,
+                dummy_design_matrix,
                 kern_type,
                 nug_type,
                 nug_size)

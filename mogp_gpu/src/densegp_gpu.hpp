@@ -52,6 +52,9 @@ class DenseGP_GPU {
     // pointer to the Kernel
     BaseKernel* kernel;
 
+    // design matrix 
+    mat design_matrix;
+
     // pointer to the Mean Function
     BaseMeanFunc* meanfunc;
 
@@ -786,7 +789,7 @@ public:
     DenseGP_GPU(mat_ref inputs_,
 	      vec_ref targets_,
 	      unsigned int testing_size_,
-	      BaseMeanFunc* mean_ = NULL,
+          mat_ref design_matrix_,
 	      kernel_type kern_=SQUARED_EXPONENTIAL,
           nugget_type nugtype_=NUG_ADAPTIVE,
           double nugsize_=0.0
@@ -801,11 +804,12 @@ public:
         , chol_lower_d(n * n, 0.0)
         , theta_d(D + 2)
         , inputs(inputs_)
+        , design_matrix(design_matrix_)
         , targets(targets_)
 	    , kern_type(kern_)
         , kernel(0)
         , priors(0)
-	    , meanfunc(mean_)
+	  //  , meanfunc(mean_)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
@@ -845,24 +849,26 @@ public:
         sum_buffer_d.resize(sum_buffer_size_bytes);
 
         // if mean function is not provided, assume zero everywhere.
+        /*
         if (!mean_) {
             meanfunc = new ZeroMeanFunc();
         } else {
             // clone the meanfunction that we were given
             meanfunc = mean_->clone();
         }
-        
+        */
+
 	    if (kern_type == SQUARED_EXPONENTIAL) {
 	        kernel = new SquaredExponentialKernel();
 	    } else if (kern_type == MATERN52) {
 	        kernel = new Matern52Kernel();
 	    } else throw std::runtime_error("Unrecognized kernel type\n");
 
-        int n_mean = meanfunc->get_n_params();
+        int n_mean = design_matrix.cols();
         n_corr = kernel->get_n_params(inputs);
         gptheta = GPParams(n_mean, n_corr, nugtype_, nugsize_);
 	    // resize the device vector that will store derivative of mean function
-	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
+	    //meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
 
         gptheta.set_nugget_type(nugtype_);
         gptheta.set_nugget_size(nugsize_);
