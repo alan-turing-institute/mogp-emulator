@@ -477,6 +477,13 @@ class GaussianProcessGPU(GaussianProcessBase):
         else:
             self.fit(theta)
 
+    @property 
+    def design_matrix(self):
+        """
+        Return the design matrix held by the C++ object
+        """
+        return self._densegp_gpu.get_design_matrix()
+
     @property
     def L(self):
         """
