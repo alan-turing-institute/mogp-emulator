@@ -197,7 +197,7 @@ public:
     }
 
     bool test_same_shape(vec& other) const {
-        if ((get_n_mean() + get_n_data()) != other.size()) return false;
+        if (get_n_data() != other.size()) return false;
         return true;
     }
 
