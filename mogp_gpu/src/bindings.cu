@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(libgpgpu, m) {
     py::class_<DenseGP_GPU, std::unique_ptr<DenseGP_GPU, py::nodelete>>(m, "DenseGP_GPU")
-      .def(py::init<mat_ref, vec_ref, unsigned int, BaseMeanFunc*, kernel_type, nugget_type, double>())
+      .def(py::init<mat_ref, vec_ref, unsigned int, mat_ref, kernel_type, nugget_type, double>())
 //      py::return_value_policy::reference)
 
 ////////////////////////////////////////
@@ -455,6 +455,21 @@ likelihood of the hyperparameters, from the current state of the emulator.)
         .def("test_same_shape", py::overload_cast<vec&>(&GPParams::test_same_shape, py::const_),
 	     "test whether two vectors of params are the same shape");
      ////////////////////////////////////////
+     py::class_<MeanPriors>(m, "MeanPriors")
+      .def(py::init<>())
+          .def("get_n_params", &MeanPriors::get_n_params,
+          "number of mean function parameters")
+          .def("has_weak_priors", &MeanPriors::has_weak_priors,
+          "do we only have weak priors?")
+          .def("get_inv_conv", &MeanPriors::get_inv_cov,
+          "inverse of covariance matrix")
+          .def("get_inv_conv_b", &MeanPriors::get_inv_cov_b,
+          "inverse of covariance matrix multiplied by mean vector")
+          .def("dm_dot_b", &MeanPriors::dm_dot_b,
+          "design matrix multiplied by mean vector")
+          .def("logdet_cov", &MeanPriors::logdet_cov,
+          "log determinant of covariance matrix");
+     ////////////////////////////////////////
      py::class_<WeakPrior>(m, "WeakPrior")
       .def(py::init<>())
           .def("sample", py::overload_cast<>(&WeakPrior::sample),
@@ -560,7 +575,16 @@ likelihood of the hyperparameters, from the current state of the emulator.)
           .def("get_n_params", &MeanPriors::get_n_params,
                "how many parameters?")
           .def("has_weak_priors", &MeanPriors::has_weak_priors,
-               "do we only have non-informative priors?");
+               "do we only have non-informative priors?")
+          .def("dm_dot_b", &MeanPriors::dm_dot_b,
+               "dot product of design matrix with mean")
+          .def("inv_cov", &MeanPriors::get_inv_cov,
+               "inverse covariance matrix")
+          .def("inv_cov_b", &MeanPriors::get_inv_cov_b,
+               "dot product of inverse covariance matrix with mean")
+          .def("logdet_cov", &MeanPriors::logdet_cov,
+               "log of the determinant of the covariance");
+               
      ////////////////  enums   /////////////////////
      py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)

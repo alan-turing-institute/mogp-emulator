@@ -29,9 +29,25 @@ public:
 
     inline bool has_weak_priors() { return mean.size() == 0; }
 
+    vec dm_dot_b(mat_ref dm) {
+        if (has_weak_priors()) return vec::Zero(dm.rows());
+        return dm * mean;
+    }
+
     mat get_inv_cov() {
-        /// TODO
-        return cov;
+        if (has_weak_priors()) return mat::Zero(cov.rows(), cov.cols());
+        return cov.inverse();
+    }
+
+    vec get_inv_cov_b() {
+       if (cov.size() == 0) return vec::Zero(1);
+ //      else if (cov.cols() == 1) return mean / cov;
+       else  return get_inv_cov() * mean;
+    }
+
+    REAL logdet_cov() {
+        if (has_weak_priors()) return 0.;
+        return 0.;
     }
 
 private:

@@ -5,6 +5,7 @@ extends GaussianProcess with an (optional) GPU implementation
 import os
 import re
 import numpy as np
+from patsy import dmatrix, PatsyError
 
 from mogp_emulator.Kernel import SquaredExponential, Matern52
 from mogp_emulator.MeanFunction import MeanFunction, MeanBase
@@ -179,7 +180,6 @@ def get_prior_params(newpriors, inputs, n_corr, nugget_type):
         return prior_dict
 
 class GaussianProcessGPU(GaussianProcessBase):
-
     """
     This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
@@ -215,25 +215,27 @@ class GaussianProcessGPU(GaussianProcessBase):
         self._targets = targets
         self._max_batch_size = max_batch_size
 
-        if mean is None:
-            self.mean = LibGPGPU.ZeroMeanFunc()
-        else:
-            if not issubclass(type(mean), MeanBase):
-                if isinstance(mean, str):
-                    mean = MeanFunction(mean, inputdict, use_patsy)
-                else:
-                    raise ValueError("provided mean function must be a subclass of MeanBase,"+
-                                     " a string formula, or None")
+        self._mean = mean
+        self._design_matrix = self.get_design_matrix(inputs)
+    #    if mean is None:
+     #       self.mean = LibGPGPU.ZeroMeanFunc()
+     #   else:
+     #       if not issubclass(type(mean), MeanBase):
+     #           if isinstance(mean, str):
+     #               mean = MeanFunction(mean, inputdict, use_patsy)
+     #           else:
+     #               raise ValueError("provided mean function must be a subclass of MeanBase,"+
+      #                               " a string formula, or None")
 
             # at this point, mean will definitely be a MeanBase.  We can call its __str__ and
             # parse this to create an instance of a C++ MeanFunction
-            self.mean = parse_meanfunc_formula(mean.__str__())
+       #     self.mean = parse_meanfunc_formula(mean.__str__())
             # if we got None back from that function, something went wrong
-            if not self.mean:
-                raise ValueError("""
-                GPU implementation was unable to parse mean function formula {}.
-                """.format(mean.__str__())
-                )
+       #     if not self.mean:
+       #         raise ValueError("""
+       #         GPU implementation was unable to parse mean function formula {}.
+       #         """.format(mean.__str__())
+       #         )
         # set the kernel.
         # Note that for the "kernel" data member, we use the Python instance
         # rather than the C++/CUDA one (for consistency in interface with
@@ -284,7 +286,7 @@ class GaussianProcessGPU(GaussianProcessBase):
             self._densegp_gpu = LibGPGPU.DenseGP_GPU(self._inputs,
                                                      self._targets,
                                                      self._max_batch_size,
-                                                     self.mean,
+                                                     self._design_matrix,
                                                      self.kernel_type,
                                                      self._nugget_type,
                                                      self._init_nugget_size)
@@ -297,7 +299,31 @@ class GaussianProcessGPU(GaussianProcessBase):
             prior_params["cov_dist"],prior_params["cov_p1"],prior_params["cov_p2"],
             prior_params["nug_dist"],prior_params["nug_p1"],prior_params["nug_p2"],
         )
-                                          
+
+    def get_design_matrix(self, inputs):
+        """Returns the design matrix for a set of inputs
+
+        For a given set of inputs, compute the design matrix based on the GP
+        mean function.
+        
+        :param inputs: 2D numpy array for input values to be used in computing
+                       the design matrix. Second dimension must match the
+                       number of dimensions of the input data (``D``).
+        """
+        if self._mean is None or self._mean == "0" or self._mean == "-1":
+            dm = np.zeros((inputs.shape[0], 0))
+        elif self._mean == "1" or self._mean == "-0":
+            dm = np.ones((inputs.shape[0], 1))
+        else:
+            try:
+                dm = dmatrix(self._mean, data={"x": inputs.T})
+            except PatsyError:
+                raise ValueError("Provided mean function is invalid")
+            if not dm.shape[0] == inputs.shape[0]:
+                raise ValueError("Provided design matrix is of the wrong shape")
+
+        return dm
+
 
     @property 
     def priors(self):
