@@ -74,9 +74,8 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
   // use priors to generate starting values for theta
   
   for (int itry=all_params.size(); itry<n_tries; ++itry) {
-    std::vector<REAL> meanfunc_params(gp.get_theta().get_n_mean(),0.);
+    //std::vector<REAL> meanfunc_params(gp.get_theta().get_n_mean(),0.);
     std::vector<REAL> prior_samples = gp.get_gppriors()->sample();
-    prior_samples.insert(prior_samples.end(), meanfunc_params.begin(), meanfunc_params.end());
     all_params.push_back(prior_samples);
   }
   

@@ -557,10 +557,27 @@ likelihood of the hyperparameters, from the current state of the emulator.)
      ////////////////////////////////////////
      py::class_<MeanPriors>(m, "MeanPriors")
           .def(py::init<vec, mat>())
+          .def("get_mean", &MeanPriors::get_mean,
+               "return the meanfunction vector")
+          .def("get_cov", &MeanPriors::get_cov,
+               "return the covariance matrix")
           .def("get_n_params", &MeanPriors::get_n_params,
                "how many parameters?")
           .def("has_weak_priors", &MeanPriors::has_weak_priors,
-               "do we only have non-informative priors?");
+               "do we only have non-informative priors?")
+          .def("dm_dot_b", &MeanPriors::dm_dot_b,
+               "dot product of design matrix with mean")
+          .def("inv_cov", &MeanPriors::get_inv_cov,
+               "inverse covariance matrix")
+          .def("inv_cov_b", &MeanPriors::get_inv_cov_b,
+               "dot product of inverse covariance matrix with mean")
+          .def("logdet_cov", &MeanPriors::logdet_cov,
+               "log of the determinant of the covariance")
+          .def("set_prior_dists", &MeanPriors::set_prior_dists,
+               "specify the distribution for meanfunc priors")
+          .def("sample", &MeanPriors::sample,
+               "sample from the meanfunc prior distributions");
+
      ////////////////  enums   /////////////////////
      py::enum_<kernel_type>(m, "kernel_type")
         .value("SquaredExponential", SQUARED_EXPONENTIAL)

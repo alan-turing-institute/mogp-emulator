@@ -220,6 +220,13 @@ public:
         priors->create_corr_priors(ptype_corr_, corr_p1_, corr_p2_);
         priors->create_cov_prior(ptype_cov_, cov_p1_, cov_p2_);
         priors->set_nugget(ptype_nug_, nug_p1_, nug_p2_);
+        // default MeanPrior if required
+        if (gptheta.get_n_mean() > 0) {
+            int n_mean = gptheta.get_n_mean();
+            MeanPriors* mean_priors = new MeanPriors(vec::Zero(n_mean),mat::Identity(n_mean,n_mean));
+            priors->set_mean(mean_priors);
+        }
+
     }
 
     // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)

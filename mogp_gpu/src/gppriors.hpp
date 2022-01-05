@@ -12,34 +12,6 @@
 #include "util.hpp"
 #include "gpparams.hpp"
 
-class MeanPriors {
-
-public: 
-    MeanPriors(vec _mean, mat _cov)
-    : mean(mean)
-    , cov(_cov) {}
-
-    MeanPriors() {
-        vec default_mean;
-        mat default_cov;
-        MeanPriors(default_mean, default_cov);
-    }
-
-    inline int get_n_params() { return mean.size();}
-
-    inline bool has_weak_priors() { return mean.size() == 0; }
-
-    mat get_inv_cov() {
-        /// TODO
-        return cov;
-    }
-
-private:
-    vec mean;
-    mat cov;
-
-};
-
 
 class WeakPrior {
     public:
@@ -237,6 +209,83 @@ class InvGammaPrior : public PriorDist {
         REAL scale;
 };
 
+class MeanPriors {
+
+public: 
+    MeanPriors(vec mean_, mat cov_)
+    : mean(mean_)
+    , cov(cov_) {
+        set_prior_dists();
+    }
+
+    MeanPriors() {
+        vec default_mean;
+        mat default_cov;
+        MeanPriors(default_mean, default_cov);
+    }
+
+    inline vec get_mean() const {return mean;}
+
+    inline mat get_cov() const { return cov; }
+
+    inline int get_n_params() const { return mean.size();}
+
+    inline bool has_weak_priors() const { return mean.size() == 0; }
+
+    void set_prior_dists(prior_type ptype=WEAK, REAL param_1=0., REAL param_2=0.) {
+        
+        prior_dists.clear();
+        for (int i=0; i< get_n_params(); ++i ) {
+            
+            if (ptype == INVGAMMA) {
+                prior_dists.push_back(new InvGammaPrior(param_1, param_2)); // shape and scale
+            } else if (ptype == GAMMA) {
+                prior_dists.push_back(new GammaPrior(param_1, param_2)); // shape and scale
+            } else if (ptype == LOGNORMAL) {
+                prior_dists.push_back(new LogNormalPrior(param_1, param_2)); // shape and scale
+            } else {
+                prior_dists.push_back(new WeakPrior());
+            }
+        }
+    }
+    
+    std::vector<REAL> sample(const BaseTransform& transform) {
+        std::vector<REAL> vals;
+        for (int i=0; i< get_n_params(); ++i) {
+            vals.push_back(prior_dists[i]->sample(transform));
+        }
+        return vals;
+    }
+
+    vec dm_dot_b(mat_ref dm) const {
+        if (has_weak_priors()) return vec::Zero(dm.cols());
+        if (dm.cols() != mean.size()) 
+            throw std::runtime_error("Number of columns in design matrix doesn't match number of meanfunc parameters");
+        return dm * mean;
+    }
+
+    mat get_inv_cov() const {
+        if (has_weak_priors()) return mat::Zero(cov.rows(), cov.cols());
+        return cov.inverse();
+    }
+
+    vec get_inv_cov_b() const {
+       if (cov.size() == 0) return vec::Zero(1);
+       else  return get_inv_cov() * mean;
+    }
+
+    REAL logdet_cov() const {
+        if (has_weak_priors()) return 0.;
+        return log(cov.determinant());
+    }
+    
+private:
+    vec mean;
+    mat cov;
+    std::vector<WeakPrior*> prior_dists;
+
+};
+
 class GPPriors {
 
 public:
@@ -353,7 +402,6 @@ public:
         return partials;
     }
 
-    //std::vector<REAL> 
     vec d2logpdtheta2(GPParams theta) {
 
         check_theta(theta);
@@ -373,14 +421,22 @@ public:
     }
 
     std::vector<REAL> sample() {
-        std::vector<REAL> samples;
+        std::cout<<" sample in GPPriors "<<std::endl;
+        std::vector<REAL> samples; 
+        if ( mean_prior != NULL) {
+            samples = mean_prior->sample(CorrTransform());
+        } 
+        std::cout<<" sample in GPPriors - got mean samples "<<samples.size()<<std::endl;
         for (int i=0; i< corr_priors.size(); ++i) {
             samples.push_back(corr_priors[i]->sample(CorrTransform()));
         }  
+        std::cout<<" sample in GPPriors - got corr samples "<<samples.size()<<std::endl;    
         samples.push_back(cov_prior->sample(CovTransform()));
+        std::cout<<" sample in GPPriors - got cov samples "<<samples.size()<<std::endl;
         if (nug_type == NUG_FIT) {
             samples.push_back(nug_prior->sample(CovTransform())); 
         }
+        std::cout<<" sample in GPPriors - got nug samples "<<samples.size()<<std::endl;
         return samples;
     }
 
