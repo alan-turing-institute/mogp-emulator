@@ -190,6 +190,12 @@ public:
         return meanfunc;
     }
 
+    mat get_design_matrix(void) const
+    {
+        std::cout<<" design matrix has "<<design_matrix.rows()<<" rows and "<<design_matrix.cols()<<" columns"<<std::endl;
+        return design_matrix;
+    }    
+
     BaseKernel* get_kernel(void) const
     {
         return kernel;
