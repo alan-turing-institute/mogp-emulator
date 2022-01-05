@@ -141,42 +141,58 @@ def interpret_nugget(nugget):
     return nugget_type, nugget_size
 
 def get_prior_params(newpriors, inputs, n_corr, nugget_type):
-        if newpriors is None:
-            priors = GPPriors.default_priors(inputs, n_corr, nugget_type)
-        elif isinstance(newpriors, GPPriors):
-            priors = newpriors
+    """
+    Extract the parameters needed for the C++ DenseGP_GPU instance to 
+    create its GPPriors object.
+    Can accept either an existing GPPriors object, or the parameters needed
+    to construct one, or otherwise will create a default object.
+    :param newpriors: set of priors to use
+    :type newpriors: GPPriors or dict
+    :param inputs: the inputs of the GP
+    :type inputs: numpy array
+    :param n_corr: the number of correlation length parameters
+    :type n_corr: int
+    :param nugget_type: whether nugget is adaptive, fit, or fixed
+    "type nugget_type: LibGPGPU.nugget_type
+
+    :returns: dict of values needed to call the C++ constructor
+    :rtype: dict
+    """
+    if newpriors is None:
+        priors = GPPriors.default_priors(inputs, n_corr, nugget_type)
+    elif isinstance(newpriors, GPPriors):
+        priors = newpriors
+    else:
+        try:
+            priors = GPPriors(**newpriors)
+        except TypeError:
+            raise TypeError("Provided arguments for priors are not valid inputs " +
+                            "for a GPPriors object.")
+    # now return parameters needed to create corresponding C++ objects
+    prior_dict = {}
+    prior_dict["n_corr"] = n_corr
+    for prefix, prior in [("corr",priors.corr[0]),("cov",priors.cov),("nug",priors.nugget)]:        
+        if isinstance(prior, InvGammaPrior):
+            prior_dict[prefix+"_dist"] = LibGPGPU.prior_type.InvGamma
+            prior_dict[prefix+"_p1"]  = prior.shape
+            prior_dict[prefix+"_p2"] = prior.scale
+        elif isinstance(prior, GammaPrior):
+            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Gamma
+            prior_dict[prefix+"_p1"]  = prior.shape
+            prior_dict[prefix+"_p2"]  = prior.scale
+        elif isinstance(prior, LogNormalPrior):
+            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.LogNormal
+            prior_dict[prefix+"_p1"]  = prior.shape
+            prior_dict[prefix+"_p2"]  = prior.scale
+        elif (isinstance(prior, WeakPrior) \
+            and not isinstance(prior, PriorDist)) \
+                or prior == None:
+            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Weak
+            prior_dict[prefix+"_p1"]  = 0.
+            prior_dict[prefix+"_p2"]  = 0.
         else:
-            try:
-                priors = GPPriors(**newpriors)
-            except TypeError:
-                raise TypeError("Provided arguments for priors are not valid inputs " +
-                                "for a GPPriors object.")
-        # now return parameters needed to create corresponding C++ objects
-        prior_dict = {}
-        prior_dict["n_corr"] = n_corr
-        for prefix, prior in [("corr",priors.corr[0]),("cov",priors.cov),("nug",priors.nugget)]:
-            
-            if isinstance(prior, InvGammaPrior):
-                prior_dict[prefix+"_dist"] = LibGPGPU.prior_type.InvGamma
-                prior_dict[prefix+"_p1"]  = prior.shape
-                prior_dict[prefix+"_p2"] = prior.scale
-            elif isinstance(prior, GammaPrior):
-                prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Gamma
-                prior_dict[prefix+"_p1"]  = prior.shape
-                prior_dict[prefix+"_p2"]  = prior.scale
-            elif isinstance(prior, LogNormalPrior):
-                prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.LogNormal
-                prior_dict[prefix+"_p1"]  = prior.shape
-                prior_dict[prefix+"_p2"]  = prior.scale
-            elif (isinstance(prior, WeakPrior) \
-                and not isinstance(prior, PriorDist)) \
-                    or prior == None:
-                prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Weak
-                prior_dict[prefix+"_p1"]  = 0.
-                prior_dict[prefix+"_p2"]  = 0.
-            else:
-                raise TypeError("Unknown prior type {} for C++/GPU implementation".format(type(prior)))
-        return prior_dict
+            raise TypeError("Unknown prior type {} for C++/GPU implementation".format(type(prior)))
+    return prior_dict
 
 class GaussianProcessGPU(GaussianProcessBase):
 
@@ -290,6 +306,12 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self._init_nugget_size)
 
     def _set_priors(self, newpriors=None):
+        """
+        Tell the C++ DenseGP_GPU object to create a priors object with specified parameters
+
+        :param newpriors(optional): Priors object to use (otherwise will use default)
+        :type newpriors: GPPriors object, or dict
+        """
         prior_params = get_prior_params(newpriors, self.inputs, self.n_corr, self.nugget_type)
         self._densegp_gpu.create_gppriors(
             prior_params["n_corr"],
@@ -297,6 +319,7 @@ class GaussianProcessGPU(GaussianProcessBase):
             prior_params["cov_dist"],prior_params["cov_p1"],prior_params["cov_p2"],
             prior_params["nug_dist"],prior_params["nug_p1"],prior_params["nug_p2"],
         )
+
                                           
 
     @property 
