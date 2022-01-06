@@ -421,22 +421,17 @@ public:
     }
 
     std::vector<REAL> sample() {
-        std::cout<<" sample in GPPriors "<<std::endl;
         std::vector<REAL> samples; 
         if ( mean_prior != NULL) {
             samples = mean_prior->sample(CorrTransform());
         } 
-        std::cout<<" sample in GPPriors - got mean samples "<<samples.size()<<std::endl;
         for (int i=0; i< corr_priors.size(); ++i) {
             samples.push_back(corr_priors[i]->sample(CorrTransform()));
         }  
-        std::cout<<" sample in GPPriors - got corr samples "<<samples.size()<<std::endl;    
         samples.push_back(cov_prior->sample(CovTransform()));
-        std::cout<<" sample in GPPriors - got cov samples "<<samples.size()<<std::endl;
         if (nug_type == NUG_FIT) {
             samples.push_back(nug_prior->sample(CovTransform())); 
         }
-        std::cout<<" sample in GPPriors - got nug samples "<<samples.size()<<std::endl;
         return samples;
     }
 
