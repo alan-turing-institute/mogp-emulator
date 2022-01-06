@@ -179,9 +179,14 @@ public:
 
     inline nugget_type get_nugget_type() const { return nug_type; }
 
-    inline void set_nugget_size(REAL _nug_size) { nugget_size = _nug_size; }
+    void set_nugget_size(REAL _nug_size) {
+        nugget_size = _nug_size;
+        if ((nug_type == NUG_FIT) && (data.size()>0)) {
+            data[n_data -1] = nugget_size;
+        }
+    }
 
-    REAL get_nugget_size() const { 
+    REAL get_nugget_size() const {    
         if (nug_type != NUG_FIT) {
             return nugget_size; 
         } else {
