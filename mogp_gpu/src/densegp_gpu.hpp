@@ -492,17 +492,19 @@ public:
         // test that the new parameters are the expected size
         if (! gptheta.test_same_shape(params)) 
             throw std::runtime_error("Shape of new GPParams object does not match existing one");
-
         int switch_index = gptheta.get_n_mean();
         gptheta.set_mean(params.block(0,0, switch_index, 1));
-        gptheta.set_data(params.block(switch_index,0, gptheta.get_n_data(), 1));
+        gptheta.set_data(params.block(switch_index,0,gptheta.get_n_data(), 1));
+        if (nug_type == NUG_FIT) {
+            // set the nugget size to be the last element of params
+            gptheta.set_nugget_size(params[params.size()-1]);
+        }
         vec meanfunc_params = gptheta.get_mean();
         vec kernel_params = gptheta.get_data();
         // evaluate the mean function at the input values and subtract from targets
 	    vec new_targets = targets - meanfunc->mean_f(inputs, meanfunc_params);
         thrust::copy(new_targets.data(), new_targets.data() + n, targets_d.begin());
 	    // copy all the non-meanfunc parameters to the device vector theta_d
-    
         thrust::copy(kernel_params.data(),
 		             kernel_params.data() + gptheta.get_n_data(),
 		             theta_d.begin());
@@ -511,7 +513,6 @@ public:
 		    	      dev_ptr(inputs_d), dev_ptr(theta_d));
 	    /// copy the covariance matrix K_d into work_mat_d
 	    thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
-
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
@@ -549,7 +550,6 @@ public:
 		        tmp_nug_size *= 10;
 		        itry++;
 	        }
-
 	        // if none of the factorization attempts succeeded:
 	        if (itry == max_tries) {
 		        std::string msg;
@@ -578,16 +578,13 @@ public:
         // get the inverse covariance matrix invQ by solving the system of linear eqns
 	    //    work_mat_d . invQ_d = I
 	    // where work_mat_d is holding the current covariance matrix.
-
         identity_device(n, dev_ptr(invQ_d));
 
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, n,
                                   dev_ptr(work_mat_d), n, dev_ptr(invQ_d), n,
                                   dev_ptr(info_d));
-
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
-
 
         // invQt - product of inverse covariance matrix with the target values
         thrust::copy(targets_d.begin(), targets_d.end(), invQt_d.begin());
@@ -597,14 +594,12 @@ public:
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
-
         // logdetC - sum the log of the diagonal elements of the Cholesky factor of covariance matrix (in work_mat_d)
         thrust::device_vector<double> logdetC_d(1);
 
         sum_log_diag(n, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
 
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
-
 	    //copy work_mat_d into the lower triangular Cholesky factor
 	    thrust::copy(work_mat_d.begin(), work_mat_d.begin()+n*n, chol_lower_d.begin());
 
@@ -806,7 +801,6 @@ public:
         , K_d(n * n, 0.0)
         , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
-        , theta_d(D + 2)
         , inputs(inputs_)
         , targets(targets_)
 	    , kern_type(kern_)
@@ -868,6 +862,8 @@ public:
         int n_mean = meanfunc->get_n_params();
         n_corr = kernel->get_n_params(inputs);
         gptheta = GPParams(n_mean, n_corr, nugtype_, nugsize_);
+        // resize the device vector that will store kernel hyperparameters
+        theta_d.resize(gptheta.get_n_data());
 	    // resize the device vector that will store derivative of mean function
 	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
 
