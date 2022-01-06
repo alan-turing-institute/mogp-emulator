@@ -671,7 +671,8 @@ def test_GaussianProcessGPU_logpost_deriv(x, y, dx, nugget, sn):
 
     n = gp.n_data
     theta = np.ones(n)
-    theta[-1] = sn
+    if gp.nugget_type == "fit":
+        theta[-1] = sn
 
     deriv = np.zeros(n)
 
