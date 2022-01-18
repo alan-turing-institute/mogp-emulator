@@ -946,29 +946,52 @@ class Mat52Base(object):
 class SquaredExponential(SqExpBase,StationaryKernel):
     """
     Squared Exponential Kernel
+    
+    Inherits from ``SqExpBase`` and ``StationaryKernel``, so this will be
+    a stationary kernel with one correlation length per input dimension
+    and a squared exponential fall-off with distance.
     """
     pass
 
 class UniformSqExp(SqExpBase,UniformKernel):
     """
     Uniform Squared Exponential Kernel
+    
+    Inherits from ``SqExpBase`` and ``UniformKernel``, so this will be
+    a uniform kernel with one correlation length (independent of the
+    number of dimensions) and a squared exponential fall-off with distance.
     """
     pass
 
 class Matern52(Mat52Base,StationaryKernel):
     """
     Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``StationaryKernel``, so this will be
+    a stationary kernel with one correlation length per input dimension
+    and a Matern 5/2 fall-off with distance.
     """
     pass
     
 class UniformMat52(Mat52Base,UniformKernel):
     """
     Uniform Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``UniformKernel``, so this will be
+    a uniform kernel with one correlation length (independent of the
+    number of dimensions) and a Matern 5/2 fall-off with distance.
     """
     pass
     
 class ProductMat52(Mat52Base,ProductKernel):
     """
     Product Matern 5/2 Kernel
+    
+    Inherits from ``Mat52Base`` and ``ProductKernel``, so this will
+    be a kernel with one correlation length per input dimension.
+    The Matern 5/2 fall-off function is applied to each dimension
+    *before* taking the product of all dimensions in this case.
+    Generally results in a slighly smoother kernel than the
+    stationary version of the Matern 5/2 kernel.
     """
     pass

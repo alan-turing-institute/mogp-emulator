@@ -66,7 +66,8 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
     will start. If more than one attempt is made, subsequent attempts
     will use random starting points. If you are fitting Multiple
     Outputs, then this argument can take any of the following forms:
-    (1) None (random start points for all emulators), (2) a list of
+    (1) None (random start points for all emulators, which are drawn
+    from the prior distribution for each fit parameter), (2) a list of
     numpy arrays or ``NoneTypes`` with length ``n_emulators``, (3) a
     numpy array of shape ``(n_params,)`` or ``(n_emulators,
     n_params)`` which with either use the same start point for all
@@ -233,7 +234,7 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     for i in range(n_tries):
         if i == 0 and not theta0 is None:
             theta = np.array(theta0)
-            assert theta.shape == (gp.n_data,), "theta0 must be a 1D array with length n_data"
+            assert theta.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
         else:
             theta = gp.priors.sample()
         try:

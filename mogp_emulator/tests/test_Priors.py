@@ -133,27 +133,6 @@ def test_GPPriors_cov():
     with pytest.raises(TypeError):
         gpp.cov = 1.
 
-@pytest.mark.skip
-def test_GPPriors_fit_cov():
-    "Test the fit_cov property"
-    
-    gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
-                   nugget_type="fit")
-
-    assert gpp.fit_cov
-    
-    gpp = GPPriors(n_corr=1, nugget_type="fit")
-    
-    assert not gpp.fit_cov
-    
-    gpp = GPPriors(n_corr=1, nugget_type="pivot")
-    
-    assert not gpp.fit_cov
-    
-    gpp = GPPriors(mean=([2.], [4.]), n_corr=1)
-    
-    assert gpp.fit_cov
-
 def test_GPPriors_nugget():
     "Test the nugget property of GPPriors"
     
@@ -194,7 +173,7 @@ def test_GPPriors_logp():
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
                    nugget_type="fit")
                     
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     theta.set_data(np.zeros(3))
     
     logp = gpp.logp(theta)
@@ -202,22 +181,11 @@ def test_GPPriors_logp():
     assert_allclose(logp, np.sum([ float(LogNormalPrior(2., 3.).logp(theta.corr)),
                                    float(GammaPrior(2., 3.).logp(theta.cov)),
                                    float(InvGammaPrior(1., 1.).logp(theta.nugget)) ]))
-                                   
-    # gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=InvGammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
-    #                nugget_type="fit")
-    #
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="fit")
-    # theta.set_data(np.zeros(2))
-    #
-    # logp = gpp.logp(theta)
-    #
-    # assert_allclose(logp, np.sum([ float(LogNormalPrior(2., 3.).logp(theta.corr)),
-    #                                float(InvGammaPrior(1., 1.).logp(theta.nugget)) ]))
 
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.),
                    nugget_type="pivot")
                    
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     theta.set_data(np.zeros(2))
     
     logp = gpp.logp(theta)
@@ -228,22 +196,17 @@ def test_GPPriors_logp():
     with pytest.raises(TypeError):
         gpp.logp(1.)
 
-    theta = GPParams(n_mean=1, n_corr=2, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=2, nugget="pivot")
     
     with pytest.raises(AssertionError):
         gpp.logp(theta)
         
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="pivot")
-    #
-    # with pytest.raises(AssertionError):
-    #     gpp.logp(theta)
-        
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     
     with pytest.raises(AssertionError):
         gpp.logp(theta)
         
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     
     with pytest.raises(AssertionError):
         gpp.logp(theta)
@@ -254,7 +217,7 @@ def test_GPPriors_dlogpdtheta():
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
                    nugget_type="fit")
                     
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     theta.set_data(np.zeros(3))
     
     partials = gpp.dlogpdtheta(theta)
@@ -263,22 +226,12 @@ def test_GPPriors_dlogpdtheta():
                     [ float(LogNormalPrior(2., 3.).dlogpdx(theta.corr)*CorrTransform.dscaled_draw(theta.corr)),
                       float(GammaPrior(2., 3.).dlogpdx(theta.cov)*CovTransform.dscaled_draw(theta.cov)),
                       float(InvGammaPrior(1., 1.).dlogpdx(theta.nugget)*CovTransform.dscaled_draw(theta.nugget))])
-                      
-    # gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=InvGammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
-    #                nugget_type="fit")
-    #
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="fit")
-    # theta.set_data(np.zeros(2))
-    #
-    # partials = gpp.dlogpdtheta(theta)
-    #
-    # assert_allclose(partials, [ float(LogNormalPrior(2., 3.).dlogpdx(theta.corr)*CorrTransform.dscaled_draw(theta.corr)),
-    #                                float(InvGammaPrior(1., 1.).dlogpdx(theta.nugget)*CovTransform.dscaled_draw(theta.nugget)) ])
+
                       
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.),
                    nugget_type="pivot")
                    
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     theta.set_data(np.zeros(2))
     
     partials = gpp.dlogpdtheta(theta)
@@ -290,22 +243,17 @@ def test_GPPriors_dlogpdtheta():
     with pytest.raises(TypeError):
         gpp.dlogpdtheta(1.)
 
-    theta = GPParams(n_mean=1, n_corr=2, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=2, nugget="pivot")
     
     with pytest.raises(AssertionError):
         gpp.dlogpdtheta(theta)
         
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="pivot")
-    #
-    # with pytest.raises(AssertionError):
-    #     gpp.dlogpdtheta(theta)
-        
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     
     with pytest.raises(AssertionError):
         gpp.dlogpdtheta(theta)
         
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     
     with pytest.raises(AssertionError):
         gpp.dlogpdtheta(theta)
@@ -316,7 +264,7 @@ def test_GPPriors_d2logpdtheta2():
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
                    nugget_type="fit")
                     
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     theta.set_data(np.zeros(3))
     
     hessian = gpp.d2logpdtheta2(theta)
@@ -329,24 +277,10 @@ def test_GPPriors_d2logpdtheta2():
                       float(InvGammaPrior(1., 1.).d2logpdx2(theta.nugget)*CovTransform.dscaled_draw(theta.nugget)**2
                             +InvGammaPrior(1., 1.).dlogpdx(theta.nugget)*CovTransform.d2scaled_draw2(theta.nugget))])
                             
-    # gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=InvGammaPrior(2., 3.), nugget=InvGammaPrior(1., 1.),
-    #                nugget_type="fit")
-    #
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="fit")
-    # theta.set_data(np.zeros(2))
-    #
-    # hessian = gpp.d2logpdtheta2(theta)
-    #
-    # assert_allclose(hessian,
-    #                 [ float(LogNormalPrior(2., 3.).d2logpdx2(theta.corr)*CorrTransform.dscaled_draw(theta.corr[0])**2
-    #                         + LogNormalPrior(2., 3.).dlogpdx(theta.corr)*CorrTransform.d2scaled_draw2(theta.corr[0])),
-    #                   float(InvGammaPrior(1., 1.).d2logpdx2(theta.nugget)*CovTransform.dscaled_draw(theta.nugget)**2
-    #                         +InvGammaPrior(1., 1.).dlogpdx(theta.nugget)*CovTransform.d2scaled_draw2(theta.nugget))])
-                            
     gpp = GPPriors(corr=[ LogNormalPrior(2., 3.)], cov=GammaPrior(2., 3.),
                    nugget_type="pivot")
                    
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     theta.set_data(np.zeros(2))
     
     hessian = gpp.d2logpdtheta2(theta)
@@ -361,22 +295,17 @@ def test_GPPriors_d2logpdtheta2():
     with pytest.raises(TypeError):
         gpp.d2logpdtheta2(1.)
 
-    theta = GPParams(n_mean=1, n_corr=2, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=2, nugget="pivot")
+    
+    with pytest.raises(AssertionError):
+        gpp.d2logpdtheta2(theta)
+    
+    theta = GPParams(n_mean=1, n_corr=1, nugget="fit")
     
     with pytest.raises(AssertionError):
         gpp.d2logpdtheta2(theta)
         
-    # theta = GPParams(n_mean=1, n_corr=1, fit_cov=False, nugget="pivot")
-    #
-    # with pytest.raises(AssertionError):
-    #     gpp.d2logpdtheta2(theta)
-        
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="fit")
-    
-    with pytest.raises(AssertionError):
-        gpp.d2logpdtheta2(theta)
-        
-    theta = GPParams(n_mean=1, n_corr=1, fit_cov=True, nugget="pivot")
+    theta = GPParams(n_mean=1, n_corr=1, nugget="pivot")
     
     with pytest.raises(AssertionError):
         gpp.d2logpdtheta2(theta)
@@ -392,22 +321,6 @@ def test_GPPrior_sample():
     s = gpp.sample()
 
     assert len(s) == 3
-    
-    # gpp = GPPriors(n_corr=1, nugget_type="fit")
-    #
-    # s = gpp.sample()
-    #
-    # assert len(s) == 2
-    # assert np.all(s >= -2.5)
-    # assert np.all(s <=  2.5)
-    
-    # gpp = GPPriors(n_corr=1, nugget_type="pivot")
-    #
-    # s = gpp.sample()
-    #
-    # assert len(s) == 1
-    # assert np.all(s >= -2.5)
-    # assert np.all(s <=  2.5)
     
     gpp = GPPriors(mean=([2.], [4.]), n_corr=1)
     
@@ -647,6 +560,17 @@ def test_MeanPriors():
     with pytest.raises(ValueError):
         MeanPriors(mean=np.array([1., 2.]), cov=np.ones((3, 1, 1)))   
 
+def test_MeanPriors_dm_dot_b():
+    "test the function to take dot product of design matrix with prior mean"
+    
+    mp = MeanPriors()
+    
+    assert_allclose(mp.dm_dot_b(np.array([[1., 1.], [1., 2.]])), np.zeros(2))
+    
+    mp = MeanPriors(mean=np.array([1., 2.]), cov=2.)
+    
+    assert_allclose(mp.dm_dot_b(np.array([[1., 1.], [1., 2.]])), np.array([3., 5.]))
+
 def test_MeanPriors_inv_cov():
     "test the routine to invert the covariance matrix in MeanPriors"
     
@@ -677,20 +601,20 @@ def test_MeanPriors_inv_cov_b():
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([[2., 2.], [2., 3.]]))
     assert_allclose(mp.inv_cov_b(), np.linalg.solve(np.array([[2., 2.], [2., 3.]]), np.array([1., 2.])))
     
-def test_MeanPriors_log_det_cov():
+def test_MeanPriors_logdet_cov():
     "test the routine to invert the covariance matrix in MeanPriors times the mean"
     
     mp = MeanPriors()
-    assert_allclose(mp.log_det_cov(), 0.)
+    assert_allclose(mp.logdet_cov(), 0.)
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=2.)
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(2.*np.eye(2))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(2.*np.eye(2))))
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([2., 1.]))
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(np.array([[2., 0.], [0., 1.]]))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(np.array([[2., 0.], [0., 1.]]))))
     
     mp = MeanPriors(mean=np.array([1., 2.]), cov=np.array([[2., 2.], [2., 3.]]))
-    assert_allclose(mp.log_det_cov(), np.log(np.linalg.det(np.array([[2., 2.], [2., 3.]]))))
+    assert_allclose(mp.logdet_cov(), np.log(np.linalg.det(np.array([[2., 2.], [2., 3.]]))))
 
 def test_WeakPrior():
     "test the weakprior object"
