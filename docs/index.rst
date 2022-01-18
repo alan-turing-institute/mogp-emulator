@@ -33,6 +33,7 @@ details, and some included benchmarks.
 
    demos/gp_demos
    demos/multioutput_tutorial
+   demos/gp_kernel_demos
    demos/mice_demos
    demos/historymatch_demos
    demos/kdr_demos

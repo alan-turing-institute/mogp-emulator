@@ -66,7 +66,7 @@ def test_MultiOutputGP_predict(x, y, dx):
     "test the predict method of GaussianProcess"
 
     gp = MultiOutputGP(x, y, nugget=0.)
-    theta = np.ones(gp.emulators[0].n_data)
+    theta = np.ones(gp.emulators[0].n_params)
 
     gp.emulators[0].fit(theta)
     gp.emulators[1].fit(theta)
@@ -88,7 +88,7 @@ def test_MultiOutputGP_predict(x, y, dx):
 
     nugget = 1.
     gp = MultiOutputGP(x, y, nugget=nugget)
-    theta = np.ones(gp.emulators[0].n_data)
+    theta = np.ones(gp.emulators[0].n_params)
 
     gp.emulators[0].fit(theta)
     gp.emulators[1].fit(theta)
@@ -223,7 +223,7 @@ def test_MultiOutputGP_check(x, y):
     """
 
     gp = MultiOutputGP(x, y, nugget=0.)
-    theta = np.ones(gp.emulators[0].n_data)
+    theta = np.ones(gp.emulators[0].n_params)
 
     assert gp.get_indices_fit() == []
     assert gp.get_indices_not_fit() == [0, 1]
