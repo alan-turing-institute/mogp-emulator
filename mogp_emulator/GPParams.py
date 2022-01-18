@@ -290,10 +290,13 @@ class GPParams(object):
         self._data = None
         
     @property
-    def n_data(self):
+    def n_params(self):
         r"""
         Number of fitting parameters stored in data array
         
+        This is the number of correlation lengths plus one
+        (for the covariance) and optionally an additional
+        parameter if the nugget is fit.
         """
         return self.n_corr + 1 + int(self.nugget_type == "fit")
         
@@ -502,7 +505,7 @@ class GPParams(object):
             self._data = None
         else:
             new_params = np.array(new_params)
-            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_data)
+            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_params)
             self._data = np.copy(new_params)
         self.mean = None
         if self.nugget_type == "adaptive":
@@ -532,7 +535,7 @@ class GPParams(object):
         """
         
         if isinstance(other, np.ndarray):
-            return other.shape == (self.n_data,)
+            return other.shape == (self.n_params,)
         elif isinstance(other, GPParams):
             return (self.n_mean == other.n_mean and
                     self.n_corr == other.n_corr and

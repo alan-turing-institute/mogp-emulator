@@ -299,32 +299,19 @@ class GaussianProcess(GaussianProcessBase):
     def n_params(self):
         """Returns number of hyperparameters
 
-        Returns the number of hyperparameters for the emulator. The
-        number depends on the choice of mean function, covariance
-        function, and nugget strategy, and possibly the number of
-        inputs depending on the mean and covariance functions.
-        Note that this differs from n_data, which is the size
-        of array that can be used to set the parameters
+        Returns the number of fitting hyperparameters for the
+        emulator. The number depends on the choice of covariance
+        function, nugget strategy, and possibly the number of
+        inputs depending on the covariance function. Note that
+        this does not include the mean function, which is fit
+        analytically.
 
         :returns: Number of hyperparameters
         :rtype: int
 
         """
 
-        return self.n_mean + self.n_corr + 1 + int(self.has_nugget)
-
-    @property
-    def n_data(self):
-        """Returns number of data elements
-        
-        This is the size of the numpy array that can be used to set
-        the parameters. Note that setting this with an array will
-        automatically fit the emulator and set any additional
-        parameters not specified by this array (such as nugget
-        values when appropriate, and mean or covariance parameters
-        that are fit analytically).
-        """
-        return self.theta.n_data
+        return self.theta.n_params
 
     @property
     def has_nugget(self):
@@ -584,7 +571,7 @@ class GaussianProcess(GaussianProcessBase):
         Performs a check on the provided new values for the
         hyperparameters. Can accept either a ``GPParams``
         object or a numpy array (which should be a 1D array
-        of length ``n_data``). Will raise an ``AssertionError``
+        of length ``n_params``). Will raise an ``AssertionError``
         if the conditions are not met.
         
         :param newtheta: New value of parameters to check. Must
@@ -697,7 +684,7 @@ class GaussianProcess(GaussianProcessBase):
         hyperparameters and log-posterior in attributes of the object.
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_data,)``
+                      with shape ``(n_params,)``
         :type theta: ndarray
         :returns: negative log-posterior
         :rtype: float
@@ -728,18 +715,18 @@ class GaussianProcess(GaussianProcessBase):
         ``fit`` (and subsequently resets the cached information).
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_data,)``
+                      with shape ``(n_params,)``
         :type theta: ndarray
         :returns: partial derivatives of the negative log-posterior
                   with respect to the hyperparameters (array with
-                  shape ``(n_data,)``)
+                  shape ``(n_params,)``)
         :rtype: ndarray
         """
 
         if self._refit(theta):
             self.fit(theta)
 
-        partials = np.zeros(self.n_data)
+        partials = np.zeros(self.n_params)
 
         dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
                                                            self.theta.corr_raw)

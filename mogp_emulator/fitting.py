@@ -234,7 +234,7 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     for i in range(n_tries):
         if i == 0 and not theta0 is None:
             theta = np.array(theta0)
-            assert theta.shape == (gp.n_data,), "theta0 must be a 1D array with length n_data"
+            assert theta.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
         else:
             theta = gp.priors.sample()
         try:
