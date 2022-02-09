@@ -92,6 +92,19 @@ public:
         return emulators.size();
     }
 
+    int get_n_data_params(void) const
+    {   
+        if (emulators.size() > 0)
+            return emulators[0]->get_n_params();
+        return 0;
+    }
+
+    void reset_fit_status(void) {
+        for (unsigned int idx=0; idx < emulators.size(); ++idx) {
+            emulators[idx]->reset_theta_fit_status();
+        }   
+    }
+
     std::vector<unsigned int> get_fitted_indices(void) const
     {
         std::vector<unsigned int> fitted_indices;
