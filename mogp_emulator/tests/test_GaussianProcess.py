@@ -65,7 +65,7 @@ def test_GaussianProcessGPU_init(x, y):
     assert_allclose(y, gp.targets)
     assert gp.D == 3
     assert gp.n == 2
-    assert gp.nugget == None
+    assert gp.nugget == 0.
     assert gp.nugget_type == "adaptive"
     gp = GaussianProcessGPU(y, y)
     assert gp.inputs.shape == (2, 1)
@@ -151,7 +151,7 @@ def test_GaussianProcessGPU_n_params(x, y):
     "test the get_n_params method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
-    assert gp.n_params == x.shape[1] + 2
+    assert gp.n_params == x.shape[1] + 1
 
 def test_GaussianProcess_nugget(x, y):
     "Tests the get_nugget method of GaussianProcess"
@@ -190,11 +190,11 @@ def test_GaussianProcessGPU_nugget(x, y):
     "Tests the get_nugget method of GaussianProcessGPU"
 
     gp = GaussianProcessGPU(x, y)
-    assert gp.nugget is None
+    assert gp.nugget == 0.
     assert gp.nugget_type == "adaptive"
 
     gp.nugget = "fit"
-    assert gp.nugget is None
+    assert gp.nugget == 0.
     assert gp.nugget_type == "fit"
 
     gp.nugget = 1.
@@ -340,7 +340,7 @@ def test_GaussianProcessGPU_theta(x, y, nugget, sn):
     else:
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
-    Q = gp.kernel.kernel_f(x, x, theta[:-1]) + noise
+    Q = gp.kernel.kernel_f(x, x, theta[:gp.D]) + noise
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, y)
@@ -554,7 +554,7 @@ def test_GaussianProcessGPU_logposterior(x, y):
 
     theta = np.zeros(gp.n_params)
 
-    Q = gp.kernel.kernel_f(x, x, theta[:-1])
+    Q = gp.kernel.kernel_f(x, x, theta[:gp.D])
 
     L_expect = np.linalg.cholesky(Q)
     invQt_expect = np.linalg.solve(Q, y)
@@ -930,8 +930,8 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     mu, var, deriv = gp.predict(x_test)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
-    Ktest = gp.kernel.kernel_f(x_test, x, theta[:-1])
+    K = gp.kernel.kernel_f(x, x, theta[:gp.D])
+    Ktest = gp.kernel.kernel_f(x_test, x, theta[:gp.D])
 
     mu_expect = np.dot(Ktest, gp.invQt)
     var_expect = np.exp(theta[-2]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
@@ -1041,7 +1041,7 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
 
     preds = gp.predict(x)
 
-    K = gp.kernel.kernel_f(x, x, theta[:-1])
+    K = gp.kernel.kernel_f(x, x, theta[:gp.D])
 
     var_expect = np.exp(theta[-2]) + nugget - np.diag(np.dot(K, np.linalg.solve(K + np.eye(gp.n)*nugget, K)))
 
