@@ -330,7 +330,8 @@ def test_GaussianProcessGPU_theta(x, y, nugget, sn):
     gp = GaussianProcessGPU(x, y, nugget=nugget)
 
     theta = np.ones(gp.n_params)
-    theta[-1] = sn
+    if gp.nugget_type == "fit":
+        theta[-1] = sn
 
     gp.theta = theta
 
