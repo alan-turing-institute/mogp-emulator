@@ -51,7 +51,7 @@ def test_fit_GP_MAP_GPU():
     x = np.linspace(0., 1.)
     y = x**2
 
-    gp = GaussianProcessGPU(x, y)
+    gp = GaussianProcessGPU(x, y, nugget="fit")
 
     theta_exp = np.array([ 1.6, -2.1 , -0.8])
     logpost_exp = gp.logposterior(theta_exp)
