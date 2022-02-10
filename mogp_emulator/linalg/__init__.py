@@ -1,1 +1,2 @@
-from mogp_emulator.linalg.cholesky import jit_cholesky, pivot_cholesky, pivot_cho_solve
+from mogp_emulator.linalg.cholesky import cholesky_factor
+from mogp_emulator.linalg.linalg_utils import calc_Ainv, calc_A_deriv, calc_mean_params, calc_R, logdet_deriv

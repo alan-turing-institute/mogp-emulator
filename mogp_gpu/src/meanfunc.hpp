@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <memory>
 
 #include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
@@ -19,7 +20,9 @@ class BaseMeanFunc {
 
 public:
 
-  virtual ~BaseMeanFunc(){};
+  virtual ~BaseMeanFunc(){
+  //  std::cout<<" in destructor of BaseMeanFunc"<<std::endl;
+  };
 
   // Performs a single evaluation of the mean function at specific inputs
   virtual vec mean_f(mat_ref xs,
@@ -35,7 +38,11 @@ public:
 			      vec_ref params) = 0;
 
   // Return the number of parameters in the function.
-  virtual int get_n_params(mat_ref xs) = 0;
+  virtual int get_n_params() = 0;
+ // virtual int get_n_params(mat_ref xs) = 0;
+
+  // Create a copy
+  virtual BaseMeanFunc* clone() const = 0;
 
 };
 
@@ -47,31 +54,37 @@ public:
 
   ZeroMeanFunc() {};
 
-  virtual ~ZeroMeanFunc() {};
+  virtual ~ZeroMeanFunc() {
+  //  std::cout<<"In destructor of ZeroMeanFunc"<<std::endl;
+  };
 
-  inline virtual int get_n_params(mat_ref xs) { return 0; }
+  inline ZeroMeanFunc* clone() const override {
+    return new ZeroMeanFunc(*this);
+  }
+
+  inline virtual int get_n_params() { return 0; }
 
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     vec result = vec::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -88,29 +101,33 @@ public:
 
   virtual ~FixedMeanFunc() {} ;
 
-  inline virtual int get_n_params(mat_ref xs) { return 0; }
+  inline FixedMeanFunc* clone() const override {
+    return new FixedMeanFunc(*this);
+  }
+
+  inline virtual int get_n_params() { return 0; }
 
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     vec result = vec::Constant(xs.rows(),1, value);
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.rows(),1, 0.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -131,29 +148,33 @@ public:
 
   virtual ~ConstMeanFunc() {};
 
-  inline virtual int get_n_params(mat_ref xs) { return 1; }
+  inline ConstMeanFunc* clone() const override {
+    return new ConstMeanFunc(*this);
+  }
+
+  inline virtual int get_n_params() { return 1; }
 
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     vec result = vec::Constant(xs.rows(),1,params(0));
     return result;
   }
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.rows(),1, 1.);
     return result;
   }
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length "+ std::to_string(get_n_params()));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     return result;
   }
@@ -180,14 +201,25 @@ public:
   // The const term will always be the first of the parameters.
   PolyMeanFunc(std::vector<std::pair<int,int> > dp) : dims_powers(dp) {};
 
-  virtual ~PolyMeanFunc() {};
+  PolyMeanFunc(const PolyMeanFunc& other) {
+   // std::cout<<" in polymeanfunc copy constructor"<<std::endl;
+    this->dims_powers = other.dims_powers;
+  }
 
-  inline virtual int get_n_params(mat_ref xs) { return dims_powers.size() + 1; }
+  virtual ~PolyMeanFunc() {
+  //  std::cout<<"in destructor of PolyMeanFunc"<<std::endl;
+  };
+
+  inline PolyMeanFunc* clone() const override {
+    return new PolyMeanFunc(*this);
+  }
+
+  inline virtual int get_n_params() { return dims_powers.size() + 1; }
 
   inline virtual vec mean_f(mat_ref xs,
 			    vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length " +  std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length " +  std::to_string(get_n_params()));
     vec result(xs.rows());
     for (unsigned int i=0; i< xs.rows(); ++i) {
       // have the const term as the first parameter
@@ -206,8 +238,8 @@ public:
 
   inline virtual mat mean_deriv(mat_ref xs,
 				vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params()));
     mat result(params.rows(), xs.rows());
     for (unsigned int i=0; i< xs.rows(); ++i) {
       // deriv wrt the first param (the const term) is always 1.
@@ -225,8 +257,8 @@ public:
 
   inline virtual mat mean_inputderiv(mat_ref xs,
 				     vec_ref params) {
-    if ( params.rows() != get_n_params(xs))
-      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params(xs)));
+    if ( params.rows() != get_n_params())
+      throw std::runtime_error("Expected params list of length " + std::to_string(get_n_params()));
     mat result = mat::Constant(xs.cols(),xs.rows(), 0.);
     // loop through all inputs
     for (unsigned int i=0; i< xs.rows(); ++i) {

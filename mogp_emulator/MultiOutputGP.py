@@ -6,11 +6,8 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
-from mogp_emulator.MeanFunction import MeanBase
-from mogp_emulator.Kernel import Kernel, SquaredExponential, Matern52
-from mogp_emulator.Priors import Prior
-
+from mogp_emulator.Kernel import KernelBase
+from mogp_emulator.Priors import GPPriors
 
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
@@ -31,24 +28,24 @@ class MultiOutputGP(object):
     alternatively be a list of values with length matching the number
     of emulators to set those values individually.
 
-    Additional keyword arguments include ``inputdict``, and
-    ``use_patsy``, which control how strings are parsed to mean
-    functions, if using.
-
     """
 
-    def __init__(self, inputs, targets, mean=None, kernel=SquaredExponential(), priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
+    def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
+                 nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
         """
 
-        # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
-        self.use_gpu = use_gpu
-        if self.use_gpu:
-            self.GPClass = GaussianProcessGPU
-        else:
-            self.GPClass = GaussianProcess
+        self.GPClass = GaussianProcess
+            
+        if not inputdict == {}:
+            warnings.warn("The inputdict interface for mean functions has been deprecated. " +
+                          "You must input your mean formulae using the x[0] format directly " +
+                          "in the formula.", DeprecationWarning)
+                          
+        if not use_patsy:
+            warnings.warn("patsy is now required to parse all formulae and form design " +
+                          "matrices in mogp-emulator. The use_patsy=False option will be ignored.")
 
         # check input types and shapes, reshape as appropriate for the case of a single emulator
         inputs = np.array(inputs)
@@ -68,36 +65,26 @@ class MultiOutputGP(object):
         self.n = inputs.shape[0]
         self.D = inputs.shape[1]
 
-        if mean is None or isinstance(mean, str) or issubclass(type(mean), MeanBase):
+        if not isinstance(mean, list):
             mean = self.n_emulators*[mean]
 
-        assert isinstance(mean, list), "mean must be None, a string, a mean function, or a list of None/string/mean functions"
+        assert isinstance(mean, list), "mean must be None, a string, a valid patsy model description, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
 
-        if isinstance(kernel, str):
-            if kernel == "SquaredExponential":
-                kernel = SquaredExponential()
-            elif kernel == "Matern52":
-                kernel = Matern52()
-            else:
-                raise ValueError("provided kernel '{}' not a supported kernel type".format(kernel))
-        if issubclass(type(kernel), Kernel):
+        if isinstance(kernel, str) or issubclass(type(kernel), KernelBase):
             kernel = self.n_emulators*[kernel]
 
         assert isinstance(kernel, list), "kernel must be a Kernel subclass or a list of Kernel subclasses"
         assert len(kernel) == self.n_emulators
 
-        if priors is None:
-            priors = []
-        assert isinstance(priors, list), "priors must be a list of lists of Priors/None"
+        if isinstance(priors, (GPPriors, dict)) or priors is None:
+            priorslist = self.n_emulators*[priors]
+        else:
+            priorslist = list(priors)
+            assert isinstance(priorslist, list), ("priors must be a GPPriors object, None, or arguments to construct " +
+                                                  "a GPPriors object or a list of length n_emulators containing the above")
 
-        if len(priors) == 0:
-            priors = self.n_emulators*[[]]
-
-        if not isinstance(priors[0], list):
-            priors = self.n_emulators*[priors]
-
-        assert len(priors) == self.n_emulators
+            assert len(priorslist) == self.n_emulators, "Bad length for list provided for priors to MultiOutputGP"
 
         if isinstance(nugget, (str, float)):
             nugget = self.n_emulators*[nugget]
@@ -105,11 +92,11 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n, inputdict, use_patsy)
-                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priors, nugget)]
+        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
+                           for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
 
-    def predict(self, testing, unc=True, deriv=True, include_nugget=True,
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True,
                 allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
@@ -135,6 +122,10 @@ class MultiOutputGP(object):
         are computed, the ``include_nugget`` flag determines if the
         uncertainties should include the nugget. By default, this is
         set to ``True``.
+                
+        Derivatives have been deprecated due to changes in how the
+        mean function is computed, so setting ``deriv=True`` will
+        have no effect and will raise a ``DeprecationWarning``.
 
         The ``allow_not_fit`` flag determines how the object handles
         any emulators that do not have fit hyperparameter values
@@ -158,11 +149,6 @@ class MultiOutputGP(object):
                     returns ``None`` in place of the uncertainty
                     array. Default value is ``True``.
         :type unc: bool
-        :param deriv: (optional) Flag indicating if the derivatives
-                      are to be computed.  If ``False`` the method
-                      returns ``None`` in place of the derivative
-                      array. Default value is ``True``.
-        :type deriv: bool
         :param include_nugget: (optional) Flag indicating if the
                                 nugget should be included in the
                                 predictive variance. Only relevant if
@@ -201,6 +187,10 @@ class MultiOutputGP(object):
 
         n_testing, D = np.shape(testing)
         assert D == self.D, "second dimension of testing must be the same as the number of input parameters"
+        
+        if deriv:
+            warnings.warn("Prediction derivatives have been deprecated and are no longer supported",
+                          DeprecationWarning)
 
         if not processes is None:
             processes = int(processes)
@@ -211,7 +201,7 @@ class MultiOutputGP(object):
         else:
             predict_method = self.GPClass.predict
 
-        if platform.system() == "Windows" or self.use_gpu:
+        if platform.system() == "Windows":
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
                             for gp in self.emulators]
         else:
@@ -226,12 +216,11 @@ class MultiOutputGP(object):
 
         if not unc:
             unc_unpacked = None
-        if not deriv:
-            deriv_unpacked = None
+        deriv_unpacked = None
 
         return PredictResult(mean=predict_unpacked, unc=unc_unpacked, deriv=deriv_unpacked)
 
-    def __call__(self, testing, process=None):
+    def __call__(self, testing, processes=None):
         """Interface to predict means by calling the object
 
         A MultiOutputGP object is callable, which makes predictions of
@@ -264,7 +253,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        list(range(len(self.emulators)))) if not failed_fit]
 
     def get_indices_not_fit(self):
@@ -288,7 +277,7 @@ class MultiOutputGP(object):
         """
 
         return [idx for (failed_fit, idx)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        list(range(len(self.emulators)))) if failed_fit]
 
     def get_emulators_fit(self):
@@ -313,7 +302,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        self.emulators) if not failed_fit]
 
     def get_emulators_not_fit(self):
@@ -338,7 +327,7 @@ class MultiOutputGP(object):
         """
 
         return [gpem for (failed_fit, gpem)
-                in zip([em.theta is None for em in self.emulators],
+                in zip([em.theta.get_data() is None for em in self.emulators],
                        self.emulators) if failed_fit]
 
 

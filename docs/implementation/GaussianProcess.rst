@@ -10,8 +10,6 @@ The ``GaussianProcess`` Class
 .. autoclass:: mogp_emulator.GaussianProcess.GaussianProcess
     :members:
 
-    .. automethod:: __init__
-
 
 **********************************
 The ``PredictResult`` Class

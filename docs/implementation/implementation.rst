@@ -15,8 +15,9 @@ mogp_emulator Implementation Details
    formula
    Kernel
    Priors
+   GPParams
+   linalg
    DimensionReduction
    ExperimentalDesign
    SequentialDesign
    HistoryMatching
-   linalg

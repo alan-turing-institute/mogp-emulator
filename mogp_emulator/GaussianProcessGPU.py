@@ -60,6 +60,7 @@ def parse_meanfunc_formula(formula):
        or None if the formula could not be parsed, or is not currently implemented in C++ code.
     :rtype: LibGPGPU.ConstMeanFunc or LibGPGPU.PolyMeanFun or None
     """
+    # convert to a raw string
     if formula == "c":
         return LibGPGPU.ConstMeanFunc()
     else:
@@ -72,11 +73,11 @@ def parse_meanfunc_formula(formula):
     # if we got here, we hopefully have a parse-able formula
     terms = formula.split("+")
     def find_index_and_power(term):
-        variables = re.findall("x\[[\d+]\]",term)
+        variables = re.findall(r"x\[[\d+]\]",term)
         if len(variables) == 0:
             # didn't find a non-const term
             return None
-        indices = [int(re.search("\[([\d+])\]", v).groups()[0]) for v in variables]
+        indices = [int(re.search(r"\[([\d+])\]", v).groups()[0]) for v in variables]
         if indices.count(indices[0]) != len(indices):
             raise NotImplementedError("Cross terms, e.g. x[0]*x[1] not implemented in GPU version.")
         # first guess at the power to which the index is raised is how many times it appears
@@ -84,8 +85,8 @@ def parse_meanfunc_formula(formula):
         power = len(indices)
         # however, it's also possible to write 'x[0]^2' or even, 'x[0]*x[0]^2' or even 'x[0]^2*x[0]^2'
         # so look at all the numbers appearing after a '^'.
-        more_powers = re.findall("\^[\d]+",term)
-        more_powers = [int(re.search("\^([\d]+)",p).groups()[0]) for p in more_powers]
+        more_powers = re.findall(r"\^[\d]+",term)
+        more_powers = [int(re.search(r"\^([\d]+)",p).groups()[0]) for p in more_powers]
         # now add these on to the original power number
         # (subtracting one each time, as we already have x^1 implicitly)
         for p in more_powers:
@@ -101,6 +102,36 @@ def parse_meanfunc_formula(formula):
     else:
         return None
 
+def interpret_nugget(nugget):
+    """
+    Interpret a provided 'nugget' value (str or float) as the C++ friendly nugget type and nugget size.
+    :param: nugget, must be either a str with value 'adaptive' or 'fit,
+                    or a non-negative float.
+    :returns: 
+    :rtype: LibGPGPU.nugget_type, float
+    """
+    if not isinstance(nugget, (str, float)):
+        try:
+            nugget = float(nugget)
+        except TypeError:
+            raise TypeError("nugget parameter must be a string or a non-negative float")
+
+    if isinstance(nugget, str):
+        if nugget == "adaptive":
+            nugget_type = LibGPGPU.nugget_type.adaptive
+        elif nugget == "fit":
+            nugget_type = LibGPGPU.nugget_type.fit
+        else:
+            raise ValueError("nugget must be a string set to 'adaptive', 'fit', or a float")
+        nugget_size = 0.
+    else:
+        # nugget is fixed
+        if nugget < 0.:
+            raise ValueError("nugget parameter must be non-negative")
+        nugget_type = LibGPGPU.nugget_type.fixed
+        nugget_size = nugget
+    # return info needed to set the nugget on the C++ object
+    return nugget_type, nugget_size
 
 class GaussianProcessGPU(GaussianProcessBase):
 
@@ -153,14 +184,11 @@ class GaussianProcessGPU(GaussianProcessBase):
             # parse this to create an instance of a C++ MeanFunction
             self.mean = parse_meanfunc_formula(mean.__str__())
             # if we got None back from that function, something went wrong
-            if not mean:
+            if not self.mean:
                 raise ValueError("""
                 GPU implementation was unable to parse mean function formula {}.
                 """.format(mean.__str__())
                 )
-
-        self.nugget = nugget
-
         # set the kernel.
         # Note that for the "kernel" data member, we use the Python instance
         # rather than the C++/CUDA one (for consistency in interface with
@@ -177,9 +205,28 @@ class GaussianProcessGPU(GaussianProcessBase):
         else:
             raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
 
+        # the nugget parameter passed to constructor can be str or float,
+        # disambiguate it here to pass values to C++ constructor.
+        nugget_type, nugget_size = interpret_nugget(nugget)
+        self._nugget_type = nugget_type
+        self._init_nugget_size = nugget_size
         # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
-        self._init_gpu()
+        self._init_gpu()   
+
+    @classmethod
+    def from_cpp(cls, denseGP_GPU):
+        inputs = denseGP_GPU.inputs()
+        targets = denseGP_GPU.targets()
+        obj = cls.__new__(cls)
+        obj._densegp_gpu = denseGP_GPU
+        obj._inputs = inputs,
+        obj._targets = targets
+        obj._nugget_type = denseGP_GPU.get_nugget_type()
+        obj.kernel_type = denseGP_GPU.get_kernel_type()
+        obj.mean = denseGP_GPU.get_meanfunc()
+        return obj
+
 
 
     def _init_gpu(self):
@@ -191,9 +238,9 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self._targets,
                                                      self._max_batch_size,
                                                      self.mean,
-                                                     self.kernel_type) #,
-#                                                     self.mean_type)
-
+                                                     self.kernel_type,
+                                                     self._nugget_type,
+                                                     self._init_nugget_size)
 
     @property
     def inputs(self):
@@ -247,7 +294,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of hyperparameters
         :rtype: int
         """
-        return self._densegp_gpu.n_params()+ self.mean.get_n_params(self.inputs)
+        return self._densegp_gpu.n_params()
 
     @property
     def nugget_type(self):
@@ -267,30 +314,19 @@ class GaussianProcessGPU(GaussianProcessBase):
     def nugget(self):
         """
         See :func:`mogp_emulator.GaussianProcess.GaussianProcess.nugget`
+
+        Use the value cached in the C++ class, as we can't rely on the Python fit()
+        function being called.
         """
-        return self._nugget
+        return self._densegp_gpu.get_nugget_size()
 
     @nugget.setter
     def nugget(self, nugget):
-        if not isinstance(nugget, (str, float)):
-            try:
-                nugget = float(nugget)
-            except TypeError:
-                raise TypeError("nugget parameter must be a string or a non-negative float")
-
-        if isinstance(nugget, str):
-            if nugget == "adaptive":
-                self._nugget_type = LibGPGPU.nugget_type(0)
-            elif nugget == "fit":
-                self._nugget_type = LibGPGPU.nugget_type(1)
-            else:
-                raise ValueError("nugget must be a float set to 'adaptive', 'fit', or 'fixed'")
-            self._nugget = None
-        else:
-            if nugget < 0.:
-                raise ValueError("nugget parameter must be non-negative")
-            self._nugget_type = LibGPGPU.nugget_type(2) #fixed
-            self._nugget = float(nugget)
+        nugget_type, nugget_size = interpret_nugget(nugget)
+        self._nugget_type = nugget_type
+        self._densegp_gpu.set_nugget_size(nugget_size)
+        self._densegp_gpu.set_nugget_type(nugget_type)
+         
 
     @property
     def theta(self):
@@ -303,8 +339,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         if not self._densegp_gpu.theta_fit_status():
             return None
-        theta = np.zeros(self.n_params)
-        self._densegp_gpu.get_theta(theta)
+        theta = self._densegp_gpu.get_theta()
         return theta
 
     @theta.setter
@@ -320,7 +355,6 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         if theta is None:
             self._densegp_gpu.reset_theta_fit_status()
-            self.current_logpost = None
         else:
             self.fit(theta)
 
@@ -334,6 +368,28 @@ class GaussianProcessGPU(GaussianProcessBase):
         result = np.zeros((self.n, self.n))
         self._densegp_gpu.get_cholesky_lower(result)
         return np.tril(result.transpose())
+
+    @property 
+    def invQt(self):
+        """
+        Return the product of inverse covariance matrix with the target values     
+
+        :returns: np.array
+        """
+        if not self._densegp_gpu.theta_fit_status():
+            return None
+        invQt_result = np.zeros(self.n)
+        self._densegp_gpu.get_invQt(invQt_result)
+        return invQt_result
+        
+    @property
+    def current_logpost(self):
+        """
+        Return the current value of the log posterior.  This is cached in the C++ class.
+
+        :returns: double
+        """
+        return self.logposterior(self.theta)
 
     def get_K_matrix(self):
         """
@@ -355,14 +411,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         theta = ndarray_coerce_type_and_flags(theta)
 
-        nugget_size = self.nugget if self.nugget_type == "fixed" else 0.
-        self._densegp_gpu.fit(theta, self._nugget_type, nugget_size)
-        if self.nugget_type == "adaptive" or self.nugget_type == "fit":
-            self._nugget = self._densegp_gpu.get_jitter()
-        invQt_result = np.zeros(self.n)
-        self._densegp_gpu.get_invQt(invQt_result)
-        self.invQt = invQt_result
-        self.current_logpost = self.logposterior(theta)
+        self._densegp_gpu.fit(theta)
+        
 
     def logposterior(self, theta):
         """
@@ -375,10 +425,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: negative log-posterior
         :rtype: float
         """
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
-            self.fit(theta)
 
-        return self._densegp_gpu.get_logpost()
+        return self._densegp_gpu.get_logpost(theta)
 
     def logpost_deriv(self, theta):
         """
@@ -453,7 +501,7 @@ class GaussianProcessGPU(GaussianProcessBase):
                     means[i:i+self._max_batch_size],
                     variances[i:i+self._max_batch_size])
             if include_nugget:
-                variances += self._nugget
+                variances += self.nugget
         else:
             for i in range(0, n_testing, self._max_batch_size):
                 self._densegp_gpu.predict_batch(

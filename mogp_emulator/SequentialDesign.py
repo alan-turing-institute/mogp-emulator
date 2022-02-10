@@ -732,12 +732,12 @@ class MICEFastGP(GaussianProcess):
 
         indices = (np.arange(self.n) != index)
 
-        switch = self.mean.get_n_params(self.inputs)
-        sigma_2 = np.exp(self.theta[-2])
+        switch = self.theta.n_mean
+        sigma_2 = self.theta.cov + self.theta.nugget
 
-        Ktest = self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
-                                     np.reshape(self.inputs[index, :], (1, self.D)),
-                                     self.theta[switch:-1])
+        Ktest = self.theta.cov*self.kernel.kernel_f(np.reshape(self.inputs[indices,:], (self.n - 1, self.D)),
+                                                    np.reshape(self.inputs[index, :], (1, self.D)),
+                                                    self.theta.corr_raw)
 
         invQ = np.linalg.solve(self.L.T, np.linalg.solve(self.L, np.eye(self.n)))
         invQ_mod = (invQ[indices][:, indices] -
@@ -942,7 +942,7 @@ class MICEDesign(SequentialDesign):
                 self.gp = GaussianProcess(self.inputs, self.targets, nugget=self.nugget)
                 self.gp = fit_GP_MAP(self.gp)
 
-                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), nugget=np.exp(self.gp.theta[-2])*self.nugget_s)
+                self.gp_fast = MICEFastGP(self.candidates, np.ones(self.n_cand), nugget=self.gp.theta.nugget*self.nugget_s)
                 self.gp_fast.theta = self.gp.theta
                 break
             except FloatingPointError:

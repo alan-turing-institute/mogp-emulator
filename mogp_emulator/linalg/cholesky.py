@@ -2,6 +2,113 @@ import numpy as np
 from scipy import linalg
 from scipy.linalg import lapack, cho_solve
 
+class ChoInv(object):
+    """
+    Class representing inverse of the covariance matrix
+    """
+    def __init__(self, L):
+        L = np.array(L)
+        assert L.ndim == 2, "L must be a 2D array"
+        assert L.shape[0] == L.shape[1]
+        self.L = L
+        
+    def solve(self, b):
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]**2
+        else:
+            return cho_solve((self.L, True), b)
+        
+    def logdet(self):
+        if self.L.shape == (0,0):
+            return 0.
+        else:
+            return 2.0*np.sum(np.log(np.diag(self.L)))
+        
+class ChoInvPivot(ChoInv):
+    """
+    Class representing Pivoted Cholesky factorized matrix
+    
+    :param L: Factorized :math:`{A}` square matrix using
+              pivoting. Assumes lower triangular factorization is
+              used.
+    :type L: ndarray
+    :param P: Pivot matrix, expressed as a list or 1D array of
+              integers that is the same length as `L`. Must contain
+              only nonzero integers as entries, with each number up to
+              the length of the array appearing exactly once.
+    :type P: list or ndarray
+    """
+    def __init__(self, L, P):
+        super().__init__(L)
+        
+        assert len(P) == self.L.shape[0], "Length of pivot matrix must match linear system"
+
+        self.P = P
+        
+    def solve(self, b):
+        """Solve a Linear System factorized using Pivoted Cholesky Decomposition
+
+        Solve a system :math:`{Ax = b}` where the matrix has been factorized using the
+        `pivot_cholesky` function. Can also solve a system which has been
+        factorized using the regular Cholesky decomposition routine if
+        `P` is the set of integers from 0 to the length of the linear system.
+        The routine rearranges the order of the RHS based on the pivoting
+        order that was used, and then rearranges back to the original
+        ordering of the RHS when returning the array.
+
+        :param b: Right hand side to be solved. Can be any array that
+                  satisfies the rules of the scipy `cho_solve` routine.
+        :type b: ndarray
+        :returns: Solution to the appropriate linear system as a ndarray.
+        :rtype: ndarray
+        """
+
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]**2
+        else:
+            try:
+                return cho_solve((self.L, True), b[self.P])[_pivot_transpose(self.P)]
+            except (IndexError, ValueError):
+                raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
+
+def cholesky_factor(A, nugget, nugget_type):
+    """
+    Interface for Cholesky factorization
+    
+    Calls the appropriate method given how the nugget is handled and
+    returns the factorized matrix as a ChoInv class along with the
+    nugget value
+    """
+    
+    if isinstance(nugget, float):
+        assert nugget >= 0., "Nugget must be non-negative in cholesky_factor"
+    
+    if nugget_type == "adaptive":
+        L, nugget = jit_cholesky(A)
+        Ainv = ChoInv(L)
+    elif nugget_type == "pivot":
+        L, P = pivot_cholesky(A)
+        Ainv = ChoInvPivot(L, P)
+    elif nugget_type in ["fit", "fixed"]:
+        A += nugget*np.eye(A.shape[0])
+        L = fixed_cholesky(A)
+        Ainv = ChoInv(L)
+    else:
+        raise ValueError("Bad value for nugget_type in cholesky_factor")
+        
+    return Ainv, nugget
+        
+
 def _check_cholesky_inputs(A):
     """
     Check inputs to cholesky routines
@@ -29,6 +136,14 @@ def _check_cholesky_inputs(A):
         raise linalg.LinAlgError("not pd: non-positive diagonal elements")
 
     return A
+
+def fixed_cholesky(A):
+    """
+    Cholesky decomposition with fixed noise level
+    """
+    A = _check_cholesky_inputs(A)
+    
+    return linalg.cholesky(A, lower=True)
 
 def jit_cholesky(A, maxtries = 5):
     """
@@ -104,7 +219,7 @@ def pivot_cholesky(A):
               integers indicating the pivoting order needed to produce the
               factorization.
     :rtype: tuple containing an ndarray of shape `(n,n)` of floats and a
-            ndarray of shape `(n,)` of integers.
+            ndarray of shape `(n,)` of integers. 
     """
 
     A = _check_cholesky_inputs(A)
@@ -112,18 +227,18 @@ def pivot_cholesky(A):
     A = np.ascontiguousarray(A)
     L, P, rank, info = lapack.dpstrf(A, lower = 1)
     L = np.tril(L)
-
+    
     if info < 0:
         raise linalg.LinAlgError("Illegal value in covariance matrix")
-
+    
     n = A.shape[0]
 
     idx = np.arange(rank, n)
     divs = np.cumprod(np.arange(rank+1, n+1, dtype=np.float64))
     L[idx, idx] = L[rank-1, rank-1]/divs
-
+    
     return L, P-1
-
+    
 def _pivot_transpose(P):
     """
     Invert a pivot matrix by taking its transpose
@@ -153,36 +268,4 @@ def _pivot_transpose(P):
         raise ValueError("Bad values for pivot matrix input to pivot_transpose")
 
 
-def pivot_cho_solve(L, P, b):
-    """Solve a Linear System factorized using Pivoted Cholesky Decomposition
 
-    Solve a system :math:`{Ax = b}` where the matrix has been factorized using the
-    `pivot_cholesky` function. Can also solve a system which has been
-    factorized using the regular Cholesky decomposition routine if
-    `P` is the set of integers from 0 to the length of the linear system.
-    The routine rearranges the order of the RHS based on the pivoting
-    order that was used, and then rearranges back to the original
-    ordering of the RHS when returning the array.
-
-    :param L: Factorized :math:`{A}` square matrix using
-              pivoting. Assumes lower triangular factorization is
-              used.
-    :type L: ndarray
-    :param P: Pivot matrix, expressed as a list or 1D array of
-              integers that is the same length as `L`. Must contain
-              only nonzero integers as entries, with each number up to
-              the length of the array appearing exactly once.
-    :type P: list or ndarray
-    :param b: Right hand side to be solved. Can be any array that
-              satisfies the rules of the scipy `cho_solve` routine.
-    :type b: ndarray
-    :returns: Solution to the appropriate linear system as a ndarray.
-    :rtype: ndarray
-    """
-
-    assert len(P) == L.shape[0], "Length of pivot matrix must match linear system"
-
-    try:
-        return cho_solve((L, True), b[P])[_pivot_transpose(P)]
-    except (IndexError, ValueError):
-        raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
