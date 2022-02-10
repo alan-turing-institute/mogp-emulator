@@ -803,7 +803,7 @@ class GaussianProcess(GaussianProcessBase):
 
         raise NotImplementedError("Hessian computation is not currently supported")
 
-    def predict(self, testing, unc=True, deriv=False, include_nugget=True):
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True, full_cov=False):
         """Make a prediction for a set of input vectors for a single set of hyperparameters
 
         Makes predictions for the emulator on a given set of input
@@ -878,17 +878,28 @@ class GaussianProcess(GaussianProcessBase):
 
         var = None
         if unc:
-            sigma_2 = self.theta.cov
-
-            if include_nugget and not self.nugget_type == "pivot":
-                sigma_2 += self.theta.nugget
 
             Kinv_Ktest = self.Kinv.solve(Ktest)
             R = calc_R(Kinv_Ktest, self._dm, dmtest)
+            
+            if full_cov:
+                sigma_2 = self.theta.cov*self.kernel.kernel_f(testing, testing, self.theta.corr_raw)
+                
+                if include_nugget and not self.nugget_type == "pivot":
+                    sigma_2 += np.eye(testing.shape[0])*self.theta.nugget
+                
+                var = (sigma_2 - np.dot(Ktest.T, Kinv_Ktest) +
+                                 np.dot(R.T, self.Ainv.solve(R)))
+                var = 0.5*(var + var.T)
+            else:
+                sigma_2 = self.theta.cov
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*Kinv_Ktest, axis=0) +
-                             np.sum(R*self.Ainv.solve(R), axis=0),
-                             0.)
+                if include_nugget and not self.nugget_type == "pivot":
+                    sigma_2 += self.theta.nugget
+                    
+                var = np.maximum(sigma_2 - np.sum(Ktest*Kinv_Ktest, axis=0) +
+                                 np.sum(R*self.Ainv.solve(R), axis=0),
+                                 0.)
 
         inputderiv = None
         if deriv:
