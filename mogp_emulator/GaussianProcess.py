@@ -503,7 +503,7 @@ class GaussianProcess(GaussianProcessBase):
             dm = np.ones((inputs.shape[0], 1))
         else:
             try:
-                dm = dmatrix(self._mean, data={"x": inputs.T})
+                dm = np.array(dmatrix(self._mean, data={"x": inputs.T}))
             except PatsyError:
                 raise ValueError("Provided mean function is invalid")
             if not dm.shape[0] == inputs.shape[0]:
@@ -658,6 +658,8 @@ class GaussianProcess(GaussianProcessBase):
         
         self.theta.mean = calc_mean_params(self.Ainv, self.Kinv_t,
                                            self._dm, self.priors.mean)
+                                           
+        self.Kinv_t_mean = self.Kinv.solve(self.targets - np.dot(self._dm, self.theta.mean))
 
         if self.priors.mean.has_weak_priors:
             n_coeff = self.n - self.n_mean
@@ -874,7 +876,7 @@ class GaussianProcess(GaussianProcessBase):
         mtest = np.dot(dmtest, self.theta.mean)
         Ktest = self.get_cov_matrix(testing)
 
-        mu = mtest + np.dot(Ktest.T, self.Kinv_t)
+        mu = mtest + np.dot(Ktest.T, self.Kinv_t_mean)
 
         var = None
         if unc:

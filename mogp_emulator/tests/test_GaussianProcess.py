@@ -500,8 +500,11 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
                           
     mean_expect = np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))
 
+    Kinv_t_mean_expect = np.linalg.solve(K, y - np.dot(gp._dm, mean_expect))
+
     assert_allclose(L_expect, gp.Kinv.L)
     assert_allclose(Kinv_t_expect, gp.Kinv_t)
+    assert_allclose(Kinv_t_mean_expect, gp.Kinv_t_mean, atol=1.e-10)
     assert_allclose(LA_expect, gp.Ainv.L)
     assert_allclose(mean_expect, gp.theta.mean)
     assert_allclose(logpost_expect, gp.current_logpost)
@@ -807,7 +810,7 @@ def test_GaussianProcess_predict(x, y, dx):
     K = np.exp(theta[-1])*gp.kernel.kernel_f(x, x, theta[:-1])
     Ktest = np.exp(theta[-1])*gp.kernel.kernel_f(x_test, x, theta[:-1])
 
-    mu_expect = np.dot(Ktest, gp.Kinv_t)
+    mu_expect = np.dot(Ktest, gp.Kinv_t_mean)
     var_expect = np.exp(theta[-1]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
 
     assert_allclose(mu, mu_expect)
@@ -853,12 +856,18 @@ def test_GaussianProcess_predict(x, y, dx):
     Ktest = np.exp(theta[-1])*gp.kernel.kernel_f(x_test, x, theta[:-1])
     R = dm_test.T - np.dot(gp._dm.T, np.linalg.solve(K, Ktest.T))
 
-    mu_expect = m + np.dot(Ktest, gp.Kinv_t)
+    mu_expect = m + np.dot(Ktest, gp.Kinv_t_mean)
     var_expect += np.diag(np.dot(R.T, np.linalg.solve(np.dot(gp._dm.T, np.linalg.solve(K, gp._dm)),
                                                       R)))
 
     assert_allclose(mu, mu_expect)
     assert_allclose(var, var_expect)
+    
+    # check that predictions at inputs are close to mean
+    
+    mu, var, deriv = gp.predict(x)
+    
+    assert_allclose(mu, y)
     
     # nonzero mean priors
 
