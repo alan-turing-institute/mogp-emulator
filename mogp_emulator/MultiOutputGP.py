@@ -8,6 +8,7 @@ from mogp_emulator.GaussianProcess import (
 )
 from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
+from patsy import ModelDesc
 
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
@@ -70,6 +71,10 @@ class MultiOutputGP(object):
 
         assert isinstance(mean, list), "mean must be None, a string, a valid patsy model description, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
+        
+        if any([isinstance(m, ModelDesc) for m in mean]):
+            warnings.warn("Specifying mean functions using a patsy ModelDesc does not support parallel " +
+                          "fitting and prediction with MultiOutputGPs")
 
         if isinstance(kernel, str) or issubclass(type(kernel), KernelBase):
             kernel = self.n_emulators*[kernel]
@@ -200,8 +205,11 @@ class MultiOutputGP(object):
             predict_method = _gp_predict_default_NaN
         else:
             predict_method = self.GPClass.predict
+            
+        serial_predict = (platform.system() == "Windows" or
+                          any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
 
-        if platform.system() == "Windows":
+        if serial_predict:
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
                             for gp in self.emulators]
         else:

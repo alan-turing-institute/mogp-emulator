@@ -503,7 +503,7 @@ class GaussianProcess(GaussianProcessBase):
             dm = np.ones((inputs.shape[0], 1))
         else:
             try:
-                dm = dmatrix(self._mean, data={"x": inputs.T})
+                dm = np.array(dmatrix(self._mean, data={"x": inputs.T}))
             except PatsyError:
                 raise ValueError("Provided mean function is invalid")
             if not dm.shape[0] == inputs.shape[0]:
