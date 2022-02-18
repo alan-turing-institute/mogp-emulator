@@ -10,8 +10,8 @@ import numpy as np
 MAJOR = 0
 MINOR = 7
 MICRO = 0
-PRERELEASE = 0
-ISRELEASED = True
+PRERELEASE = 1
+ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:
