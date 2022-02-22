@@ -143,14 +143,9 @@ public:
         return targets;
     }
 
-    int get_n_kernel_params(void) const
-    {
-        return D + 2;
-    }
-
     int get_n_params(void) const
     {
-        return get_n_kernel_params() + meanfunc->get_n_params();
+        return D + 1 + int(nug_type == NUG_FIT);
     }
 
     vec get_theta(void)
@@ -173,7 +168,7 @@ public:
         nug_type = nugtype;
     }
 
-    nugget_type get_nugget_type(void)
+    nugget_type get_nugget_type(void) const
     {
         return nug_type;
     }
@@ -820,7 +815,7 @@ public:
 	    // resize the device vector that will store derivative of mean function
 	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
         // resize current_theta vector
-        current_theta.resize(meanfunc->get_n_params() + get_n_kernel_params(),1);
+        current_theta.resize(meanfunc->get_n_params() + get_n_params(),1);
     }
 
 };

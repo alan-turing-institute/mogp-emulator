@@ -6,9 +6,9 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU
 from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
+from patsy import ModelDesc
 
 class MultiOutputGP(object):
     """Implementation of a multiple-output Gaussian Process Emulator.
@@ -32,17 +32,12 @@ class MultiOutputGP(object):
     """
 
     def __init__(self, inputs, targets, mean=None, kernel="SquaredExponential", priors=None,
-                 nugget="adaptive", inputdict={}, use_patsy=True, use_gpu=False):
+                 nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
         """
 
-        # if use_gpu is selected, check whether we found the GPU .so file, and raise error if not
-        self.use_gpu = use_gpu
-        if self.use_gpu:
-            self.GPClass = GaussianProcessGPU
-        else:
-            self.GPClass = GaussianProcess
+        self.GPClass = GaussianProcess
             
         if not inputdict == {}:
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
@@ -76,6 +71,10 @@ class MultiOutputGP(object):
 
         assert isinstance(mean, list), "mean must be None, a string, a valid patsy model description, or a list of None/string/mean functions"
         assert len(mean) == self.n_emulators
+        
+        if any([isinstance(m, ModelDesc) for m in mean]):
+            warnings.warn("Specifying mean functions using a patsy ModelDesc does not support parallel " +
+                          "fitting and prediction with MultiOutputGPs")
 
         if isinstance(kernel, str) or issubclass(type(kernel), KernelBase):
             kernel = self.n_emulators*[kernel]
@@ -206,8 +205,11 @@ class MultiOutputGP(object):
             predict_method = _gp_predict_default_NaN
         else:
             predict_method = self.GPClass.predict
+            
+        serial_predict = (platform.system() == "Windows" or
+                          any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
 
-        if platform.system() == "Windows" or self.use_gpu:
+        if serial_predict:
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
                             for gp in self.emulators]
         else:
