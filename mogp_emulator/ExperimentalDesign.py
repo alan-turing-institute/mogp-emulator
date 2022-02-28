@@ -242,7 +242,7 @@ class ExperimentalDesign(object):
         
         This method implements drawing parameter samples from the experimental design. The method does
         this by calling the ``_draw_samples`` method to obtain samples from the :math:`[0,1]^n` hypercube,
-        where :math:`n` is the number of parameters. The ``sample``method then transforms these samples
+        where :math:`n` is the number of parameters. The ``sample`` method then transforms these samples
         drawn from the low level method to the actual parameter values using the PPF functions provided
         when initilizing the object. Note that this method also checks that all parameter values are
         finite; if any ``NaN`` values are returned, an error will be raised.
