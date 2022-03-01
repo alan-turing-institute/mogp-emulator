@@ -244,7 +244,7 @@ def test_LatinHypercubeDesign_sample():
                                 [0.3690344832370781, 1.1036076298948434]])
     assert_allclose(sample, sample_expected)
 
-def test_MaxiMinLHC():
+def test_MaxiMinLHC(monkeypatch):
     "test the MaxiMin version of an LHC"
 
     class MockLHCSample:
@@ -261,25 +261,31 @@ def test_MaxiMinLHC():
             else:
                 return np.array([[0.0], [1.0]])
 
-    LatinHypercubeDesign._draw_samples = MockLHCSample()
+    def reset_lhc_draw_samples():
+        monkeypatch.setattr(
+            "mogp_emulator.ExperimentalDesign.LatinHypercubeDesign._draw_samples",
+            MockLHCSample(),
+        )
+
+    reset_lhc_draw_samples()
 
     ed = MaxiMinLHC(1)
     sample = ed._draw_samples(2, n_tries=1)
     assert_allclose(sample, np.array([[0.3], [0.7]]))
 
-    LatinHypercubeDesign._draw_samples = MockLHCSample()
+    reset_lhc_draw_samples()
 
     ed = MaxiMinLHC(1)
     sample = ed._draw_samples(2, n_tries=2)
     assert_allclose(sample, np.array([[0.25], [0.75]]))
 
-    LatinHypercubeDesign._draw_samples = MockLHCSample()
+    reset_lhc_draw_samples()
 
     ed = MaxiMinLHC(1)
     sample = ed._draw_samples(2, n_tries=3)
     assert_allclose(sample, np.array([[0.0], [1.0]]))
 
-    LatinHypercubeDesign._draw_samples = MockLHCSample()
+    reset_lhc_draw_samples()
 
     ed = MaxiMinLHC(1)
     sample = ed._draw_samples(2)

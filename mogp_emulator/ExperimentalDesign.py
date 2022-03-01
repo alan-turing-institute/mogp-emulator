@@ -561,7 +561,7 @@ class LatinHypercubeDesign(ExperimentalDesign):
         
         :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
         :type n_samples: int
-        :returns: Random Monte Carlo samples drawn from the :math:`[0,1]^n` hypercube as a numpy
+        :returns: Random samples drawn from the :math:`[0,1]^n` hypercube as a numpy
                   array with shape ``(n_samples, n_parameters)``
         :rtype: ndarray
         """
