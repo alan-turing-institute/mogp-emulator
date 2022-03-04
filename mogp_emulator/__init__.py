@@ -10,7 +10,7 @@ from .MultiOutputGP import MultiOutputGP
 from .MultiOutputGP_GPU import MultiOutputGP_GPU
 from .fitting import fit_GP_MAP
 from .MeanFunction import MeanFunction
-from .ExperimentalDesign import MonteCarloDesign, LatinHypercubeDesign
+from .ExperimentalDesign import MonteCarloDesign, LatinHypercubeDesign, MaxiMinLHC
 from .SequentialDesign import MICEDesign
 from .HistoryMatching import HistoryMatching
 from .DimensionReduction import gKDR

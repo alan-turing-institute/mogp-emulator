@@ -43,3 +43,18 @@ The ``LatinHypercubeDesign`` Class
     :inherited-members:
 
     .. automethod:: __init__
+    
+**********************************
+The ``MaxiMinLHC`` Class
+**********************************
+
+.. _MaxiMinLHC:
+
+.. automodule:: mogp_emulator.ExperimentalDesign.MaxiMinLHC
+    :noindex:
+
+.. autoclass:: mogp_emulator.ExperimentalDesign.MaxiMinLHC
+    :members:
+    :inherited-members:
+
+    .. automethod:: __init__
