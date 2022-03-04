@@ -822,13 +822,17 @@ class GaussianProcess(GaussianProcessBase):
 
         Optionally, the emulator can also calculate the variances in
         the predictions. If the uncertainties are computed, they are
-        returned as the second output from the method as an
-        ``(n_predict,)`` shaped numpy array. Derivatives have been
-        deprecated due to changes in how the mean function is computed,
-        so setting ``deriv=True`` will have no effect and will raise
-        a ``DeprecationWarning``.
+        returned as the second output from the method, either as an
+        ``(n_predict,)`` shaped numpy array if ``full_cov=False``
+        or an array with ``(n_predict, n_predict)`` if the full
+        covariance is computed (default is only to compute the
+        variance, which is the diagonal of the full covariance).
+        
+        Derivatives have been deprecated due to changes in how the
+        mean function is computed, so setting ``deriv=True`` will
+        have no effect and will raise a ``DeprecationWarning``.
 
-        The final input to the method determines if the predictive
+        The ``include_nugget`` kwarg determines if the predictive
         variance should include the nugget or not. For situations
         where the nugget represents observational error and
         predictions are estimating the true underlying function, this
@@ -852,6 +856,11 @@ class GaussianProcess(GaussianProcessBase):
                                predictive variance. Only relevant if
                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param full_cov: (optional) Flag indicating if the full
+                         covariance should be computed for the
+                         uncertainty. Only relevant if ``unc = True``.
+                         Default is ``False``.
+        :type full_cov: bool
         :returns: ``PredictResult`` object holding numpy arrays with
                   the predictions and uncertainties. Predictions
                   and uncertainties have shape ``(n_predict,)``.
@@ -870,7 +879,9 @@ class GaussianProcess(GaussianProcessBase):
             else:
                 testing = np.reshape(testing, (1, -1))
         assert testing.ndim == 2, "test points must be a 1D or 2D array"
-        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
+        assert (
+            testing.shape[1] == self.D
+        ), "second dimension of testing must be the same as the number of input parameters"
 
         dmtest = self.get_design_matrix(testing)
         mtest = np.dot(dmtest, self.theta.mean)
@@ -885,14 +896,18 @@ class GaussianProcess(GaussianProcessBase):
             R = calc_R(Kinv_Ktest, self._dm, dmtest)
             
             if full_cov:
-                sigma_2 = self.theta.cov*self.kernel.kernel_f(testing, testing, self.theta.corr_raw)
+                sigma_2 = self.theta.cov*self.kernel.kernel_f(
+                    testing, testing, self.theta.corr_raw
+                )
                 
                 if include_nugget and not self.nugget_type == "pivot":
                     sigma_2 += np.eye(testing.shape[0])*self.theta.nugget
                 
-                var = (sigma_2 - np.dot(Ktest.T, Kinv_Ktest) +
-                                 np.dot(R.T, self.Ainv.solve(R)))
-                var = 0.5*(var + var.T)
+                Linv_Ktest = self.Kinv.solve_L(Ktest)
+                LAinv_R = self.Ainv.solve_L(R)
+                
+                var = (sigma_2 - np.dot(Linv_Ktest.T, Linv_Ktest) +
+                                 np.dot(LAinv_R.T, LAinv_R))
             else:
                 sigma_2 = self.theta.cov
 
