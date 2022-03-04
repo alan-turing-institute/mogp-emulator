@@ -1,10 +1,15 @@
 import numpy as np
 from scipy import linalg
-from scipy.linalg import lapack, cho_solve
+from scipy.linalg import lapack, cho_solve, solve_triangular
 
 class ChoInv(object):
     """
     Class representing inverse of the covariance matrix
+    
+    :param L: Factorized :math:`{A}` square matrix using
+              pivoting. Assumes lower triangular factorization is
+              used.
+    :type L: ndarray
     """
     def __init__(self, L):
         L = np.array(L)
@@ -13,6 +18,17 @@ class ChoInv(object):
         self.L = L
         
     def solve(self, b):
+        """Solve a Linear System factorized using Cholesky Decomposition
+
+        Solve a system :math:`{Ax = b}` where the matrix has been factorized
+        using the `cholesky` function.
+
+        :param b: Right hand side to be solved. Can be any array that
+                  satisfies the rules of the scipy `cho_solve` routine.
+        :type b: ndarray
+        :returns: Solution to the appropriate linear system as a ndarray.
+        :rtype: ndarray
+        """
         if self.L.shape == (0,0):
             return np.zeros(b.shape)
         elif np.any(np.array(b.shape, dtype=int) == 0):
@@ -22,8 +38,39 @@ class ChoInv(object):
             return b/self.L[0,0]**2
         else:
             return cho_solve((self.L, True), b)
+            
+    def solve_L(self, b):
+        """Solve a Linear System with one component of the Cholesky Decomposition
+
+        Solve a system :math:`{Lx = b}` where the :math:`L` matrix is
+        the factorized matrix found using the `cholesky` function.
+        This is effectively a matrix sqaure root.
+
+        :param b: Right hand side to be solved. Can be any array that
+                  satisfies the rules of the scipy `solve_triangular` routine.
+        :type b: ndarray
+        :returns: Solution to the appropriate linear system as a ndarray.
+        :rtype: ndarray
+        """
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]
+        else:
+            return solve_triangular(self.L, b, lower=True)
         
     def logdet(self):
+        """Compute the log of the matrix determinant
+        
+        Computes the log determinant of the matrix. This is simply twice
+        the sum of the log of the diagonal of the factorized matrix.
+        
+        :returns: Log determinant of the factorized matrix
+        :rtype: float
+        """
         if self.L.shape == (0,0):
             return 0.
         else:
@@ -53,13 +100,11 @@ class ChoInvPivot(ChoInv):
     def solve(self, b):
         """Solve a Linear System factorized using Pivoted Cholesky Decomposition
 
-        Solve a system :math:`{Ax = b}` where the matrix has been factorized using the
-        `pivot_cholesky` function. Can also solve a system which has been
-        factorized using the regular Cholesky decomposition routine if
-        `P` is the set of integers from 0 to the length of the linear system.
-        The routine rearranges the order of the RHS based on the pivoting
-        order that was used, and then rearranges back to the original
-        ordering of the RHS when returning the array.
+        Solve a system :math:`{Ax = b}` where the matrix has been factorized
+        using the `pivot_cholesky` function. The routine rearranges the order
+        of the RHS based on the pivoting order that was used, and then
+        rearranges back to the original ordering of the RHS when returning
+        the array.
 
         :param b: Right hand side to be solved. Can be any array that
                   satisfies the rules of the scipy `cho_solve` routine.
@@ -78,6 +123,38 @@ class ChoInvPivot(ChoInv):
         else:
             try:
                 return cho_solve((self.L, True), b[self.P])[_pivot_transpose(self.P)]
+            except (IndexError, ValueError):
+                raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
+                
+    def solve_L(self, b):
+        """Solve a Linear System with one component of the Pivoted Cholesky
+        Decomposition
+
+        Solve a system :math:`{Lx = b}` where the matrix :math:`L` is
+        the factorized matrix found using the `pivot_cholesky` function.
+        Can also solve a system which has been factorized using the regular Cholesky decomposition routine if
+        `P` is the set of integers from 0 to the length of the linear system.
+        The routine rearranges the order of the RHS based on the pivoting
+        order that was used, and then rearranges back to the original
+        ordering of the RHS when returning the array.
+
+        :param b: Right hand side to be solved. Can be any array that
+                  satisfies the rules of the scipy `cho_solve` routine.
+        :type b: ndarray
+        :returns: Solution to the appropriate linear system as a ndarray.
+        :rtype: ndarray
+        """
+
+        if self.L.shape == (0,0):
+            return np.zeros(b.shape)
+        elif np.any(np.array(b.shape, dtype=int) == 0):
+            return np.zeros(b.shape)
+        elif self.L.shape == (1,1):
+            assert not self.L[0,0] == 0., "L must be nonzero"
+            return b/self.L[0,0]
+        else:
+            try:
+                return solve_triangular(self.L, b[self.P], lower=True)
             except (IndexError, ValueError):
                 raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
 
