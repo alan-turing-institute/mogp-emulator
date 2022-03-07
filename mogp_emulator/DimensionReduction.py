@@ -378,18 +378,17 @@ class gKDR(object):
         within the kernel, minimizing the the loss from a
         Gaussian process regression:
 
-          >>> from mogp_emulator import gKDR
-          >>> from mogp_emulator import GaussianProcess
+          >>> from mogp_emulator import gKDR, GaussianProcess, fit_GP_MAP
           >>> X = ...
           >>> Y = ...
-          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model)
+          >>> dr, loss = gKDR.tune_parameters(X, Y, fit_GP_MAP)
           >>> gp = GaussianProcess(dr(X), Y)
 
         Or, specifying some optional parameters for the lengthscales,
         the maximum value of `K` to use, the number of folds for
         cross-validation, and producing verbose output:
 
-          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
+          >>> dr, loss = gKDR.tune_parameters(X, Y, fit_GP_MAP,
           ...                                 cXs = [0.5, 1.0, 2.0], cYs = [2.0],
           ...                                 maxK = 25, cross_validation_folds=4, verbose = True)
 
