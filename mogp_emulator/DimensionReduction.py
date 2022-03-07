@@ -121,7 +121,7 @@ class gKDR(object):
 
     """Dimension reduction by the gKDR method.
 
-    See [Fukumizu1]_, [FL13]_ and [SG17]_.
+    See [Fukumizu1]_, [FL13]_ and [LG17]_.
 
     An instance of this class is callable, with the ``__call__``
     method taking an input coordinate and mapping it to a reduced
