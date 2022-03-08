@@ -12,7 +12,6 @@ MINOR = 7
 MICRO = 0
 PRERELEASE = 2
 ISRELEASED = False
-
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:
