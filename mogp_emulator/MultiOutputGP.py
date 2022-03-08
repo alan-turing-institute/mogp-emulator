@@ -102,7 +102,7 @@ class MultiOutputGP(object):
 
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,
-                allow_not_fit=False, processes=None):
+                full_cov = False, allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
         Makes predictions for each of the emulators on a given set of
@@ -127,6 +127,13 @@ class MultiOutputGP(object):
         are computed, the ``include_nugget`` flag determines if the
         uncertainties should include the nugget. By default, this is
         set to ``True``.
+                
+        If desired, the full covariance can be computed by
+        setting ``full_cov=True``. In that case, the returned
+        uncertainty will have shape
+        ``(n_emulators, n_predict, n_predict)``. This argument is
+        optional and the default is to only compute the variance,
+        not the full covariance.
                 
         Derivatives have been deprecated due to changes in how the
         mean function is computed, so setting ``deriv=True`` will
@@ -159,6 +166,11 @@ class MultiOutputGP(object):
                                 predictive variance. Only relevant if
                                 ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param full_cov: (optional) Flag indicating if the full
+                         predictive covariance should be computed.
+                         Only relevant if ``unc = True``.
+                         Default is ``False``.
+        :type full_cov: bool
         :param allow_not_fit: (optional) Flag that allows predictions
                               to be made even if not all emulators have
                               been fit. Default is ``False`` which
@@ -210,12 +222,12 @@ class MultiOutputGP(object):
                           any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
 
         if serial_predict:
-            predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
+            predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget, full_cov)
                             for gp in self.emulators]
         else:
             with Pool(processes) as p:
                 predict_vals = p.starmap(predict_method,
-                                         [(gp, testing, unc, deriv, include_nugget)
+                                         [(gp, testing, unc, deriv, include_nugget, full_cov)
                                           for gp in self.emulators])
 
         # repackage predictions into numpy arrays
@@ -353,7 +365,7 @@ class MultiOutputGP(object):
                  str(self.D)+" input variables")
 
 
-def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
+def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget, full_cov):
     """Prediction method for GPs that defaults to NaN for unfit GPs
 
     Wrapper function for the ``GaussianProcess`` predict method that
@@ -388,6 +400,11 @@ def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
                            predictive variance. Only relevant if
                            ``unc = True``.  Default is ``True``.
     :type include_nugget: bool
+    :param full_cov: (optional) Flag indicating if the full
+                     predictive covariance should be computed.
+                     Only relevant if ``unc = True``.
+                     Default is ``False``.
+    :type full_cov: bool
     :returns: Tuple of numpy arrays holding the predictions,
               uncertainties, and derivatives,
               respectively. Predictions and uncertainties have
