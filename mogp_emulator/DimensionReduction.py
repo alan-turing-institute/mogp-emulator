@@ -1,6 +1,7 @@
 """This module provides classes and utilities for performing dimension
-reduction.  Currently there is a single class :class:`mogp_emulator.gKDR` which implements
-the method of Fukumizu and Leng [FL13]_.
+reduction.  There is a single class :class:`mogp_emulator.gKDR` which
+implements the method of Fukumizu and Leng [FL13]_, and which can be
+used jointly with Gaussian process emulation as in [LG17]_.
 
 Example: ::
 
@@ -120,21 +121,11 @@ class gKDR(object):
 
     """Dimension reduction by the gKDR method.
 
-    See link [Fukumizu1]_ (and in particular, [FL13]_) for details of
-    the method.
-
-    Note that this is a simpler and faster method than the original
-    "KDR" method by the same authors (but with an added
-    approximation).  The KDR method will be implemented separately.
+    See [Fukumizu1]_, [FL13]_ and [LG17]_.
 
     An instance of this class is callable, with the ``__call__``
     method taking an input coordinate and mapping it to a reduced
     coordinate.
-
-    Note that this class currently implements a *direct* translation
-    of the Matlab implementation of KernelDeriv (see link above) into
-    Python/NumPy.  It is due to be replaced with a Fortran
-    implementation, but this should not affect the interface.
     """
 
     def __init__(self, X, Y, K=None, X_scale = 1.0, Y_scale = 1.0, EPS=1E-8, SGX=None, SGY=None):
@@ -378,18 +369,17 @@ class gKDR(object):
         within the kernel, minimizing the the loss from a
         Gaussian process regression:
 
-          >>> from mogp_emulator import gKDR
-          >>> from mogp_emulator import GaussianProcess
+          >>> from mogp_emulator import gKDR, GaussianProcess, fit_GP_MAP
           >>> X = ...
           >>> Y = ...
-          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model)
+          >>> dr, loss = gKDR.tune_parameters(X, Y, fit_GP_MAP)
           >>> gp = GaussianProcess(dr(X), Y)
 
         Or, specifying some optional parameters for the lengthscales,
         the maximum value of `K` to use, the number of folds for
         cross-validation, and producing verbose output:
 
-          >>> dr, loss = gKDR.tune_parameters(X, Y, GaussianProcess.train_model,
+          >>> dr, loss = gKDR.tune_parameters(X, Y, fit_GP_MAP,
           ...                                 cXs = [0.5, 1.0, 2.0], cYs = [2.0],
           ...                                 maxK = 25, cross_validation_folds=4, verbose = True)
 
