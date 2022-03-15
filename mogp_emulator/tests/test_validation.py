@@ -73,3 +73,22 @@ def test_standard_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
             [0.5 / np.sqrt(0.1), -0.1 / np.sqrt(0.2)],
         ],
     )
+
+
+def test_pivoted_errors_GP(valid_inputs, valid_targets, monkeypatch):
+    "test correlated errors for a MOGP"
+    
+    monkeypatch.setattr("mogp_emulator.GaussianProcess.predict", mock_predict)
+    
+    gp = GaussianProcess(valid_inputs, valid_targets, nugget=0.0)
+
+    errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=False)
+    
+    A = np.linalg.cholesky([[0.2, 0.05], [0.05, 0.1]])
+    b = np.linalg.solve(A, [-0.1, 0.5])
+    
+    assert_allclose(errors, b)
+    
+    errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True)
+    
+    assert_allclose(errors, b[::-1])

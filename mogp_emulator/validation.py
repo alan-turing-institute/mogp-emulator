@@ -2,6 +2,7 @@ import numpy as np
 from mogp_emulator.GaussianProcess import GaussianProcessBase
 from mogp_emulator.MultiOutputGP import MultiOutputGP
 from mogp_emulator.linalg import cholesky_factor
+from mogp_emulator.linalg.cholesky import _pivot_transpose
 from scipy.stats import f
 
 def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
@@ -63,8 +64,13 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
     
     if isinstance(gp, GaussianProcessBase):
-        mean = [mean]
-        cov = [cov]
+        valid_targets_iter = [valid_targets]
+        mean_iter = [mean]
+        cov_iter = [cov]
+    else:
+        valid_targets_iter = valid_targets
+        mean_iter = mean
+        cov_iter = cov
     
     M = []
 
@@ -214,18 +220,19 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
     mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
     
     if isinstance(gp, GaussianProcessBase):
-        mean = [mean]
-        cov = [cov]
+        valid_targets_iter = [valid_targets]
+        mean_iter = [mean]
+        cov_iter = [cov]
+    else:
+        valid_targets_iter = valid_targets
+        mean_iter = mean
+        cov_iter = cov
     
     errors = []
 
-    for target, meanval, covval in zip(valid_targets, mean, cov):
+    for target, meanval, covval in zip(valid_targets_iter, mean_iter, cov_iter):
         cov_inv, _ = cholesky_factor(covval, 0., "pivot")
-        if undo_pivot:
-            P = cov_inv.P
-        else:
-            P = np.arange(0, len(target))
-        errors.append(cov_inv.solve(meanval - target)[P])
+        errors.append(cov_inv.solve_L(meanval - target, undo_pivot=undo_pivot))
     
     errors = np.array(errors)
     errors = np.squeeze(errors, axis=0)
