@@ -559,8 +559,15 @@ class GaussianProcess(GaussianProcessBase):
         
         inputs = np.array(inputs)
         if inputs.ndim == 1:
-            inputs = np.reshape(inputs, (-1, 1))
-        assert inputs.ndim == 2, "bad shape for inputs"
+            if (not hasattr(self, "_inputs") or self.D == 1):
+                inputs = np.reshape(inputs, (-1, 1))
+            else:
+                inputs = np.reshape(inputs, (1, -1))
+        assert inputs.ndim == 2, "bad shape for input"
+        if hasattr(self, "_inputs"):
+            assert (
+                inputs.shape[1] == self.D
+            ), "second dimension of other inputs must be the same as the number of input parameters"
         
         return inputs
 
@@ -872,16 +879,7 @@ class GaussianProcess(GaussianProcessBase):
         if self.theta.get_data() is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
-        testing = np.array(testing)
-        if testing.ndim == 1:
-            if self.D == 1:
-                testing = np.reshape(testing, (-1, 1))
-            else:
-                testing = np.reshape(testing, (1, -1))
-        assert testing.ndim == 2, "test points must be a 1D or 2D array"
-        assert (
-            testing.shape[1] == self.D
-        ), "second dimension of testing must be the same as the number of input parameters"
+        testing = self._process_inputs(testing)
 
         dmtest = self.get_design_matrix(testing)
         mtest = np.dot(dmtest, self.theta.mean)
