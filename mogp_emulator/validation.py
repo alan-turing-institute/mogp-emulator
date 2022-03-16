@@ -5,17 +5,18 @@ from mogp_emulator.linalg import cholesky_factor
 from mogp_emulator.linalg.cholesky import _pivot_transpose
 from scipy.stats import f
 
+
 def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     """Compute the Mahalanobis distance on a validation dataset
-    
+
     Given a fit GP and a set of inputs and targets for validation,
     compute the Mahalanobis distance (the correlated equivalent
     of the sum of the squared standard errors):
-    
+
     .. math::
         M = (y_{valid} - y_{pred})^T K^{-1} (y_{valid} - y_{pred})
-    
-    The Mahalanobis distance is expected to follow a scaled 
+
+    The Mahalanobis distance is expected to follow a scaled
     Fisher-Snedecor distribution with ``(n_valid, n - n_mean - 2)``
     degrees of freedom. If ``scaled=True`` is selected, then
     the returned distance will be scaled by subtracting the
@@ -27,12 +28,12 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     is not scaled, and a convenience function
     ``generate_mahal_dist`` is provided to simplify comparison
     of the Mahalanobis distance to the expected distribution.
-    
+
     ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
     object, ``valid_inputs`` must be valid input data to the
     GP/MOGP, and ``valid_targets`` must be valid target data of
     the appropraite shape for the GP/MOGP.
-    
+
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object. If the GP/MOGP has not been fit, a
                ``ValueError`` will be raised.
@@ -62,7 +63,7 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     :rtype: float or ndarray
     """
     mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
-    
+
     if isinstance(gp, GaussianProcessBase):
         valid_targets_iter = [valid_targets]
         mean_iter = [mean]
@@ -71,29 +72,30 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
         valid_targets_iter = valid_targets
         mean_iter = mean
         cov_iter = cov
-    
+
     M = []
 
     for target, meanval, covval in zip(valid_targets, mean, cov):
-        cov_inv, _ = cholesky_factor(covval, 0., "fixed")
+        cov_inv, _ = cholesky_factor(covval, 0.0, "fixed")
         M.append(np.dot(target - meanval, cov_inv.solve(target - meanval)))
-    
+
     M = np.array(M)
-    
-    if len(M) == 1:
-        M = M[0]
-    
+
+    if M.shape[0] == 1:
+        M = np.squeeze(M, axis=0)
+
     return M
+
 
 def generate_mahal_dist(gp, valid_inputs):
     """Generate the Expected Distribution for the Mahalanobis Distance
-    
+
     Convenience function for generating a ``scipy.stats.f`` object
     appropriate for the expected Mahalanobis distribution. If a
     ``MultiOutputGP`` object is provided, then a list of distributions
     will be returned. In all cases, the parameters will be "frozen"
     as appropriate for the data.
-    
+
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object.
     :type gp: ``GaussianProcess`` or ``MultiOutputGP``
@@ -105,44 +107,45 @@ def generate_mahal_dist(gp, valid_inputs):
     :returns: ``scipy.stats`` distribution or list of distributions.
     :rtype: scipy.stats.rv_continuous or list
     """
-    
+
     if isinstance(gp, GaussianProcessBase):
         emulators = [gp]
     elif isinstance(gp, MultOutputGP):
         emulators = gp.emulators
     else:
         raise TypeError("Provided GP is not a GaussianProcess or MultiOutputGP")
-    
+
     n_valid = len(gp._process_inputs(valid_inputs))
-        
+
     outdists = []
     for em in emulators:
-        outdists.append(f(dfn=n_valid, dfd=em.n-em.n_mean-2, scale=n_valid))
-    
+        outdists.append(f(dfn=n_valid, dfd=em.n - em.n_mean - 2, scale=n_valid))
+
     if len(outdists) == 1:
         outdists = outdists[1]
-    
+
     return outdists
+
 
 def standard_errors(gp, valid_inputs, valid_targets):
     """Compute standard errors on a validation dataset
-    
+
     Given a fit GP and a set of inputs and targets for validation,
     compute the standard errors (number of standard devations
     between the true and predicted values). Numbers are left
     signed to designate the direction of the discrepancy
     (positive values indicate the emulator predictions are
     larger than the true values).
-    
+
     ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
     object, ``valid_inputs`` must be valid input data to the
     GP/MOGP, and ``valid_targets`` must be valid target data of
     the appropraite shape for the GP/MOGP.
-    
+
     Returns a numpy array. If a GP is provided, shape will be
     ``(n_valid,)``, while if a MOGP is provided, shape
     will be ``(n_emulators, n_valid)``.
-    
+
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object. If the GP/MOGP has not been fit, a
                ``ValueError`` will be raised.
@@ -167,11 +170,12 @@ def standard_errors(gp, valid_inputs, valid_targets):
     """
     mean, cov, _ = gp.predict(valid_inputs)
 
-    return (mean - valid_targets)/np.sqrt(cov)
+    return (mean - valid_targets) / np.sqrt(cov)
+
 
 def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
     """Compute correlated errors on a validation dataset
-    
+
     Given a fit GP and a set of inputs and targets for validation,
     compute the correlated errors (number of standard devations
     between the true and predicted values, conditional on the
@@ -180,16 +184,16 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
     with respect to the largest one. By default, the errors
     are returned to the original ordering of the inputs (note
     that this means the)
-    
+
     ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
     object, ``valid_inputs`` must be valid input data to the
     GP/MOGP, and ``valid_targets`` must be valid target data of
     the appropraite shape for the GP/MOGP.
-    
+
     Returns a numpy array. If a GP is provided, shape will be
     ``(n_valid,)``, while if a MOGP is provided, shape
     will be ``(n_emulators, n_valid)``.
-    
+
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object. If the GP/MOGP has not been fit, a
                ``ValueError`` will be raised.
@@ -218,7 +222,7 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
     :rtype: ndarray
     """
     mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
-    
+
     if isinstance(gp, GaussianProcessBase):
         valid_targets_iter = [valid_targets]
         mean_iter = [mean]
@@ -227,14 +231,15 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
         valid_targets_iter = valid_targets
         mean_iter = mean
         cov_iter = cov
-    
+
     errors = []
 
     for target, meanval, covval in zip(valid_targets_iter, mean_iter, cov_iter):
-        cov_inv, _ = cholesky_factor(covval, 0., "pivot")
+        cov_inv, _ = cholesky_factor(covval, 0.0, "pivot")
         errors.append(cov_inv.solve_L(meanval - target, undo_pivot=undo_pivot))
-    
+
     errors = np.array(errors)
-    errors = np.squeeze(errors, axis=0)
-    
+    if errors.shape[0] == 1:
+        errors = np.squeeze(errors, axis=0)
+
     return errors
