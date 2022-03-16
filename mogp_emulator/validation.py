@@ -75,7 +75,7 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
 
     M = []
 
-    for target, meanval, covval in zip(valid_targets, mean, cov):
+    for target, meanval, covval in zip(valid_targets_iter, mean_iter, cov_iter):
         cov_inv, _ = cholesky_factor(covval, 0.0, "fixed")
         M.append(np.dot(target - meanval, cov_inv.solve(target - meanval)))
 

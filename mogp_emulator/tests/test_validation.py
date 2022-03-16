@@ -116,11 +116,38 @@ def test_pivoted_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
     idx1 = np.array([1, 2, 0])
     idx2 = np.array([2, 0, 1])
     A = np.linalg.cholesky(unc1[idx1][:, idx1])
-    b1 = np.linalg.solve(A, err1[idx1])
-    b2 = np.linalg.solve(A, err2[idx1])
+    b = [np.linalg.solve(A, e[idx1]) for e in [err1, err2]]
 
-    assert_allclose(errors, np.vstack([b1, b2]))
+    assert_allclose(errors, b)
 
     errors = pivoted_errors(gp, valid_inputs, valid_targets_mogp, undo_pivot=True)
 
-    assert_allclose(errors, np.vstack([b1[idx2], b2[idx2]]))
+    assert_allclose(errors, [bval[idx2] for bval in b])
+
+
+def test_mahalanobis_GP(valid_inputs, valid_targets, monkeypatch):
+    "test correlated errors for a MOGP"
+
+    monkeypatch.setattr("mogp_emulator.GaussianProcess.predict", mock_predict)
+
+    gp = GaussianProcess(valid_inputs, valid_targets, nugget=0.0)
+
+    M = mahalanobis(gp, valid_inputs, valid_targets)
+
+    M_expect = np.dot(err1, np.linalg.solve(unc1, err1))
+
+    assert_allclose(M, M_expect)
+
+
+def test_mahalanobis_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
+    "test correlated errors for a MOGP"
+
+    monkeypatch.setattr("mogp_emulator.MultiOutputGP.predict", mock_predict_mogp)
+
+    gp = MultiOutputGP(valid_inputs, valid_targets_mogp, nugget=0.0)
+
+    M = mahalanobis(gp, valid_inputs, valid_targets_mogp)
+
+    M_expect = [np.dot(e, np.linalg.solve(unc1, e)) for e in [err1, err2]]
+
+    assert_allclose(M, M_expect)
