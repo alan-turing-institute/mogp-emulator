@@ -38,6 +38,10 @@ def mock_predict_mogp(
     )
 
 
+def mock_stats(*args, **kwds):
+    return 2.0, 3.0
+
+
 @pytest.fixture
 def valid_inputs():
     return np.reshape(mean1, (-1, 1))
@@ -129,6 +133,9 @@ def test_mahalanobis_GP(valid_inputs, valid_targets, monkeypatch):
     "test correlated errors for a MOGP"
 
     monkeypatch.setattr("mogp_emulator.GaussianProcess.predict", mock_predict)
+    monkeypatch.setattr(
+        "scipy.stats._distn_infrastructure.rv_generic.stats", mock_stats
+    )
 
     gp = GaussianProcess(valid_inputs, valid_targets, nugget=0.0)
 
@@ -138,16 +145,27 @@ def test_mahalanobis_GP(valid_inputs, valid_targets, monkeypatch):
 
     assert_allclose(M, M_expect)
 
+    M = mahalanobis(gp, valid_inputs, valid_targets, scaled=True)
+
+    assert_allclose(M, (M_expect - 2.0) / np.sqrt(3.0))
+
 
 def test_mahalanobis_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
     "test correlated errors for a MOGP"
 
     monkeypatch.setattr("mogp_emulator.MultiOutputGP.predict", mock_predict_mogp)
+    monkeypatch.setattr(
+        "scipy.stats._distn_infrastructure.rv_generic.stats", mock_stats
+    )
 
     gp = MultiOutputGP(valid_inputs, valid_targets_mogp, nugget=0.0)
 
     M = mahalanobis(gp, valid_inputs, valid_targets_mogp)
 
-    M_expect = [np.dot(e, np.linalg.solve(unc1, e)) for e in [err1, err2]]
+    M_expect = np.array([np.dot(e, np.linalg.solve(unc1, e)) for e in [err1, err2]])
 
     assert_allclose(M, M_expect)
+
+    M = mahalanobis(gp, valid_inputs, valid_targets_mogp, scaled=True)
+
+    assert_allclose(M, (M_expect - 2.0) / np.sqrt(3.0))

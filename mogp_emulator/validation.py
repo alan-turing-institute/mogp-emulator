@@ -58,31 +58,35 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     :returns: Mahalanobis distance computed based on the GP
               predictions on the validation data. If a
               multiple outputs are used, then returns a
-              numpy array holding the Mahalanobis distance
-              for each target.
-    :rtype: float or ndarray
+              numpy array of shape ``(n_emulators,)``
+              holding the Mahalanobis distance for each
+              target.
+    :rtype: ndarray
     """
-    mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
 
-    if isinstance(gp, GaussianProcessBase):
-        valid_targets_iter = [valid_targets]
-        mean_iter = [mean]
-        cov_iter = [cov]
-    else:
-        valid_targets_iter = valid_targets
-        mean_iter = mean
-        cov_iter = cov
+    pivot_errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=False)
 
-    M = []
+    M = np.sum(pivot_errors**2, axis=-1)
 
-    for target, meanval, covval in zip(valid_targets_iter, mean_iter, cov_iter):
-        cov_inv, _ = cholesky_factor(covval, 0.0, "fixed")
-        M.append(np.dot(target - meanval, cov_inv.solve(target - meanval)))
+    if scaled:
+        expected_dists = generate_mahal_dist(gp, valid_inputs)
 
-    M = np.array(M)
+        if isinstance(gp, GaussianProcessBase):
+            M_iter = [M]
+            expected_dists_iter = [expected_dists]
+        else:
+            M_iter = M
+            expected_dists_iter = expected_dists
 
-    if M.shape[0] == 1:
-        M = np.squeeze(M, axis=0)
+        M_out = []
+        for M_val, dist in zip(M_iter, expected_dists_iter):
+            mean, var = dist.stats()
+            M_out.append((M_val - mean) / np.sqrt(var))
+
+        M = np.array(M_out)
+
+        if isinstance(gp, GaussianProcessBase):
+            M = M.squeeze(axis=0)
 
     return M
 
@@ -110,19 +114,19 @@ def generate_mahal_dist(gp, valid_inputs):
 
     if isinstance(gp, GaussianProcessBase):
         emulators = [gp]
-    elif isinstance(gp, MultOutputGP):
+        n_valid = len(gp._process_inputs(valid_inputs))
+    elif isinstance(gp, MultiOutputGP):
         emulators = gp.emulators
+        n_valid = len(gp.emulators[0]._process_inputs(valid_inputs))
     else:
         raise TypeError("Provided GP is not a GaussianProcess or MultiOutputGP")
-
-    n_valid = len(gp._process_inputs(valid_inputs))
 
     outdists = []
     for em in emulators:
         outdists.append(f(dfn=n_valid, dfd=em.n - em.n_mean - 2, scale=n_valid))
 
     if len(outdists) == 1:
-        outdists = outdists[1]
+        outdists = outdists[0]
 
     return outdists
 
@@ -168,6 +172,8 @@ def standard_errors(gp, valid_inputs, valid_targets):
               have shape ``(n_emulators, n_valid)``.
     :rtype: ndarray
     """
+    _check_valid_data(gp, valid_inputs, valid_targets)
+
     mean, cov, _ = gp.predict(valid_inputs)
 
     return (mean - valid_targets) / np.sqrt(cov)
@@ -221,6 +227,9 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
               have shape ``(n_emulators, n_valid)``.
     :rtype: ndarray
     """
+
+    _check_valid_data(gp, valid_inputs, valid_targets)
+
     mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
 
     if isinstance(gp, GaussianProcessBase):
@@ -239,7 +248,30 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
         errors.append(cov_inv.solve_L(meanval - target, undo_pivot=undo_pivot))
 
     errors = np.array(errors)
-    if errors.shape[0] == 1:
+    if isinstance(gp, GaussianProcessBase):
         errors = np.squeeze(errors, axis=0)
 
     return errors
+
+
+def _check_valid_data(gp, valid_inputs, valid_targets):
+    "Perform some checks on the validation data"
+
+    assert isinstance(
+        gp, (GaussianProcessBase, MultiOutputGP)
+    ), "Must provide a GP to validate"
+
+    valid_targets = np.array(valid_targets)
+
+    if isinstance(gp, GaussianProcessBase):
+        valid_inputs = gp._process_inputs(valid_inputs)
+        assert valid_targets.ndim == 1, "Targets for a GP must be a 1D array"
+        assert (
+            valid_targets.shape[0] == valid_inputs.shape[0]
+        ), "Bad length for validation targets"
+    else:
+        valid_inputs = gp.emulators[0]._process_inputs(valid_inputs)
+        assert valid_targets.ndim == 2, "Targets for a MultiOutputGP must be a 2D array"
+        assert (
+            valid_targets.shape[1] == valid_inputs.shape[0]
+        ), "Bad shape for validation targets"
