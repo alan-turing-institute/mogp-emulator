@@ -132,27 +132,21 @@ class ChoInvPivot(ChoInv):
             except (IndexError, ValueError):
                 raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
 
-    def solve_L(self, b, undo_pivot=False):
+    def solve_L(self, b):
         """Solve a Linear System with one component of the Pivoted Cholesky
         Decomposition
 
         Solve a system :math:`{Lx = b}` where the matrix :math:`L` is
         the factorized matrix found using the `pivot_cholesky` function.
-        Can also solve a system which has been factorized using the regular
-        Cholesky decomposition routine if `P` is the set of integers from
-        0 to the length of the linear system. If desired, the routine can
-        rearrange the order of the RHS based on the pivoting order that
-        was used, and then rearranges back to the original ordering of the
-        RHS when returning the array. This behavior is controlled by
-        the ``undo_pivot`` option, which is by default set to false.
+        Can also solve a system which has been factorized using the regular Cholesky decomposition routine if
+        `P` is the set of integers from 0 to the length of the linear system.
+        The routine rearranges the order of the RHS based on the pivoting
+        order that was used, and then rearranges back to the original
+        ordering of the RHS when returning the array.
 
         :param b: Right hand side to be solved. Can be any array that
                   satisfies the rules of the scipy `cho_solve` routine.
         :type b: ndarray
-        :param undo_pivot: Flag indicating if the resulting solution
-                           should be returned with the pivoting undone.
-                           Optional, default is ``False``
-        :type undo_pivot: bool
         :returns: Solution to the appropriate linear system as a ndarray.
         :rtype: ndarray
         """
@@ -166,13 +160,9 @@ class ChoInvPivot(ChoInv):
             return b / self.L[0, 0]
         else:
             try:
-                if undo_pivot:
-                    P2 = _pivot_transpose(self.P)
-                else:
-                    P2 = np.arange(0, self.L.shape[0])
-                return solve_triangular(self.L, b[self.P], lower=True)[P2]
+                return solve_triangular(self.L, b[self.P], lower=True)
             except (IndexError, ValueError):
-                raise ValueError("Bad values for pivot matrix in Pivoted Cholesky solve")
+                raise ValueError("Bad values for pivot matrix in pivot_cho_solve")
 
 
 def cholesky_factor(A, nugget, nugget_type):

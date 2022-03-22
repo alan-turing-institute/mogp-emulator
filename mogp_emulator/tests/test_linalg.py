@@ -68,10 +68,6 @@ def test_ChoInvPivot(A, b):
     prod = np.dot(b, np.linalg.solve(A, b))
     prod_pivot = np.dot(x_pivot, x_pivot)
     
-    x_pivot = Ainv.solve_L(b, undo_pivot=True)
-    
-    assert_allclose(x[Ainv.P], x_pivot)
-    
     assert_allclose(prod, prod_pivot)
 
     with pytest.raises(AssertionError):
