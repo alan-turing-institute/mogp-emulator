@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_equal
 import pytest
 from ..GaussianProcess import GaussianProcess, PredictResult
 from ..MultiOutputGP import MultiOutputGP
@@ -66,7 +66,10 @@ def test_standard_errors_GP(valid_inputs, valid_targets, monkeypatch):
 
     errors = standard_errors(gp, valid_inputs, valid_targets)
 
-    assert_allclose(errors, err1 / np.sqrt(np.diag(unc1)))
+    idx1 = np.array([1, 2, 0])
+
+    assert_allclose(errors[0], err1[idx1] / np.sqrt(np.diag(unc1)[idx1]))
+    assert_equal(errors[1], idx1)
 
 
 def test_standard_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
@@ -78,13 +81,15 @@ def test_standard_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
 
     errors = standard_errors(gp, valid_inputs, valid_targets_mogp)
 
-    assert_allclose(
-        errors,
-        [
-            err1 / np.sqrt(np.diag(unc1)),
-            err2 / np.sqrt(np.diag(unc1)),
-        ],
-    )
+    idx1 = np.array([1, 2, 0])
+    errors_expect = [
+        err1[idx1] / np.sqrt(np.diag(unc1))[idx1],
+        err2[idx1] / np.sqrt(np.diag(unc1))[idx1],
+    ]
+
+    for e, e_expect in zip(errors, errors_expect):
+        assert_allclose(e[0], e_expect)
+        assert_equal(e[1], idx1)
 
 
 def test_pivoted_errors_GP(valid_inputs, valid_targets, monkeypatch):
@@ -94,18 +99,14 @@ def test_pivoted_errors_GP(valid_inputs, valid_targets, monkeypatch):
 
     gp = GaussianProcess(valid_inputs, valid_targets, nugget=0.0)
 
-    errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=False)
+    errors = pivoted_errors(gp, valid_inputs, valid_targets)
 
     idx1 = np.array([1, 2, 0])
-    idx2 = np.array([2, 0, 1])
     A = np.linalg.cholesky(unc1[idx1][:, idx1])
     b = np.linalg.solve(A, err1[idx1])
 
-    assert_allclose(errors, b)
-
-    errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True)
-
-    assert_allclose(errors, b[idx2])
+    assert_allclose(errors[0], b)
+    assert_equal(errors[1], idx1)
 
 
 def test_pivoted_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
@@ -115,18 +116,15 @@ def test_pivoted_errors_MOGP(valid_inputs, valid_targets_mogp, monkeypatch):
 
     gp = MultiOutputGP(valid_inputs, valid_targets_mogp, nugget=0.0)
 
-    errors = pivoted_errors(gp, valid_inputs, valid_targets_mogp, undo_pivot=False)
+    errors = pivoted_errors(gp, valid_inputs, valid_targets_mogp)
 
     idx1 = np.array([1, 2, 0])
-    idx2 = np.array([2, 0, 1])
     A = np.linalg.cholesky(unc1[idx1][:, idx1])
     b = [np.linalg.solve(A, e[idx1]) for e in [err1, err2]]
 
-    assert_allclose(errors, b)
-
-    errors = pivoted_errors(gp, valid_inputs, valid_targets_mogp, undo_pivot=True)
-
-    assert_allclose(errors, [bval[idx2] for bval in b])
+    for e, bval in zip(errors, b):
+        assert_allclose(e[0], bval)
+        assert_equal(e[1], idx1)
 
 
 def test_mahalanobis_GP(valid_inputs, valid_targets, monkeypatch):

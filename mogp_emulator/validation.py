@@ -64,9 +64,14 @@ def mahalanobis(gp, valid_inputs, valid_targets, scaled=False):
     :rtype: ndarray
     """
 
-    pivot_errors = pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=False)
+    pivot_errors = pivoted_errors(gp, valid_inputs, valid_targets)
 
-    M = np.sum(pivot_errors**2, axis=-1)
+    if isinstance(gp, GaussianProcessBase):
+        errors = pivot_errors[0]
+    else:
+        errors = np.array([err[0] for err in pivot_errors])
+
+    M = np.sum(errors**2, axis=-1)
 
     if scaled:
         expected_dists = generate_mahal_dist(gp, valid_inputs)
@@ -126,9 +131,111 @@ def generate_mahal_dist(gp, valid_inputs):
         outdists.append(f(dfn=n_valid, dfd=em.n - em.n_mean - 2, scale=n_valid))
 
     if len(outdists) == 1:
-        outdists = outdists[0]
+        return outdists[0]
+    else:
+        return outdists
 
-    return outdists
+
+def compute_errors(gp, valid_inputs, valid_targets, method):
+    """General pattern for computing GP validation errors
+
+    Implements the general pattern of computing errors. User
+    must provide a GP to be validated, the validation inputs,
+    and the validation targets. Additionally, a class
+    must be provided in the ``method`` argument that contains
+    the information needed to compute the ordering of the
+    errors and the errors themselves. This class must derive
+    from the ``Errors`` class and provide the following: it
+    must have a boolean class attribute ``full_cov`` that
+    determines if the full covariance or the variances are
+    needed to compute the error, and a ``__call__`` method
+    that accepts three arguments (the target values, the
+    mean predicted value, and the variance/covariance of the
+    predictions). This function must return a tuple containing
+    two numpy arrays: the first contains the error values and
+    the second containing the integer indices that indicate
+    ordering the validation errors. See the provided classes
+    ``StandardErrors`` and ``PivotErrors`` for examples.
+
+    Alternatively, this function can be called using any
+    of the following strings for the method argument
+    (all strings will be transformed to lower case):
+    ``'standard'``, ``standarderrors``, ``'pivot'``,
+    ``'pivoterrors``, or the ``StandardErrors`` or
+    ``PivotErrors`` classes.
+
+    See also the convenience functions implementing
+    standard and pivoted errors.
+
+    ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
+    object, ``valid_inputs`` must be valid input data to the
+    GP/MOGP, and ``valid_targets`` must be valid target data of
+    the appropraite shape for the GP/MOGP.
+
+    Returns a tuple (GP) or a list of tuples (MOGP). Each tuple
+    applies to a single output and contains two 1D numpy arrays.
+    The first array holds the errors, and the second holds
+    integer indices indicating the order of the errors (to
+    unscramble the inputs, index the inputs using this array of
+    integers).
+
+    :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
+               object. If the GP/MOGP has not been fit, a
+               ``ValueError`` will be raised.
+    :type gp: ``GaussianProcess`` or ``MultiOutputGP``
+    :param valid_inputs: Input points at which the GP will
+                         be validated. Must correspond to
+                         the appropriate inputs to the
+                         provided GP.
+    :type valid_inputs: ndarray
+    :param valid_targets: Target points at which the GP will
+                          be validated. Must correspond to
+                          the appropriate target shape for
+                          the provided GP.
+    :type valid_targets: ndarray
+    :param method: Class implementing the error computation
+                   method (see above) or a string indicating
+                   the method of computing the errors.
+    :type method:
+    :returns: A tuple holding two 1D numpy arrays of length
+              ``n_valid`` or a list of such tuples. The
+              first array holds the correlated errors. The
+              second array holds the integer index values that
+              indicate the ordering of the errors. If a
+              ``GaussianProcess`` is provided, a single tuple
+              will be returned, while if a ``MultiOutputGP``
+              is provided, the return value will be a list
+              of length ``n_emulators``.
+    :rtype: tuple or list of tuples
+    """
+
+    if isinstance(method, str):
+        if method.lower in ["standard", "standarderrors"]:
+            methodclass = StandardErrors()
+        elif method.lower in ["pivot", "pivoterrors"]:
+            methodclass = PivotErrors()
+        else:
+            raise ValueError("Bad value for error method in compute_errors")
+    else:
+        methodclass = method
+
+    assert issubclass(type(methodclass), Errors), "method must be a subclass of Errors"
+
+    _check_valid_data(gp, valid_inputs, valid_targets)
+
+    pred_iter = _create_iterable_preds(
+        gp, valid_inputs, valid_targets, full_cov=methodclass.full_cov
+    )
+
+    errors = []
+
+    for target, meanval, covval in pred_iter:
+        errors.append(methodclass(target, meanval, covval))
+
+    if isinstance(gp, GaussianProcessBase):
+        return errors[0]
+    else:
+        return errors
 
 
 def standard_errors(gp, valid_inputs, valid_targets):
@@ -141,14 +248,23 @@ def standard_errors(gp, valid_inputs, valid_targets):
     (positive values indicate the emulator predictions are
     larger than the true values).
 
+    The standard errors are re-ordered based on the size
+    of the predictive variance. This is done to be
+    consistent with the interface for the pivoted errors.
+    This can also be useful as a heuristic to indicate where
+    the emulator predictions are most uncertain.
+
     ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
     object, ``valid_inputs`` must be valid input data to the
     GP/MOGP, and ``valid_targets`` must be valid target data of
     the appropraite shape for the GP/MOGP.
 
-    Returns a numpy array. If a GP is provided, shape will be
-    ``(n_valid,)``, while if a MOGP is provided, shape
-    will be ``(n_emulators, n_valid)``.
+    Returns a tuple (GP) or a list of tuples (MOGP). Each tuple
+    applies to a single output and contains two 1D numpy arrays.
+    The first array holds the errors, and the second holds
+    integer indices indicating the order of the errors (to
+    unscramble the inputs, index the inputs using this array of
+    integers).
 
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object. If the GP/MOGP has not been fit, a
@@ -164,22 +280,21 @@ def standard_errors(gp, valid_inputs, valid_targets):
                           the appropriate target shape for
                           the provided GP.
     :type valid_targets: ndarray
-    :returns: Numpy array holding the standard errors. If a
-              ``GaussianProcess`` is provided, the result
-              will have shape ``(n_valid,)`` where ``n_valid``
-              is the length of the validation data. If a
-              ``MultiOutputGP`` is provided, the result will
-              have shape ``(n_emulators, n_valid)``.
-    :rtype: ndarray
+    :returns: A tuple holding two 1D numpy arrays of length
+              ``n_valid`` or a list of such tuples. The
+              first array holds the correlated errors. The
+              second array holds the integer index values that
+              indicate the ordering of the errors. If a
+              ``GaussianProcess`` is provided, a single tuple
+              will be returned, while if a ``MultiOutputGP``
+              is provided, the return value will be a list
+              of length ``n_emulators``.
+    :rtype: tuple or list of tuples
     """
-    _check_valid_data(gp, valid_inputs, valid_targets)
-
-    mean, cov, _ = gp.predict(valid_inputs)
-
-    return (mean - valid_targets) / np.sqrt(cov)
+    return compute_errors(gp, valid_inputs, valid_targets, method=StandardErrors())
 
 
-def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
+def pivoted_errors(gp, valid_inputs, valid_targets):
     """Compute correlated errors on a validation dataset
 
     Given a fit GP and a set of inputs and targets for validation,
@@ -187,18 +302,24 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
     between the true and predicted values, conditional on the
     errors in decreasing order). Note that because the errors are
     conditional, order matters and thus the errors are treated
-    with respect to the largest one. By default, the errors
-    are returned to the original ordering of the inputs (note
-    that this means the)
+    with respect to the largest one. The routine returns both
+    the correlated errors and the index ordering of the validation
+    points (if a ``GaussianProcess`` is provided) or a list of
+    tuples containing the errors and indices indicating the
+    ordering of the errors for each target (if a ``MultiOutputGP``
+    is provided).
 
     ``gp`` must be a fit ``GaussianProcess`` or ``MultiOutputGP``
     object, ``valid_inputs`` must be valid input data to the
     GP/MOGP, and ``valid_targets`` must be valid target data of
     the appropraite shape for the GP/MOGP.
 
-    Returns a numpy array. If a GP is provided, shape will be
-    ``(n_valid,)``, while if a MOGP is provided, shape
-    will be ``(n_emulators, n_valid)``.
+    Returns a tuple (GP) or a list of tuples (MOGP). Each tuple
+    applies to a single output and contains two 1D numpy arrays.
+    The first array holds the errors, and the second holds
+    integer indices indicating the order of the errors (to
+    unscramble the inputs, index the inputs using this array of
+    integers).
 
     :param gp: A fit ``GaussianProcess`` or ``MultiOutputGP``
                object. If the GP/MOGP has not been fit, a
@@ -214,23 +335,59 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
                           the appropriate target shape for
                           the provided GP.
     :type valid_targets: ndarray
-    :param undo_pivot: Flag indicating if the ordering of
-                       the errors should be returned to the
-                       original ordering. Optional, default
-                       is ``True``.
-    :type undo_pivot: bool
-    :returns: Numpy array holding the standard errors. If a
-              ``GaussianProcess`` is provided, the result
-              will have shape ``(n_valid,)`` where ``n_valid``
-              is the length of the validation data. If a
-              ``MultiOutputGP`` is provided, the result will
-              have shape ``(n_emulators, n_valid)``.
-    :rtype: ndarray
+    :returns: Tuples holding two 1D numpy arrays of length
+              ``n_valid`` or a list of such tuples. The
+              first array holds the correlated errors. The
+              second array holds the integer index values that
+              indicate the ordering of the errors. If a
+              ``GaussianProcess`` is provided, a single tuple
+              will be returned, while if a ``MultiOutputGP``
+              is provided, the return value will be a list
+              of length ``n_emulators``.
+    :rtype: tuple or list of tuples
     """
+
+    return compute_errors(gp, valid_inputs, valid_targets, method=PivotErrors())
+
+
+class Errors(object):
+    full_cov = False
+
+    def __call__(self, target, mean, cov):
+        "compute ordering array and errors"
+        raise NotImplementedError
+
+
+class StandardErrors(Errors):
+    full_cov = False
+
+    def __call__(self, target, mean, cov):
+        "compute ordering array and standard errors"
+
+        P = np.argsort(cov)[::-1]
+        error = ((mean - target) / np.sqrt(cov))[P]
+
+        return error, P
+
+
+class PivotErrors(Errors):
+    full_cov = True
+
+    def __call__(self, target, mean, cov):
+        "compute ordering array and standard errors"
+
+        cov_inv, _ = cholesky_factor(cov, 0.0, "pivot")
+        error = cov_inv.solve_L(mean - target)
+
+        return error, cov_inv.P
+
+
+def _create_iterable_preds(gp, valid_inputs, valid_targets, full_cov=False):
+    "Ensure that predictions and targets can be iterated over"
 
     _check_valid_data(gp, valid_inputs, valid_targets)
 
-    mean, cov, _ = gp.predict(valid_inputs, full_cov=True)
+    mean, cov, _ = gp.predict(valid_inputs, full_cov=full_cov)
 
     if isinstance(gp, GaussianProcessBase):
         valid_targets_iter = [valid_targets]
@@ -241,17 +398,7 @@ def pivoted_errors(gp, valid_inputs, valid_targets, undo_pivot=True):
         mean_iter = mean
         cov_iter = cov
 
-    errors = []
-
-    for target, meanval, covval in zip(valid_targets_iter, mean_iter, cov_iter):
-        cov_inv, _ = cholesky_factor(covval, 0.0, "pivot")
-        errors.append(cov_inv.solve_L(meanval - target, undo_pivot=undo_pivot))
-
-    errors = np.array(errors)
-    if isinstance(gp, GaussianProcessBase):
-        errors = np.squeeze(errors, axis=0)
-
-    return errors
+    return zip(valid_targets_iter, mean_iter, cov_iter)
 
 
 def _check_valid_data(gp, valid_inputs, valid_targets):
