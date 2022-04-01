@@ -138,7 +138,7 @@ def test_MultiOutputGP_GPU_predict(x, y, dx):
     "test the predict method of GaussianProcess"
 
     gp = MultiOutputGP_GPU(x, y, nugget=0.)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_params[0])
 
     gp.fit_emulator(0,theta)
     gp.fit_emulator(1,theta)
@@ -160,7 +160,7 @@ def test_MultiOutputGP_GPU_predict(x, y, dx):
 
     nugget = 1.
     gp = MultiOutputGP_GPU(x, y, nugget=nugget)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_params[0])
 
     gp.fit_emulator(0,theta)
     gp.fit_emulator(1,theta)
@@ -228,7 +228,7 @@ def test_MultiOutputGP_GPU_check(x, y):
     """
 
     gp = MultiOutputGP_GPU(x, y, nugget=0.)
-    theta = np.ones(gp.n_params)
+    theta = np.ones(gp.n_params[0])
 
     assert gp.get_indices_fit() == []
     assert gp.get_indices_not_fit() == [0, 1]
