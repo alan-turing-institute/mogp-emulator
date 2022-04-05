@@ -258,10 +258,20 @@ class GPParams(object):
     
     def __init__(self, n_mean=0, n_corr=1, nugget="fit"):
         r"""
-        Create a new parameters object, optionally holding a set of parameter values
-        If no data provided, data will be ``None`` to distingush GPs that have not
-        yet been fit from those that have. Note that if n_mean is zero, mean_data
-        will be ignored even if an array is provided.
+        Create a new empy parameters object. Must specify a number of
+        mean parameters, correlation parameters, and nugget type.
+        
+        :param n_mean: Number of mean parameters, must be a non-negative
+                       integer. Optional, default is ``0``.
+        :type n_mean: int
+        :param n_corr: Number of correlation lengths. Must be a positive
+                       integer. Optional, default is ``1``.
+        :type n_corr: int
+        :param nugget: Method for handling nugget. Must be a string,
+                       ``"fit"``, ``"fixed"``, ``"pivot"``, or
+                       ``"adaptive"``. Optional, default is ``"fit"``.
+        :type nugget: str
+        :returns: New instance of ``GPParams``
         """
         assert n_mean >= 0, "Number of mean parameters must be nonnegative"
         self.n_mean = n_mean
@@ -280,10 +290,13 @@ class GPParams(object):
         self._data = None
         
     @property
-    def n_data(self):
+    def n_params(self):
         r"""
         Number of fitting parameters stored in data array
         
+        This is the number of correlation lengths plus one
+        (for the covariance) and optionally an additional
+        parameter if the nugget is fit.
         """
         return self.n_corr + 1 + int(self.nugget_type == "fit")
         
@@ -492,7 +505,7 @@ class GPParams(object):
             self._data = None
         else:
             new_params = np.array(new_params)
-            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_data)
+            assert self.same_shape(new_params), "Bad shape for new data; expected {} parameters".format(self.n_params)
             self._data = np.copy(new_params)
         self.mean = None
         if self.nugget_type == "adaptive":
@@ -522,7 +535,7 @@ class GPParams(object):
         """
         
         if isinstance(other, np.ndarray):
-            return other.shape == (self.n_data,)
+            return other.shape == (self.n_params,)
         elif isinstance(other, GPParams):
             return (self.n_mean == other.n_mean and
                     self.n_corr == other.n_corr and

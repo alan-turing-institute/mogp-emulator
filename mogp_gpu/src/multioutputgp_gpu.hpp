@@ -92,18 +92,21 @@ public:
         return emulators.size();
     }
 
-    int n_data_params(void) const
+
+    std::vector<unsigned int> n_data_params(void) const
     {   
-        if (emulators.size() > 0)
-            return emulators[0]->get_theta().get_n_data();
-        return 0;
+        std::vector<unsigned int> n_params;
+        for (unsigned int i=0; i< emulators.size(); ++i) 
+            n_params.push_back(emulators[i]->get_theta().get_n_data());
+        return n_params;
     }
 
     int n_corr_params(void) const
     {   
-        if (emulators.size() > 0)
-            return emulators[0]->get_theta().get_n_corr();
-        return 0;
+        std::vector<unsigned int> n_params;
+        for (unsigned int i=0; i< emulators.size(); ++i) 
+            n_params.push_back(emulators[i]->get_theta().get_n_corr());
+        return n_params;
     }
 
     inline nugget_type get_nugget_type(void) const { return nug_type;}

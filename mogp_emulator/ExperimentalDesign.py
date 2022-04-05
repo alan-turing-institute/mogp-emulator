@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.stats
+from scipy.spatial.distance import pdist
 from inspect import signature
 
 class ExperimentalDesign(object):
@@ -235,13 +236,13 @@ class ExperimentalDesign(object):
         """
         raise NotImplementedError
     
-    def sample(self, n_samples):
+    def sample(self, n_samples, **kwargs):
         """
         Draw parameter samples from the experimental design
         
         This method implements drawing parameter samples from the experimental design. The method does
         this by calling the ``_draw_samples`` method to obtain samples from the :math:`[0,1]^n` hypercube,
-        where :math:`n` is the number of parameters. The ``sample``method then transforms these samples
+        where :math:`n` is the number of parameters. The ``sample`` method then transforms these samples
         drawn from the low level method to the actual parameter values using the PPF functions provided
         when initilizing the object. Note that this method also checks that all parameter values are
         finite; if any ``NaN`` values are returned, an error will be raised.
@@ -249,6 +250,9 @@ class ExperimentalDesign(object):
         Note that by implementing the sampling in this way, modifications to the method to draw samples
         using a different protocol only needs to change the ``_draw_samples`` method. This makes it
         simpler to define new designs, as only a single method needs to be altered.
+        
+        Also accepts a ``kwargs`` argument to allow other derived classes to implement additional
+        keyword arguments.
         
         :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
         :type n_samples: int
@@ -261,16 +265,13 @@ class ExperimentalDesign(object):
         assert n_samples > 0, "number of samples must be positive"
         
         sample_values = np.zeros((n_samples, self.get_n_parameters()))
-        random_draws = self._draw_samples(n_samples)
+        random_draws = self._draw_samples(n_samples, **kwargs)
         
         assert np.all(random_draws >= 0.) and np.all(random_draws <= 1.), "error in generating random samples"
         
         for (dist, index) in zip(self.distributions, range(self.get_n_parameters())):
-            try:
-                sample_values[:,index] = dist(random_draws[:,index])
-            except:
-                for sample_index in range(n_samples):
-                    sample_values[sample_index, index] = dist(random_draws[sample_index,index])
+            for sample_index in range(n_samples):
+                sample_values[sample_index, index] = dist(random_draws[sample_index,index])
         
         assert np.all(np.isfinite(sample_values)), "error due to non-finite values of parameters"
         
@@ -406,7 +407,7 @@ class MonteCarloDesign(ExperimentalDesign):
         self.method = "Monte Carlo"
         super().__init__(*args)
         
-    def _draw_samples(self, n_samples):
+    def _draw_samples(self, n_samples, **kwargs):
         """
         Low level method for drawing random samples from a Monte Carlo design
         
@@ -546,7 +547,7 @@ class LatinHypercubeDesign(ExperimentalDesign):
         self.method = "Latin Hypercube"
         super().__init__(*args)
     
-    def _draw_samples(self, n_samples):
+    def _draw_samples(self, n_samples, **kwargs):
         """
         Low level method for drawing random samples from a Latin Hypercube design
         
@@ -560,7 +561,7 @@ class LatinHypercubeDesign(ExperimentalDesign):
         
         :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
         :type n_samples: int
-        :returns: Random Monte Carlo samples drawn from the :math:`[0,1]^n` hypercube as a numpy
+        :returns: Random samples drawn from the :math:`[0,1]^n` hypercube as a numpy
                   array with shape ``(n_samples, n_parameters)``
         :rtype: ndarray
         """
@@ -581,3 +582,93 @@ class LatinHypercubeDesign(ExperimentalDesign):
         assert np.all(random_samples >= 0.) and np.all(random_samples <= 1.), "error in generating latin hypercube samples"
         
         return random_samples
+        
+class MaxiMinLHC(LatinHypercubeDesign):
+    def __init__(self, *args):
+        """
+        Class representing a one-shot design of experiments with uncorrelated parameters using
+        MaxiMin Latin Hypercube Sampling
+
+        This class provides an implementation for a class for designing experiments to sample
+        the parameter space of a complex model using MaxiMin Latin Hypercube sampling. MaxiMin
+        LHCs repeatedly draw samples from the base LHC design, keeping the realization that
+        maximizes the minimum pairwise distance between all design points. Because of this,
+        MaxiMin designs tend to spread their samples closer to the edge of the parameter
+        space and in many cases result in more accurate sampling than a single LHC draw.
+
+        The parameter space can be specified in a variety of ways, but essentially the user must
+        provide a Probability Point Function (PPF, or inverse of the Cumulative Distribution Function)
+        for each input parameter. Each PPF function takes a single numeric input and maps from
+        the interval :math:`[0,1]` to the desired parameter distribution value for a given parameter,
+        and each parameter has a separate function describing its distribution. Note that this makes
+        the assumption of no correlations between any of the parameter values (a future version may
+        implement an experimental design where there are such parameter correlations). Once the
+        design is initialized, a desired number of samples can be drawn from the design, returning
+        an array holding the desired number of samples from the parameter space.
+
+        Internally, the class holds the set of PPFs for all of the parameter values, and samples are
+        drawn by calling the ``sample`` method. To draw the samples, the ``_draw_samples`` is used
+        to generate a series of points in the :math:`[0,1]^n` hypercube using MaxiMin Latin Hypercube
+        sampling, where :math:`n` is the number of paramters. This set of samples from the Latin
+        Hypercube is then mapped to the parameter space using the given PPF functions.
+
+        Unlike Monte Carlo sampling, Latin Hypercube designs attempt to sample more uniformly from the
+        parameter space. Latin Hypercube sampling ensures that each sample is drawn from a different
+        part of the space for each parameter. For example, if four samples are drawn, then for each
+        parameter, one sample is guaranteed to be drawn from each quartile of the distribution. This
+        ensures a more uniform sampling when compared on Monte Carlo sampling, but requires slightly
+        more computation to generate the samples. Note however, that for very large numbers of parameters,
+        Latin Hypercubes still may not sample very efficiently. This is due to the fact that the size of
+        the parameter space grows exponentially with the number of dimensions, so a fixed number of
+        samples will sample the space more poorly as the number of parameters increases.
+        """
+        self.method = "MaxiMinLHC"
+        super().__init__(*args)
+
+    def _draw_samples(self, n_samples, n_tries=1000, **kwargs):
+        """
+        Sampling method for MaxiMin LHCs
+
+        Iterates over multiple LHCs and return the one that maximizes the
+        minimum distance between pairs of points. The number of iterations
+        over which to look for this MaxiMin critera can be specified by
+        ``n_tries``.
+
+        Distances are computed by ``scipy.spatial.distance.pdist``. Any
+        additional ``kwargs`` passed here will be sent on to the ``pdist``
+        function.
+
+        :param n_samples: Number of samples to be drawn from the design (must be a positive integer)
+        :type n_samples: int
+        :param n_tries: Number of LHC realizations to use in maximizing
+                        the MaxiMin criteria
+        :type n_tries: int
+        :param **kwargs: Keyword arguments to be passed to the
+                         ``scipy.spatial.distance.pdist`` function.
+        :returns: Random Monte Carlo samples drawn from the :math:`[0,1]^n` hypercube as a numpy
+                  array with shape ``(n_samples, n_parameters)``
+        :rtype: ndarray
+        """
+
+        n_samples = int(n_samples)
+        assert n_samples > 0, "number of samples must be positive"
+        assert n_tries > 0, "n_tries must be a positive integer"
+        n_tries = int(n_tries)
+
+        n_parameters = self.get_n_parameters()
+
+        best_samples = np.empty((n_samples, n_parameters))
+        max_dist = -np.inf
+
+        for i in range(n_tries):
+            random_samples = super()._draw_samples(n_samples)
+            min_dist = np.min(pdist(random_samples, **kwargs))
+            if min_dist > max_dist:
+                max_dist = min_dist
+                best_samples = random_samples
+
+        assert np.all(best_samples >= 0.0) and np.all(
+            best_samples <= 1.0
+        ), "error in generating latin hypercube samples"
+
+        return best_samples

@@ -299,32 +299,19 @@ class GaussianProcess(GaussianProcessBase):
     def n_params(self):
         """Returns number of hyperparameters
 
-        Returns the number of hyperparameters for the emulator. The
-        number depends on the choice of mean function, covariance
-        function, and nugget strategy, and possibly the number of
-        inputs depending on the mean and covariance functions.
-        Note that this differs from n_data, which is the size
-        of array that can be used to set the parameters
+        Returns the number of fitting hyperparameters for the
+        emulator. The number depends on the choice of covariance
+        function, nugget strategy, and possibly the number of
+        inputs depending on the covariance function. Note that
+        this does not include the mean function, which is fit
+        analytically.
 
         :returns: Number of hyperparameters
         :rtype: int
 
         """
 
-        return self.n_mean + self.n_corr + 1 + int(self.has_nugget)
-
-    @property
-    def n_data(self):
-        """Returns number of data elements
-
-        This is the size of the numpy array that can be used to set
-        the parameters. Note that setting this with an array will
-        automatically fit the emulator and set any additional
-        parameters not specified by this array (such as nugget
-        values when appropriate, and mean or covariance parameters
-        that are fit analytically).
-        """
-        return self.theta.n_data
+        return self.theta.n_params
 
     @property
     def has_nugget(self):
@@ -479,7 +466,6 @@ class GaussianProcess(GaussianProcessBase):
         when fitting if the new priors change the way the underlying
         parameters are found.
         """
-
         if newpriors is None:
             self._priors = GPPriors.default_priors(self.inputs, self.n_corr, self.nugget_type)
         elif isinstance(newpriors, GPPriors):
@@ -516,7 +502,7 @@ class GaussianProcess(GaussianProcessBase):
             dm = np.ones((inputs.shape[0], 1))
         else:
             try:
-                dm = dmatrix(self._mean, data={"x": inputs.T})
+                dm = np.array(dmatrix(self._mean, data={"x": inputs.T}))
             except PatsyError:
                 raise ValueError("Provided mean function is invalid")
             if not dm.shape[0] == inputs.shape[0]:
@@ -584,7 +570,7 @@ class GaussianProcess(GaussianProcessBase):
         Performs a check on the provided new values for the
         hyperparameters. Can accept either a ``GPParams``
         object or a numpy array (which should be a 1D array
-        of length ``n_data``). Will raise an ``AssertionError``
+        of length ``n_params``). Will raise an ``AssertionError``
         if the conditions are not met.
         
         :param newtheta: New value of parameters to check. Must
@@ -671,6 +657,8 @@ class GaussianProcess(GaussianProcessBase):
         
         self.theta.mean = calc_mean_params(self.Ainv, self.Kinv_t,
                                            self._dm, self.priors.mean)
+                                           
+        self.Kinv_t_mean = self.Kinv.solve(self.targets - np.dot(self._dm, self.theta.mean))
 
         if self.priors.mean.has_weak_priors:
             n_coeff = self.n - self.n_mean
@@ -739,7 +727,7 @@ class GaussianProcess(GaussianProcessBase):
         if self._refit(theta):
             self.fit(theta)
 
-        partials = np.zeros(self.n_data)
+        partials = np.zeros(self.n_params)
 
         dKdtheta = self.theta.cov*self.kernel.kernel_deriv(self.inputs, self.inputs,
                                                            self.theta.corr_raw)
@@ -887,7 +875,7 @@ class GaussianProcess(GaussianProcessBase):
         mtest = np.dot(dmtest, self.theta.mean)
         Ktest = self.get_cov_matrix(testing)
 
-        mu = mtest + np.dot(Ktest.T, self.Kinv_t)
+        mu = mtest + np.dot(Ktest.T, self.Kinv_t_mean)
 
         var = None
         if unc:

@@ -154,7 +154,7 @@ public:
 
     int get_n_params(void) const
     {
-        return get_n_kernel_params() + meanfunc->get_n_params();
+        return D + 1 + int(nug_type == NUG_FIT);
     }
 
     GPParams get_theta(void) const
@@ -869,6 +869,8 @@ public:
 
         gptheta.set_nugget_type(nugtype_);
         gptheta.set_nugget_size(nugsize_);
+        // resize current_theta vector
+        current_theta.resize(meanfunc->get_n_params() + get_n_params(),1);
     }
 
 };

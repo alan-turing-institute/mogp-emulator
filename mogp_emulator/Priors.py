@@ -325,7 +325,7 @@ class GPPriors(object):
         Takes a ``GPParams`` object, this method computes the
         derivative of the log probability of all of the
         sub-distributions with respect to the raw hyperparameter
-        values. Returns a numpy array of length ``n_data`` (the number
+        values. Returns a numpy array of length ``n_params`` (the number
         of fitting parameters in the ``GPParams`` object).
         
         :param theta: Hyperparameter values at which the log prior 
@@ -334,7 +334,7 @@ class GPPriors(object):
                       this ``GPPriors`` object.
         :type theta: GPParams
         :returns: Gradient of the log probability. Length will be
-                  the value of ``n_data`` of the ``GPParams``
+                  the value of ``n_params`` of the ``GPParams``
                   object.
         :rtype: ndarray
         """
@@ -361,7 +361,7 @@ class GPPriors(object):
         Takes a ``GPParams`` object, this method computes the
         second derivative of the log probability of all of the
         sub-distributions with respect to the raw hyperparameter
-        values. Returns a numpy array of length ``n_data`` (the number
+        values. Returns a numpy array of length ``n_params`` (the number
         of fitting parameters in the ``GPParams`` object).
         
         :param theta: Hyperparameter values at which the log prior 
@@ -370,7 +370,7 @@ class GPPriors(object):
                       this ``GPPriors`` object.
         :type theta: GPParams
         :returns: Hessian of the log probability. Length will be
-                  the value of ``n_data`` of the ``GPParams``
+                  the value of ``n_params`` of the ``GPParams``
                   object. (Note that since all mixed partials
                   are zero, this returns the diagonal
                   of the Hessian as an array)
@@ -401,7 +401,7 @@ class GPPriors(object):
         
         :returns: Random draw from each distribution, transformed to the
                   raw hyperparameter values. Will be a numpy array
-                  with length ``n_data`` of the associated ``GPParams``
+                  with length ``n_params`` of the associated ``GPParams``
                   object.
         """
         

@@ -8,7 +8,7 @@ import numpy as np
 
 # version information
 MAJOR = 0
-MINOR = 6
+MINOR = 7
 MICRO = 0
 PRERELEASE = 3
 ISRELEASED = False

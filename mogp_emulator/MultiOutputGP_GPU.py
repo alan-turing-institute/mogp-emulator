@@ -5,11 +5,13 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
+
 from mogp_emulator.GaussianProcessGPU import (
     GaussianProcessGPU, 
     parse_meanfunc_formula,
     get_prior_params
 )
+from mogp_emulator.MultiOutputGP import MultiOutputGPBase
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import SquaredExponential, Matern52
 from mogp_emulator.Priors import (
@@ -22,7 +24,7 @@ from mogp_emulator.Priors import (
 from mogp_emulator import LibGPGPU
 
 
-class MultiOutputGP_GPU(object):
+class MultiOutputGP_GPU(MultiOutputGPBase):
     """Implementation of a multiple-output Gaussian Process Emulator, using the GPU.
 
     Essentially a parallelized wrapper for the predict method. To fit
@@ -163,6 +165,8 @@ class MultiOutputGP_GPU(object):
     @property
     def nugget(self):
         return self._mogp_gpu.get_nugget_size()
+    def n_params(self):
+        return self._mogp_gpu.n_data_params()
 
     @property
     def n_emulators(self):

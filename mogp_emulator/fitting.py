@@ -173,7 +173,8 @@ def fit_GP_MAP(*args, n_tries=15, theta0=None, method="L-BFGS-B",
             except AssertionError:
                 raise ValueError("Bad values for *args in fit_GP_MAP")
     if isinstance(gp, GaussianProcessBase):
-        if gp.theta.get_data() is None:
+        if (isinstance(gp, GaussianProcess) and gp.theta.get_data() is None) or \
+            (isinstance(gp, GaussianProcessGPU) and gp.theta is None):
             raise RuntimeError("GP fitting failed")
     else:
         if len(gp.get_indices_not_fit()) > 0:
@@ -236,7 +237,7 @@ def _fit_single_GP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs)
     for i in range(n_tries):
         if i == 0 and not theta0 is None:
             theta = np.array(theta0)
-            assert theta.shape == (gp.n_data,), "theta0 must be a 1D array with length n_data"
+            assert theta.shape == (gp.n_params,), "theta0 must be a 1D array with length n_params"
         else:
             theta = gp.priors.sample()
         try:

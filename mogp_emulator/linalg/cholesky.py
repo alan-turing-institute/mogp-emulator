@@ -266,3 +266,6 @@ def _pivot_transpose(P):
         return np.array([np.where(P == idx)[0][0] for idx in range(len(P))], dtype=np.int32)
     except IndexError:
         raise ValueError("Bad values for pivot matrix input to pivot_transpose")
+
+
+
