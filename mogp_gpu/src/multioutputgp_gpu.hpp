@@ -101,7 +101,7 @@ public:
         return n_params;
     }
 
-    int n_corr_params(void) const
+    std::vector<unsigned int> n_corr_params(void) const
     {   
         std::vector<unsigned int> n_params;
         for (unsigned int i=0; i< emulators.size(); ++i) 
