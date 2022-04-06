@@ -133,7 +133,7 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
         Assign a prior to each emulator.  If an entry is None, create default prior.
         """
         for i in range(self.n_emulators):
-            prior_params = get_prior_params(priorslist[i], self.inputs, self.n_corr, nugget_type)
+            prior_params = get_prior_params(priorslist[i], self.inputs, self.n_corr[i], nugget_type)
             self._mogp_gpu.create_priors_for_emulator(
                 i,
                 prior_params["n_corr"],
@@ -165,6 +165,8 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
     @property
     def nugget(self):
         return self._mogp_gpu.get_nugget_size()
+
+    @property
     def n_params(self):
         return self._mogp_gpu.n_data_params()
 
