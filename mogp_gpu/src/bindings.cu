@@ -573,7 +573,9 @@ likelihood of the hyperparameters, from the current state of the emulator.)
                "dot product of inverse covariance matrix with mean")
           .def("logdet_cov", &MeanPriors::logdet_cov,
                "log of the determinant of the covariance")
-          .def("set_prior_dists", &MeanPriors::set_prior_dists,
+          .def("set_prior_dists", py::overload_cast<>(&MeanPriors::set_prior_dists),
+               "specify default distribution for meanfunc priors")
+          .def("set_prior_dists", py::overload_cast<prior_type, std::vector<REAL>>(&MeanPriors::set_prior_dists),
                "specify the distribution for meanfunc priors")
           .def("sample", &MeanPriors::sample,
                "sample from the meanfunc prior distributions");

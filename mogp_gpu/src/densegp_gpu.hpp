@@ -211,15 +211,17 @@ public:
         priors = gppriors_;
     }
 
-    void create_gppriors(int n_corr_, 
-                         prior_type ptype_corr_, REAL corr_p1_, REAL corr_p2_,
-                         prior_type ptype_cov_, REAL cov_p1_, REAL cov_p2_,
-                         prior_type ptype_nug_, REAL nug_p1_, REAL nug_p2_)
+    void create_gppriors(int n_corr,
+                         std::vector< std::pair< prior_type, std::vector<REAL> > > corr_params,
+                         std::pair<prior_type, std::vector<REAL> > cov_params,
+                         std::pair<prior_type, std::vector<REAL> > nug_params)
+//                         prior_type ptype_cov_, REAL cov_p1_, REAL cov_p2_,
+  //                       prior_type ptype_nug_, REAL nug_p1_, REAL nug_p2_)
     {
-        priors = new GPPriors(n_corr_, nug_type=get_nugget_type());
-        priors->create_corr_priors(ptype_corr_, corr_p1_, corr_p2_);
-        priors->create_cov_prior(ptype_cov_, cov_p1_, cov_p2_);
-        priors->set_nugget(ptype_nug_, nug_p1_, nug_p2_);
+        priors = new GPPriors(n_corr, nug_type=get_nugget_type());
+        priors->create_corr_priors(corr_params);
+        priors->create_cov_prior(cov_params);
+        priors->set_nugget(nug_params);
         // default MeanPrior if required
         if (gptheta.get_n_mean() > 0) {
             int n_mean = gptheta.get_n_mean();

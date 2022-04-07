@@ -61,6 +61,7 @@ void test_invgamma_prior() {
    // WeakPrior wp = gamp.default_prior(1.,5.);
 }
 
+/*
 void test_spacings() {
     vec x(5);
     x << 1., 4., 3., 6., 3.;
@@ -72,7 +73,7 @@ void test_spacings() {
     assert(max_spacing(x2) == 6.1);
     assert(abs(median_spacing(x2)-0.8)<0.0001);
 }
-
+*/
 
 void test_isinstance() {
     LogNormalPrior lnp(2.,2.);

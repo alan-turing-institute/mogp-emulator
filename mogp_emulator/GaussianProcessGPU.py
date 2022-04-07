@@ -171,7 +171,8 @@ def get_prior_params(newpriors, inputs, n_corr, nugget_type):
     # now return parameters needed to create corresponding C++ objects
     prior_dict = {}
     prior_dict["n_corr"] = n_corr
-    for prefix, prior in [("corr",priors.corr[0]),("cov",priors.cov),("nug",priors.nugget)]:        
+    corr_priors = [(f"corr{i}", priors.corr[i]) for i in range(n_corr)]
+    for prefix, prior in [*corr_priors,("cov",priors.cov),("nug",priors.nugget)]:        
         if isinstance(prior, InvGammaPrior):
             prior_dict[prefix+"_dist"] = LibGPGPU.prior_type.InvGamma
             prior_dict[prefix+"_p1"]  = prior.shape

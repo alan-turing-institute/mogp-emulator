@@ -121,15 +121,14 @@ public:
 
     void create_priors_for_emulator(unsigned int emulator_index,
                                     int n_corr,
-                                    prior_type corr_dist, REAL corr_p1, REAL corr_p2,
-                                    prior_type cov_dist, REAL cov_p1, REAL cov_p2,
-                                    prior_type nug_dist, REAL nug_p1, REAL nug_p2)
+                                    std::vector< std::pair< prior_type, std::vector<REAL> > > corr_params,
+                                    std::pair<prior_type, std::vector<REAL> > cov_params,
+                                    std::pair<prior_type, std::vector<REAL> > nug_params)
+                                   
     {   
         if (emulators.size() <= emulator_index)
             throw std::runtime_error("Invalid emulator index for setting priors");
-        emulators[emulator_index]->create_gppriors(n_corr, corr_dist, corr_p1, corr_p2, 
-                                                  cov_dist, cov_p1, cov_p2,
-                                                  nug_dist, nug_p1, nug_p2);
+        emulators[emulator_index]->create_gppriors(n_corr, corr_params, cov_params, nug_params);
     }
 
     std::vector<unsigned int> get_fitted_indices(void) const
