@@ -140,7 +140,7 @@ def interpret_nugget(nugget):
     # return info needed to set the nugget on the C++ object
     return nugget_type, nugget_size
 
-def create_prior_params(newpriors, inputs, n_corr, nugget_type):
+def create_prior_params(**kwargs):
     """
     Extract the parameters needed for the C++ DenseGP_GPU instance to 
     create its GPPriors object.
@@ -162,16 +162,22 @@ def create_prior_params(newpriors, inputs, n_corr, nugget_type):
              (nug_prior_dist, [nug_prior_params])]
     :rtype: list
     """
-    if newpriors is None:
-        priors = GPPriors.default_priors(inputs, n_corr, nugget_type)
-    elif isinstance(newpriors, GPPriors):
-        priors = newpriors
+    # if we are not given priors object, make default priors given the supplied args
+    if all(x in kwargs.keys() for x in ["inputs", "n_corr", "nugget_type"]):
+        priors = GPPriors.default_priors(kwargs["inputs"], kwargs["n_corr"], kwargs["nugget_type"])
+    elif "newpriors" in kwargs.keys():
+        if isinstance(newpriors, GPPriors):
+            priors = newpriors
+        else:
+            try:
+                priors = GPPriors(**newpriors)
+            except TypeError:
+                raise TypeError("Provided arguments for priors are not valid inputs " +
+                                "for a GPPriors object.")
     else:
-        try:
-            priors = GPPriors(**newpriors)
-        except TypeError:
-            raise TypeError("Provided arguments for priors are not valid inputs " +
-                            "for a GPPriors object.")
+        raise TypeError("Unrecognized keyword arguments for create_prior_params " +
+                        " - should be 'newpriors' or ('inputs','n_corr','nugget_type')")
+
     def get_prior_params(prior):
         """
         for a WeakPrior-derived object, return a tuple (prior_type,[prior_params])
@@ -190,7 +196,7 @@ def create_prior_params(newpriors, inputs, n_corr, nugget_type):
         else:
             raise TypeError("Unknown prior type {} for C++/GPU implementation".format(type(prior)))
 
-    prior_params = [n_corr]
+    prior_params = [priors.n_corr]
     prior_params.append([get_prior_params(prior) for prior in priors.corr])
     prior_params.append(get_prior_params(priors.cov))
     prior_params.append(get_prior_params(priors.nugget))
@@ -198,7 +204,6 @@ def create_prior_params(newpriors, inputs, n_corr, nugget_type):
 
 
 class GaussianProcessGPU(GaussianProcessBase):
-
     """
     This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
@@ -315,7 +320,12 @@ class GaussianProcessGPU(GaussianProcessBase):
         :param newpriors(optional): Priors object to use (otherwise will use default)
         :type newpriors: GPPriors object, or dict
         """
-        prior_params = create_prior_params(newpriors, self.inputs, self.n_corr, self.nugget_type)
+        if newpriors:
+            prior_params = create_prior_params(newpriors=newpriors)
+        else:
+            prior_params = create_prior_params(
+                inputs=self.inputs, n_corr=self.n_corr, nugget_type=self.nugget_type
+            )
         self._densegp_gpu.create_gppriors(
             *prior_params
         )         
