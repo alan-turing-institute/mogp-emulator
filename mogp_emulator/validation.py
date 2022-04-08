@@ -1,8 +1,7 @@
 import numpy as np
 from mogp_emulator.GaussianProcess import GaussianProcessBase
-from mogp_emulator.MultiOutputGP import MultiOutputGP
+from mogp_emulator.MultiOutputGP import MultiOutputGPBase
 from mogp_emulator.linalg import cholesky_factor
-from mogp_emulator.linalg.cholesky import _pivot_transpose
 from scipy.stats import f
 
 
@@ -119,12 +118,12 @@ def generate_mahal_dist(gp, valid_inputs):
 
     if isinstance(gp, GaussianProcessBase):
         emulators = [gp]
-        n_valid = len(gp._process_inputs(valid_inputs))
-    elif isinstance(gp, MultiOutputGP):
+    elif isinstance(gp, MultiOutputGPBase):
         emulators = gp.emulators
-        n_valid = len(gp.emulators[0]._process_inputs(valid_inputs))
     else:
         raise TypeError("Provided GP is not a GaussianProcess or MultiOutputGP")
+        
+    n_valid = len(gp._process_inputs(valid_inputs))
 
     outdists = []
     for em in emulators:
@@ -405,19 +404,18 @@ def _check_valid_data(gp, valid_inputs, valid_targets):
     "Perform some checks on the validation data"
 
     assert isinstance(
-        gp, (GaussianProcessBase, MultiOutputGP)
+        gp, (GaussianProcessBase, MultiOutputGPBase)
     ), "Must provide a GP to validate"
 
+    valid_inputs = gp._process_inputs(valid_inputs)
     valid_targets = np.array(valid_targets)
 
     if isinstance(gp, GaussianProcessBase):
-        valid_inputs = gp._process_inputs(valid_inputs)
         assert valid_targets.ndim == 1, "Targets for a GP must be a 1D array"
         assert (
             valid_targets.shape[0] == valid_inputs.shape[0]
         ), "Bad length for validation targets"
     else:
-        valid_inputs = gp.emulators[0]._process_inputs(valid_inputs)
         assert valid_targets.ndim == 2, "Targets for a MultiOutputGP must be a 2D array"
         assert (
             valid_targets.shape[1] == valid_inputs.shape[0]

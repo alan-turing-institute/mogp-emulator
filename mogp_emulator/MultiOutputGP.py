@@ -179,7 +179,7 @@ class MultiOutputGP(MultiOutputGPBase):
     def _process_inputs(self, inputs):
         "Obtain inputs that are compatible with underlying GPs"
         
-        return gp.emulators[0]._process_inputs(inputs)
+        return self.emulators[0]._process_inputs(inputs)
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,
                 full_cov = False, allow_not_fit=False, processes=None):
