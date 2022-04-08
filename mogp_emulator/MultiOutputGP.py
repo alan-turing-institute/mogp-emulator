@@ -10,7 +10,12 @@ from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 from patsy import ModelDesc
 
-class MultiOutputGP(object):
+class MultiOutputGPBase(object):
+    """Base class for Multi-Output GPs. CPU and GPU versions derive from
+    this class.
+    """
+
+class MultiOutputGP(MultiOutputGPBase):
     """Implementation of a multiple-output Gaussian Process Emulator.
 
     Essentially a parallelized wrapper for the predict method. To fit
@@ -62,9 +67,9 @@ class MultiOutputGP(object):
         if not (inputs.shape[0] == targets.shape[1]):
             raise ValueError("the first dimension of inputs must be the same length as the second dimension of targets (or first if targets is 1D))")
 
-        self.n_emulators = targets.shape[0]
-        self.n = inputs.shape[0]
-        self.D = inputs.shape[1]
+        self._n_emulators = targets.shape[0]
+        self._n = inputs.shape[0]
+        self._D = inputs.shape[1]
 
         if not isinstance(mean, list):
             mean = self.n_emulators*[mean]
@@ -100,6 +105,81 @@ class MultiOutputGP(object):
         self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
+
+    @property
+    def inputs(self):
+        """Full array of emulator inputs
+        
+        Returns input array (2D array of shape
+        ``(n, D)``).
+        
+        :returns: Array of input values
+        :rtype: ndarray
+        """
+        return self.emulators[0].inputs
+
+    @property
+    def targets(self):
+        """Full array of emulator targets
+        
+        Returns target array (2D array of shape
+        ``(n_emulators, n)``).
+        
+        :returns: Array of target values
+        :rtype: ndarray
+        """
+        targetlist = []
+        for em in self.emulators:
+            targetlist.append(em.targets)
+        return np.array(targetlist)
+
+    @property
+    def D(self):
+        """Number of Dimensions in inputs
+        
+        Returns number of dimentions of the input data
+        
+        :returns: Number of dimentions of inputs
+        :rtype: int
+        """
+        return self._D
+
+    @property
+    def n(self):
+        """Number of training examples in inputs
+        
+        Returns length of training data.
+        
+        :returns: Length of training inputs
+        :rtype: int
+        """
+        return self._n
+
+    @property
+    def n_params(self):
+        """Returns the number of parameters for all emulators
+        as a list of integers
+        
+        :returns: Number of parameters for each emulator
+                  as a list of integers
+        :rtype: list
+        """
+        return [em.n_params for em in self.emulators]
+
+    @property
+    def n_emulators(self):
+        return self._n_emulators
+
+    def reset_fit_status(self):
+        """Reset the fit status of all emulators
+        """
+        for em in self.emulators:
+            em.theta = None
+            
+    def _process_inputs(self, inputs):
+        "Obtain inputs that are compatible with underlying GPs"
+        
+        return gp.emulators[0]._process_inputs(inputs)
 
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,
                 allow_not_fit=False, processes=None):
@@ -237,6 +317,36 @@ class MultiOutputGP(object):
         """
 
         return self.predict(testing, unc=False, deriv=False, processes=processes)[0]
+
+    def fit(self, thetas):
+        """
+        Fit all emulators
+        
+        Fit all emulators given an 2D array of hyperparameter values
+        (if all emulators have the same number of parameters) or
+        an iterable containing 1D numpy arrays (if the emulators
+        have a variable number of hyperparameter values).
+        
+        Note that this routine does not run in parallel for the CPU
+        version.
+        
+        :param thetas: hyperparameters for all emulators. 2D array
+                       or iterable containing 1D numpy arrays, must
+                       have first dimension of size ``n_emulators``
+        :type thetas: np.array or iterable
+        """
+        for thetaval, em in zip(thetas, self.emulators):
+            em.fit(thetaval)
+
+    def fit_emulator(self, index, theta):
+        """
+        Fit a specific emulator
+        :param index: index of emulator whose hyperparameters we will set 
+        :type index: int
+        :param theta: hyperparameters for all emulators. 1D array of length n_param 
+        :type theta: np.array
+        """
+        self.emulators[index].fit(theta)
 
 
     def get_indices_fit(self):
