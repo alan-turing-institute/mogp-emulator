@@ -122,7 +122,7 @@ def generate_mahal_dist(gp, valid_inputs):
         emulators = gp.emulators
     else:
         raise TypeError("Provided GP is not a GaussianProcess or MultiOutputGP")
-        
+
     n_valid = len(gp._process_inputs(valid_inputs))
 
     outdists = []
@@ -350,6 +350,10 @@ def pivoted_errors(gp, valid_inputs, valid_targets):
 
 
 class Errors(object):
+    """
+    Base class implementing a method for computing errors
+    """
+
     full_cov = False
 
     def __call__(self, target, mean, cov):
@@ -358,10 +362,37 @@ class Errors(object):
 
 
 class StandardErrors(Errors):
+    """
+    Class implementing standard errors
+
+    This class implements the required functionality for computing
+    standard errors. This includes setting the class attribute
+    ``full_cov=False`` and implementing the ``__call__`` method
+    to compute the standard errors and their ordering given target
+    values and predicted mean/variance
+    """
+
     full_cov = False
 
     def __call__(self, target, mean, cov):
-        "compute ordering array and standard errors"
+        """
+        Compute standard errors and ordering array
+
+        Returns the standard errors (in decreasing order) and the
+        index ordering of the errors.
+
+        :param target: Validation target values as a 1D numpy array
+        :type target: ndarray
+        :param mean: Predicted mean values as a 1D numpy array
+        :type mean: ndarray
+        :param cov: Predicted variance values as a 1D numpy array
+        :type cov: ndarray
+        :returns: Tuple containing two 1D numpy arrays. The first
+                  is the standard errors sorted in descending
+                  order, the second is the integer indices
+                  indicating this ordering.
+        :rtype: tuple
+        """
 
         P = np.argsort(cov)[::-1]
         error = ((mean - target) / np.sqrt(cov))[P]
@@ -370,10 +401,39 @@ class StandardErrors(Errors):
 
 
 class PivotErrors(Errors):
+    """
+    Class implementing pivoted errors
+
+    This class implements the required functionality for computing
+    pivoted errors. This includes setting the class attribute
+    ``full_cov=True`` and implementing the ``__call__`` method
+    to compute the pivoted errors and their ordering given target
+    values and predicted mean/variance
+    """
+
     full_cov = True
 
     def __call__(self, target, mean, cov):
-        "compute ordering array and standard errors"
+        """
+        Compute correlated (pivoted) errors and ordering array
+
+        Returns the correlated pivoted errors (sorted in order
+        of decreasing variance conditional on all previous
+        errors) and the indices indicating this ordering.
+
+        :param target: Validation target values as a 1D numpy array
+        :type target: ndarray
+        :param mean: Predicted mean values as a 1D numpy array
+        :type mean: ndarray
+        :param cov: Predicted covariance values as a 2D numpy array
+        :type cov: ndarray
+        :returns: Tuple containing two 1D numpy arrays. The first
+                  is the correlated errors sorted in descending
+                  order conditional on the previous errors, the
+                  second is the integer indices indicating this
+                  ordering.
+        :rtype: tuple
+        """
 
         cov_inv, _ = cholesky_factor(cov, 0.0, "pivot")
         error = cov_inv.solve_L(mean - target)
