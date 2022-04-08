@@ -140,7 +140,7 @@ def interpret_nugget(nugget):
     # return info needed to set the nugget on the C++ object
     return nugget_type, nugget_size
 
-def get_prior_params(newpriors, inputs, n_corr, nugget_type):
+def create_prior_params(newpriors, inputs, n_corr, nugget_type):
     """
     Extract the parameters needed for the C++ DenseGP_GPU instance to 
     create its GPPriors object.
@@ -155,8 +155,12 @@ def get_prior_params(newpriors, inputs, n_corr, nugget_type):
     :param nugget_type: whether nugget is adaptive, fit, or fixed
     "type nugget_type: LibGPGPU.nugget_type
 
-    :returns: dict of values needed to call the C++ constructor
-    :rtype: dict
+    :returns: list of values needed to call the C++ constructor
+            [n_corr,
+             [(corr_i_prior_dist, [corr_i_prior_params])],
+             (cov_prior_dist, [cov_prior_params])
+             (nug_prior_dist, [nug_prior_params])]
+    :rtype: list
     """
     if newpriors is None:
         priors = GPPriors.default_priors(inputs, n_corr, nugget_type)
@@ -168,32 +172,30 @@ def get_prior_params(newpriors, inputs, n_corr, nugget_type):
         except TypeError:
             raise TypeError("Provided arguments for priors are not valid inputs " +
                             "for a GPPriors object.")
-    # now return parameters needed to create corresponding C++ objects
-    prior_dict = {}
-    prior_dict["n_corr"] = n_corr
-    corr_priors = [(f"corr{i}", priors.corr[i]) for i in range(n_corr)]
-    for prefix, prior in [*corr_priors,("cov",priors.cov),("nug",priors.nugget)]:        
-        if isinstance(prior, InvGammaPrior):
-            prior_dict[prefix+"_dist"] = LibGPGPU.prior_type.InvGamma
-            prior_dict[prefix+"_p1"]  = prior.shape
-            prior_dict[prefix+"_p2"] = prior.scale
-        elif isinstance(prior, GammaPrior):
-            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Gamma
-            prior_dict[prefix+"_p1"]  = prior.shape
-            prior_dict[prefix+"_p2"]  = prior.scale
-        elif isinstance(prior, LogNormalPrior):
-            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.LogNormal
-            prior_dict[prefix+"_p1"]  = prior.shape
-            prior_dict[prefix+"_p2"]  = prior.scale
+    def get_prior_params(prior):
+        """
+        for a WeakPrior-derived object, return a tuple (prior_type,[prior_params])
+        """
+        type_dict = {"InvGammaPrior" : LibGPGPU.prior_type.InvGamma,
+                     "GammaPrior" : LibGPGPU.prior_type.Gamma,
+                     "LogNormalPrior" : LibGPGPU.prior_type.LogNormal
+                }
+        prior_as_str = type(prior).__name__
+        if prior_as_str in type_dict.keys():
+            return (type_dict[prior_as_str], [prior.shape, prior.scale])
         elif (isinstance(prior, WeakPrior) \
             and not isinstance(prior, PriorDist)) \
-                or prior == None:
-            prior_dict[prefix+"_dist"]  = LibGPGPU.prior_type.Weak
-            prior_dict[prefix+"_p1"]  = 0.
-            prior_dict[prefix+"_p2"]  = 0.
+            or prior == None:
+            return (LibGPGPU.prior_type.Weak, [0.,0.])
         else:
             raise TypeError("Unknown prior type {} for C++/GPU implementation".format(type(prior)))
-    return prior_dict
+
+    prior_params = [n_corr]
+    prior_params.append([get_prior_params(prior) for prior in priors.corr])
+    prior_params.append(get_prior_params(priors.cov))
+    prior_params.append(get_prior_params(priors.nugget))
+    return prior_params
+
 
 class GaussianProcessGPU(GaussianProcessBase):
 
@@ -313,15 +315,10 @@ class GaussianProcessGPU(GaussianProcessBase):
         :param newpriors(optional): Priors object to use (otherwise will use default)
         :type newpriors: GPPriors object, or dict
         """
-        prior_params = get_prior_params(newpriors, self.inputs, self.n_corr, self.nugget_type)
+        prior_params = create_prior_params(newpriors, self.inputs, self.n_corr, self.nugget_type)
         self._densegp_gpu.create_gppriors(
-            prior_params["n_corr"],
-            prior_params["corr_dist"],prior_params["corr_p1"],prior_params["corr_p2"],
-            prior_params["cov_dist"],prior_params["cov_p1"],prior_params["cov_p2"],
-            prior_params["nug_dist"],prior_params["nug_p1"],prior_params["nug_p2"],
-        )
-
-                                          
+            *prior_params
+        )         
 
     @property 
     def priors(self):

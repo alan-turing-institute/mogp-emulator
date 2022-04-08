@@ -9,7 +9,7 @@ from mogp_emulator.GaussianProcess import (
 from mogp_emulator.GaussianProcessGPU import (
     GaussianProcessGPU, 
     parse_meanfunc_formula,
-    get_prior_params
+    create_prior_params
 )
 from mogp_emulator.MultiOutputGP import MultiOutputGPBase
 from mogp_emulator.MeanFunction import MeanBase
@@ -133,13 +133,9 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
         Assign a prior to each emulator.  If an entry is None, create default prior.
         """
         for i in range(self.n_emulators):
-            prior_params = get_prior_params(priorslist[i], self.inputs, self.n_corr[i], nugget_type)
+            prior_params = create_prior_params(priorslist[i], self.inputs, self.n_corr[i], nugget_type)
             self._mogp_gpu.create_priors_for_emulator(
-                i,
-                prior_params["n_corr"],
-                prior_params["corr_dist"],prior_params["corr_p1"],prior_params["corr_p2"],
-                prior_params["cov_dist"],prior_params["cov_p1"],prior_params["cov_p2"],
-                prior_params["nug_dist"],prior_params["nug_p1"],prior_params["nug_p2"],
+                *prior_params
             )
 
     @property

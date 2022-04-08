@@ -232,17 +232,23 @@ public:
 
     inline bool has_weak_priors() const { return mean.size() == 0; }
 
-    void set_prior_dists(prior_type ptype=WEAK, REAL param_1=0., REAL param_2=0.) {
+    void set_prior_dists() {
+        // overload function with dummy arguments
+        std::vector<REAL> vec;
+        set_prior_dists(WEAK, vec);
+    }
+
+    void set_prior_dists(prior_type ptype, std::vector<REAL> priorparams) {
         
         prior_dists.clear();
         for (int i=0; i< get_n_params(); ++i ) {
             
-            if (ptype == INVGAMMA) {
-                prior_dists.push_back(new InvGammaPrior(param_1, param_2)); // shape and scale
-            } else if (ptype == GAMMA) {
-                prior_dists.push_back(new GammaPrior(param_1, param_2)); // shape and scale
-            } else if (ptype == LOGNORMAL) {
-                prior_dists.push_back(new LogNormalPrior(param_1, param_2)); // shape and scale
+            if (ptype == INVGAMMA && priorparams.size()==2) {
+                prior_dists.push_back(new InvGammaPrior(priorparams[0],priorparams[1])); // shape and scale
+            } else if (ptype == GAMMA && priorparams.size()==2) {
+                prior_dists.push_back(new GammaPrior(priorparams[0],priorparams[1])); // shape and scale
+            } else if (ptype == LOGNORMAL && priorparams.size()==2) {
+                prior_dists.push_back(new LogNormalPrior(priorparams[0],priorparams[1])); // shape and scale
             } else {
                 prior_dists.push_back(new WeakPrior());
             }
@@ -351,9 +357,9 @@ public:
         }
     }
 
-    void set_nugget(prior_type ptype, REAL param_1, REAL param_2) {
+    void set_nugget(std::pair< prior_type, std::vector<REAL> > params_) {
         if (nug_type == NUG_FIT) {
-            WeakPrior* wp = make_prior(ptype, param_1, param_2);
+            WeakPrior* wp = make_prior(params_.first, params_.second);
             set_nugget(wp);
         }
     }
@@ -435,14 +441,14 @@ public:
         return samples;
     }
 
-    WeakPrior* make_prior(prior_type ptype, REAL param_1, REAL param_2) { 
+    WeakPrior* make_prior(prior_type ptype, std::vector<REAL> priorparams) { 
 
-        if (ptype == INVGAMMA) {
-            return new InvGammaPrior(param_1, param_2); // shape and scale
-        } else if (ptype == GAMMA) {
-            return new GammaPrior(param_1, param_2); // shape and scale
-        } else if (ptype == LOGNORMAL) {
-            return new LogNormalPrior(param_1, param_2); // shape and scale
+        if (ptype == INVGAMMA && priorparams.size()==2) {
+            return new InvGammaPrior(priorparams[0], priorparams[1]); // shape and scale
+        } else if (ptype == GAMMA && priorparams.size()==2) {
+            return new GammaPrior(priorparams[0], priorparams[1]); // shape and scale
+        } else if (ptype == LOGNORMAL && priorparams.size()==2) {
+            return new LogNormalPrior(priorparams[0], priorparams[1]); // shape and scale
         } else if (ptype == WEAK) {
             return new WeakPrior();
         } else {
@@ -451,15 +457,21 @@ public:
         }
     }
 
-    void create_corr_priors(prior_type ptype, REAL param_1, REAL param_2) {
-        for (int i=0; i< n_corr; ++i) {
-            WeakPrior* new_prior = make_prior(ptype, param_1, param_2);
+    void create_corr_priors(std::vector< std::pair< prior_type, std::vector<REAL> > > all_params) {
+        for (int i=0; i< all_params.size(); ++i) {
+            prior_type ptype = all_params[i].first;
+            std::vector<REAL> priorparams = all_params[i].second;
+            WeakPrior* new_prior = make_prior(ptype, priorparams);
             corr_priors.push_back(new_prior);
         }
     }
 
-    void create_cov_prior(prior_type ptype, REAL param_1, REAL param_2) {
-       cov_prior = make_prior(ptype, param_1, param_2);
+    void create_cov_prior(std::pair< prior_type, std::vector<REAL> > params_) {
+       cov_prior = make_prior(params_.first, params_.second);
+    }
+
+    void create_nug_prior(std::pair< prior_type, std::vector<REAL> > params_) {
+       nug_prior = make_prior(params_.first, params_.second);
     }
 
 private:
