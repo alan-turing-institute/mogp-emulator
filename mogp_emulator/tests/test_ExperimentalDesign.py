@@ -4,7 +4,12 @@ import scipy.stats
 import pytest
 from inspect import signature
 import types
-from ..ExperimentalDesign import ExperimentalDesign, MonteCarloDesign, LatinHypercubeDesign
+from ..ExperimentalDesign import (
+    ExperimentalDesign,
+    MonteCarloDesign,
+    LatinHypercubeDesign,
+    MaxiMinLHC,
+)
 
 def test_ExperimentalDesign_init():
     "test the init method of ExperimentalDesign"
@@ -238,3 +243,61 @@ def test_LatinHypercubeDesign_sample():
                                 [3.8539110146362914, 0.186886121478102 ],
                                 [0.3690344832370781, 1.1036076298948434]])
     assert_allclose(sample, sample_expected)
+
+def test_MaxiMinLHC(monkeypatch):
+    "test the MaxiMin version of an LHC"
+
+    class MockLHCSample:
+        def __init__(self):
+            self.i = 0
+
+        def __call__(self, n_samples):
+            if self.i == 0:
+                self.i = 1
+                return np.array([[0.3], [0.7]])
+            elif self.i == 1:
+                self.i = 2
+                return np.array([[0.25], [0.75]])
+            else:
+                return np.array([[0.0], [1.0]])
+
+    def reset_lhc_draw_samples():
+        monkeypatch.setattr(
+            "mogp_emulator.ExperimentalDesign.LatinHypercubeDesign._draw_samples",
+            MockLHCSample(),
+        )
+
+    reset_lhc_draw_samples()
+
+    ed = MaxiMinLHC(1)
+    sample = ed._draw_samples(2, n_tries=1)
+    assert_allclose(sample, np.array([[0.3], [0.7]]))
+
+    reset_lhc_draw_samples()
+
+    ed = MaxiMinLHC(1)
+    sample = ed._draw_samples(2, n_tries=2)
+    assert_allclose(sample, np.array([[0.25], [0.75]]))
+
+    reset_lhc_draw_samples()
+
+    ed = MaxiMinLHC(1)
+    sample = ed._draw_samples(2, n_tries=3)
+    assert_allclose(sample, np.array([[0.0], [1.0]]))
+
+    reset_lhc_draw_samples()
+
+    ed = MaxiMinLHC(1)
+    sample = ed._draw_samples(2)
+    assert_allclose(sample, np.array([[0.0], [1.0]]))
+
+    with pytest.raises(AssertionError):
+        ed = MaxiMinLHC(1)
+        sample = ed._draw_samples(-1)
+
+    with pytest.raises(AssertionError):
+        ed = MaxiMinLHC(1)
+        sample = ed._draw_samples(1, n_tries=-1)
+
+    ed = MaxiMinLHC(1)
+    sample = ed._draw_samples(1, metric="cityblock")
