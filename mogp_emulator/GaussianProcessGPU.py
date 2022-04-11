@@ -166,6 +166,7 @@ def create_prior_params(**kwargs):
     if all(x in kwargs.keys() for x in ["inputs", "n_corr", "nugget_type"]):
         priors = GPPriors.default_priors(kwargs["inputs"], kwargs["n_corr"], kwargs["nugget_type"])
     elif "newpriors" in kwargs.keys():
+        newpriors = kwargs["newpriors"]
         if isinstance(newpriors, GPPriors):
             priors = newpriors
         else:
@@ -390,24 +391,6 @@ class GaussianProcessGPU(GaussianProcessBase):
         return self._densegp_gpu.n_corr()
 
     @property
-    def n_data(self):
-        """
-        Returns number of data elements
-
-        This is the size of the numpy array that can be used to set
-        the parameters. Note that setting this with an array will
-        automatically fit the emulator and set any additional
-        parameters not specified by this array (such as nugget
-        values when appropriate, and mean or covariance parameters
-        that are fit analytically).
-
-        :returns: Number of hyperparameters
-        :rtype: int
-        """
-        return self._densegp_gpu.get_theta().get_n_data()
-
-
-    @property
     def n_params(self):
         """
         Returns number of hyperparameters
@@ -568,12 +551,12 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         theta = np.array(theta, copy=False)
 
-        assert theta.shape == (self.theta.get_n_data(),), "bad shape for new parameters"
+        assert theta.shape == (self.n_params,), "bad shape for new parameters"
 
         if self.theta is None or not np.allclose(theta, self.theta.get_data(), rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
-        result = np.zeros(self.theta.get_n_data())
+        result = np.zeros(self.n_params)
         self._densegp_gpu.logpost_deriv(result)
         return result
 
