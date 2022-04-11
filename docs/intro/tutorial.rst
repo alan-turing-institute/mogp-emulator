@@ -58,7 +58,7 @@ the two input parameters of the drag coefficient :math:`C` and the initial veloc
 and returning a single value, which is :math:`x` at the end of the simulation.
 
 .. literalinclude:: ../../mogp_emulator/demos/projectile.py
-   :lines: 1-3,12-43,46-
+   :lines: 1-80
 
 Parameter Space
 ~~~~~~~~~~~~~~~
@@ -133,9 +133,11 @@ GP object but with the parameter values estimated.
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
    :lines: 34-40
 
-While the function is called ``fit_GP_MAP`` (MAP means Maximum A Posteriori),
-in this case we have not provided any prior information on the parameter values,
-so it results in MLE.
+By default, if no priors are specified for the hyperparameters then defaults
+are chosen. In particular, for correlation lengths, default priors are fit
+that attempt to put most of the distribution mass in the range spanned by
+the input data. This tends to stabilize the fitting and improve performance,
+as fewer iterations are needed to ensure a good fit.
 
 Following fitting, we print out some of the hyperparameters that are estimated.
 First, we print out the correlation lengths estimated for each of the input
