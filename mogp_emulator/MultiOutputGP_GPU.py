@@ -118,8 +118,15 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
         return self._mogp_gpu.n()
 
     @property
+    def n_params(self):
+        return self._mogp_gpu.n_data_params()
+
+    @property
     def n_emulators(self):
         return self._mogp_gpu.n_emulators()
+
+    def reset_fit_status(self):
+        self._mogp_gpu.reset_fit_status()
 
     def predict(self, testing, unc=True, deriv=True, include_nugget=True,
                 allow_not_fit=False, processes=None):
@@ -221,7 +228,7 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
         if unc: 
             self._mogp_gpu.predict_variance_batch(testing, means, uncs)
         else:
-            self._mogp_gpu.predict_variance_batch(testing, means)
+            self._mogp_gpu.predict_batch(testing, means)
         if deriv:
             self._mogp_gpu.predict_deriv(testing, derivs)
         # if one or more emulators not fit, fill the appropriate
