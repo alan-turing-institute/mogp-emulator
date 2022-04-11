@@ -560,20 +560,13 @@ public:
 		        throw std::runtime_error(smsg.str());
 	        }
             gptheta.set_nugget_size(tmp_nug_size);
-	    // for fixed nugget, add "nugget_size" to the diagonal of the matrix.
-	    } else if (gptheta.get_nugget_type() == NUG_FIXED) {
+	    // for fixed or fitted nugget, add "nugget_size" to the diagonal of the matrix.
+	    } else if ((gptheta.get_nugget_type() == NUG_FIXED) || 
+                    (gptheta.get_nugget_type() == NUG_FIT)) {
 	        add_diagonal(n, gptheta.get_nugget_size(), dev_ptr(work_mat_d));
 	        factorisation_status = calc_cholesky_factors();
 	        if (factorisation_status != 0) {
-                throw std::runtime_error("Unable to factorize matrix using fixed nugget");
-	        }
-
-	    } else if (nug_type == NUG_FIT) {
-
-	        add_diagonal(n, gptheta.get_nugget_size(), dev_ptr(work_mat_d));
-	        factorisation_status = calc_cholesky_factors();
-	        if (factorisation_status != 0) {
-                throw std::runtime_error("Unable to factorize matrix using fitted nugget");
+                throw std::runtime_error("Unable to factorize matrix using selected nugget type");
 	        }
 	    } else throw std::runtime_error("Unrecognized nugget_type");
 
@@ -766,7 +759,6 @@ public:
 	        REAL invQtSq = std::numeric_limits<double>::quiet_NaN();
 	        CUBLASDOT(cublasHandle, n, dev_ptr(invQt_d), 1, dev_ptr(invQt_d), 1,
 		        &invQtSq);
-
 	        // set the last element of result, putting it all together
 	        result(result.size()-1) = 0.5 * nug_size * (tr_invQ - invQtSq);
 	    }
@@ -804,6 +796,8 @@ public:
         , kernel(0)
         , priors(0)
 	    , meanfunc(mean_)
+        , nug_type(nugtype_)
+        , nug_size(nugsize_)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
