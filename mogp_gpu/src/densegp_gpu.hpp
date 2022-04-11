@@ -495,8 +495,8 @@ public:
         if (! gptheta.test_same_shape(params)) 
             throw std::runtime_error("Shape of new GPParams object does not match existing one");
         int switch_index = gptheta.get_n_mean();
-        gptheta.set_mean(params.block(0,0, switch_index, 1));
         gptheta.set_data(params.block(switch_index,0,gptheta.get_n_data(), 1));
+        gptheta.set_mean(params.block(0,0, switch_index, 1));
         if (nug_type == NUG_FIT) {
             // set the nugget size to be the last element of params
             gptheta.set_nugget_size(params[params.size()-1]);
@@ -607,11 +607,6 @@ public:
 
 	    //set the flag to say we have fitted theta
 	    gptheta.set_fitted_ok();
-        // copy mean function params then kernel params into current_theta
-        gptheta.set_mean(meanfunc_params);
-        vec new_data(gptheta.get_n_data());
-        thrust::copy(theta_d.begin(), theta_d.end(), new_data.data());
-        gptheta.set_data(new_data);
         // update the current_logpost
         double logpost;
         CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invQt_d), 1,
