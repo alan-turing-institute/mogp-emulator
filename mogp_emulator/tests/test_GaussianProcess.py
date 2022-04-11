@@ -335,10 +335,8 @@ def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
 
     with pytest.raises(RuntimeError):
         gp.theta = np.ones(gp.n_params + 1)
-
-    switch = gp.theta.get_n_mean()
     
-    theta = np.ones(gp.n_data + switch)
+    theta = np.ones(gp.n_params)
     if nugget == "fit":
         theta[-1] = sn
 
@@ -582,10 +580,10 @@ def test_GaussianProcessGPU_logposterior(x, y):
     # logposterior already tested, but check that parameters are re-fit if changed
     gp = GaussianProcessGPU(x, y, nugget = 0., priors=GPPriors(n_corr=3, nugget_type="fixed"))
 
-    theta = np.ones(gp.n_data)
+    theta = np.ones(gp.n_params)
     gp.fit(theta)
 
-    theta = np.zeros(gp.n_data)
+    theta = np.zeros(gp.n_params)
 
 
     K = np.exp(theta[-2])*gp.kernel.kernel_f(x, x, theta[:-1])
@@ -606,7 +604,7 @@ def test_GaussianProcessGPU_logposterior(x, y):
     # check we can set theta back to none correctly
 
     gp.theta = None
-    assert_allclose(gp.theta.get_data(), np.zeros(gp.n_data)) #GPU implementation resets to zero
+    assert_allclose(gp.theta.get_data(), np.zeros(gp.n_params)) #GPU implementation resets to zero
     assert gp.Kinv_t is None
     assert gp.current_logpost is None
   
@@ -1009,7 +1007,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     gp = GaussianProcessGPU(y, y, nugget=0.)
 
-    gp.fit(np.ones(gp.n_data))
+    gp.fit(np.ones(gp.n_params))
 
     n_predict = 51
     mu, var, deriv = gp.predict(np.linspace(0., 1., n_predict))
@@ -1027,7 +1025,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     # check that the returned PredictResult works correctly
     gp = GaussianProcessGPU(x, y, nugget=0.)
-    theta = np.ones(gp.n_data)
+    theta = np.ones(gp.n_params)
     gp.fit(theta)
     x_test = np.array([[2., 3., 4.]])
 
@@ -1081,7 +1079,7 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
     nugget = 1.e0
 
     gp = GaussianProcessGPU(x, y, nugget=nugget)
-    theta = np.ones(gp.n_data)
+    theta = np.ones(gp.n_params)
     gp.fit(theta)
     preds = gp.predict(x)
 
@@ -1165,7 +1163,7 @@ def test_GaussianProcessGPU_predict_failures(x, y):
     with pytest.raises(ValueError):
         gp.predict(np.array([2., 3., 4.]))
 
-    theta = np.ones(gp.n_data)
+    theta = np.ones(gp.n_params)
     gp.fit(theta)
 
     with pytest.raises(AssertionError):
