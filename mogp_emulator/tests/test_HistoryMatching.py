@@ -4,6 +4,7 @@ import pytest
 from ..HistoryMatching import HistoryMatching
 from ..fitting import fit_GP_MAP
 from ..GaussianProcess import GaussianProcess, PredictResult
+from ..MultiOutputGP import MultiOutputGP
 from ..LibGPGPU import gpu_usable
 from ..GaussianProcessGPU import GaussianProcessGPU
 
@@ -283,7 +284,7 @@ def test_HistoryMatching_init():
     hm = HistoryMatching(gp=gp, obs=1., coords=coords, expectations=None, threshold=5.)
 
     assert hm.gp == gp
-    assert_allclose(hm.obs, [1., 0.])
+    assert_allclose(hm.obs, [[1.], [0.]])
     assert_allclose(hm.coords, coords)
     assert hm.expectations is None
     assert hm.ndim == 1
@@ -300,7 +301,7 @@ def test_HistoryMatching_init():
                          threshold=5.)
 
     assert hm.gp == None
-    assert_allclose(hm.obs, [1., 0.1])
+    assert_allclose(hm.obs, [[1.], [0.1]])
     assert hm.coords == None
     for a in range(3):
         assert_allclose(hm.expectations[a], expectations[a])
@@ -403,6 +404,59 @@ def test_HistoryMatching_get_implausibility():
     with pytest.raises(AssertionError):
         hm.get_implausibility(-1.)
 
+def test_HistoryMatching_get_implausibility_mogp():
+    "Test implausibility with multiple outputs"
+    
+    # correct functionality
+
+    expectations = PredictResult(mean=np.array([[2., 10.], [4., 6.]]), unc=np.array([[0.5, 0.5], [0.5, 0.5]]),
+                                 deriv=None)
+    hm = HistoryMatching(obs=[[1., 5.], 0.5], expectations=expectations)
+    I = hm.get_implausibility()
+
+    assert_allclose(I, [1., 1.])
+    assert_allclose(hm.I, [1., 1.])
+
+    I = hm.get_implausibility(1.)
+
+    assert_allclose(I, [1./np.sqrt(2.), 1./np.sqrt(2.)])
+    assert_allclose(hm.I, [1./np.sqrt(2.), 1./np.sqrt(2.)])
+    
+    I = hm.get_implausibility(np.array([1., 1.]))
+
+    assert_allclose(I, [1./np.sqrt(2.), 1./np.sqrt(2.)])
+    assert_allclose(hm.I, [1./np.sqrt(2.), 1./np.sqrt(2.)])
+
+    np.random.seed(57483)
+    gp = fit_GP_MAP(np.reshape(np.linspace(0., 1.), (-1, 1)), [np.linspace(0., 1.), np.linspace(0., 1.)**2])
+    coords = np.array([[0.1], [1.]])
+    obs = [np.array([1., 5.]), np.array([0.01, 0.01])]
+    mean, unc, _ = gp.predict(coords)
+    I_exp = np.abs(mean - obs[0][:, np.newaxis])/np.sqrt(unc + obs[1][:,np.newaxis])
+    I_exp2 = [np.max(x) for x in I_exp.T]
+
+    hm = HistoryMatching(gp=gp, obs=obs, coords=coords)
+    I = hm.get_implausibility(rank=0)
+
+    assert_allclose(I, I_exp2)
+    assert_allclose(hm.I, I_exp2)
+    
+    np.random.seed(57483)
+    gp = fit_GP_MAP(np.reshape(np.linspace(0., 1.), (-1, 1)), [np.linspace(0., 1.),
+                                                               np.linspace(0., 1.)**2,
+                                                               np.linspace(0., 1.)**3])
+    coords = np.array([[0.1], [1.]])
+    obs = [np.array([1., 5., 4.]), np.array([0.01, 0.01, 0.01])]
+    mean, unc, _ = gp.predict(coords)
+    I_exp = np.abs(mean - obs[0][:, np.newaxis])/np.sqrt(unc + obs[1][:,np.newaxis])
+    I_exp2 = [np.min(x) for x in I_exp.T]
+
+    hm = HistoryMatching(gp=gp, obs=obs, coords=coords)
+    I = hm.get_implausibility(rank=2)
+
+    assert_allclose(I, I_exp2)
+    assert_allclose(hm.I, I_exp2)
+
 def test_HistoryMatching_get_NROY():
     "test the get_NROY method of HistoryMatching"
 
@@ -456,6 +510,14 @@ def test_HistoryMatching_set_gp():
     hm.set_gp(gp)
 
     assert hm.gp == gp
+    
+    gp = MultiOutputGP(np.reshape(np.linspace(0., 1.), (-1, 1)), [np.linspace(0., 1.),
+                                                                  np.linspace(0., 1.)**2])
+    
+    hm = HistoryMatching()
+    hm.set_gp(gp)
+
+    assert hm.gp == gp
 
     # bad type for GP
 
@@ -491,12 +553,28 @@ def test_HistoryMatching_set_obs():
     hm = HistoryMatching()
     hm.set_obs(obs)
 
-    assert_allclose(hm.obs, obs)
+    assert_allclose(hm.obs, np.reshape(obs, (-1, 1)))
 
     obs = 1.
     hm.set_obs(obs)
 
-    assert_allclose(hm.obs, [obs, 0.])
+    assert_allclose(hm.obs, [[obs], [0.]])
+    
+    obs = [np.array([1., 2.]), 2.]
+
+    hm = HistoryMatching()
+    hm.set_obs(obs)
+
+    assert_allclose(hm.obs[0], obs[0])
+    assert_allclose(hm.obs[1], obs[1])
+    
+    obs = [np.array([1., 2.]), np.array([2., 4.])]
+
+    hm = HistoryMatching()
+    hm.set_obs(obs)
+
+    assert_allclose(hm.obs[0], obs[0])
+    assert_allclose(hm.obs[1], obs[1])
 
     # wrong number of values for obs
 
@@ -512,6 +590,11 @@ def test_HistoryMatching_set_obs():
 
     with pytest.raises(TypeError):
         hm.set_obs("abc")
+        
+    # array with wrong first dimension size
+    
+    with pytest.raises(AssertionError):
+        hm.set_obs(np.ones((3, 2)))
 
 def test_HistoryMatching_set_coords():
     "test the set_coords method of HistoryMatching"

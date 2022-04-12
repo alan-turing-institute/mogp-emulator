@@ -14,6 +14,7 @@ class MultiOutputGPBase(object):
     """Base class for Multi-Output GPs. CPU and GPU versions derive from
     this class.
     """
+    pass
 
 class MultiOutputGP(MultiOutputGPBase):
     """Implementation of a multiple-output Gaussian Process Emulator.
