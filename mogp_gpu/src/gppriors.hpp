@@ -39,6 +39,10 @@ class WeakPrior {
         }
 
         virtual REAL sample() { 
+            // see https://en.cppreference.com/w/cpp/numeric/random/random_device
+            // for details on this random number generator, and 
+            // https://stackoverflow.com/questions/36663027/how-to-seed-random-number-generator
+            // for suggestions on how to seed e.g. with current time.
             std::random_device rd;
             std::mt19937 e2(rd());
             std::uniform_real_distribution<> dist(0.,5.);
@@ -468,10 +472,6 @@ public:
 
     void create_cov_prior(std::pair< prior_type, std::vector<REAL> > params_) {
        cov_prior = make_prior(params_.first, params_.second);
-    }
-
-    void create_nug_prior(std::pair< prior_type, std::vector<REAL> > params_) {
-       nug_prior = make_prior(params_.first, params_.second);
     }
 
 private:
