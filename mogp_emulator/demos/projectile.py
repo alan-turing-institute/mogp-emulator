@@ -88,17 +88,16 @@ def simulator_multioutput(x):
 
 # function for printing out results
 
-def print_results(inputs, predictions):
+def print_results(inputs, errors, var):
     "convenience function for printing out results and computing mean square error"
 
-    print("Target Point                   Predicted mean            Actual Value")
-    print("------------------------------------------------------------------------------")
+    print("Target Point                Standard Error             Predictive Variance")
+    print("---------------------------------------------------------------------------------")
 
     error = 0.
 
-    for pp, m in zip(inputs, predictions):
+    for pp, e, v in zip(inputs, errors, var):
         trueval = simulator(pp)
-        print("{}      {}       {}".format(pp, m, simulator(pp)))
-        error += (trueval - m)**2
+        print("{}      {}       {}".format(pp, e, v))
 
-    print("Mean squared error: {}".format(np.sqrt(error)/len(predictions)))
+    print("Mean squared error: {}".format(np.sum(errors**2)/len(errors)))

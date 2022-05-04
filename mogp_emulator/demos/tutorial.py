@@ -1,6 +1,7 @@
 import numpy as np
 from projectile import simulator, print_results
 import mogp_emulator
+import mogp_emulator.validation
 
 try:
     import matplotlib.pyplot as plt
@@ -37,18 +38,20 @@ print("Correlation lengths = {}".format(gp.theta.corr))
 print("Sigma = {}".format(np.sqrt(gp.theta.cov)))
 print("Nugget = {}".format(np.sqrt(gp.theta.nugget)))
 
-# Validate emulator by comparing to true simulated value
-# To compare with the emulator, use the predict method to get mean and variance
-# values for the emulator predictions and see how many are within 2 standard
-# deviations
+# Validate emulator by comparing to true simulated value and compute standard
+# errors
+# Errors are sorted with the largest variance first, idx values can be used to
+# similarly sort inputs or prediction results
 
 n_valid = 10
 validation_points = lhd.sample(n_valid)
 validation_output = np.array([simulator(p) for p in validation_points])
 
-predictions = gp.predict(validation_points)
+mean, var, _ = gp.predict(validation_points)
 
-print_results(validation_points, predictions.mean)
+errors, idx = mogp_emulator.validation.standard_errors(gp, validation_points, validation_output)
+
+print_results(validation_points[idx], errors, var[idx])
 
 # Finally, perform history matching. Sample densely from the experimental design and
 # determine which points are consistent with the data using the GP predictions
@@ -69,6 +72,7 @@ if makeplots:
     plt.figure()
     plt.plot(prediction_points[nroy_points,0], prediction_points[nroy_points,1], "o", label="NROY points")
     plt.plot(simulation_points[:,0], simulation_points[:,1],"o", label="Simulation Points")
+    plt.plot(validation_points[:,0], validation_points[:,1],"o", label="Validation Points")
     plt.xlabel("log Drag Coefficient")
     plt.ylabel("Launch velocity (m/s)")
     plt.legend()
