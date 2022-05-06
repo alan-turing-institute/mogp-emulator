@@ -111,7 +111,7 @@ def test_fit_GP_MAP_GPU_failures():
     # minimization fails
 
     with pytest.raises(RuntimeError):
-        fit_GP_MAP(gp, n_tries=1, theta0=-100000.*np.ones(3))
+        fit_GP_MAP(gp, n_tries=1, theta0=-1000000.*np.ones(3))
 
     gp = GaussianProcessGPU(x, y, nugget=0.)
 
