@@ -11,6 +11,7 @@ mogp_emulator Implementation Details
    GaussianProcessGPU
    MultiOutputGP
    fitting
+   validation
    MeanFunction
    formula
    Kernel

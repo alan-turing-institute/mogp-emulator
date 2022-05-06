@@ -834,7 +834,7 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
     #
     # assert_allclose(hess, gp.logpost_hessian(theta), rtol=1.e-5, atol=1.e-5)
 
-def test_GaussianProcess_predict(x, y, dx):
+def test_GaussianProcess_predict(x, y):
     "test the predict method of GaussianProcess"
 
     # zero mean
@@ -898,6 +898,7 @@ def test_GaussianProcess_predict(x, y, dx):
     R = dm_test.T - np.dot(gp._dm.T, np.linalg.solve(K, Ktest.T))
 
     mu_expect = m + np.dot(Ktest, gp.Kinv_t_mean)
+    var_expect = np.exp(theta[-1]) - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
     var_expect += np.diag(np.dot(R.T, np.linalg.solve(np.dot(gp._dm.T, np.linalg.solve(K, gp._dm)),
                                                       R)))
 
@@ -1136,6 +1137,59 @@ def test_GaussianProcess_predict_variance():
     _, var, _ = gp.predict(testing)
 
     assert_allclose(np.zeros(101), var, atol = 1.e-3)
+
+def test_GaussianProcess_predict_full_cov(x, y):
+    "Test the predictions with full covariance"
+
+    # zero mean
+
+    gp = GaussianProcess(x, y, nugget=0.0)
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    x_test = np.array([[2.0, 3.0, 4.0]])
+
+    mu, var, deriv = gp.predict(x_test, full_cov=True)
+
+    K = np.exp(theta[-1]) * gp.kernel.kernel_f(x, x, theta[:-1])
+    Kpredict = np.exp(theta[-1]) * gp.kernel.kernel_f(x_test, x_test, theta[:-1])
+    Ktest = np.exp(theta[-1]) * gp.kernel.kernel_f(x_test, x, theta[:-1])
+
+    mu_expect = np.dot(Ktest, gp.Kinv_t_mean)
+    var_expect = Kpredict - np.dot(Ktest, np.linalg.solve(K, Ktest.T))
+
+    assert_allclose(mu, mu_expect)
+    assert_allclose(var, var_expect)
+
+    # nonzero mean function
+
+    gp = GaussianProcess(x, y, mean="x[0]", nugget=0.0)
+
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    x_test = np.array([[2.0, 3.0, 4.0]])
+
+    mu, var, deriv = gp.predict(x_test, full_cov=True)
+
+    dm_test = gp.get_design_matrix(x_test)
+
+    m = np.dot(dm_test, gp.theta.mean)
+    K = np.exp(theta[-1]) * gp.kernel.kernel_f(x, x, theta[:-1])
+    Kpredict = np.exp(theta[-1]) * gp.kernel.kernel_f(x_test, x_test, theta[:-1])
+    Ktest = np.exp(theta[-1]) * gp.kernel.kernel_f(x_test, x, theta[:-1])
+    R = dm_test.T - np.dot(gp._dm.T, np.linalg.solve(K, Ktest.T))
+
+    mu_expect = m + np.dot(Ktest, gp.Kinv_t_mean)
+    var_expect = Kpredict - np.diag(np.dot(Ktest, np.linalg.solve(K, Ktest.T)))
+    var_expect += np.dot(
+        R.T, np.linalg.solve(np.dot(gp._dm.T, np.linalg.solve(K, gp._dm)), R)
+    )
+
+    assert_allclose(mu, mu_expect)
+    assert_allclose(var, var_expect)
 
 def test_GaussianProcess_predict_failures(x, y):
     "test situations where predict method of GaussianProcess should fail"

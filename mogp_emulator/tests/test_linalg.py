@@ -28,6 +28,10 @@ def test_ChoInv(A, b):
     
     assert_allclose(Ainv.solve(b), x)
     
+    x = np.linalg.solve(L, b)
+    
+    assert_allclose(Ainv.solve_L(b), x)
+    
     assert_allclose(np.log(np.linalg.det(A)), Ainv.logdet())
     
     assert Ainv.solve(np.zeros((3,0))).shape == (3,0)
@@ -54,6 +58,17 @@ def test_ChoInvPivot(A, b):
     x_pivot = Ainv.solve(b)
 
     assert_allclose(x, x_pivot)
+    
+    x = np.linalg.solve(Ainv.L, b[Ainv.P])
+    
+    x_pivot = Ainv.solve_L(b)
+    
+    assert_allclose(x, x_pivot)
+    
+    prod = np.dot(b, np.linalg.solve(A, b))
+    prod_pivot = np.dot(x_pivot, x_pivot)
+    
+    assert_allclose(prod, prod_pivot)
 
     with pytest.raises(AssertionError):
         ChoInvPivot(L_pivot, np.array([0, 2, 1, 1], dtype=np.int32)).solve(b)
