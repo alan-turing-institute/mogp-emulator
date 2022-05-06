@@ -214,12 +214,17 @@ class InvGammaPrior : public PriorDist {
 };
 
 class MeanPriors {
-
+// prior distributions on mean function parameters.
+// Default instantiation will result in weak priors for these parameters.
+// Code is included that makes it possible to set other prior distributions,
+// but currently those would not be included in the logpost calculation, and 
+// are here as a placeholder for future work.
 public: 
     MeanPriors(vec mean_, mat cov_)
     : mean(mean_)
     , cov(cov_) {
         set_prior_dists();
+        weak_priors_only = true;
     }
 
     MeanPriors() {
@@ -234,26 +239,36 @@ public:
 
     inline int get_n_params() const { return mean.size();}
 
-    inline bool has_weak_priors() const { return mean.size() == 0; }
+    inline bool has_weak_priors() const { return weak_priors_only; }
 
     void set_prior_dists() {
-        // overload function with dummy arguments
-        std::vector<REAL> vec;
-        set_prior_dists(WEAK, vec);
-    }
-
-    void set_prior_dists(prior_type ptype, std::vector<REAL> priorparams) {
-        
+        // This will create a set of weak priors for the meanfunc parameters
         prior_dists.clear();
         for (int i=0; i< get_n_params(); ++i ) {
-            
-            if (ptype == INVGAMMA && priorparams.size()==2) {
-                prior_dists.push_back(new InvGammaPrior(priorparams[0],priorparams[1])); // shape and scale
-            } else if (ptype == GAMMA && priorparams.size()==2) {
-                prior_dists.push_back(new GammaPrior(priorparams[0],priorparams[1])); // shape and scale
-            } else if (ptype == LOGNORMAL && priorparams.size()==2) {
-                prior_dists.push_back(new LogNormalPrior(priorparams[0],priorparams[1])); // shape and scale
+            prior_dists.push_back(new WeakPrior());
+        }
+    }
+
+    void set_prior_dists(std::vector<prior_type> ptype, 
+                         std::vector<std::vector<REAL> > priorparams) {
+        // This function can be called to set non-weak priors on meanfunc params.
+        // HOWEVER, these would not currently be included in the logposterior calculation.
+        // The code is therefore here as a placeholder for future work.
+        prior_dists.clear();
+        if ((ptype.size() != get_n_params()) || (priorparams.size() != get_n_params()))
+            throw std::runtime_error("Number of prior types and parameter sets must equal number of meanfunc parameters.");
+        for (int i=0; i< get_n_params(); ++i ) {
+            if (ptype[i] == INVGAMMA && priorparams[i].size()==2) {
+                prior_dists.push_back(new InvGammaPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
+            } else if (ptype[i] == GAMMA && priorparams[i].size()==2) {
+                prior_dists.push_back(new GammaPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
+            } else if (ptype[i] == LOGNORMAL && priorparams[i].size()==2) {
+                prior_dists.push_back(new LogNormalPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
             } else {
+                std::cout<<"Unknown prior dist requested for MeanFunc param. Creating weak prior"<<std::endl;
                 prior_dists.push_back(new WeakPrior());
             }
         }
@@ -267,6 +282,9 @@ public:
         return vals;
     }
 
+    // Function to multiply means of meanfunc parameter prior distributions with 
+    // design matrix.  This is not currently called in the C++ / GPU implementation
+    // but could be used in the future when the meanfunc is fit analytically.
     vec dm_dot_b(mat_ref dm) const {
         if (has_weak_priors()) return vec::Zero(dm.cols());
         if (dm.cols() != mean.size()) 
@@ -292,12 +310,16 @@ public:
 private:
     vec mean;
     mat cov;
+    bool weak_priors_only;
     std::vector<WeakPrior*> prior_dists;
 
 };
 
 class GPPriors {
-
+// The GPPriors object is the container that holds prior distributions for the 
+// correlation length and covariance parameters, the nugget (if fitted), and the
+// mean function parameters.  The current default implementation will only include 
+// weak priors for the mean function parameters.
 public:
 
     GPPriors(int n_corr_, nugget_type nug_type_=NUG_FIT, MeanPriors* mean_=NULL, WeakPrior* cov_=NULL, WeakPrior* nug_prior_=NULL)
@@ -375,6 +397,8 @@ public:
     }
 
     REAL logp(GPParams theta) {
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
         check_theta(theta);
 
         REAL logposterior = 0.;
@@ -392,9 +416,9 @@ public:
         return logposterior;
     }
 
-
     vec dlogpdtheta(GPParams theta) {
-
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
         check_theta(theta);
 
         vec partials(theta.get_n_data());
@@ -413,7 +437,8 @@ public:
     }
 
     vec d2logpdtheta2(GPParams theta) {
-
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
         check_theta(theta);
 
         vec hessian(theta.get_n_data());
