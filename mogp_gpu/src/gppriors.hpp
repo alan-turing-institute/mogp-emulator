@@ -1,0 +1,514 @@
+#ifndef GPPRIORS_HPP
+#define GPPRIORS_HPP
+
+#include <iostream>
+#include <vector>
+#include <math.h>
+#include <random>
+#include <boost/math/distributions/inverse_gamma.hpp>
+#include <boost/math/distributions/gamma.hpp>
+#include <boost/math/distributions/lognormal.hpp>
+#include "types.hpp"
+#include "util.hpp"
+#include "gpparams.hpp"
+
+
+class WeakPrior {
+    public:
+
+        virtual ~WeakPrior() {
+        }
+        inline virtual REAL logp(REAL x) {return 0.;}
+
+        inline virtual REAL dlogpdx(REAL x) {return 0.;}
+
+        inline virtual REAL d2logpdx2(REAL x) {return 0.;}
+
+        virtual REAL dlogpdtheta(REAL x, const BaseTransform& transform) {
+            return dlogpdx(x)* transform.dscaled_draw(x);
+        }
+
+        virtual REAL d2logpdtheta2(REAL x, const BaseTransform& transform) {
+            REAL term1 = d2logpdx2(x) * pow(transform.dscaled_draw(x),2); 
+            REAL term2 = dlogpdx(x) * (transform.d2scaled_draw2(x));
+            return term1 + term2;
+        }
+
+        virtual REAL sample(const BaseTransform& transform) {
+            return sample();
+        }
+
+        virtual REAL sample() { 
+            // see https://en.cppreference.com/w/cpp/numeric/random/random_device
+            // for details on this random number generator, and 
+            // https://stackoverflow.com/questions/36663027/how-to-seed-random-number-generator
+            // for suggestions on how to seed e.g. with current time.
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::uniform_real_distribution<> dist(0.,5.);
+            return dist(e2) - 0.5;
+        }
+
+};
+/// introduce intermediate pure virtual base class between WeakPrior
+/// and the concrete Prior distributions, to implement the sample(transform) method
+class PriorDist : public WeakPrior {
+    public:
+
+        virtual REAL sample_x() = 0;
+
+        virtual REAL sample(const BaseTransform& transform) {
+            return transform.scaled_to_raw(sample_x());
+        }
+};
+
+class NormalPrior : public PriorDist {
+    public:
+        NormalPrior(REAL _mean, REAL _std)
+        : mean(_mean)
+        , std(_std) {}
+
+        REAL logp(REAL x) {
+            // computes log probability at given value
+            return -0.5 * pow((x - mean)/std, 2) - log(std) -0.5* log(2*M_PI);
+        }
+
+        REAL dlogpdx(REAL x) {
+            // derivative of log probability wrt scaled parameter
+            return -1.0*(x - mean)/pow(std,2) ;
+        }
+        REAL d2logpdx2(REAL x) {
+            // second derivative of log prob
+            return -1.0*pow(std, -2) ;
+
+        }
+        REAL sample_x() {
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::normal_distribution<> dist(mean, std);
+            return dist(e2);
+        }
+
+    private:
+        REAL mean;
+        REAL std;
+};
+
+class LogNormalPrior : public PriorDist {
+    public:
+        LogNormalPrior(REAL _shape, REAL _scale)
+        : shape(_shape)
+        , scale(_scale) {
+            assert(shape > 0.);
+            assert(scale > 0.);
+        }
+
+        REAL logp(REAL x) {
+            // computes log probability at given value
+            assert(x> 0.);
+            return -0.5 * pow(log(x/scale)/shape,2) - 0.5*log(2*M_PI) - log(x) -log(shape);
+        }
+
+        REAL dlogpdx(REAL x) {
+            // derivative of log probability wrt scaled parameter
+            assert(x > 0.);
+            return -1.0*log(x/scale)/pow(shape,2)/x - 1./x;
+        }
+
+        REAL d2logpdx2(REAL x) {
+            // second derivative of log prob
+            assert(x>0.);
+            return (-1./pow(shape,2) + log(x/scale)/pow(shape,2) + 1.)/pow(x,2);
+        }
+
+        REAL sample_x() {
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::lognormal_distribution<> dist(scale, shape);
+            return dist(e2);
+        }
+
+    private:
+        REAL shape;
+        REAL scale;
+};
+
+class GammaPrior : public PriorDist {
+    public:
+        GammaPrior(REAL _shape, REAL _scale)
+        : shape(_shape)
+        , scale(_scale) {
+            assert(shape > 0.);
+            assert(scale > 0.);
+        }
+
+        REAL logp(REAL x) {
+            // computes log probability at given value
+            assert(x> 0.);
+            return (-1.0*shape*log(scale) - lgamma(shape) +
+                (shape - 1.)*log(x) - x/scale);
+            
+        }
+
+        REAL dlogpdx(REAL x) {
+            // derivative of log probability wrt scaled parameter
+            assert(x > 0.);
+            return (shape - 1.)/x - 1./scale ;
+        }
+
+        REAL d2logpdx2(REAL x) {
+            // second derivative of log prob
+            assert(x>0.);
+            return -1.0*(shape - 1.)/pow(x,2);
+        }
+
+        REAL sample_x() {
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::gamma_distribution<> dist(scale, shape);
+            return dist(e2);
+        }
+
+    private:
+        REAL shape;
+        REAL scale;
+};
+
+class InvGammaPrior : public PriorDist {
+    public:
+        InvGammaPrior(REAL _shape, REAL _scale)
+        : shape(_shape)
+        , scale(_scale) {
+            assert(shape > 0.);
+            assert(scale > 0.);
+        }
+
+        virtual ~InvGammaPrior() {
+        }
+
+        REAL logp(REAL x) {
+            return (shape*log(scale) - lgamma(shape) -
+                (shape + 1.)*log(x) - scale/x) ;       
+        }
+
+        REAL dlogpdx(REAL x) {
+            return -1.0*(shape + 1.)/x + scale/pow(x,2);
+        }
+
+        REAL d2logpdx2(REAL x) {
+            return (shape + 1)/pow(x,2) - 2.*scale/pow(x,3);
+        }
+
+        REAL sample_x() {
+            std::random_device rd;
+            std::mt19937 e2(rd());
+            std::gamma_distribution<> dist(shape, scale);
+            // inverse gamma is 1/Gamma, but multiply by scale^2 for 
+            // consistency with Python version
+            return scale*scale/dist(e2);      
+        }
+
+    private:
+        REAL shape;
+        REAL scale;
+};
+
+class MeanPriors {
+// prior distributions on mean function parameters.
+// Default instantiation will result in weak priors for these parameters.
+// Code is included that makes it possible to set other prior distributions,
+// but currently those would not be included in the logpost calculation, and 
+// are here as a placeholder for future work.
+public: 
+    MeanPriors(vec mean_, mat cov_)
+    : mean(mean_)
+    , cov(cov_) {
+        set_prior_dists();
+        weak_priors_only = true;
+    }
+
+    MeanPriors() {
+        vec default_mean;
+        mat default_cov;
+        MeanPriors(default_mean, default_cov);
+    }
+
+    inline vec get_mean() const {return mean;}
+
+    inline mat get_cov() const { return cov; }
+
+    inline int get_n_params() const { return mean.size();}
+
+    inline bool has_weak_priors() const { return weak_priors_only; }
+
+    void set_prior_dists() {
+        // This will create a set of weak priors for the meanfunc parameters
+        prior_dists.clear();
+        for (int i=0; i< get_n_params(); ++i ) {
+            prior_dists.push_back(new WeakPrior());
+        }
+    }
+
+    void set_prior_dists(std::vector<prior_type> ptype, 
+                         std::vector<std::vector<REAL> > priorparams) {
+        // This function can be called to set non-weak priors on meanfunc params.
+        // HOWEVER, these would not currently be included in the logposterior calculation.
+        // The code is therefore here as a placeholder for future work.
+        prior_dists.clear();
+        if ((ptype.size() != get_n_params()) || (priorparams.size() != get_n_params()))
+            throw std::runtime_error("Number of prior types and parameter sets must equal number of meanfunc parameters.");
+        for (int i=0; i< get_n_params(); ++i ) {
+            if (ptype[i] == INVGAMMA && priorparams[i].size()==2) {
+                prior_dists.push_back(new InvGammaPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
+            } else if (ptype[i] == GAMMA && priorparams[i].size()==2) {
+                prior_dists.push_back(new GammaPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
+            } else if (ptype[i] == LOGNORMAL && priorparams[i].size()==2) {
+                prior_dists.push_back(new LogNormalPrior(priorparams[i][0],priorparams[i][1])); // shape and scale
+                weak_priors_only = false;
+            } else {
+                std::cout<<"Unknown prior dist requested for MeanFunc param. Creating weak prior"<<std::endl;
+                prior_dists.push_back(new WeakPrior());
+            }
+        }
+    }
+    
+    std::vector<REAL> sample(const BaseTransform& transform) {
+        std::vector<REAL> vals;
+        for (int i=0; i< get_n_params(); ++i) {
+            vals.push_back(prior_dists[i]->sample(transform));
+        }
+        return vals;
+    }
+
+    // Function to multiply means of meanfunc parameter prior distributions with 
+    // design matrix.  This is not currently called in the C++ / GPU implementation
+    // but could be used in the future when the meanfunc is fit analytically.
+    vec dm_dot_b(mat_ref dm) const {
+        if (has_weak_priors()) return vec::Zero(dm.cols());
+        if (dm.cols() != mean.size()) 
+            throw std::runtime_error("Number of columns in design matrix doesn't match number of meanfunc parameters");
+        return dm * mean;
+    }
+
+    mat get_inv_cov() const {
+        if (has_weak_priors()) return mat::Zero(cov.rows(), cov.cols());
+        return cov.inverse();
+    }
+
+    vec get_inv_cov_b() const {
+       if (cov.size() == 0) return vec::Zero(1);
+       else  return get_inv_cov() * mean;
+    }
+
+    REAL logdet_cov() const {
+        if (has_weak_priors()) return 0.;
+        return log(cov.determinant());
+    }
+    
+private:
+    vec mean;
+    mat cov;
+    bool weak_priors_only;
+    std::vector<WeakPrior*> prior_dists;
+
+};
+
+class GPPriors {
+// The GPPriors object is the container that holds prior distributions for the 
+// correlation length and covariance parameters, the nugget (if fitted), and the
+// mean function parameters.  The current default implementation will only include 
+// weak priors for the mean function parameters.
+public:
+
+    GPPriors(int n_corr_, nugget_type nug_type_=NUG_FIT, MeanPriors* mean_=NULL, WeakPrior* cov_=NULL, WeakPrior* nug_prior_=NULL)
+    : n_corr(n_corr_)
+    , nug_type(nug_type_)
+    , mean_prior(mean_)
+    , cov_prior(cov_)
+    , nug_prior(nug_prior_) {
+    }
+
+
+    ~GPPriors() {
+        if (mean_prior != NULL) delete mean_prior;
+        if (cov_prior != NULL) delete cov_prior; 
+        if (nug_prior != NULL) delete nug_prior;          
+        corr_priors.clear(); 
+    }
+
+    inline MeanPriors* get_mean() { return mean_prior; }
+
+    inline void set_mean() { mean_prior = new MeanPriors();}
+
+    inline void set_mean(MeanPriors* _mean) {mean_prior = _mean;}
+
+    inline int n_mean() { return mean_prior->get_n_params();}
+
+    inline std::vector<WeakPrior*> get_corr() { return corr_priors; }
+
+    void set_corr(std::vector<WeakPrior*> _newcorr) {
+        corr_priors = _newcorr;
+        n_corr = corr_priors.size();
+    }
+
+    void set_corr() {
+        for (int i=0; i< n_corr; ++i) {
+            corr_priors.push_back(new WeakPrior());
+        }   
+    }
+
+    inline WeakPrior* get_cov() { return cov_prior;}
+
+    void set_cov(WeakPrior* _newcov) {
+        cov_prior = _newcov;
+    }
+
+    void set_cov() {
+        WeakPrior* wp = new WeakPrior();
+        set_cov(wp);
+    }
+
+    inline nugget_type get_nugget_type() { return nug_type;}
+
+    void set_nugget(WeakPrior* _newnugget) {
+        if (nug_type == NUG_FIT) nug_prior = _newnugget;
+    }
+
+    void set_nugget() {
+        if (nug_type == NUG_FIT) {
+            WeakPrior* wp = new WeakPrior();
+            set_nugget(wp);
+        }
+    }
+
+    void set_nugget(std::pair< prior_type, std::vector<REAL> > params_) {
+        if (nug_type == NUG_FIT) {
+            WeakPrior* wp = make_prior(params_.first, params_.second);
+            set_nugget(wp);
+        }
+    }
+
+    void check_theta(GPParams theta) {
+        assert(n_corr == theta.get_n_corr());
+        assert(nug_type == theta.get_nugget_type());
+        assert(theta.get_data().size() > 0);
+    }
+
+    REAL logp(GPParams theta) {
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
+        check_theta(theta);
+
+        REAL logposterior = 0.;
+        for (int i=0; i< corr_priors.size(); ++i) {
+            logposterior += corr_priors[i]->logp(theta.get_corr()[i]);
+        }
+        
+        logposterior += cov_prior->logp(theta.get_cov());
+        
+        if (nug_type == NUG_FIT) {
+            logposterior += nug_prior->logp(theta.get_nugget_size());
+        }
+
+
+        return logposterior;
+    }
+
+    vec dlogpdtheta(GPParams theta) {
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
+        check_theta(theta);
+
+        vec partials(theta.get_n_data());
+        //correlation length parameters
+        for (int i=0; i< corr_priors.size(); ++i) {
+            partials[i] = corr_priors[i]->dlogpdtheta(theta.get_corr()[i],CorrTransform());   
+        }
+        // covariance parameter
+        partials[theta.get_n_corr()] = cov_prior->dlogpdtheta(theta.get_cov(), CovTransform());
+        // nugget parameter (if fitted nugget)
+        if (nug_type == NUG_FIT) {
+        //    partials.push_back(nug_prior->dlogpdtheta(theta.get_nugget_size(), CovTransform()));
+            partials[theta.get_n_data()-1] = nug_prior->dlogpdtheta(theta.get_nugget_size(), CovTransform());  
+        }
+        return partials;
+    }
+
+    vec d2logpdtheta2(GPParams theta) {
+        // Note that currently this calculation does not include any 
+        // non-weak MeanFunc priors
+        check_theta(theta);
+
+        vec hessian(theta.get_n_data());
+        //correlation length parameters
+        for (int i=0; i< corr_priors.size(); ++i) {
+            hessian[i] = corr_priors[i]->d2logpdtheta2(theta.get_corr()[i],CorrTransform());
+        }
+        // covariance parameter
+        hessian[theta.get_n_corr()] = cov_prior->d2logpdtheta2(theta.get_cov(), CovTransform());
+        // nugget parameter (if fitted nugget)
+        if (nug_type == NUG_FIT) {
+            hessian[theta.get_n_data()-1] = nug_prior->d2logpdtheta2(theta.get_nugget_size(), CovTransform()); 
+        }
+        return hessian;
+    }
+
+    std::vector<REAL> sample() {
+        std::vector<REAL> samples; 
+        if ( mean_prior != NULL) {
+            samples = mean_prior->sample(CorrTransform());
+        } 
+        for (int i=0; i< corr_priors.size(); ++i) {
+            samples.push_back(corr_priors[i]->sample(CorrTransform()));
+        }  
+        samples.push_back(cov_prior->sample(CovTransform()));
+        if (nug_type == NUG_FIT) {
+            samples.push_back(nug_prior->sample(CovTransform())); 
+        }
+        return samples;
+    }
+
+    WeakPrior* make_prior(prior_type ptype, std::vector<REAL> priorparams) { 
+
+        if (ptype == INVGAMMA && priorparams.size()==2) {
+            return new InvGammaPrior(priorparams[0], priorparams[1]); // shape and scale
+        } else if (ptype == GAMMA && priorparams.size()==2) {
+            return new GammaPrior(priorparams[0], priorparams[1]); // shape and scale
+        } else if (ptype == LOGNORMAL && priorparams.size()==2) {
+            return new LogNormalPrior(priorparams[0], priorparams[1]); // shape and scale
+        } else if (ptype == WEAK) {
+            return new WeakPrior();
+        } else {
+            std::cout<<"Non-weak Prior must be Inverse Gamma, Gamma, or LogNormal"<<std::endl;  
+            return new WeakPrior();
+        }
+    }
+
+    void create_corr_priors(std::vector< std::pair< prior_type, std::vector<REAL> > > all_params) {
+        for (int i=0; i< all_params.size(); ++i) {
+            prior_type ptype = all_params[i].first;
+            std::vector<REAL> priorparams = all_params[i].second;
+            WeakPrior* new_prior = make_prior(ptype, priorparams);
+            corr_priors.push_back(new_prior);
+        }
+    }
+
+    void create_cov_prior(std::pair< prior_type, std::vector<REAL> > params_) {
+       cov_prior = make_prior(params_.first, params_.second);
+    }
+
+private:
+    MeanPriors* mean_prior;
+    std::vector<WeakPrior*> corr_priors;
+    int n_corr;
+    WeakPrior* cov_prior;
+    WeakPrior* nug_prior;
+    nugget_type nug_type;
+};
+
+
+
+
+#endif

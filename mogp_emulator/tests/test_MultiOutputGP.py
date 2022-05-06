@@ -240,4 +240,3 @@ def test_MultiOutputGP_GPU_check(x, y):
     gp.fit_emulator(1,theta) 
     assert gp.get_indices_fit() == [0, 1]
     assert gp.get_indices_not_fit() == []
-    

@@ -41,10 +41,7 @@ class MultiOutputGP(MultiOutputGPBase):
                  nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
-        """
-
-        self.GPClass = GaussianProcess
-            
+        """ 
         if not inputdict == {}:
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
                           "You must input your mean formulae using the x[0] format directly " +
@@ -103,7 +100,7 @@ class MultiOutputGP(MultiOutputGPBase):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
+        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
 
@@ -297,8 +294,8 @@ class MultiOutputGP(MultiOutputGPBase):
         if allow_not_fit:
             predict_method = _gp_predict_default_NaN
         else:
-            predict_method = self.GPClass.predict
-            
+            predict_method = GaussianProcess.predict
+
         serial_predict = (platform.system() == "Windows" or
                           any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
 

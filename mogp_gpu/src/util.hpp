@@ -53,5 +53,9 @@ void add_diagonal(int N, double b, double *A);
 void sum_log_diag(int N, double *A, double *result, double *work, size_t work_size);
 void trace(int N, double *A, double *result, double *work, size_t work_size);
 
+template<typename Base, typename T>
+inline bool instanceof(const T *ptr) {
+    return dynamic_cast<const Base*>(ptr) != nullptr;
+}
 
 #endif
