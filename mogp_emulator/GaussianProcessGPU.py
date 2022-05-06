@@ -162,7 +162,8 @@ def create_prior_params(**kwargs):
              (nug_prior_dist, [nug_prior_params])]
     :rtype: list
     """
-    # if we are not given priors object, make default priors given the supplied args
+    # if we are not given priors object, make default priors given the supplied args.
+    # Note that any meanfunction parameters will be given weak priors.
     if all(x in kwargs.keys() for x in ["inputs", "n_corr", "nugget_type"]):
         priors = GPPriors.default_priors(kwargs["inputs"], kwargs["n_corr"], kwargs["nugget_type"])
     elif "newpriors" in kwargs.keys():
