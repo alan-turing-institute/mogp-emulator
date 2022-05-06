@@ -296,6 +296,9 @@ class MultiOutputGP(MultiOutputGPBase):
         else:
             predict_method = GaussianProcess.predict
 
+        serial_predict = (platform.system() == "Windows" or
+                          any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
+
         if serial_predict:
             predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget, full_cov)
                             for gp in self.emulators]
