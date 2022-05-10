@@ -5,13 +5,26 @@ from mogp_emulator.GaussianProcess import (
     GaussianProcess,
     PredictResult
 )
-from mogp_emulator.GaussianProcessGPU import GaussianProcessGPU, parse_meanfunc_formula
+
+from mogp_emulator.GaussianProcessGPU import (
+    GaussianProcessGPU, 
+    parse_meanfunc_formula,
+    create_prior_params
+)
+from mogp_emulator.MultiOutputGP import MultiOutputGPBase
 from mogp_emulator.MeanFunction import MeanBase
 from mogp_emulator.Kernel import SquaredExponential, Matern52
+from mogp_emulator.Priors import (
+    GPPriors, 
+    WeakPrior,
+    InvGammaPrior,
+    GammaPrior,
+    LogNormalPrior
+)
 from mogp_emulator import LibGPGPU
 
 
-class MultiOutputGP_GPU(object):
+class MultiOutputGP_GPU(MultiOutputGPBase):
     """Implementation of a multiple-output Gaussian Process Emulator, using the GPU.
 
     Essentially a parallelized wrapper for the predict method. To fit
@@ -65,6 +78,7 @@ class MultiOutputGP_GPU(object):
         elif isinstance(nugget, float):
             nugtype = LibGPGPU.nugget_type(2)
             nugsize = nugget
+            nugget = "fixed"
         else:
             raise TypeError("nugget parameter must be a string or a non-negative float")
 
@@ -98,7 +112,36 @@ class MultiOutputGP_GPU(object):
         else:
             raise ValueError("GPU implementation requires kernel to be SquaredExponential or Matern52")
 
+        # instantiate the C++ object
         self._mogp_gpu = LibGPGPU.MultiOutputGP_GPU(inputs, targets, batch_size, meanfunc, kernel_type, nugtype, nugsize)
+
+        # deal with priors - first make sure the priors are in the form of a list of correct size
+        if isinstance(priors, (GPPriors, dict)) or priors is None:
+            priorslist = self.n_emulators*[priors]
+        else:
+            priorslist = list(priors)
+            assert isinstance(priorslist, list), ("priors must be a GPPriors object, None, or arguments to construct " +
+                                                  "a GPPriors object or a list of length n_emulators containing the above")
+
+            assert len(priorslist) == self.n_emulators, "Bad length for list provided for priors to MultiOutputGP"
+
+        self._set_priors(priorslist, nugget)
+
+
+    def _set_priors(self, priorslist, nugget_type):
+        """
+        Assign a prior to each emulator.  If an entry is None, create default prior.
+        """
+        for i in range(self.n_emulators):
+            if priorslist[i]:
+                prior_params = create_prior_params(priorslist=priorslist[i])
+            else:
+                prior_params = create_prior_params(
+                    inputs=self.inputs, n_corr=self.n_corr[i], nugget_type=nugget_type
+                )
+            self._mogp_gpu.create_priors_for_emulator(
+                i, *prior_params
+            )
 
     @property
     def inputs(self):
@@ -117,12 +160,24 @@ class MultiOutputGP_GPU(object):
         return self._mogp_gpu.n()
 
     @property
+    def nugget_type(self):
+        return self._mogp_gpu.get_nugget_type()
+
+    @property
+    def nugget(self):
+        return self._mogp_gpu.get_nugget_size()
+
+    @property
     def n_params(self):
         return self._mogp_gpu.n_data_params()
 
     @property
     def n_emulators(self):
         return self._mogp_gpu.n_emulators()
+
+    @property
+    def n_corr(self):
+        return self._mogp_gpu.n_corr_params()
 
     def reset_fit_status(self):
         self._mogp_gpu.reset_fit_status()
@@ -226,6 +281,8 @@ class MultiOutputGP_GPU(object):
         derivs = np.zeros([self.n_emulators, n_testing, self.D])
         if unc: 
             self._mogp_gpu.predict_variance_batch(testing, means, uncs)
+            if include_nugget:
+                uncs += self.nugget
         else:
             self._mogp_gpu.predict_batch(testing, means)
         if deriv:

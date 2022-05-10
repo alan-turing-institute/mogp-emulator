@@ -46,7 +46,7 @@ event.terminal = True
 
 # now can define simulator
 
-def simulator(x):
+def simulator_base(x):
     "simulator to solve ODE system for projectile motion with drag. returns distance projectile travels"
 
     # unpack values
@@ -69,21 +69,35 @@ def simulator(x):
 
     results = solve_ivp(f, (0., 1.e8), y0, events=event, args = (c,))
 
+    return results
+
+def simulator(x):
+    "simulator to solve ODE system for projectile motion with drag. returns distance projectile travels"
+
+    results = simulator_base(x)
+
     return results.y_events[0][0][2]
+
+def simulator_multioutput(x):
+    "simulator to solve ODE system with multiple outputs"
+    
+    results = simulator_base(x)
+    
+    return (results.y_events[0][0][2],
+            np.sqrt(results.y_events[0][0][0]**2 + results.y_events[0][0][1]**2))
 
 # function for printing out results
 
-def print_results(inputs, predictions):
+def print_results(inputs, errors, var):
     "convenience function for printing out results and computing mean square error"
 
-    print("Target Point                   Predicted mean            Actual Value")
-    print("------------------------------------------------------------------------------")
+    print("Target Point                Standard Error             Predictive Variance")
+    print("---------------------------------------------------------------------------------")
 
     error = 0.
 
-    for pp, m in zip(inputs, predictions):
+    for pp, e, v in zip(inputs, errors, var):
         trueval = simulator(pp)
-        print("{}      {}       {}".format(pp, m, simulator(pp)))
-        error += (trueval - m)**2
+        print("{}      {}       {}".format(pp, e, v))
 
-    print("Mean squared error: {}".format(np.sqrt(error)/len(predictions)))
+    print("Mean squared error: {}".format(np.sum(errors**2)/len(errors)))

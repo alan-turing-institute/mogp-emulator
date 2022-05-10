@@ -58,7 +58,7 @@ the two input parameters of the drag coefficient :math:`C` and the initial veloc
 and returning a single value, which is :math:`x` at the end of the simulation.
 
 .. literalinclude:: ../../mogp_emulator/demos/projectile.py
-   :lines: 1-3,12-43,46-
+   :lines: 1-80
 
 Parameter Space
 ~~~~~~~~~~~~~~~
@@ -103,7 +103,7 @@ distributions are fairly common due to their simplicity.
 To construct our experimental design and draw samples from it, we do the following:
 
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
-   :lines: 1-4,24-28
+   :lines: 1-5,25-29
 
 This constructs an instance of :ref:`LatinHypercubeDesign <LatinHypercubeDesign>`, and
 creates the underlying distributions by providing a list of tuples. Each tuple gives the
@@ -131,11 +131,13 @@ by passing the GP object to the ``fit_GP_MAP`` function, which returns the same
 GP object but with the parameter values estimated.
 
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
-   :lines: 33-37
+   :lines: 34-40
 
-While the function is called ``fit_GP_MAP`` (MAP means Maximum A Posteriori),
-in this case we have not provided any prior information on the parameter values,
-so it results in MLE.
+By default, if no priors are specified for the hyperparameters then defaults
+are chosen. In particular, for correlation lengths, default priors are fit
+that attempt to put most of the distribution mass in the range spanned by
+the input data. This tends to stabilize the fitting and improve performance,
+as fewer iterations are needed to ensure a good fit.
 
 Following fitting, we print out some of the hyperparameters that are estimated.
 First, we print out the correlation lengths estimated for each of the input
@@ -162,15 +164,19 @@ and the uncertainty. This is done with the ``predict`` method of
 :ref:`GaussianProcess <GaussianProcess>`:
 
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
-   :lines: 44-52
+   :lines: 46-55
 
 ``predictions`` is an object containing the mean and uncertainty (variance)
 of the predictions. A GP assumes that the outputs follow a Normal Distribution,
 so we can perform validation by asking how many of our validation points mean estimates
-are within 2 standard deviations of the true value. Usually for this example this is
-about 8/10, so not quite as we would expect if it were perfectly recreating the
-function. However, we will see that this still is good enough in most cases
-for the task at hand.
+are within 2 standard deviations of the true value by computing the standard errors
+of the emulator predictions on the validation points. ``mogp_emulator`` contains
+a number of methods of automatically validating an emulator given some validation
+points, including computing standard errors (see the :ref:`validation <validation>`
+documentation for more details). Usually for this example we would expect
+about 8/10 to be within 2 standard devations, so not quite as we would expect if
+it were perfectly recreating the function. However, we will see that this still is
+good enough in most cases for the task at hand.
 
 History Matching
 ~~~~~~~~~~~~~~~~
@@ -206,7 +212,7 @@ and Monte Carlo sampling (especially in only 2 dimensions). Then, we create a
 Yet" (NROY). This is done as follows:
 
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
-   :lines: 58-65
+   :lines: 60-68
 
 First, we set a large number of samples and draw them from the experimental design object. Then,
 We construct the :ref:`HistoryMatching <HistoryMatching>` object by giving the fit GP
@@ -226,7 +232,7 @@ surrogate model for reference. This plotting command is only executed if ``matpl
 installed:
 
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
-   :lines: 5-10,69-
+   :lines: 6-11,71-
 
 which should make a plot that looks something like this:
 

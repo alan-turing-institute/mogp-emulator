@@ -12,7 +12,14 @@ from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 import mogp_emulator.LibGPGPU as LibGPGPU
 
 from mogp_emulator.GaussianProcess import GaussianProcessBase, PredictResult
-
+from mogp_emulator.Priors import (
+    GPPriors, 
+    InvGammaPrior, 
+    GammaPrior, 
+    LogNormalPrior, 
+    WeakPrior,
+    PriorDist
+)
 
 class GPUUnavailableError(RuntimeError):
     """Exception type to use when a GPU, or the GPU library, is unavailable"""
@@ -133,8 +140,72 @@ def interpret_nugget(nugget):
     # return info needed to set the nugget on the C++ object
     return nugget_type, nugget_size
 
-class GaussianProcessGPU(GaussianProcessBase):
+def create_prior_params(**kwargs):
+    """
+    Extract the parameters needed for the C++ DenseGP_GPU instance to 
+    create its GPPriors object.
+    Can accept either an existing GPPriors object, or the parameters needed
+    to construct one, or otherwise will create a default object.
+    :param newpriors: set of priors to use
+    :type newpriors: GPPriors or dict
+    :param inputs: the inputs of the GP
+    :type inputs: numpy array
+    :param n_corr: the number of correlation length parameters
+    :type n_corr: int
+    :param nugget_type: whether nugget is adaptive, fit, or fixed
+    "type nugget_type: LibGPGPU.nugget_type
 
+    :returns: list of values needed to call the C++ constructor
+            [n_corr,
+             [(corr_i_prior_dist, [corr_i_prior_params])],
+             (cov_prior_dist, [cov_prior_params])
+             (nug_prior_dist, [nug_prior_params])]
+    :rtype: list
+    """
+    # if we are not given priors object, make default priors given the supplied args.
+    # Note that any meanfunction parameters will be given weak priors.
+    if all(x in kwargs.keys() for x in ["inputs", "n_corr", "nugget_type"]):
+        priors = GPPriors.default_priors(kwargs["inputs"], kwargs["n_corr"], kwargs["nugget_type"])
+    elif "newpriors" in kwargs.keys():
+        newpriors = kwargs["newpriors"]
+        if isinstance(newpriors, GPPriors):
+            priors = newpriors
+        else:
+            try:
+                priors = GPPriors(**newpriors)
+            except TypeError:
+                raise TypeError("Provided arguments for priors are not valid inputs " +
+                                "for a GPPriors object.")
+    else:
+        raise TypeError("Unrecognized keyword arguments for create_prior_params " +
+                        " - should be 'newpriors' or ('inputs','n_corr','nugget_type')")
+
+    def get_prior_params(prior):
+        """
+        for a WeakPrior-derived object, return a tuple (prior_type,[prior_params])
+        """
+        type_dict = {"InvGammaPrior" : LibGPGPU.prior_type.InvGamma,
+                     "GammaPrior" : LibGPGPU.prior_type.Gamma,
+                     "LogNormalPrior" : LibGPGPU.prior_type.LogNormal
+                }
+        prior_as_str = type(prior).__name__
+        if prior_as_str in type_dict.keys():
+            return (type_dict[prior_as_str], [prior.shape, prior.scale])
+        elif (isinstance(prior, WeakPrior) \
+            and not isinstance(prior, PriorDist)) \
+            or prior == None:
+            return (LibGPGPU.prior_type.Weak, [0.,0.])
+        else:
+            raise TypeError("Unknown prior type {} for C++/GPU implementation".format(type(prior)))
+
+    prior_params = [priors.n_corr]
+    prior_params.append([get_prior_params(prior) for prior in priors.corr])
+    prior_params.append(get_prior_params(priors.cov))
+    prior_params.append(get_prior_params(priors.nugget))
+    return prior_params
+
+
+class GaussianProcessGPU(GaussianProcessBase):
     """
     This class implements the same interface as
     :class:`mogp_emulator.GaussianProcess.GaussianProcess`, but using a GPU if available.
@@ -213,6 +284,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         # instantiate the DenseGP_GPU class
         self._densegp_gpu = None
         self._init_gpu()   
+        # set the GPPriors
+        self._set_priors(priors)
 
     @classmethod
     def from_cpp(cls, denseGP_GPU):
@@ -241,6 +314,31 @@ class GaussianProcessGPU(GaussianProcessBase):
                                                      self.kernel_type,
                                                      self._nugget_type,
                                                      self._init_nugget_size)
+
+    def _set_priors(self, newpriors=None):
+        """
+        Tell the C++ DenseGP_GPU object to create a priors object with specified parameters
+
+        :param newpriors(optional): Priors object to use (otherwise will use default)
+        :type newpriors: GPPriors object, or dict
+        """
+        if newpriors:
+            prior_params = create_prior_params(newpriors=newpriors)
+        else:
+            prior_params = create_prior_params(
+                inputs=self.inputs, n_corr=self.n_corr, nugget_type=self.nugget_type
+            )
+        self._densegp_gpu.create_gppriors(
+            *prior_params
+        )         
+
+    @property 
+    def priors(self):
+        """
+        Returns the Python binding to  the C++ GPPriors object, which holds 
+        MeanPriors, correlation_length priors, covariance prior, and nugget prior
+        """
+        return self._densegp_gpu.get_gppriors()
 
     @property
     def inputs(self):
@@ -282,6 +380,17 @@ class GaussianProcessGPU(GaussianProcessBase):
         """
         return self._densegp_gpu.D()
 
+
+    @property
+    def n_corr(self):
+        """
+        Returns number of correlation length parameters
+
+        :returns: Number of parameters
+        :rtype: int
+        """
+        return self._densegp_gpu.n_corr()
+
     @property
     def n_params(self):
         """
@@ -294,7 +403,8 @@ class GaussianProcessGPU(GaussianProcessBase):
         :returns: Number of hyperparameters
         :rtype: int
         """
-        return self._densegp_gpu.n_params()
+        return self._densegp_gpu.get_theta().get_n_data() + \
+               self._densegp_gpu.get_theta().get_n_mean()
 
     @property
     def nugget_type(self):
@@ -337,8 +447,6 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         :type theta: ndarray
         """
-        if not self._densegp_gpu.theta_fit_status():
-            return None
         theta = self._densegp_gpu.get_theta()
         return theta
 
@@ -350,7 +458,7 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         See :func:`mogp_emulator.GaussianProcess.GaussianProcess.theta`
 
-        :type theta: ndarray
+        :type theta: ndarray or GPParams object
         :returns: None
         """
         if theta is None:
@@ -370,7 +478,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         return np.tril(result.transpose())
 
     @property 
-    def invQt(self):
+    def Kinv_t(self):
         """
         Return the product of inverse covariance matrix with the target values     
 
@@ -389,6 +497,8 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         :returns: double
         """
+        if not self._densegp_gpu.theta_fit_status():
+            return None
         return self.logposterior(self.theta)
 
     def get_K_matrix(self):
@@ -444,7 +554,7 @@ class GaussianProcessGPU(GaussianProcessBase):
 
         assert theta.shape == (self.n_params,), "bad shape for new parameters"
 
-        if self.theta is None or not np.allclose(theta, self.theta, rtol=1.e-10, atol=1.e-15):
+        if self.theta is None or not np.allclose(theta, self.theta.get_data(), rtol=1.e-10, atol=1.e-15):
             self.fit(theta)
 
         result = np.zeros(self.n_params)
@@ -476,7 +586,7 @@ class GaussianProcessGPU(GaussianProcessBase):
         :func:`mogp_emulator.GaussianProcess.GaussianProcess.predict`
         """
 
-        if self.theta is None:
+        if not self.theta.data_has_been_set():
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
         testing = ndarray_coerce_type_and_flags(testing)

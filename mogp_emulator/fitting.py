@@ -198,6 +198,8 @@ def _fit_single_GPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwar
     if theta0 is None or len(theta0)==0:
         theta0=np.array([])
     LibGPGPU.fit_GP_MAP(gp._densegp_gpu, n_tries, theta0)
+    if not gp.theta.data_has_been_set():
+        raise RuntimeError("Fitting did not converge")
     return gp
 
 def _fit_MOGPGPU_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B', **kwargs):
@@ -323,7 +325,7 @@ def _fit_MOGP_MAP(gp, n_tries=15, theta0=None, method='L-BFGS-B',
         emulators_to_fit = gp.get_emulators_not_fit()
         thetavals = [ theta0[idx] for idx in indices_to_fit]
 
-    if platform.system() == "Windows": 
+    if platform.system() == "Windows":
 
         fit_MOGP = [fit_GP_MAP(emulator, n_tries=n_tries, theta0=t0, method=method, **kwargs)
                     for (emulator, t0) in zip(emulators_to_fit, thetavals)]

@@ -10,7 +10,13 @@ from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 from patsy import ModelDesc
 
-class MultiOutputGP(object):
+class MultiOutputGPBase(object):
+    """Base class for Multi-Output GPs. CPU and GPU versions derive from
+    this class.
+    """
+    pass
+
+class MultiOutputGP(MultiOutputGPBase):
     """Implementation of a multiple-output Gaussian Process Emulator.
 
     Essentially a parallelized wrapper for the predict method. To fit
@@ -35,10 +41,7 @@ class MultiOutputGP(object):
                  nugget="adaptive", inputdict={}, use_patsy=True):
         """
         Create a new multi-output GP Emulator
-        """
-
-        self.GPClass = GaussianProcess
-            
+        """ 
         if not inputdict == {}:
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
                           "You must input your mean formulae using the x[0] format directly " +
@@ -62,9 +65,9 @@ class MultiOutputGP(object):
         if not (inputs.shape[0] == targets.shape[1]):
             raise ValueError("the first dimension of inputs must be the same length as the second dimension of targets (or first if targets is 1D))")
 
-        self.n_emulators = targets.shape[0]
-        self.n = inputs.shape[0]
-        self.D = inputs.shape[1]
+        self._n_emulators = targets.shape[0]
+        self._n = inputs.shape[0]
+        self._D = inputs.shape[1]
 
         if not isinstance(mean, list):
             mean = self.n_emulators*[mean]
@@ -97,12 +100,87 @@ class MultiOutputGP(object):
         assert isinstance(nugget, list), "nugget must be a string, float, or a list of strings and floats"
         assert len(nugget) == self.n_emulators
 
-        self.emulators = [ self.GPClass(inputs, single_target, m, k, p, n)
+        self.emulators = [ GaussianProcess(inputs, single_target, m, k, p, n)
                            for (single_target, m, k, p, n) in zip(targets, mean, kernel, priorslist, nugget)]
 
 
+    @property
+    def inputs(self):
+        """Full array of emulator inputs
+        
+        Returns input array (2D array of shape
+        ``(n, D)``).
+        
+        :returns: Array of input values
+        :rtype: ndarray
+        """
+        return self.emulators[0].inputs
+
+    @property
+    def targets(self):
+        """Full array of emulator targets
+        
+        Returns target array (2D array of shape
+        ``(n_emulators, n)``).
+        
+        :returns: Array of target values
+        :rtype: ndarray
+        """
+        targetlist = []
+        for em in self.emulators:
+            targetlist.append(em.targets)
+        return np.array(targetlist)
+
+    @property
+    def D(self):
+        """Number of Dimensions in inputs
+        
+        Returns number of dimentions of the input data
+        
+        :returns: Number of dimentions of inputs
+        :rtype: int
+        """
+        return self._D
+
+    @property
+    def n(self):
+        """Number of training examples in inputs
+        
+        Returns length of training data.
+        
+        :returns: Length of training inputs
+        :rtype: int
+        """
+        return self._n
+
+    @property
+    def n_params(self):
+        """Returns the number of parameters for all emulators
+        as a list of integers
+        
+        :returns: Number of parameters for each emulator
+                  as a list of integers
+        :rtype: list
+        """
+        return [em.n_params for em in self.emulators]
+
+    @property
+    def n_emulators(self):
+        return self._n_emulators
+
+    def reset_fit_status(self):
+        """Reset the fit status of all emulators
+        """
+        for em in self.emulators:
+            em.theta = None
+            
+    def _process_inputs(self, inputs):
+        "Obtain inputs that are compatible with underlying GPs"
+        
+        return self.emulators[0]._process_inputs(inputs)
+
     def predict(self, testing, unc=True, deriv=False, include_nugget=True,
-                allow_not_fit=False, processes=None):
+                full_cov = False, allow_not_fit=False, processes=None):
         """Make a prediction for a set of input vectors
 
         Makes predictions for each of the emulators on a given set of
@@ -127,6 +205,13 @@ class MultiOutputGP(object):
         are computed, the ``include_nugget`` flag determines if the
         uncertainties should include the nugget. By default, this is
         set to ``True``.
+                
+        If desired, the full covariance can be computed by
+        setting ``full_cov=True``. In that case, the returned
+        uncertainty will have shape
+        ``(n_emulators, n_predict, n_predict)``. This argument is
+        optional and the default is to only compute the variance,
+        not the full covariance.
                 
         Derivatives have been deprecated due to changes in how the
         mean function is computed, so setting ``deriv=True`` will
@@ -159,6 +244,11 @@ class MultiOutputGP(object):
                                 predictive variance. Only relevant if
                                 ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param full_cov: (optional) Flag indicating if the full
+                         predictive covariance should be computed.
+                         Only relevant if ``unc = True``.
+                         Default is ``False``.
+        :type full_cov: bool
         :param allow_not_fit: (optional) Flag that allows predictions
                               to be made even if not all emulators have
                               been fit. Default is ``False`` which
@@ -204,18 +294,18 @@ class MultiOutputGP(object):
         if allow_not_fit:
             predict_method = _gp_predict_default_NaN
         else:
-            predict_method = self.GPClass.predict
-            
+            predict_method = GaussianProcess.predict
+
         serial_predict = (platform.system() == "Windows" or
                           any([isinstance(em._mean, ModelDesc) for em in self.emulators]))
 
         if serial_predict:
-            predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget)
+            predict_vals = [predict_method(gp, testing, unc, deriv, include_nugget, full_cov)
                             for gp in self.emulators]
         else:
             with Pool(processes) as p:
                 predict_vals = p.starmap(predict_method,
-                                         [(gp, testing, unc, deriv, include_nugget)
+                                         [(gp, testing, unc, deriv, include_nugget, full_cov)
                                           for gp in self.emulators])
 
         # repackage predictions into numpy arrays
@@ -237,6 +327,36 @@ class MultiOutputGP(object):
         """
 
         return self.predict(testing, unc=False, deriv=False, processes=processes)[0]
+
+    def fit(self, thetas):
+        """
+        Fit all emulators
+        
+        Fit all emulators given an 2D array of hyperparameter values
+        (if all emulators have the same number of parameters) or
+        an iterable containing 1D numpy arrays (if the emulators
+        have a variable number of hyperparameter values).
+        
+        Note that this routine does not run in parallel for the CPU
+        version.
+        
+        :param thetas: hyperparameters for all emulators. 2D array
+                       or iterable containing 1D numpy arrays, must
+                       have first dimension of size ``n_emulators``
+        :type thetas: np.array or iterable
+        """
+        for thetaval, em in zip(thetas, self.emulators):
+            em.fit(thetaval)
+
+    def fit_emulator(self, index, theta):
+        """
+        Fit a specific emulator
+        :param index: index of emulator whose hyperparameters we will set 
+        :type index: int
+        :param theta: hyperparameters for all emulators. 1D array of length n_param 
+        :type theta: np.array
+        """
+        self.emulators[index].fit(theta)
 
 
     def get_indices_fit(self):
@@ -353,7 +473,7 @@ class MultiOutputGP(object):
                  str(self.D)+" input variables")
 
 
-def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
+def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget, full_cov):
     """Prediction method for GPs that defaults to NaN for unfit GPs
 
     Wrapper function for the ``GaussianProcess`` predict method that
@@ -388,6 +508,11 @@ def _gp_predict_default_NaN(gp, testing, unc, deriv, include_nugget):
                            predictive variance. Only relevant if
                            ``unc = True``.  Default is ``True``.
     :type include_nugget: bool
+    :param full_cov: (optional) Flag indicating if the full
+                     predictive covariance should be computed.
+                     Only relevant if ``unc = True``.
+                     Default is ``False``.
+    :type full_cov: bool
     :returns: Tuple of numpy arrays holding the predictions,
               uncertainties, and derivatives,
               respectively. Predictions and uncertainties have
