@@ -119,7 +119,7 @@ class GaussianProcess(GaussianProcessBase):
         distributions), the user must pass a ``GPPriors`` object.
         The ``GPPriors.default_priors`` class method gives more
         control over the exact distribution choice.
-        
+
         If default priors are not used, ``priors`` must be a ``GPPriors``
         object or a list of prior distributions. If a list, it must
         have a length of ``n_params`` whose elements are either
@@ -212,7 +212,7 @@ class GaussianProcess(GaussianProcessBase):
             warnings.warn("The inputdict interface for mean functions has been deprecated. " +
                           "You must input your mean formulae using the x[0] format directly " +
                           "in the formula.", DeprecationWarning)
-                          
+
         if not use_patsy:
             warnings.warn("patsy is now required to parse all formulae and form design " +
                           "matrices in mogp-emulator. The use_patsy=False option will be ignored.",
@@ -224,13 +224,13 @@ class GaussianProcess(GaussianProcessBase):
         self.kernel = kernel
 
         _, self._nugget_type = _process_nugget(nugget)
-        
+
         self._set_priors(priors)
 
         self._theta = GPParams(n_mean=self.n_mean,
                                n_corr=self.n_corr,
                                nugget=nugget)
-                               
+
         self.Kinv = None
         self.Kinvt = None
         self.current_logpost = None
@@ -280,16 +280,16 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def n_mean(self):
         """Returns number of mean parameters
-        
+
         :returns: Number of mean parameters
         :rtype: int
         """
         return self._dm.shape[1]
-        
+
     @property
     def n_corr(self):
         """Returns number of correlation length parameters
-        
+
         :returns: Number of correlation length parameters
         :rtype: int
         """
@@ -316,7 +316,7 @@ class GaussianProcess(GaussianProcessBase):
     @property
     def has_nugget(self):
         """Boolean indicating if the GP has a nugget parameter
-        
+
         :returns: Boolean indicating if GP has a nugget
         :rtype: bool
         """
@@ -419,7 +419,7 @@ class GaussianProcess(GaussianProcessBase):
         :type theta: ndarray
         :returns: None
         """
-        
+
         if theta is None:
             self._theta.set_data(None)
             self.current_logpost = None
@@ -466,7 +466,6 @@ class GaussianProcess(GaussianProcessBase):
         when fitting if the new priors change the way the underlying
         parameters are found.
         """
-        
         if newpriors is None:
             self._priors = GPPriors.default_priors(self.inputs, self.n_corr, self.nugget_type)
         elif isinstance(newpriors, GPPriors):
@@ -477,7 +476,7 @@ class GaussianProcess(GaussianProcessBase):
             except TypeError:
                 raise TypeError("Provided arguments for priors are not valid inputs " +
                                 "for a GPPriors object.")
-        
+
         if self._priors.n_mean > 0:
             assert self._priors.n_mean == self.n_mean
         assert self._priors.n_corr == self.n_corr, "bad number of correlation lengths in new GPPriors object"
@@ -485,7 +484,7 @@ class GaussianProcess(GaussianProcessBase):
 
     def get_design_matrix(self, inputs):
         """Returns the design matrix for a set of inputs
-        
+
         For a given set of inputs, compute the design matrix based on the GP
         mean function.
         
@@ -508,7 +507,7 @@ class GaussianProcess(GaussianProcessBase):
                 raise ValueError("Provided mean function is invalid")
             if not dm.shape[0] == inputs.shape[0]:
                 raise ValueError("Provided design matrix is of the wrong shape")
-                
+
         return dm
 
     def get_cov_matrix(self, other_inputs):
@@ -556,11 +555,18 @@ class GaussianProcess(GaussianProcessBase):
 
     def _process_inputs(self, inputs):
         "Change inputs into an array and reshape if required"
-        
+
         inputs = np.array(inputs)
         if inputs.ndim == 1:
-            inputs = np.reshape(inputs, (-1, 1))
-        assert inputs.ndim == 2, "bad shape for inputs"
+            if (not hasattr(self, "_inputs") or self.D == 1):
+                inputs = np.reshape(inputs, (-1, 1))
+            else:
+                inputs = np.reshape(inputs, (1, -1))
+        assert inputs.ndim == 2, "bad shape for input"
+        if hasattr(self, "_inputs"):
+            assert (
+                inputs.shape[1] == self.D
+            ), "second dimension of other inputs must be the same as the number of input parameters"
         
         return inputs
 
@@ -686,13 +692,13 @@ class GaussianProcess(GaussianProcessBase):
         hyperparameters and log-posterior in attributes of the object.
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_params,)``
+                      with shape ``(n_data,)``
         :type theta: ndarray
         :returns: negative log-posterior
         :rtype: float
 
         """
-        
+
         if self._refit(theta):
             self.fit(theta)
 
@@ -717,11 +723,11 @@ class GaussianProcess(GaussianProcessBase):
         ``fit`` (and subsequently resets the cached information).
 
         :param theta: Value of the hyperparameters. Must be array-like
-                      with shape ``(n_params,)``
+                      with shape ``(n_data,)``
         :type theta: ndarray
         :returns: partial derivatives of the negative log-posterior
                   with respect to the hyperparameters (array with
-                  shape ``(n_params,)``)
+                  shape ``(n_data,)``)
         :rtype: ndarray
         """
 
@@ -805,7 +811,7 @@ class GaussianProcess(GaussianProcessBase):
 
         raise NotImplementedError("Hessian computation is not currently supported")
 
-    def predict(self, testing, unc=True, deriv=False, include_nugget=True):
+    def predict(self, testing, unc=True, deriv=False, include_nugget=True, full_cov=False):
         """Make a prediction for a set of input vectors for a single set of hyperparameters
 
         Makes predictions for the emulator on a given set of input
@@ -822,13 +828,17 @@ class GaussianProcess(GaussianProcessBase):
 
         Optionally, the emulator can also calculate the variances in
         the predictions. If the uncertainties are computed, they are
-        returned as the second output from the method as an
-        ``(n_predict,)`` shaped numpy array. Derivatives have been
-        deprecated due to changes in how the mean function is computed,
-        so setting ``deriv=True`` will have no effect and will raise
-        a ``DeprecationWarning``.
+        returned as the second output from the method, either as an
+        ``(n_predict,)`` shaped numpy array if ``full_cov=False``
+        or an array with ``(n_predict, n_predict)`` if the full
+        covariance is computed (default is only to compute the
+        variance, which is the diagonal of the full covariance).
+        
+        Derivatives have been deprecated due to changes in how the
+        mean function is computed, so setting ``deriv=True`` will
+        have no effect and will raise a ``DeprecationWarning``.
 
-        The final input to the method determines if the predictive
+        The ``include_nugget`` kwarg determines if the predictive
         variance should include the nugget or not. For situations
         where the nugget represents observational error and
         predictions are estimating the true underlying function, this
@@ -852,6 +862,11 @@ class GaussianProcess(GaussianProcessBase):
                                predictive variance. Only relevant if
                                ``unc = True``.  Default is ``True``.
         :type include_nugget: bool
+        :param full_cov: (optional) Flag indicating if the full
+                         covariance should be computed for the
+                         uncertainty. Only relevant if ``unc = True``.
+                         Default is ``False``.
+        :type full_cov: bool
         :returns: ``PredictResult`` object holding numpy arrays with
                   the predictions and uncertainties. Predictions
                   and uncertainties have shape ``(n_predict,)``.
@@ -863,14 +878,7 @@ class GaussianProcess(GaussianProcessBase):
         if self.theta.get_data() is None:
             raise ValueError("hyperparameters have not been fit for this Gaussian Process")
 
-        testing = np.array(testing)
-        if testing.ndim == 1:
-            if self.D == 1:
-                testing = np.reshape(testing, (-1, 1))
-            else:
-                testing = np.reshape(testing, (1, -1))
-        assert testing.ndim == 2, "test points must be a 1D or 2D array"
-        assert testing.shape[1] == self.D, "second dimension of testing must be the same as the number of input parameters"
+        testing = self._process_inputs(testing)
 
         dmtest = self.get_design_matrix(testing)
         mtest = np.dot(dmtest, self.theta.mean)
@@ -880,17 +888,32 @@ class GaussianProcess(GaussianProcessBase):
 
         var = None
         if unc:
-            sigma_2 = self.theta.cov
-
-            if include_nugget and not self.nugget_type == "pivot":
-                sigma_2 += self.theta.nugget
 
             Kinv_Ktest = self.Kinv.solve(Ktest)
             R = calc_R(Kinv_Ktest, self._dm, dmtest)
+            
+            if full_cov:
+                sigma_2 = self.theta.cov*self.kernel.kernel_f(
+                    testing, testing, self.theta.corr_raw
+                )
+                
+                if include_nugget and not self.nugget_type == "pivot":
+                    sigma_2 += np.eye(testing.shape[0])*self.theta.nugget
+                
+                Linv_Ktest = self.Kinv.solve_L(Ktest)
+                LAinv_R = self.Ainv.solve_L(R)
+                
+                var = (sigma_2 - np.dot(Linv_Ktest.T, Linv_Ktest) +
+                                 np.dot(LAinv_R.T, LAinv_R))
+            else:
+                sigma_2 = self.theta.cov
 
-            var = np.maximum(sigma_2 - np.sum(Ktest*Kinv_Ktest, axis=0) +
-                             np.sum(R*self.Ainv.solve(R), axis=0),
-                             0.)
+                if include_nugget and not self.nugget_type == "pivot":
+                    sigma_2 += self.theta.nugget
+                    
+                var = np.maximum(sigma_2 - np.sum(Ktest*Kinv_Ktest, axis=0) +
+                                 np.sum(R*self.Ainv.solve(R), axis=0),
+                                 0.)
 
         inputderiv = None
         if deriv:

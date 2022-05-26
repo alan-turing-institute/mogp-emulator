@@ -52,12 +52,10 @@ public:
     return logpostderiv;
   }
 
-  vec theta() {
+  GPParams theta() {
     return gp.get_theta();
   }
-
 };
-
 
 
 void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<double> theta0=std::vector<double>()) {
@@ -68,23 +66,17 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
   std::vector< std::vector<double> > all_params;  
   // if we're given an initial set of theta values, put this at the start of all_params
   if (theta0.size() > 0) {
-    if (theta0.size() != gp.get_n_params() ) 
+    if (theta0.size() != gp.get_n_params() )  // note this include meanfunc params
       throw std::runtime_error("length of theta0 must equal n_params of GP.");
     all_params.push_back(theta0);
   }
 
-  // generate random starting values for theta
-  std::random_device rd;
-  std::mt19937 e2(rd());
-
-  std::uniform_real_distribution<> dist(-2.5, 2.5);
-
+  // use priors to generate starting values for theta
   
   for (int itry=all_params.size(); itry<n_tries; ++itry) {
-    std::vector<REAL> v(gp.get_n_params());
-    std::generate(v.begin(), v.end(), [&dist, &e2](){ return dist(e2);});
-   
-    all_params.push_back(v);
+    //std::vector<REAL> meanfunc_params(gp.get_theta().get_n_mean(),0.);
+    std::vector<REAL> prior_samples = gp.get_gppriors()->sample();
+    all_params.push_back(prior_samples);
   }
   
   std::vector<double> minvals;
@@ -106,7 +98,11 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
             },
             theta, -1);
       minvals.push_back(minf);
-      thetavals.push_back(gpw.theta());    
+      vec meanfunc_params = gpw.theta().get_mean();
+      vec kernel_params = gpw.theta().get_data();
+      vec fitted_params(meanfunc_params.size() + kernel_params.size() );
+      fitted_params << meanfunc_params, kernel_params;
+      thetavals.push_back(fitted_params);    
     } catch(std::exception &e) {
       std::cout << "dlib optimization failed: " << e.what() << std::endl;
     }
@@ -117,11 +113,9 @@ void fit_single_GP_MAP(DenseGP_GPU& gp, const int n_tries=15, const std::vector<
     gp.reset_theta_fit_status();
   } else {
       int minvalIndex = std::min_element(minvals.begin(),minvals.end()) - minvals.begin();
-      vec best_theta = thetavals.at(minvalIndex);
-      gp.fit(best_theta);
-
+      vec best_params = thetavals.at(minvalIndex);
+      gp.fit(best_params);
   }
-  
   return;
 }
 

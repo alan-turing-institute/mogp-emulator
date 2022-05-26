@@ -25,9 +25,8 @@ These in turn use CUDA kernels defined in the file cov_gpu.cu
 #include "util.hpp"
 #include "kernel.hpp"
 #include "meanfunc.hpp"
-
-
-
+#include "gpparams.hpp"
+#include "gppriors.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The Gaussian Process  class ///////////////////////////////
@@ -39,7 +38,7 @@ class DenseGP_GPU {
     unsigned int testing_size;
 
     // Number of training points, dimension of input
-    unsigned int n, D;
+    unsigned int n, D, n_corr;
 
     // inputs
     mat inputs;
@@ -61,9 +60,6 @@ class DenseGP_GPU {
 
     // hyperparameters
     vec current_theta;
-
-    // flag for whether we have fit hyperparameters
-    bool theta_fitted;
 
     // handle for CUBLAS calls
     cublasHandle_t cublasHandle;
@@ -89,11 +85,14 @@ class DenseGP_GPU {
     // adaptive nugget jitter, or specified fixed, or fitted, nugget size
     double nug_size;
 
+    // object holding all our hyperparameters
+    GPParams gptheta;
+
+    // object holding all our priors
+    GPPriors* priors;
+
     // kernel hyperparameters on the device
     thrust::device_vector<REAL> theta_d;
-
-    // mean function hyperparameters
-    vec meanfunc_params;
 
     // inputs, on the device, row major order
     thrust::device_vector<REAL> inputs_d;
@@ -143,49 +142,93 @@ public:
         return targets;
     }
 
+    int get_n_kernel_params(void) const
+    {
+        return D + 1 + int(get_nugget_type()==NUG_FIT);
+    }
+
+    int get_n_corr(void) const
+    {
+        return n_corr;
+    }
+
     int get_n_params(void) const
     {
         return D + 1 + int(nug_type == NUG_FIT);
     }
 
-    vec get_theta(void)
+    GPParams get_theta(void) const
     {
-        return current_theta;
+        return gptheta;
     }
 
     double get_nugget_size(void) const
     {
-        return nug_size;
+        return gptheta.get_nugget_size();
     }
 
     void set_nugget_size(double nugget_size) 
     {
-        nug_size = nugget_size;
+        gptheta.set_nugget_size(nugget_size);
     }
 
     void set_nugget_type(nugget_type nugtype)
     {
-        nug_type = nugtype;
+        gptheta.set_nugget_type(nugtype);
     }
 
     nugget_type get_nugget_type(void) const
     {
-        return nug_type;
+        return gptheta.get_nugget_type();
     }
 
-    BaseMeanFunc* get_meanfunc(void)
+    BaseMeanFunc* get_meanfunc(void) const
     {
         return meanfunc;
     }
 
-    BaseKernel* get_kernel(void)
+    BaseKernel* get_kernel(void) const
     {
         return kernel;
     }
 
-    kernel_type get_kernel_type(void)
+    kernel_type get_kernel_type(void) const
     {
         return kern_type;
+    }
+
+    GPPriors* get_gppriors(void) const
+    {
+        // This is the version of the function to be bound to the Python class
+        // WARNING - this will cause a (small) memory leak!
+        // but the alternative is that the destructor of the 
+        // GPPriors class will be called when Python does its garbage collection
+        return priors;
+    }
+
+    void set_gppriors(GPPriors* gppriors_)
+    {
+        priors = gppriors_;
+    }
+
+    void create_gppriors(int n_corr,
+                         std::vector< std::pair< prior_type, std::vector<REAL> > > corr_params,
+                         std::pair<prior_type, std::vector<REAL> > cov_params,
+                         std::pair<prior_type, std::vector<REAL> > nug_params)
+//                         prior_type ptype_cov_, REAL cov_p1_, REAL cov_p2_,
+  //                       prior_type ptype_nug_, REAL nug_p1_, REAL nug_p2_)
+    {
+        priors = new GPPriors(n_corr, nug_type=get_nugget_type());
+        priors->create_corr_priors(corr_params);
+        priors->create_cov_prior(cov_params);
+        priors->set_nugget(nug_params);
+        // default MeanPrior if required
+        if (gptheta.get_n_mean() > 0) {
+            int n_mean = gptheta.get_n_mean();
+            MeanPriors* mean_priors = new MeanPriors(vec::Zero(n_mean),mat::Identity(n_mean,n_mean));
+            priors->set_mean(mean_priors);
+        }
+
     }
 
     // make a single prediction (mainly for testing - most use-cases will use predict_batch or predict_deriv_batch)
@@ -202,6 +245,7 @@ public:
         CUBLASDOT(cublasHandle, n, dev_ptr(work_d), 1, dev_ptr(invQt_d), 1,
                   &result);
 	// evaluate the mean function and add to the result
+        vec meanfunc_params = gptheta.get_mean();
         vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
         return double(result + meanfunc_vals(0));
     }
@@ -247,6 +291,7 @@ public:
 
         var = kappa - var.array();
 	    // evaluate the mean function and add to the result
+        vec meanfunc_params = gptheta.get_mean();
 	    vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
         return REAL(result + meanfunc_vals(0));
     }
@@ -287,6 +332,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
 
 	// evaluate the mean function and add to the result
+    vec meanfunc_params = gptheta.get_mean();
 	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
 	result += meanfunc_vals;
     }
@@ -308,7 +354,6 @@ public:
             throw std::runtime_error("predict_variance_batch: More test points were passed "
                                      "than the maximum batch size");
         }
-
 
         thrust::device_vector<REAL> testing_d(testing.data(), testing.data() + Nbatch * D);
         thrust::device_vector<REAL> mean_d(Nbatch);
@@ -355,6 +400,7 @@ public:
         // copy back means
         thrust::copy(mean_d.begin(), mean_d.end(), mean.data());
 	// evaluate the mean function and add to the mean
+    vec meanfunc_params = gptheta.get_mean();
 	vec meanfunc_vals = meanfunc->mean_f(testing, meanfunc_params);
 	mean += meanfunc_vals;
         // copy back variances
@@ -396,6 +442,7 @@ public:
         thrust::copy(result_d.begin(), result_d.end(), result.data());
 
 	// evaluate deriv of meanfunc wrt test points, and add to result
+    vec meanfunc_params = gptheta.get_mean();
 	mat meanfunc_inputderiv = meanfunc->mean_inputderiv(testing, meanfunc_params);
 	result += meanfunc_inputderiv.transpose();
     }
@@ -433,36 +480,50 @@ public:
         thrust::copy(chol_lower_d.begin(), chol_lower_d.end(), result.data());
     }
 
-    // Update the hyperparameters, and K, invQ and invQt which depend on them
-    void fit(vec_ref theta)
+    // Update the hyperparameters, given a new GPParams object
+    void fit(GPParams& theta_)
     {
+        if (! gptheta.test_same_shape(theta_)) 
+            throw std::runtime_error("Shape of new GPParams object does not match existing one");
+        gptheta = theta_;
+        vec new_params = gptheta.get_data();
+        fit(new_params);
+    }
 
-	    int param_switch_index = meanfunc->get_n_params();
-	    meanfunc_params = theta.block(0,0,param_switch_index,1);
-
-	    // evaluate the mean function at the input values and subtract from targets
+    void fit(vec params) {
+        // test that the new parameters are the expected size
+        if (! gptheta.test_same_shape(params)) 
+            throw std::runtime_error("Shape of new GPParams object does not match existing one");
+        int switch_index = gptheta.get_n_mean();
+        gptheta.set_data(params.block(switch_index,0,gptheta.get_n_data(), 1));
+        gptheta.set_mean(params.block(0,0, switch_index, 1));
+        if (nug_type == NUG_FIT) {
+            // set the nugget size to be the last element of params
+            gptheta.set_nugget_size(params[params.size()-1]);
+        }
+        vec meanfunc_params = gptheta.get_mean();
+        vec kernel_params = gptheta.get_data();
+        // evaluate the mean function at the input values and subtract from targets
 	    vec new_targets = targets - meanfunc->mean_f(inputs, meanfunc_params);
-	    thrust::copy(new_targets.data(), new_targets.data() + n, targets_d.begin());
-
-	    // copy all the parameters _after_ those for the mean function to the device vector theta_d
-        thrust::copy(theta.data() + param_switch_index,
-		         theta.data() + D + 2 + param_switch_index,
-		         theta_d.begin());
-
-	    // calculate covariance matrix, put result into K_d
+        thrust::copy(new_targets.data(), new_targets.data() + n, targets_d.begin());
+	    // copy all the non-meanfunc parameters to the device vector theta_d
+        thrust::copy(kernel_params.data(),
+		             kernel_params.data() + gptheta.get_n_data(),
+		             theta_d.begin());
+        // calculate covariance matrix, put result into K_d
         kernel->cov_batch_gpu(dev_ptr(K_d), n, n, D, dev_ptr(inputs_d),
 		    	      dev_ptr(inputs_d), dev_ptr(theta_d));
 	    /// copy the covariance matrix K_d into work_mat_d
 	    thrust::copy(K_d.begin(), K_d.end(), work_mat_d.begin());
-
         thrust::device_vector<int> info_d(1);
         int info_h;
         cusolverStatus_t status;
 	    int factorisation_status;
 	    // for adaptive nugget start with a nugget of zero and increase by small amount
 	    // until we find a value where factorization succeeds.
-	    if (nug_type == NUG_ADAPTIVE) {
+	    if (gptheta.get_nugget_type() == NUG_ADAPTIVE) {
 	        double mean_diag;
+            double tmp_nug_size = 0.;
 	        const int max_tries = 5;
 	        int itry = 0;
 	        while (itry < max_tries) {
@@ -479,19 +540,18 @@ public:
 			            // elements should all be positive)
 		    	        cublasDasum(cublasHandle, n, dev_ptr(K_d), n+1, &mean_diag);
 			            mean_diag /= n;
-			            nug_size = 1e-6 * mean_diag;
+			            tmp_nug_size = 1e-6 * mean_diag;
 		            }
-		            add_diagonal(n, nug_size, dev_ptr(work_mat_d));
+		            add_diagonal(n, tmp_nug_size, dev_ptr(work_mat_d));
 		        }
 
 		        factorisation_status = calc_cholesky_factors();
 		        if (factorisation_status == 0) {
                     break;
 		        }
-		        nug_size *= 10;
+		        tmp_nug_size *= 10;
 		        itry++;
 	        }
-
 	        // if none of the factorization attempts succeeded:
 	        if (itry == max_tries) {
 		        std::string msg;
@@ -499,39 +559,27 @@ public:
 		        smsg << "All attempts at factorization failed. Last return code " << factorisation_status;
 		        throw std::runtime_error(smsg.str());
 	        }
-	    // for fixed nugget, add "nugget_size" to the diagonal of the matrix.
-	    } else if (nug_type == NUG_FIXED) {
-	        add_diagonal(n, nug_size, dev_ptr(work_mat_d));
+            gptheta.set_nugget_size(tmp_nug_size);
+	    // for fixed or fitted nugget, add "nugget_size" to the diagonal of the matrix.
+	    } else if ((gptheta.get_nugget_type() == NUG_FIXED) || 
+                    (gptheta.get_nugget_type() == NUG_FIT)) {
+	        add_diagonal(n, gptheta.get_nugget_size(), dev_ptr(work_mat_d));
 	        factorisation_status = calc_cholesky_factors();
 	        if (factorisation_status != 0) {
-                throw std::runtime_error("Unable to factorize matrix using fixed nugget");
-	        }
-
-	    } else if (nug_type == NUG_FIT) {
-	        // set to exp(last-element-of-theta)
-	        nug_size = exp( theta(theta.size()-1) );
-
-	        add_diagonal(n, nug_size, dev_ptr(work_mat_d));
-	        factorisation_status = calc_cholesky_factors();
-	        if (factorisation_status != 0) {
-                throw std::runtime_error("Unable to factorize matrix using fitted nugget");
+                throw std::runtime_error("Unable to factorize matrix using selected nugget type");
 	        }
 	    } else throw std::runtime_error("Unrecognized nugget_type");
-
 
         // get the inverse covariance matrix invQ by solving the system of linear eqns
 	    //    work_mat_d . invQ_d = I
 	    // where work_mat_d is holding the current covariance matrix.
-
         identity_device(n, dev_ptr(invQ_d));
 
         status = cusolverDnDpotrs(cusolverHandle, CUBLAS_FILL_MODE_LOWER, n, n,
                                   dev_ptr(work_mat_d), n, dev_ptr(invQ_d), n,
                                   dev_ptr(info_d));
-
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
-
 
         // invQt - product of inverse covariance matrix with the target values
         thrust::copy(targets_d.begin(), targets_d.end(), invQt_d.begin());
@@ -541,42 +589,36 @@ public:
 
         thrust::copy(info_d.begin(), info_d.end(), &info_h);
         check_cusolver_status(status, info_h);
-
         // logdetC - sum the log of the diagonal elements of the Cholesky factor of covariance matrix (in work_mat_d)
         thrust::device_vector<double> logdetC_d(1);
 
         sum_log_diag(n, dev_ptr(work_mat_d), dev_ptr(logdetC_d), dev_ptr(sum_buffer_d), sum_buffer_size_bytes);
 
         thrust::copy(logdetC_d.begin(), logdetC_d.end(), &logdetC);
-
 	    //copy work_mat_d into the lower triangular Cholesky factor
 	    thrust::copy(work_mat_d.begin(), work_mat_d.begin()+n*n, chol_lower_d.begin());
 
 	    //set the flag to say we have fitted theta
-	    theta_fitted = true;
-        // copy mean function params then kernel params into current_theta
-	    current_theta.block(0,0,param_switch_index,1) = meanfunc_params;
-        thrust::copy(theta_d.begin(), theta_d.end(), current_theta.data()+param_switch_index);
-        
+	    gptheta.set_fitted_ok();
         // update the current_logpost
         double logpost;
         CUBLASDOT(cublasHandle, n, dev_ptr(targets_d), 1, dev_ptr(invQt_d), 1,
                   &logpost);
-
         logpost += logdetC + n * log(2.0 * M_PI);
 
         logpost = 0.5 * logpost;
-        current_logpost = logpost;
+        // subtract the priors log posterior
+        current_logpost = logpost - priors->logp(gptheta);
     }
 
     bool get_theta_fit_status(void)
     {
-        return theta_fitted;
+        return gptheta.data_has_been_set(); 
     }
 
     void reset_theta_fit_status(void)
     {
-        theta_fitted = false;
+        gptheta.unset_data();
     }
 
     void get_K(mat_ref K_h)
@@ -594,11 +636,21 @@ public:
         thrust::copy(invQt_d.begin(), invQt_d.end(), invQt_h.data());
     }
 
-    double get_logpost(vec_ref new_theta)
+    double get_logpost(vec new_theta)
     {
+	    if (gptheta.test_close(new_theta)) {
+	        return current_logpost;
+	    }
+	    
+        //theta has changed - refit
+	    fit(new_theta);
 
-        bool theta_close = (new_theta - current_theta).norm() < 1e-8;
-	    if (theta_close) {
+	    return current_logpost;
+    }
+
+    double get_logpost(GPParams& new_theta)
+    {
+	    if (gptheta.test_close(new_theta)) {
 	        return current_logpost;
 	    }
 	    
@@ -679,6 +731,7 @@ public:
 
 	    // first elements of result (up to meanfunc_nparam) will be from meanfunc,
 	    // then the next (D+1) from the Kernel.
+        vec meanfunc_params = gptheta.get_mean();
 	    int meanfunc_nparam = meanfunc_params.rows();
 	    if (meanfunc_nparam > 0) { // only copy data to device and do calculation if we need to.
 	        mat meanfunc_deriv = meanfunc->mean_deriv(inputs, meanfunc_params);
@@ -706,17 +759,18 @@ public:
 	        REAL invQtSq = std::numeric_limits<double>::quiet_NaN();
 	        CUBLASDOT(cublasHandle, n, dev_ptr(invQt_d), 1, dev_ptr(invQt_d), 1,
 		        &invQtSq);
-
 	        // set the last element of result, putting it all together
 	        result(result.size()-1) = 0.5 * nug_size * (tr_invQ - invQtSq);
 	    }
+        // subtract the values from the priors
+        result = result - priors->dlogpdtheta(gptheta);  //priors_dlogpdtheta;
     }
 
     // destructor - just to see when it is being called
     ~DenseGP_GPU() {
-       // std::cout<<"In destructor of DenseGP_GPU"<<std::endl;
         delete meanfunc;
         delete kernel;
+        delete priors;
     }
 
     // constructor
@@ -732,20 +786,18 @@ public:
         : testing_size(testing_size_)
         , n(inputs_.rows())
         , D(inputs_.cols())
+        , n_corr(0)
         , K_d(n * n, 0.0)
         , invQ_d(n * n, 0.0)
         , chol_lower_d(n * n, 0.0)
-        , theta_d(D + 2)
-	    , meanfunc_params(1) // resize later if necessary
         , inputs(inputs_)
         , targets(targets_)
 	    , kern_type(kern_)
         , kernel(0)
-	 //   , meanfunc(mean_)
-	    , nug_type(nugtype_)
+        , priors(0)
+	    , meanfunc(mean_)
+        , nug_type(nugtype_)
         , nug_size(nugsize_)
-	    , current_theta(1) // resize later
-        , theta_fitted(false)
         , inputs_d(inputs_.data(), inputs_.data() + D * n)
         , targets_d(targets_.data(), targets_.data() + n)
         , logdetC(0.0)
@@ -759,7 +811,6 @@ public:
         , kappa_d(testing_size, 0.0)
         , invQk_d(testing_size * n, 0.0)
     {
-        //std::cout<<"in constructor of DenseGP_GPU"<<std::endl;
         cublasStatus_t cublas_status = cublasCreate(&cublasHandle);
         if (cublas_status != CUBLAS_STATUS_SUCCESS)
         {
@@ -787,22 +838,11 @@ public:
 
         // if mean function is not provided, assume zero everywhere.
         if (!mean_) {
-           // std::cout<<"Creating a new zero meanfunction"<<std::endl;
             meanfunc = new ZeroMeanFunc();
         } else {
             // clone the meanfunction that we were given
-           // std::cout<<"Cloning the mean function"<<std::endl;
             meanfunc = mean_->clone();
         }
-         // make a polynomial mean function 
-        //std::vector< std::pair<int, int> > dims_powers;
-        //dims_powers.push_back(std::make_pair<int, int>(0,1));
-        //dims_powers.push_back(std::make_pair<int, int>(1,1));
-        // meanfunc = new PolyMeanFunc(dims_powers);   
-       //REAL mfval = 0.5;
-       //meanfunc = new FixedMeanFunc(mfval);
-       //    meanfunc = new ConstMeanFunc();
-                   
         
 	    if (kern_type == SQUARED_EXPONENTIAL) {
 	        kernel = new SquaredExponentialKernel();
@@ -810,10 +850,16 @@ public:
 	        kernel = new Matern52Kernel();
 	    } else throw std::runtime_error("Unrecognized kernel type\n");
 
-	    // resize meanfunc_params vector here
-	    meanfunc_params.resize(meanfunc->get_n_params(),1);
+        int n_mean = meanfunc->get_n_params();
+        n_corr = kernel->get_n_params(inputs);
+        gptheta = GPParams(n_mean, n_corr, nugtype_, nugsize_);
+        // resize the device vector that will store kernel hyperparameters
+        theta_d.resize(gptheta.get_n_data());
 	    // resize the device vector that will store derivative of mean function
 	    meanfunc_deriv_d.resize(meanfunc->get_n_params() * inputs.rows());
+
+        gptheta.set_nugget_type(nugtype_);
+        gptheta.set_nugget_size(nugsize_);
         // resize current_theta vector
         current_theta.resize(meanfunc->get_n_params() + get_n_params(),1);
     }

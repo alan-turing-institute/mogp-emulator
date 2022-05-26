@@ -92,18 +92,43 @@ public:
         return emulators.size();
     }
 
-    std::vector<unsigned int> get_n_data_params(void) const
+
+    std::vector<unsigned int> n_data_params(void) const
     {   
         std::vector<unsigned int> n_params;
         for (unsigned int i=0; i< emulators.size(); ++i) 
-            n_params.push_back(emulators[i]->get_n_params());
+            n_params.push_back(emulators[i]->get_theta().get_n_data());
         return n_params;
     }
+
+    std::vector<unsigned int> n_corr_params(void) const
+    {   
+        std::vector<unsigned int> n_params;
+        for (unsigned int i=0; i< emulators.size(); ++i) 
+            n_params.push_back(emulators[i]->get_theta().get_n_corr());
+        return n_params;
+    }
+
+    inline nugget_type get_nugget_type(void) const { return nug_type;}
+
+    inline REAL get_nugget_size(void) const { return nug_size;}
 
     void reset_fit_status(void) {
         for (unsigned int idx=0; idx < emulators.size(); ++idx) {
             emulators[idx]->reset_theta_fit_status();
         }   
+    }
+
+    void create_priors_for_emulator(unsigned int emulator_index,
+                                    int n_corr,
+                                    std::vector< std::pair< prior_type, std::vector<REAL> > > corr_params,
+                                    std::pair<prior_type, std::vector<REAL> > cov_params,
+                                    std::pair<prior_type, std::vector<REAL> > nug_params)
+                                   
+    {   
+        if (emulators.size() <= emulator_index)
+            throw std::runtime_error("Invalid emulator index for setting priors");
+        emulators[emulator_index]->create_gppriors(n_corr, corr_params, cov_params, nug_params);
     }
 
     std::vector<unsigned int> get_fitted_indices(void) const
@@ -188,17 +213,27 @@ public:
         }
     }
 
+    void fit(std::vector<GPParams> thetas) {
+        #pragma omp parallel for
+        for (unsigned int i=0; i< emulators.size(); ++i) {      
+            emulators[i]->fit(thetas[i]);
+        }   
+    }
+
     void fit(mat_ref thetas) {
         #pragma omp parallel for
         for (unsigned int i=0; i< emulators.size(); ++i) {      
             emulators[i]->fit(thetas.row(i));
         }   
-    }
+    }    
 
-
-    void fit_emulator(unsigned int index, vec_ref theta) {
+    void fit_emulator(unsigned int index, GPParams& theta) {
         emulators.at(index)->fit(theta);
     }
+
+    void fit_emulator(unsigned int index, vec& theta) {
+        emulators.at(index)->fit(theta);
+    }    
 
     void create_emulators() {
         unsigned int testing_size_per_emulator = testing_size / targets.size();
