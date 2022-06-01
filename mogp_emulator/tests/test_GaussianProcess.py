@@ -55,6 +55,9 @@ def test_GaussianProcess_init(x, y):
     gp = GaussianProcess(x, y, mean="x[0]")
     assert gp._dm.shape == (2, 2)
 
+    gp = GaussianProcess(x, y, mean="y ~ x[0]")
+    assert gp._dm.shape == (2, 2)
+
 
 @pytest.mark.skipif(not gpu_usable(), reason=GPU_NOT_FOUND_MSG)
 def test_GaussianProcessGPU_init(x, y):

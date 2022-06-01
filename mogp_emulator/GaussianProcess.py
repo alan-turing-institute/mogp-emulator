@@ -8,7 +8,7 @@ from mogp_emulator.linalg import cholesky_factor, calc_Ainv, calc_mean_params, c
 from mogp_emulator.linalg import logdet_deriv, calc_A_deriv
 
 try:
-    from patsy import dmatrix, PatsyError
+    from patsy import dmatrix, dmatrices, PatsyError
 except ImportError:
     raise ImportError("patsy is now a required dependency of mogp-emulator")
 import warnings
@@ -502,9 +502,13 @@ class GaussianProcess(GaussianProcessBase):
             dm = np.ones((inputs.shape[0], 1))
         else:
             try:
-                dm = np.array(dmatrix(self._mean, data={"x": inputs.T}))
+                dm = dmatrix(self._mean, data={"x": inputs.T})
             except PatsyError:
-                raise ValueError("Provided mean function is invalid")
+                try:
+                    y, dm = dmatrices(self._mean, data={"x": inputs.T, "y": self.targets})
+                except PatsyError:
+                    raise ValueError("Provided mean function is invalid")
+            dm = np.array(dm)
             if not dm.shape[0] == inputs.shape[0]:
                 raise ValueError("Provided design matrix is of the wrong shape")
 
