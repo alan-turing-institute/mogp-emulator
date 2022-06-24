@@ -86,18 +86,25 @@ def simulator_multioutput(x):
     return (results.y_events[0][0][2],
             np.sqrt(results.y_events[0][0][0]**2 + results.y_events[0][0][1]**2))
 
-# function for printing out results
+# functions for printing out results
 
-def print_results(inputs, errors, var):
+def print_results(inputs, arg, var):
+    "convenience function for printing out generic results"
+
+    print("---------------------------------------------------------------------------------")
+
+    for pp, m, v in zip(inputs, arg, var):
+        print("{}      {}       {}".format(pp, m, v))
+
+def print_predictions(inputs, pred, var):
+    "convenience function for printing predictions"
+    
+    print("Target Point                Predicted Mean             Predictive Variance")
+    print_results(inputs, pred, var)
+
+def print_errors(inputs, errors, var):
     "convenience function for printing out results and computing mean square error"
 
     print("Target Point                Standard Error             Predictive Variance")
-    print("---------------------------------------------------------------------------------")
-
-    error = 0.
-
-    for pp, e, v in zip(inputs, errors, var):
-        trueval = simulator(pp)
-        print("{}      {}       {}".format(pp, e, v))
-
+    print_results(inputs, errors, var)
     print("Mean squared error: {}".format(np.sum(errors**2)/len(errors)))

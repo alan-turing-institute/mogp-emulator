@@ -1,7 +1,7 @@
 import numpy as np
 import mogp_emulator
 from mogp_emulator.Kernel import UniformSqExp
-from projectile import print_results
+from mogp_emulator.demos.projectile import print_predictions
 
 # additional GP examples using different Kernels
 
@@ -56,7 +56,7 @@ predict_points = ed.sample(n_preds)
 
 means, variances, derivs = gp.predict(predict_points)
 
-print_results(predict_points, means)
+print_predictions(predict_points, means, variances)
 
 ###################################################################################
 
@@ -78,7 +78,7 @@ print("Nugget: {}".format(gp_matern.theta.nugget))
 
 means, variances, derivs = gp_matern.predict(predict_points)
 
-print_results(predict_points, means)
+print_predictions(predict_points, means, variances)
 
 ###################################################################################
 
@@ -106,4 +106,4 @@ print("Nugget: {}".format(gp_uniform.theta.nugget))
 
 means, variances, derivs = gp_uniform.predict(predict_points)
 
-print_results(predict_points, means)
+print_predictions(predict_points, means, variances)
