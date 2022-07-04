@@ -505,7 +505,7 @@ class GaussianProcess(GaussianProcessBase):
                 dm = dmatrix(self._mean, data={"x": inputs.T})
             except PatsyError:
                 try:
-                    y, dm = dmatrices(self._mean, data={"x": inputs.T, "y": self.targets})
+                    y, dm = dmatrices(self._mean, data={"x": inputs.T, "y": np.zeros(inputs.shape[0])})
                 except PatsyError:
                     raise ValueError("Provided mean function is invalid")
             dm = np.array(dm)

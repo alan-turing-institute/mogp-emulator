@@ -908,6 +908,18 @@ def test_GaussianProcess_predict(x, y):
     assert_allclose(mu, mu_expect)
     assert_allclose(var, var_expect)
     
+    # check that a formula with LHS doesn't trip up predictions
+    
+    gp = GaussianProcess(x, y, mean="y ~ x[0]", nugget=0.)
+
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    x_test = np.array([[2., 3., 4.]])
+
+    mu, var, deriv = gp.predict(x_test)
+    
     # check that predictions at inputs are close to mean
     
     mu, var, deriv = gp.predict(x)
