@@ -81,10 +81,10 @@ def test_GaussianProcessGPU_init(x, y):
     assert gp.kernel_type is kernel_type.SquaredExponential
     assert isinstance(gp.kernel, SquaredExponential)
     # test with mean function
-    gp = GaussianProcess(x, y, mean="x[0]")
+    gp = GaussianProcessGPU(x, y, mean="x[0]")
     assert gp.mean.get_n_params() == 2
     # mean function with LHS
-    gp = GaussianProcess(x, y, mean="y ~ x[0]")
+    gp = GaussianProcessGPU(x, y, mean="y ~ x[0]")
     assert gp.mean.get_n_params() == 2
 
 
