@@ -9,6 +9,7 @@ from mogp_emulator.GaussianProcess import (
 from mogp_emulator.Kernel import KernelBase
 from mogp_emulator.Priors import GPPriors
 from patsy import ModelDesc
+import warnings
 
 class MultiOutputGPBase(object):
     """Base class for Multi-Output GPs. CPU and GPU versions derive from
