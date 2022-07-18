@@ -9,7 +9,7 @@ import numpy as np
 # version information
 MAJOR = 0
 MINOR = 7
-MICRO = 0
+MICRO = 1
 PRERELEASE = 0
 ISRELEASED = True
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)

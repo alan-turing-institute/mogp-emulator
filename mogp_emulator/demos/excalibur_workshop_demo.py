@@ -42,12 +42,17 @@ simulation_output = np.array([simulator(p) for p in simulation_points])
 # Next, fit the surrogate GP model using MLE, zero mean, and no priors.
 # Print out hyperparameter values as correlation lengths, sigma, and nugget
 
-gp = mogp_emulator.GaussianProcess(simulation_points, simulation_output)
+# Note that as of v0.6.0, you have to explicitly choose weak priors (if none are
+# provided then the GP tries to fit some for you based on your data)
+
+priors = mogp_emulator.Priors.GPPriors(n_corr=2, nugget_type="adaptive")
+
+gp = mogp_emulator.GaussianProcess(simulation_points, simulation_output, priors=priors)
 gp = mogp_emulator.fit_GP_MAP(gp)
 
 print("Zero mean and no priors:")
-print("Correlation lengths = {}".format(np.sqrt(np.exp(-gp.theta[:2]))))
-print("Sigma = {}".format(np.sqrt(np.exp(gp.theta[2]))))
+print("Correlation lengths = {}".format(gp.theta.corr))
+print("Covariance scale (sigma^2)= {}".format(gp.theta.cov))
 print("Nugget = {}".format(gp.nugget))
 print()
 
@@ -101,13 +106,11 @@ meanfunc = "x[0]+x[1]"
 # we expect sigma to be large (as the function is very sensitive to inputs) while we want the
 # nugget to be small.
 
-priors = [mogp_emulator.Priors.NormalPrior(0., 10.),
-          mogp_emulator.Priors.NormalPrior(0., 10.),
-          mogp_emulator.Priors.NormalPrior(0., 10.),
-          mogp_emulator.Priors.NormalPrior(0., 1.),
-          mogp_emulator.Priors.NormalPrior(-10., 1.),
-          mogp_emulator.Priors.InvGammaPrior(1., 1.),
-          mogp_emulator.Priors.GammaPrior(1., 1.)]
+priors = mogp_emulator.Priors.GPPriors(mean=mogp_emulator.Priors.MeanPriors(mean=np.zeros(3), cov=10.),
+                                       corr=[mogp_emulator.Priors.LogNormalPrior(1., 1.),
+                                             mogp_emulator.Priors.LogNormalPrior(1., 1.)],
+                                       cov=mogp_emulator.Priors.InvGammaPrior(1., 1.),
+                                       nugget=mogp_emulator.Priors.GammaPrior(1., 1.))
 
 # Now, construct another GP using the mean function and priors. note that we also specify that we
 # want to estimate the nugget based on our prior, rather than adaptively fitting it as we did in
@@ -118,9 +121,9 @@ gp_map = mogp_emulator.GaussianProcess(simulation_points, simulation_output,
 gp_map = mogp_emulator.fit_GP_MAP(gp_map)
 
 print("With mean and priors:")
-print("Mean function parameters = {}".format(gp_map.theta[:3]))
-print("Correlation lengths = {}".format(np.sqrt(np.exp(-gp_map.theta[3:5]))))
-print("Sigma = {}".format(np.sqrt(np.exp(gp_map.theta[-2]))))
+print("Mean function parameters = {}".format(gp_map.theta.mean))
+print("Correlation lengths = {}".format(gp_map.theta.corr))
+print("Covariance Scale (sigma^2) = {}".format(gp_map.theta.cov))
 print("Nugget = {}".format(gp_map.nugget))
 
 # Use the new fit GP to predict the validation points and plot to see if this improved

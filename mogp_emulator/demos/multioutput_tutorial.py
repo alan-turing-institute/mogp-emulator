@@ -1,6 +1,7 @@
 import numpy as np
-from projectile import simulator_multioutput, print_results
+from mogp_emulator.demos.projectile import simulator_multioutput, print_errors
 import mogp_emulator
+import mogp_emulator.validation
 
 try:
     import matplotlib.pyplot as plt
@@ -45,18 +46,19 @@ if __name__ == "__main__": # this is required for multiprocessing to work correc
     print("Nugget (distance)= {}".format(np.sqrt(gp.emulators[0].theta.nugget)))
     print("Nugget (velocity)= {}".format(np.sqrt(gp.emulators[1].theta.nugget)))
 
-# Validate emulator by comparing to true simulated value
-# To compare with the emulator, use the predict method to get mean and variance
-# values for the emulator predictions and see how many are within 2 standard
-# deviations
+# Validate emulators by comparing to true simulated values
 
     n_valid = 10
     validation_points = lhd.sample(n_valid)
     validation_output = np.array([simulator_multioutput(p) for p in validation_points]).T
 
-    predictions = gp.predict(validation_points)
+    mean, var, _ = gp.predict(validation_points)
 
-    print_results(validation_points, predictions.mean)
+    errors = mogp_emulator.validation.standard_errors(gp, validation_points, validation_output)
+
+    for errval, v in zip(errors, var):
+        e, idx = errval
+        print_errors(validation_points[idx], e[idx], v[idx])
 
 # Finally, perform history matching. Sample densely from the experimental design and
 # determine which points are consistent with the data using the GP predictions
