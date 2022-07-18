@@ -1,5 +1,5 @@
 import numpy as np
-from projectile import simulator, print_results
+from mogp_emulator.demos.projectile import simulator, print_results
 import mogp_emulator
 import mogp_emulator.validation
 

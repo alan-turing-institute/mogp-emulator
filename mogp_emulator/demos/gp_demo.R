@@ -81,7 +81,7 @@ inputdict <- target_list[[3]]
 # to integer indices in the inputs matrix. This is done with a dict object as
 # illustrated below.
 
-mean_func <- "y ~ x1 + x2 + I(x1*x2)"
+mean_func <- "y ~ x[0] + x[1] + I(x[0]*x[1])"
 
 # Priors are specified by giving a list of prior objects (or NULL if you
 # wish to use weak prior information). Each distribution has some parameters
@@ -104,14 +104,12 @@ mean_func <- "y ~ x1 + x2 + I(x1*x2)"
 # so lognormal), a sigma^2 covariance parameter (inverse gamma) and a nugget
 # (Gamma). If you choose an adaptive or fixed nugget, the nugget prior is ignored.
 
-priors <- list(mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$NormalPrior(0., 1.),
-               mogp_priors$InvGammaPrior(2., 1.),
-               mogp_priors$GammaPrior(1., 0.2))
+priors <- mogp_priors$GPPriors(mean=mogp_priors$MeanPriors(mean=c(0., 0., 0., 0.),
+                                                           cov=c(1., 1., 1., 1.)),
+                               corr=list(mogp_priors$LogNormalPrior(1., 1.),
+                                         mogp_priors$LogNormalPrior(1., 1.)),
+                               cov=mogp_priors$InvGammaPrior(2., 1.),
+                               nugget=mogp_priors$GammaPrior(1., 0.2))
 
 # Finally, create the GP instance. If we had multiple outputs, we would
 # create a MultiOutputGP class in a similar way, but would have the option
@@ -122,8 +120,7 @@ priors <- list(mogp_priors$NormalPrior(0., 1.),
 gp <- mogp_emulator$GaussianProcess(inputs, targets,
                                     mean=mean_func,
                                     priors=priors,
-                                    nugget="fit",
-                                    inputdict=inputdict)
+                                    nugget="fit")
 
 # gp is fit using the fit_GP_MAP function. It accepts a GaussianProcess or
 # MultiOutputGP object and returns the same type of object with the

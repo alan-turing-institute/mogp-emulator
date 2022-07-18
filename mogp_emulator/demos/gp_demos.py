@@ -1,6 +1,6 @@
 import numpy as np
 import mogp_emulator
-from projectile import simulator, print_results
+from mogp_emulator.demos.projectile import simulator, print_predictions
 
 # additional GP examples using the projectile demo
 
@@ -44,7 +44,7 @@ predict_points = ed.sample(n_preds)
 
 means, variances, derivs = gp.predict(predict_points)
 
-print_results(predict_points, means)
+print_predictions(predict_points, means, variances)
 
 ###################################################################################
 
@@ -60,7 +60,7 @@ gp_matern = mogp_emulator.fit_GP_MAP(inputs, targets, kernel='Matern52', nugget=
 
 pred_res = gp_matern.predict(predict_points)
 
-print_results(predict_points, pred_res.mean)
+print_predictions(predict_points, pred_res.mean, pred_res.unc)
 
 ###################################################################################
 
@@ -80,13 +80,12 @@ print("Example 3: Mean Function and MAP fitting")
 # Inverse Gamma distribution on covariance (favors large values)
 # Gamma distribution on nugget (favors negative values)
 
-priors = [mogp_emulator.Priors.NormalPrior(0., 10),
-          mogp_emulator.Priors.NormalPrior(0., 10.),
-          mogp_emulator.Priors.NormalPrior(0., 10.),
-          mogp_emulator.Priors.NormalPrior(0., 1.),
-          mogp_emulator.Priors.NormalPrior(-10., 1.),
-          mogp_emulator.Priors.InvGammaPrior(1., 1.),
-          mogp_emulator.Priors.GammaPrior(1., 1.)]
+priors = mogp_emulator.Priors.GPPriors(mean=mogp_emulator.Priors.MeanPriors(mean=np.zeros(3),
+                                                                            cov=np.array([1., 1., 1.])),
+                                       corr=[ mogp_emulator.Priors.LogNormalPrior(1., 1.),
+                                              mogp_emulator.Priors.LogNormalPrior(1., 1.) ],
+                                       cov=mogp_emulator.Priors.InvGammaPrior(1., 1.),
+                                       nugget=mogp_emulator.Priors.GammaPrior(1., 1.))
 
 # create GP, passing list of priors and a string representing the mean function
 # tell it to estimate the nugget as well
@@ -101,4 +100,4 @@ gp_map = mogp_emulator.fit_GP_MAP(gp_map)
 
 pred_means = gp_map(predict_points)
 
-print_results(predict_points, pred_means)
+print_predictions(predict_points, pred_means, [""]*n_preds)

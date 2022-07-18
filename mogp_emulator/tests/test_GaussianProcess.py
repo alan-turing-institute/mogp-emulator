@@ -48,11 +48,14 @@ def test_GaussianProcess_init(x, y):
 
     gp = GaussianProcess(x, y, mean="0")
     assert gp._dm.shape == (2, 0)
-    
+
     gp = GaussianProcess(x, y, mean="-1")
     assert gp._dm.shape == (2, 0)
-    
+
     gp = GaussianProcess(x, y, mean="x[0]")
+    assert gp._dm.shape == (2, 2)
+
+    gp = GaussianProcess(x, y, mean="y ~ x[0]")
     assert gp._dm.shape == (2, 2)
 
 
@@ -77,6 +80,13 @@ def test_GaussianProcessGPU_init(x, y):
     assert isinstance(gp.kernel_type, kernel_type)
     assert gp.kernel_type is kernel_type.SquaredExponential
     assert isinstance(gp.kernel, SquaredExponential)
+    # test with mean function
+    gp = GaussianProcessGPU(x, y, mean="x[0]")
+    assert gp.mean.get_n_params() == 2
+    # mean function with LHS
+    gp = GaussianProcessGPU(x, y, mean="y ~ x[0]")
+    assert gp.mean.get_n_params() == 2
+
 
 def test_GP_init_failures(x, y):
     "Tests that GaussianProcess fails correctly with bad inputs"
@@ -92,7 +102,7 @@ def test_GP_init_failures(x, y):
 
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, mean=1.)
-        
+
     with pytest.raises(ValueError):
         gp = GaussianProcess(x, y, mean="x[6]")
 
@@ -139,10 +149,10 @@ def test_GaussianProcess_n_params(x, y):
 
     gp = GaussianProcess(x, y, mean="x[0]")
     assert gp.n_params == x.shape[1] + 1
-    
+
     gp = GaussianProcess(x, y, kernel="UniformSqExp")
     assert gp.n_params == 2
-    
+
     gp = GaussianProcess(x, y, nugget="pivot")
     assert gp.n_params == x.shape[1] + 1
 
@@ -181,7 +191,7 @@ def test_GaussianProcess_nugget(x, y):
     # nugget and nugget_type have no setter methods, check error is raises
     with pytest.raises(AttributeError):
         gp.nugget = 1.
-        
+
     with pytest.raises(AttributeError):
         gp.nugget_type = "fit"
 
@@ -251,14 +261,14 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
     Kinv_t_expect = np.linalg.solve(K, y)
     A = np.dot(gp._dm.T, np.linalg.solve(K, gp._dm))
     LA_expect = np.linalg.cholesky(A)
-    
+
     logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
                           np.log(np.linalg.det(A)) +
                           np.dot(y, Kinv_t_expect) -
                           np.linalg.multi_dot([Kinv_t_expect, gp._dm,
                                                np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))]) +
                           (gp.n - gp.n_mean)*np.log(2.*np.pi))
-                          
+
     mean_expect = np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))
 
     assert_allclose(L_expect, gp.Kinv.L)
@@ -269,7 +279,7 @@ def test_GaussianProcess_theta(x, y, mean, nugget, sn):
 
 def test_GaussianProcess_theta_scipy(x, y):
     "test the theta property of GaussianProcess by comparing with scipy implementation"
-    
+
     mean = "x[0]"
     nugget = "fit"
     nugget_type = "fit"
@@ -294,11 +304,11 @@ def test_GaussianProcess_theta_scipy(x, y):
     K += np.dot(gp._dm, np.dot(gp.priors.mean.cov, gp._dm.T))
 
     m = np.dot(gp._dm, gp.priors.mean.mean)
-    
+
     from scipy.stats import multivariate_normal
-    
+
     logpost_expect = -multivariate_normal.logpdf(y, mean=m, cov=K)
-    
+
     assert_allclose(logpost_expect, gp.current_logpost)
 
 def test_GaussianProcess_theta_GPParams(x, y):
@@ -316,7 +326,7 @@ def test_GaussianProcess_theta_GPParams(x, y):
 
     with pytest.raises(AssertionError):
         gp.theta = GPParams(n_corr=3, nugget="fit")
-        
+
     with pytest.raises(AssertionError):
         gp.theta = GPParams(n_corr=1, nugget="adaptive")
 
@@ -380,7 +390,7 @@ def test_GaussianProcess_theta_GPParams(x, y):
 
     with pytest.raises(AssertionError):
         gp.theta = GPParams(n_corr=3, nugget="fit")
-        
+
     with pytest.raises(AssertionError):
         gp.theta = GPParams(n_corr=1, nugget="adaptive")
 
@@ -437,7 +447,7 @@ def test_GaussianProcess_priors_property(x, y):
         assert isinstance(p, WeakPrior)
     assert isinstance(gp.priors.cov, WeakPrior)
     assert gp.priors.nugget is None
-    
+
     priors = {"mean": None, "corr": [LogNormalPrior(2., 2.), WeakPrior(), WeakPrior()], "cov": GammaPrior(3., 1.),
               "nugget_type": "adaptive"}
     gp = GaussianProcess(x, y, priors=priors)
@@ -456,11 +466,11 @@ def test_GaussianProcess_priors_property(x, y):
     gp = GaussianProcess(x, y, priors=priors)
 
     assert gp.priors.nugget is None
-    
+
     with pytest.raises(AssertionError):
         priors = GPPriors(n_corr=3, nugget_type="fit")
         gp = GaussianProcess(x, y, priors=priors)
-        
+
     with pytest.raises(AssertionError):
         priors = GPPriors(n_corr=4, nugget_type="adaptive")
         gp = GaussianProcess(x, y, priors=priors)
@@ -476,9 +486,9 @@ def test_GaussianProcess_priors_property(x, y):
 
     assert_allclose(gp.priors.mean.mean, [1.])
     assert_allclose(gp.priors.mean.cov, [1.])
-    
+
     gp = GaussianProcess(x, y, mean="1", priors={"mean": None, "n_corr": 2, "nugget_type": "adaptive"})
-    
+
     with pytest.raises(AssertionError):
         gp = GaussianProcess(x, y, mean="1", priors={"mean": (np.array([1., 2.]), np.array([1., 2.])), "n_corr": 2,
                                                      "nugget_type": "adaptive"})
@@ -515,20 +525,20 @@ def test_GaussianProcess_fit_logposterior(x, y, mean, nugget, sn):
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
     K = np.exp(theta[gp.D])*gp.kernel.kernel_f(x, x, theta[:gp.D]) + noise
-    
+
 
     L_expect = np.linalg.cholesky(K)
     Kinv_t_expect = np.linalg.solve(K, y)
     A = np.dot(gp._dm.T, np.linalg.solve(K, gp._dm))
     LA_expect = np.linalg.cholesky(A)
-    
+
     logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
                           np.log(np.linalg.det(A)) +
                           np.dot(y, Kinv_t_expect) -
                           np.linalg.multi_dot([Kinv_t_expect, gp._dm,
                                                np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))]) +
                           (gp.n - gp.n_mean)*np.log(2.*np.pi))
-                          
+
     mean_expect = np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))
 
     assert_allclose(L_expect, gp.Kinv.L)
@@ -607,7 +617,6 @@ def test_GaussianProcessGPU_logposterior(x, y):
     assert_allclose(gp.theta.get_data(), np.zeros(gp.n_params)) #GPU implementation resets to zero
     assert gp.Kinv_t is None
     assert gp.current_logpost is None
-  
 
 @pytest.fixture
 def dx():
@@ -692,7 +701,7 @@ def test_GaussianProcess_logpost_hessian(x, y, dx, mean, nugget, sn):
     theta = np.ones(n)
     if nugget == "fit":
         theta[-1] = sn
-        
+
     with pytest.raises(NotImplementedError):
         gp.logpost_hessian(theta)
 
@@ -778,7 +787,7 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
         assert_allclose(gp.nugget, np.exp(sn))
         noise = np.exp(sn)*np.eye(x.shape[0])
     K = gp.get_K_matrix() + noise
-    
+
     n_fact = gp.n
     if gp.priors.mean.has_weak_priors:
         n_fact -= gp.n_mean
@@ -787,15 +796,15 @@ def test_GaussianProcess_priors(x, y, dx, priors, nugget, sn):
     Kinv_t_expect = np.linalg.solve(K, y - gp.priors.mean.dm_dot_b(gp._dm))
     A = np.dot(gp._dm.T, np.linalg.solve(K, gp._dm)) + gp.priors.mean.inv_cov()
     LA_expect = np.linalg.cholesky(A)
-    
+
     logpost_expect = 0.5*(np.log(np.linalg.det(K)) +
                           np.log(np.linalg.det(A)) +
-                          gp.priors.mean.logdet_cov() + 
+                          gp.priors.mean.logdet_cov() +
                           np.dot(y - gp.priors.mean.dm_dot_b(gp._dm), Kinv_t_expect) -
                           np.linalg.multi_dot([Kinv_t_expect, gp._dm,
                                                np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect))]) +
                           n_fact*np.log(2.*np.pi))
-                          
+
     mean_expect = np.linalg.solve(A, np.dot(gp._dm.T, Kinv_t_expect) + gp.priors.mean.inv_cov_b())
 
     theta_transformed = np.zeros(gp.n_params)
@@ -904,13 +913,25 @@ def test_GaussianProcess_predict(x, y):
 
     assert_allclose(mu, mu_expect)
     assert_allclose(var, var_expect)
-    
+
+    # check that a formula with LHS doesn't trip up predictions
+
+    gp = GaussianProcess(x, y, mean="y ~ x[0]", nugget=0.)
+
+    theta = np.ones(gp.n_params)
+
+    gp.fit(theta)
+
+    x_test = np.array([[2., 3., 4.]])
+
+    mu, var, deriv = gp.predict(x_test)
+
     # check that predictions at inputs are close to mean
-    
+
     mu, var, deriv = gp.predict(x)
-    
+
     assert_allclose(mu, y)
-    
+
     # nonzero mean priors
 
     # gp = GaussianProcess(x, y, mean="x[0]",
@@ -994,7 +1015,7 @@ def test_GaussianProcessGPU_predict(x, y, dx):
 
     assert_allclose(mu, mu_expect)
     assert_allclose(var, var_expect)
-   
+
     # check that reshaping works as expected
 
     x_test = np.array([2., 3., 4.])
@@ -1092,7 +1113,7 @@ def test_GaussianProcessGPU_predict_nugget(x, y):
 
     preds = gp.predict(x, include_nugget=False)
     preds_expect = gpcpu.predict(x, include_nugget=False)
-    
+
     assert_allclose(preds.unc, preds_expect.unc, atol=1.e-7)
 
 def test_GaussianProcess_predict_pivot():
