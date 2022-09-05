@@ -121,3 +121,10 @@ def test_DimensionReduction_gram_matrix():
 
     assert(np.allclose(G_sqexp1, G_sqexp_expected))
     assert(np.allclose(G_sqexp2, G_sqexp_expected))
+
+
+def test_DimensionReduction_large():
+    X = np.random.randn(200, 3200)
+    Y = np.arange(200)
+
+    dr = gKDR(X, Y, 2)
