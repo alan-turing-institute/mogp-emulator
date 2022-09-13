@@ -19,10 +19,12 @@ installed via `pip`:
 pip install mogp-emulator
 ```
 
-Optionally, you may want to install some additional optional packages. `matplotlib` is useful for
-visualising some of the results of the benchmarks, and `patsy` is highly recommended for users that
-wish to parse R-style string formulas for specifying mean functions. These can be found in the
+Optionally, you may want to install some additional packages. In particular, `matplotlib` is useful for
+visualising some of the results of the benchmarks. These can be found in the
 [requirements-optional.txt](requirements-optional.txt) file in the main repository.
+
+Additionally, packages used in testing and developing the code base are listed in
+[requirements-dev.txt](requirements-dev.txt).
 
 ## Documentation
 
