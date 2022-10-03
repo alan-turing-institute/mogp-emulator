@@ -91,6 +91,8 @@ def test_DimensionReduction_B():
         assert(np.allclose(r, 1.0) or np.allclose(r, -1.0))
 
 def test_DimensionReduction_median_dist():
+    """Some basic checks of `mean_dist`
+    """
     X1 = np.array([[0.0], [1.0], [2.0]])
     assert(np.allclose(median_dist(X1), 1))
 
@@ -98,6 +100,8 @@ def test_DimensionReduction_median_dist():
     assert(np.allclose(median_dist(X2), 1.5))
 
 def test_DimensionReduction_gram_matrix():
+    """Some basic checks of `gram_matrix` and `gram_matrix_sqexp`
+    """
     X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
     def k_dot(x0, x1):
         return np.dot(x0, x1)
