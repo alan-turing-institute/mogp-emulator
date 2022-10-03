@@ -132,7 +132,7 @@ def test_DimensionReduction_large():
     issue for the current one.  The check is simply that the function
     completes without a crash or error.
     """
-    X = np.random.randn(200, 3200)
+    X = np.eye(200, 3200)
     Y = np.arange(200)
 
     dr = gKDR(X, Y, 2)
