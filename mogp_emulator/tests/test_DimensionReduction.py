@@ -124,6 +124,14 @@ def test_DimensionReduction_gram_matrix():
 
 
 def test_DimensionReduction_large():
+    """Check that gKDR runs on a 'large' problem
+
+    The implementation of gKDR in mogp v0.7 and earlier did not scale
+    well with problem size.  This test is of a larger case than could
+    reasonably be handled by that implementation, but should cause no
+    issue for the current one.  The check is simply that the function
+    completes without a crash or error.
+    """
     X = np.random.randn(200, 3200)
     Y = np.arange(200)
 
