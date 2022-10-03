@@ -71,7 +71,7 @@ regression on the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
-from scipy.linalg import cho_solve, cholesky
+from scipy.linalg import cho_solve, cho_factor
 from mogp_emulator.utils import k_fold_cross_validation, integer_bisect
 
 def gram_matrix(X, k):
@@ -201,9 +201,13 @@ class gKDR(object):
         Ky = gram_matrix_sqexp(Y, SGY2)
 
         regularized_Kx = Kx + N*EPS*I
-        lower_chol_factor = cholesky(regularized_Kx, lower=True)
-        tmp = cho_solve((lower_chol_factor, True), Ky)
-        F = cho_solve((lower_chol_factor, True), tmp.T).T
+
+        # Returns a tuple `(factor, lower?)`
+        # we pass this directly to cho_solve
+        cho_data = cho_factor(regularized_Kx, lower=True)
+
+        tmp = cho_solve(cho_data, Ky)
+        F = cho_solve(cho_data, tmp.T).T
 
         Dx = np.reshape(np.tile(X,(N,1)), (N,N,M), order='F').copy()
         Xij = Dx - np.transpose(Dx, (1,0,2))
