@@ -9,10 +9,10 @@ import numpy as np
 
 # version information
 MAJOR = 0
-MINOR = 7
-MICRO = 2
-PRERELEASE = 0
-ISRELEASED = True
+MINOR = 8
+MICRO = 0
+PRERELEASE = 3
+ISRELEASED = False
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
 
 if not ISRELEASED:

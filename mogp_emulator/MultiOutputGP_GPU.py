@@ -12,7 +12,7 @@ from mogp_emulator.GaussianProcessGPU import (
     create_prior_params
 )
 from mogp_emulator.MultiOutputGP import MultiOutputGPBase
-from mogp_emulator.MeanFunction import MeanBase
+from mogp_emulator.MeanFunction import MeanFunction, MeanBase
 from mogp_emulator.Kernel import SquaredExponential, Matern52
 from mogp_emulator.Priors import (
     GPPriors, 
@@ -296,7 +296,7 @@ class MultiOutputGP_GPU(MultiOutputGPBase):
                 derivs[index,:,:] = np.nan
         return PredictResult(mean=means, unc=uncs, deriv=derivs)
 
-    def __call__(self, testing, process=None):
+    def __call__(self, testing, processes=None):
         """Interface to predict means by calling the object
 
         A MultiOutputGP object is callable, which makes predictions of
