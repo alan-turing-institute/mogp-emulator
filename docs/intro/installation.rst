@@ -44,16 +44,14 @@ available.
 Requirements
 ~~~~~~~~~~~~
 
-The code requires Python 3.6 or later, and working Numpy and Scipy installations are required. You should
+The code requires Python 3.6 or later, and working Numpy, Scipy, and Patsy installations are required. You should
 be able to install these packages using ``pip`` if you do not have them already available on your system.
 From the base ``mogp_emulator`` directory, you can install all required packages using: ::
 
    pip install -r requirements.txt
 
 This will install the minimum requirements needed to use ``mogp_emulator``. There are a few addditional
-packages that are not required but can be useful (in particular, ``patsy`` is used for parsing
-mean functions using R-style formulas, so all R users are highly encouraged to install the optional
-dependencies). Installation of the optional dependencies can be done via: ::
+packages that are not required but can be useful. Installation of the optional dependencies can be done via: ::
 
    pip install -r requirements-optional.txt
 

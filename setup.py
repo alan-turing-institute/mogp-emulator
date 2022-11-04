@@ -3,13 +3,14 @@ import setuptools
 
 from distutils.extension import Extension
 from distutils.command.build_ext import build_ext
+from distutils.command.clean import clean
 
 import numpy as np
 
 # version information
 MAJOR = 0
 MINOR = 7
-MICRO = 1
+MICRO = 2
 PRERELEASE = 0
 ISRELEASED = True
 version = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
@@ -105,6 +106,13 @@ def find_dlib():
         "lib64": lib64
     }
 
+def clean_build_area(self):
+    # clean the current build area
+    c = clean(self.distribution)
+    c.all = True
+    c.finalize_options()
+    c.run()
+
 
 def customize_compiler_for_nvcc(self):
     """
@@ -140,6 +148,7 @@ def customize_compiler_for_nvcc(self):
 # Run the custom compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
+        clean_build_area(self)
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
