@@ -71,6 +71,7 @@ regression on the reduced input space:
 import sys
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
+from scipy.linalg import cho_solve, cho_factor
 from mogp_emulator.utils import k_fold_cross_validation, integer_bisect
 
 def gram_matrix(X, k):
@@ -199,19 +200,27 @@ class gKDR(object):
         Kx = gram_matrix_sqexp(X, SGX2)
         Ky = gram_matrix_sqexp(Y, SGY2)
 
+        regularized_Kx = Kx + N*EPS*I
+
+        # Returns a tuple `(factor, lower?)`
+        # we pass this directly to cho_solve
+        cho_data = cho_factor(regularized_Kx, lower=True)
+
+        tmp = cho_solve(cho_data, Ky)
+        F = cho_solve(cho_data, tmp.T).T
+
         Dx = np.reshape(np.tile(X,(N,1)), (N,N,M), order='F').copy()
         Xij = Dx - np.transpose(Dx, (1,0,2))
         Xij = Xij / SGX2
         H = Xij * np.tile(Kx[:,:,np.newaxis], (1,1,M))
 
-        tmp = np.linalg.solve(Kx + N*EPS*I, Ky)
-        F = np.linalg.solve((Kx + N*EPS*I).T, tmp.T).T
+        R = np.zeros((M,M), order='F')
 
-        Hm = np.reshape(H,(N,N*M), order='F')
-        HH = np.reshape(Hm.T @ Hm, (N,M,N,M), order='F')
-        HHm = np.reshape(np.transpose(HH, (0,2,1,3)), (N*N,M,M), order='F')
-        Fm = np.tile(np.reshape(F, (N*N,1,1), order='F'), (1,M,M))
-        R = np.reshape(np.sum(HHm * Fm, 0), (M,M), order='F')
+        nabla_k = np.reshape(H, (N,N*M), order='F')
+        Fm = np.reshape(np.matmul(F,nabla_k), (N,N,M), order='F')
+
+        for k in range(N):
+            R = R + np.dot(H[k,:,:].T, Fm[k,:,:])
 
         L, V = np.linalg.eigh(R)
 
