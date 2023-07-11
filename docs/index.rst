@@ -56,7 +56,7 @@ details, and some included benchmarks.
 
 .. toctree::
    :maxdepth: 1
-   :caption: For some more speicifs on benchmarks involving the implementation, see the following benchmark examples:
+   :caption: For some more specifics on benchmarks involving the implementation, see the following benchmark examples:
 
    benchmarks/benchmarks
 

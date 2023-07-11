@@ -166,7 +166,7 @@ and the uncertainty. This is done with the ``predict`` method of
 .. literalinclude:: ../../mogp_emulator/demos/tutorial.py
    :lines: 46-55
 
-``predictions`` is an object containing the mean and uncertainty (variance)
+The output of ``predict`` is an object containing the mean and uncertainty (variance)
 of the predictions. A GP assumes that the outputs follow a Normal Distribution,
 so we can perform validation by asking how many of our validation points mean estimates
 are within 2 standard deviations of the true value by computing the standard errors

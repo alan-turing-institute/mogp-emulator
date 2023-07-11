@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 from scipy.integrate import solve_ivp
 
-assert scipy.__version__ >= '1.4', "projectile.py requires scipy version 1.4 or greater"
+assert tuple(map(int, scipy.__version__.split('.'))) >= (1, 4), "projectile.py requires scipy version 1.4 or greater"
 
 # Create our simulator, which solves a nonlinear differential equation describing projectile
 # motion with drag. A projectile is launched from an initial height of 2 meters at an
