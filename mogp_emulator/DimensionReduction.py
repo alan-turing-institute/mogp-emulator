@@ -233,6 +233,7 @@ class gKDR(object):
         self.Y_scale = Y_scale
         self.K = K
         self.B = V[:, idx]
+        self.L = L[idx]
 
 
     def __call__(self, X):
