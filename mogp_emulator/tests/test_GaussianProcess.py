@@ -345,7 +345,7 @@ def test_GaussianProcessGPU_theta(x, y, mean, nugget, sn):
 
     with pytest.raises(RuntimeError):
         gp.theta = np.ones(gp.n_params + 1)
-
+    
     theta = np.ones(gp.n_params)
     if nugget == "fit":
         theta[-1] = sn
@@ -617,7 +617,6 @@ def test_GaussianProcessGPU_logposterior(x, y):
     assert_allclose(gp.theta.get_data(), np.zeros(gp.n_params)) #GPU implementation resets to zero
     assert gp.Kinv_t is None
     assert gp.current_logpost is None
-
 
 @pytest.fixture
 def dx():
